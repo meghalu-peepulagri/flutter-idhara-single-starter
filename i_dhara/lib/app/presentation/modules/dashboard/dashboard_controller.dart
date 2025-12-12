@@ -1,39 +1,47 @@
-import '../../widgets/motor_card_widget.dart';
-import '../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import 'dashboard_page.dart' show DashboardWidget;
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+// import 'dashboard_page.dart' show DashboardWidget;
+import 'package:get/get.dart';
+import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 
-class DashboardModel extends FlutterFlowModel<DashboardWidget> {
-  ///  State fields for stateful widgets in this page.
+class DashboardController extends GetxController {
+  final motors = <Motor>[].obs;
 
-  // Model for Motor_Card component.
-  late MotorCardModel motorCardModel1;
-  // Model for Motor_Card component.
-  late MotorCardModel motorCardModel2;
-  // Model for Motor_Card component.
-  late MotorCardModel motorCardModel3;
-  // Model for Motor_Card component.
-  late MotorCardModel motorCardModel4;
+  // Loading state
+  final isLoading = true.obs;
+  var isRefreshing = false.obs;
+
+  // Error message
+  final errorMessage = RxnString();
 
   @override
-  void initState(BuildContext context) {
-    motorCardModel1 = createModel(context, () => MotorCardModel());
-    motorCardModel2 = createModel(context, () => MotorCardModel());
-    motorCardModel3 = createModel(context, () => MotorCardModel());
-    motorCardModel4 = createModel(context, () => MotorCardModel());
+  void onInit() {
+    super.onInit();
+    fetchMotors();
   }
 
-  @override
-  void dispose() {
-    motorCardModel1.dispose();
-    motorCardModel2.dispose();
-    motorCardModel3.dispose();
-    motorCardModel4.dispose();
+  Future<void> refreshMotors() async {
+    isRefreshing.value = true;
+    await fetchMotors();
+  }
+
+  Future<void> fetchMotors() async {
+    try {
+      if (!isRefreshing.value) {
+        isLoading.value = true; // Only for first load
+      }
+
+      final response = await MotorsRepositoryImpl().getMotors();
+
+      if (response != null && response.data != null) {
+        motors.value = response.data!.records ?? [];
+      } else {
+        errorMessage.value = 'Failed to load motors';
+      }
+    } catch (e) {
+      isLoading.value = false;
+    } finally {
+      isLoading.value = false;
+      isRefreshing.value = false;
+    }
   }
 }

@@ -76,6 +76,7 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   connectivity_plus: ^7.0.0
   sms_autofill: ^2.4.1
+  skeletonizer: ^1.4.3
 
 dependency_overrides:
   http: 1.4.0

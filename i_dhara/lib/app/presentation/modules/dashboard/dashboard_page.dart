@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/bottom_nav/bottom_nav_bar.dart';
+import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet.dart';
 import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
@@ -12,32 +15,16 @@ import 'dashboard_controller.dart';
 
 export 'dashboard_controller.dart';
 
-class DashboardWidget extends StatefulWidget {
-  const DashboardWidget({super.key});
+class DashboardWidget extends StatelessWidget {
+  DashboardWidget({super.key});
 
-  static String routeName = 'Dashboard';
-  static String routePath = '/dashboard';
-
-  @override
-  State<DashboardWidget> createState() => _DashboardWidgetState();
-}
-
-class _DashboardWidgetState extends State<DashboardWidget> {
-  late DashboardModel _model;
+  final unfocusNode = FocusNode();
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  final controller = Get.put(DashboardController());
 
-  @override
-  void initState() {
-    super.initState();
-    _model = createModel(context, () => DashboardModel());
-  }
-
-  @override
-  void dispose() {
-    _model.dispose();
-
-    super.dispose();
+  void onTapMenu() {
+    scaffoldKey.currentState!.openEndDrawer();
   }
 
   @override
@@ -51,41 +38,19 @@ class _DashboardWidgetState extends State<DashboardWidget> {
         bottomNavigationBar: const BottomNavigation(activeIndex: 0),
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            print('FloatingActionButton pressed ...');
-          },
-          backgroundColor: FlutterFlowTheme.of(context).primary,
-          elevation: 8.0,
-          child: Icon(
-            Icons.add_rounded,
-            color: FlutterFlowTheme.of(context).info,
-            size: 24.0,
-          ),
-        ),
-        endDrawer: Drawer(
-          elevation: 16.0,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(
-                      Icons.close,
-                      color: FlutterFlowTheme.of(context).primaryText,
-                      size: 24.0,
-                    ),
-                  ],
-                ),
-              ].divide(const SizedBox(height: 24.0)),
-            ),
-          ),
-        ),
+        // floatingActionButton: FloatingActionButton(
+        //   onPressed: () {
+        //     print('FloatingActionButton pressed ...');
+        //   },
+        //   backgroundColor: FlutterFlowTheme.of(context).primary,
+        //   elevation: 8.0,
+        //   child: Icon(
+        //     Icons.add_rounded,
+        //     color: FlutterFlowTheme.of(context).info,
+        //     size: 24.0,
+        //   ),
+        // ),
+        endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
         body: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
@@ -170,14 +135,19 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                             ),
                           ].divide(const SizedBox(width: 8.0)),
                         ),
-                        Container(
-                          decoration: const BoxDecoration(),
-                          child: const Padding(
-                            padding: EdgeInsets.all(6.0),
-                            child: Icon(
-                              Icons.menu_sharp,
-                              color: Color(0xFF121212),
-                              size: 24.0,
+                        GestureDetector(
+                          onTap: () {
+                            onTapMenu();
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6.0),
+                              child: Icon(
+                                Icons.menu_sharp,
+                                color: Color(0xFF121212),
+                                size: 24.0,
+                              ),
                             ),
                           ),
                         ),
@@ -271,8 +241,10 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                                                   padding:
                                                       MediaQuery.of(context)
                                                           .viewInsets,
-                                                  child:
-                                                      const FiltersBottomsheetWidget(),
+                                                  child: const SizedBox(
+                                                      height: 400,
+                                                      child:
+                                                          FiltersBottomsheetWidget()),
                                                 );
                                               },
                                             );
@@ -294,42 +266,43 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                         ),
                       ),
                       Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(
-                            0,
-                            0,
-                            0,
-                            24.0,
-                          ),
-                          shrinkWrap: true,
-                          scrollDirection: Axis.vertical,
-                          children: [
-                            wrapWithModel(
-                              model: _model.motorCardModel1,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
+                        child: Obx(() {
+                          if (controller.isLoading.value) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          if (controller.motors.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'No motors available',
+                                style: FlutterFlowTheme.of(context).bodyMedium,
+                              ),
+                            );
+                          }
+                          return Skeletonizer(
+                            enabled: controller.isRefreshing.value,
+                            child: RefreshIndicator(
+                              onRefresh: controller.refreshMotors,
+                              child: ListView.builder(
+                                padding:
+                                    const EdgeInsets.fromLTRB(0, 0, 0, 24.0),
+                                itemCount: controller.motors.length,
+                                itemBuilder: (context, index) {
+                                  final motor = controller.motors[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: MotorCardWidget(motor: motor),
+                                  );
+                                },
+                              ),
                             ),
-                            wrapWithModel(
-                              model: _model.motorCardModel2,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                            wrapWithModel(
-                              model: _model.motorCardModel3,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                            wrapWithModel(
-                              model: _model.motorCardModel4,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                          ].divide(const SizedBox(height: 12.0)),
-                        ),
+                          );
+                        }),
                       ),
                     ]
-                        .divide(const SizedBox(height: 24.0))
-                        .addToStart(const SizedBox(height: 24.0)),
+                        .divide(const SizedBox(height: 10.0))
+                        .addToStart(const SizedBox(height: 20.0)),
                   ),
                 ),
               ),

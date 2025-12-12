@@ -8,28 +8,27 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class AppPages {
   static final getPages = [
-     GetPage(
+    GetPage(
       name: Routes.splash,
       page: () => const SplashCopyWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),
-     GetPage(
+    GetPage(
       name: Routes.loginwithmobile,
       page: () => const LoginwithmobileWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),
-     GetPage(
-      name: Routes.otp,
-      page: () =>  OtpWidget(),
-      transition: Transition.fade,
-      transitionDuration: const Duration(milliseconds: 300),
-      binding: OtpBinding()
-    ),
-     GetPage(
+    GetPage(
+        name: Routes.otp,
+        page: () => OtpWidget(),
+        transition: Transition.fade,
+        transitionDuration: const Duration(milliseconds: 300),
+        binding: OtpBinding()),
+    GetPage(
       name: Routes.dashboard,
-      page: () => const DashboardWidget(),
+      page: () => DashboardWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),

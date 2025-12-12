@@ -1,20 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart';
 
-import '/main.dart';
-import '../flutter_flow_theme.dart';
-import '../lat_lng.dart';
-import '../place.dart';
-import '../flutter_flow_util.dart';
-import 'serialization_util.dart';
-
 import '/index.dart';
+import '../flutter_flow_util.dart';
 
 export 'package:go_router/go_router.dart';
+
 export 'serialization_util.dart';
 
 const kTransitionInfoKey = '__transition_info__';
@@ -48,34 +41,29 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, _) => DashboardWidget(),
         ),
         FFRoute(
-          name: DashboardWidget.routeName,
-          path: DashboardWidget.routePath,
-          builder: (context, params) => DashboardWidget(),
-        ),
-        FFRoute(
           name: MotorControlWidget.routeName,
           path: MotorControlWidget.routePath,
-          builder: (context, params) => MotorControlWidget(),
+          builder: (context, params) => const MotorControlWidget(),
         ),
         FFRoute(
           name: DevicesWidget.routeName,
           path: DevicesWidget.routePath,
-          builder: (context, params) => DevicesWidget(),
+          builder: (context, params) => const DevicesWidget(),
         ),
         FFRoute(
           name: AddDevicesWidget.routeName,
           path: AddDevicesWidget.routePath,
-          builder: (context, params) => AddDevicesWidget(),
+          builder: (context, params) => const AddDevicesWidget(),
         ),
         FFRoute(
           name: QRCodeWidget.routeName,
           path: QRCodeWidget.routePath,
-          builder: (context, params) => QRCodeWidget(),
+          builder: (context, params) => const QRCodeWidget(),
         ),
         FFRoute(
           name: LocationsWidget.routeName,
           path: LocationsWidget.routePath,
-          builder: (context, params) => LocationsWidget(),
+          builder: (context, params) => const LocationsWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );
@@ -239,7 +227,8 @@ class TransitionInfo {
   final Duration duration;
   final Alignment? alignment;
 
-  static TransitionInfo appDefault() => TransitionInfo(hasTransition: false);
+  static TransitionInfo appDefault() =>
+      const TransitionInfo(hasTransition: false);
 }
 
 class RootPageContext {
