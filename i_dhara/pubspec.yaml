@@ -74,6 +74,8 @@ dependencies:
   top_snackbar_flutter: ^3.3.0
   get: ^4.7.3
   pretty_dio_logger: ^1.4.0
+  connectivity_plus: ^7.0.0
+  sms_autofill: ^2.4.1
 
 dependency_overrides:
   http: 1.4.0

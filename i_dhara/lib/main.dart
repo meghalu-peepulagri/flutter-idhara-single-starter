@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:get/get_navigation/src/root/get_material_app.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/routes/app_pages.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
 import 'app/core/flutter_flow/nav/nav.dart';
@@ -11,6 +15,7 @@ import 'index.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   GoRouter.optionURLReflectsImperativeAPIs = true;
+  await SharedPreference.init();
   usePathUrlStrategy();
 
   await FlutterFlowTheme.initialize();
@@ -60,7 +65,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
+    return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'I Dhara',
       localizationsDelegates: [
@@ -73,12 +78,16 @@ class _MyAppState extends State<MyApp> {
         brightness: Brightness.light,
         useMaterial3: false,
       ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: false,
-      ),
-      themeMode: _themeMode,
-      routerConfig: _router,
+      // darkTheme: ThemeData(
+      //   brightness: Brightness.dark,
+      //   useMaterial3: false,
+      // ),
+      // themeMode: _themeMode,
+      // routerConfig: _router,
+      initialRoute: SharedPreference.getAccessToken().isNotEmpty 
+        ? Routes.dashboard
+        : Routes.splash,
+      getPages: AppPages.getPages,
     );
   }
 }

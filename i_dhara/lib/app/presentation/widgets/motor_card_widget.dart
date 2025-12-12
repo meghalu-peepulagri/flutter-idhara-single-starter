@@ -45,7 +45,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12.0),
       ),
       child: Padding(
@@ -113,7 +113,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       Container(
                         decoration: BoxDecoration(
                           color:
-                              FlutterFlowTheme.of(context).secondaryBackground,
+                              Colors.white,
                           borderRadius: BorderRadius.circular(24.0),
                           border: Border.all(
                             color: Color(0xFFDCDCDC),

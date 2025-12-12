@@ -11,7 +11,7 @@ class AuthRepositoryImpl extends AuthRepository {
     final body = {"phone": phone};
     final response =
         await NetworkManager().post('/auth/signin-phone', data: body, {});
-    if (response.statusCode == 200 || response.statusCode == 422) {
+    if (response.statusCode == 200|| response.statusCode == 201 || response.statusCode == 422) {
       final res = PhoneResponse.fromJson(response.data);
       return res;
     } else {

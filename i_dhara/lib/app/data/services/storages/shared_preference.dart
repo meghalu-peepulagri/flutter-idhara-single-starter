@@ -5,6 +5,9 @@ class SharedPreference {
 
   static String accestoken = 'accesstoken';
 
+   static String phone = 'phone';
+     static String userId = 'userId';
+
 
 
 
@@ -20,4 +23,17 @@ class SharedPreference {
 
   ///Method that returns the [accestoken].
   static String getAccessToken() => preferences.getString(accestoken) ?? '';
+
+  ///Method that saves the [phone].
+  static Future<bool> setPhone(String value) async =>
+      preferences.setString(phone, value);
+
+  ///Method that returns the [phone].
+  static String getPhone() => preferences.getString(phone) ?? '';
+
+
+    static Future<bool> setUserId(int? value) async =>
+      preferences.setInt(userId, value!);
+
+  static int? getUserId() => preferences.getInt(userId) ?? null;
 }
