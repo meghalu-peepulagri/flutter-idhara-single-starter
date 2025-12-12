@@ -46,11 +46,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const MotorControlWidget(),
         ),
         FFRoute(
-          name: DevicesWidget.routeName,
-          path: DevicesWidget.routePath,
-          builder: (context, params) => const DevicesWidget(),
-        ),
-        FFRoute(
           name: AddDevicesWidget.routeName,
           path: AddDevicesWidget.routePath,
           builder: (context, params) => const AddDevicesWidget(),

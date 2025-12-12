@@ -234,7 +234,9 @@ class VoltageCurrentValuesCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(0.0),
           child: SvgPicture.asset(
-            'assets/images/pump.svg',
+            motor.state == 1
+                ? 'assets/images/pump.svg'
+                : 'assets/images/pump_off.svg',
             fit: BoxFit.cover,
           ),
         ),

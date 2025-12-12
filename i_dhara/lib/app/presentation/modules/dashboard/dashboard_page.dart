@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/bottom_nav/bottom_nav_bar.dart';
+import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet.dart';
 import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
@@ -40,21 +40,20 @@ class DashboardWidget extends StatelessWidget {
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
         endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-        body: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              fit: BoxFit.cover,
-              image: Image.asset(
-                'assets/images/idhara_background.png',
-              ).image,
+        body: SafeArea(
+          child: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                fit: BoxFit.cover,
+                image: Image.asset(
+                  'assets/images/idhara_background.png',
+                ).image,
+              ),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
+            child: Column(mainAxisSize: MainAxisSize.max, children: [
               Padding(
                 padding:
-                    const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                    const EdgeInsetsDirectional.fromSTEB(16.0, 16.0, 16.0, 0.0),
                 child: Row(
                   mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -291,9 +290,7 @@ class DashboardWidget extends StatelessWidget {
                   ),
                 ),
               ),
-            ]
-                .divide(const SizedBox(height: 0.0))
-                .addToStart(const SizedBox(height: 16.0)),
+            ]),
           ),
         ),
       ),

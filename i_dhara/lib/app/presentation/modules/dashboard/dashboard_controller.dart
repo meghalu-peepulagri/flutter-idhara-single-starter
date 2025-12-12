@@ -64,7 +64,7 @@ class DashboardController extends GetxController {
     selectedLocationId.value = locationId;
 
     if (locationId == null) {
-      motors.value = allMotors;
+      motors.value = allMotors; // Show all motors
       return;
     }
 

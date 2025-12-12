@@ -217,8 +217,8 @@ class StarterParameter {
   int? fault;
   String? faultDescription;
   int? lineVoltageR;
-  int? lineVoltageY;
-  int? lineVoltageB;
+  double? lineVoltageY;
+  double? lineVoltageB;
   int? currentR;
   int? currentY;
   int? currentB;
@@ -245,8 +245,8 @@ class StarterParameter {
         fault: json["fault"],
         faultDescription: json["fault_description"],
         lineVoltageR: json["line_voltage_r"],
-        lineVoltageY: json["line_voltage_y"],
-        lineVoltageB: json["line_voltage_b"],
+        lineVoltageY: json["line_voltage_y"]?.toDouble(),
+        lineVoltageB: json["line_voltage_b"]?.toDouble(),
         currentR: json["current_r"],
         currentY: json["current_y"],
         currentB: json["current_b"],

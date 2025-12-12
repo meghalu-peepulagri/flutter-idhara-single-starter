@@ -4,6 +4,8 @@ import 'package:i_dhara/app/presentation/modules/auth/otp/otp_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/auth/otp/otp_page.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_page.dart';
+import 'package:i_dhara/app/presentation/modules/devices/devices_page.dart';
+import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -33,6 +35,18 @@ class AppPages {
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
       binding: DashboardBinding(),
+    ),
+    GetPage(
+      name: Routes.locations,
+      page: () => const LocationsWidget(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.devices,
+      page: () => DevicesPage(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
     ),
   ];
 }

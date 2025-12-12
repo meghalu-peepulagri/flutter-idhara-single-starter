@@ -1,17 +1,60 @@
-import '../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import 'devices_page.dart' show DevicesWidget;
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
-class DevicesModel extends FlutterFlowModel<DevicesWidget> {
-  @override
-  void initState(BuildContext context) {}
+class DevicesController extends GetxController {
+  final RxList<Devices> devicesList = <Devices>[].obs;
+
+  final RxBool isLoading = false.obs;
+  var isRefreshing = false.obs;
+
+  final RxString errorMessage = ''.obs;
+
+  final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
   @override
-  void dispose() {}
+  void onInit() {
+    super.onInit();
+    fetchDevices();
+  }
+
+  /// Fetch devices from API
+  Future<void> fetchDevices() async {
+    try {
+      if (!isRefreshing.value) isLoading.value = true;
+
+      final response = await _repository.getDevices();
+
+      if (response != null && response.data != null) {
+        devicesList.value = response.data!.records ?? [];
+      } else {
+        errorMessage.value = 'No data found';
+      }
+    } catch (e) {
+      isLoading.value = false;
+      errorMessage.value = 'Error fetching devices: $e';
+      print('Error in fetchDevices: $e');
+    } finally {
+      isLoading.value = false;
+      isRefreshing.value = false;
+    }
+  }
+
+  Future<void> refreshDevices() async {
+    isRefreshing.value = true;
+    await fetchDevices();
+  }
+
+  List<Devices> searchDevices(String query) {
+    if (query.isEmpty) return devicesList;
+
+    return devicesList.where((device) {
+      final nameMatch =
+          device.name?.toLowerCase().contains(query.toLowerCase()) ?? false;
+      final pcbMatch =
+          device.pcbNumber?.toLowerCase().contains(query.toLowerCase()) ??
+              false;
+      return nameMatch || pcbMatch;
+    }).toList();
+  }
 }
