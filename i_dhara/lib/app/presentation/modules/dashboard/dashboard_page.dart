@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/bottom_nav/bottom_nav_bar.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet.dart';
@@ -10,7 +11,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../widgets/motor_card_widget.dart';
+import '../../widgets/motor_card/motor_card_widget.dart';
 import 'dashboard_controller.dart';
 
 export 'dashboard_controller.dart';
@@ -38,18 +39,6 @@ class DashboardWidget extends StatelessWidget {
         bottomNavigationBar: const BottomNavigation(activeIndex: 0),
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-        // floatingActionButton: FloatingActionButton(
-        //   onPressed: () {
-        //     print('FloatingActionButton pressed ...');
-        //   },
-        //   backgroundColor: FlutterFlowTheme.of(context).primary,
-        //   elevation: 8.0,
-        //   child: Icon(
-        //     Icons.add_rounded,
-        //     color: FlutterFlowTheme.of(context).info,
-        //     size: 24.0,
-        //   ),
-        // ),
         endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
         body: Container(
           decoration: BoxDecoration(
@@ -83,57 +72,52 @@ class DashboardWidget extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.max,
                           children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(0.0),
-                                  child: SvgPicture.asset(
-                                    'assets/images/location_pin.svg',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Text(
-                                  'Kandukur',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.dmSans(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: const Color(0xFF2B2B2B),
-                                        fontSize: 16.0,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: Color(0xFF2B2B2B),
-                                  size: 22.0,
-                                ),
-                              ].divide(const SizedBox(width: 4.0)),
+                            GestureDetector(
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => LocationBottomSheet(),
+                                );
+                              },
+                              child: Obx(() {
+                                final selectedId =
+                                    controller.selectedLocationId.value;
+
+                                String locationName;
+
+                                if (selectedId == null) {
+                                  locationName = "All";
+                                } else {
+                                  locationName = controller.locations
+                                          .firstWhere((e) => e.id == selectedId)
+                                          .name ??
+                                      "Location";
+                                }
+
+                                return Row(
+                                  children: [
+                                    SvgPicture.asset(
+                                        'assets/images/location_pin.svg'),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      locationName,
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium,
+                                    ),
+                                    const Icon(Icons.keyboard_arrow_down),
+                                  ],
+                                );
+                              }),
                             ),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(0.0),
-                              child: SvgPicture.asset(
-                                'assets/images/bell-simple_1.svg',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 8.0)),
+                            // ClipRRect(
+                            //   borderRadius: BorderRadius.circular(0.0),
+                            //   child: SvgPicture.asset(
+                            //     'assets/images/bell-simple_1.svg',
+                            //     fit: BoxFit.cover,
+                            //   ),
+                            // ),
+                          ].divide(const SizedBox(width: 10.0)),
                         ),
                         GestureDetector(
                           onTap: () {
@@ -146,7 +130,7 @@ class DashboardWidget extends StatelessWidget {
                               child: Icon(
                                 Icons.menu_sharp,
                                 color: Color(0xFF121212),
-                                size: 24.0,
+                                size: 30.0,
                               ),
                             ),
                           ),
@@ -267,7 +251,8 @@ class DashboardWidget extends StatelessWidget {
                       ),
                       Expanded(
                         child: Obx(() {
-                          if (controller.isLoading.value) {
+                          if (controller.isLoading.value ||
+                              controller.isFiltering.value) {
                             return const Center(
                               child: CircularProgressIndicator(),
                             );

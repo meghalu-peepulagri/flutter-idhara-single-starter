@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/presentation/modules/auth/login_with_mobile/login_with_mobile_page.dart';
 import 'package:i_dhara/app/presentation/modules/auth/otp/otp_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/auth/otp/otp_page.dart';
+import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -31,6 +32,7 @@ class AppPages {
       page: () => DashboardWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
+      binding: DashboardBinding(),
     ),
   ];
 }
