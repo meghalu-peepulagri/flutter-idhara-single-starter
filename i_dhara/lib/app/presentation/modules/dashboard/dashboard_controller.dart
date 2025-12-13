@@ -2,7 +2,7 @@
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
-import 'package:i_dhara/app/data/repository/locations/location_dropdown_repo_impl.dart';
+import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 
 class DashboardController extends GetxController {
@@ -53,7 +53,7 @@ class DashboardController extends GetxController {
   }
 
   Future<void> fetchLocationDropDown() async {
-    final response = await LocationDropdownRepoImpl().getLocations();
+    final response = await LocationRepoImpl().getLocations();
     if (response != null) {
       locations.value = response.data ?? [];
       locations.insert(0, LocationDropDown(id: null, name: 'All'));

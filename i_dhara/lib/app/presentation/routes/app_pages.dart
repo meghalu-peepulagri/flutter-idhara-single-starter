@@ -38,7 +38,7 @@ class AppPages {
     ),
     GetPage(
       name: Routes.locations,
-      page: () => const LocationsWidget(),
+      page: () => LocationsWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),

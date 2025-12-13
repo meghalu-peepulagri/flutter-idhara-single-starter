@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/devices_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -45,10 +46,15 @@ class DevicesPage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(
-                        Icons.arrow_back,
-                        color: Color(0xFF004E7E),
-                        size: 20.0,
+                      GestureDetector(
+                        onTap: () {
+                          Get.offAllNamed(Routes.dashboard);
+                        },
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFF004E7E),
+                          size: 20.0,
+                        ),
                       ),
                       Expanded(
                         child: Row(
