@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/utils/bottom_nav/bottom_nav_bar.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
-import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet.dart';
 import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -36,7 +33,7 @@ class DashboardWidget extends StatelessWidget {
         FocusManager.instance.primaryFocus?.unfocus();
       },
       child: Scaffold(
-        bottomNavigationBar: const BottomNavigation(activeIndex: 0),
+        // bottomNavigationBar: const BottomNavigation(activeIndex: 0),
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
         endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
@@ -147,107 +144,107 @@ class DashboardWidget extends StatelessWidget {
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       const WeatherCard(),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6.0),
-                          border: Border.all(
-                            color: const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              12.0, 8.0, 12.0, 8.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  const Icon(
-                                    Icons.search,
-                                    color: Color(0xFF828282),
-                                    size: 20.0,
-                                  ),
-                                  Text(
-                                    'Search Pumps ',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.w500,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: const Color(0xFF828282),
-                                          fontSize: 16.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w500,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ].divide(const SizedBox(width: 8.0)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0.0, 0.0, 6.0, 0.0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    SizedBox(
-                                      height: 30.0,
-                                      child: VerticalDivider(
-                                        thickness: 1.0,
-                                        color: FlutterFlowTheme.of(context)
-                                            .alternate,
-                                      ),
-                                    ),
-                                    Container(
-                                      decoration: const BoxDecoration(),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(6.0),
-                                        child: GestureDetector(
-                                          onTap: () async {
-                                            await showModalBottomSheet(
-                                              isScrollControlled: true,
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              context: context,
-                                              builder: (context) {
-                                                return Padding(
-                                                  padding:
-                                                      MediaQuery.of(context)
-                                                          .viewInsets,
-                                                  child: const SizedBox(
-                                                      height: 400,
-                                                      child:
-                                                          FiltersBottomsheetWidget()),
-                                                );
-                                              },
-                                            );
-                                          },
-                                          child: Icon(
-                                            Icons.filter_list_outlined,
-                                            color: FlutterFlowTheme.of(context)
-                                                .primaryText,
-                                            size: 20.0,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ].divide(const SizedBox(width: 10.0)),
-                                ),
-                              ),
-                            ].divide(const SizedBox(width: 8.0)),
-                          ),
-                        ),
-                      ),
+                      // Container(
+                      //   decoration: BoxDecoration(
+                      //     color: Colors.white,
+                      //     borderRadius: BorderRadius.circular(6.0),
+                      //     border: Border.all(
+                      //       color: const Color(0xFFE5E7EB),
+                      //     ),
+                      //   ),
+                      //   child: Padding(
+                      //     padding: const EdgeInsetsDirectional.fromSTEB(
+                      //         12.0, 8.0, 12.0, 8.0),
+                      //     child: Row(
+                      //       mainAxisSize: MainAxisSize.max,
+                      //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      //       children: [
+                      //         Row(
+                      //           mainAxisSize: MainAxisSize.max,
+                      //           children: [
+                      //             const Icon(
+                      //               Icons.search,
+                      //               color: Color(0xFF828282),
+                      //               size: 20.0,
+                      //             ),
+                      //             Text(
+                      //               'Search Pumps ',
+                      //               style: FlutterFlowTheme.of(context)
+                      //                   .bodyMedium
+                      //                   .override(
+                      //                     font: GoogleFonts.dmSans(
+                      //                       fontWeight: FontWeight.w500,
+                      //                       fontStyle:
+                      //                           FlutterFlowTheme.of(context)
+                      //                               .bodyMedium
+                      //                               .fontStyle,
+                      //                     ),
+                      //                     color: const Color(0xFF828282),
+                      //                     fontSize: 16.0,
+                      //                     letterSpacing: 0.0,
+                      //                     fontWeight: FontWeight.w500,
+                      //                     fontStyle:
+                      //                         FlutterFlowTheme.of(context)
+                      //                             .bodyMedium
+                      //                             .fontStyle,
+                      //                   ),
+                      //             ),
+                      //           ].divide(const SizedBox(width: 8.0)),
+                      //         ),
+                      //         Padding(
+                      //           padding: const EdgeInsetsDirectional.fromSTEB(
+                      //               0.0, 0.0, 6.0, 0.0),
+                      //           child: Row(
+                      //             mainAxisSize: MainAxisSize.max,
+                      //             children: [
+                      //               SizedBox(
+                      //                 height: 30.0,
+                      //                 child: VerticalDivider(
+                      //                   thickness: 1.0,
+                      //                   color: FlutterFlowTheme.of(context)
+                      //                       .alternate,
+                      //                 ),
+                      //               ),
+                      //               Container(
+                      //                 decoration: const BoxDecoration(),
+                      //                 child: Padding(
+                      //                   padding: const EdgeInsets.all(6.0),
+                      //                   child: GestureDetector(
+                      //                     onTap: () async {
+                      //                       await showModalBottomSheet(
+                      //                         isScrollControlled: true,
+                      //                         backgroundColor:
+                      //                             Colors.transparent,
+                      //                         context: context,
+                      //                         builder: (context) {
+                      //                           return Padding(
+                      //                             padding:
+                      //                                 MediaQuery.of(context)
+                      //                                     .viewInsets,
+                      //                             child: const SizedBox(
+                      //                                 height: 400,
+                      //                                 child:
+                      //                                     FiltersBottomsheetWidget()),
+                      //                           );
+                      //                         },
+                      //                       );
+                      //                     },
+                      //                     child: Icon(
+                      //                       Icons.filter_list_outlined,
+                      //                       color: FlutterFlowTheme.of(context)
+                      //                           .primaryText,
+                      //                       size: 20.0,
+                      //                     ),
+                      //                   ),
+                      //                 ),
+                      //               ),
+                      //             ].divide(const SizedBox(width: 10.0)),
+                      //           ),
+                      //         ),
+                      //       ].divide(const SizedBox(width: 8.0)),
+                      //     ),
+                      //   ),
+                      // ),
                       Expanded(
                         child: Obx(() {
                           if (controller.isLoading.value ||
@@ -276,7 +273,11 @@ class DashboardWidget extends StatelessWidget {
                                   final motor = controller.motors[index];
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 10),
-                                    child: MotorCardWidget(motor: motor),
+                                    child: MotorCardWidget(
+                                      motor: motor,
+                                      mqttService: controller.mqttService,
+                                      onToggleMotor: controller.toggleMotor,
+                                    ),
                                   );
                                 },
                               ),

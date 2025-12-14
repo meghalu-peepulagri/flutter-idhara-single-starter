@@ -50,11 +50,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: AddDevicesWidget.routePath,
           builder: (context, params) => const AddDevicesWidget(),
         ),
-        FFRoute(
-          name: QRCodeWidget.routeName,
-          path: QRCodeWidget.routePath,
-          builder: (context, params) => const QRCodeWidget(),
-        ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );
 

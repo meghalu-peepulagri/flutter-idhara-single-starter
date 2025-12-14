@@ -1,8 +1,6 @@
 // import 'dart:convert';
 
 // import 'package:flutter/foundation.dart';
-// import 'package:get/get.dart';
-// import 'package:i_dhara/app/core/config/env.dart';
 // import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
 // import 'package:mqtt_client/mqtt_client.dart';
 // import 'package:mqtt_client/mqtt_server_client.dart';
@@ -21,74 +19,21 @@
 //   int state = 0;
 //   String motorMode = '_';
 //   int? modeIndex;
+//   int power = 0;
+//   int fault = 0;
+//   int alert = 0;
 
 //   String runTime = '-';
-//   String automationMode = '--';
 //   bool hasReceivedData = false;
-//   String? pondId;
-//   String? ipv6;
-//   String? mac;
+//   String? macAddress;
+//   String? groupId; // G01, G02, G03, G04
 //   String? title;
-//   String? faultCode;
-//   String? alertCode;
-//   String? power;
 
-//   MotorData(
-//       {this.pondId,
-//       this.ipv6,
-//       this.mac,
-//       this.title,
-//       this.faultCode,
-//       this.alertCode});
-
-//   MotorData.fromMap(Map<String, dynamic> map) {
-//     voltageRed = map['voltageRed'] ?? '0';
-//     voltageYellow = map['voltageYellow'] ?? '0';
-//     voltageBlue = map['voltageBlue'] ?? '0';
-//     currentRed = map['currentRed'] ?? '0';
-//     currentYellow = map['currentYellow'] ?? '0';
-//     currentBlue = map['currentBlue'] ?? '0';
-//     state = map['state'] ?? 0;
-//     motorMode = map['mode'];
-
-//     power = map['power'];
-//     modeIndex = map['modeIndex'];
-
-//     runTime = map['runTime'] ?? '-';
-//     automationMode = map['automationMode'] ?? '--';
-//     faultCode = map['faultCode'];
-//     alertCode = map['alertCode'];
-//     pondId = map['pondId'];
-//     ipv6 = map['ipv6'];
-//     mac = map['mac'];
-//     title = map['title'];
-//     controller.value = state == 1 || state == 6;
-//     modeswitchcontroller.value = modeIndex;
-//     hasReceivedData = true;
-//   }
-
-//   Map<String, dynamic> toMap() {
-//     return {
-//       'voltageRed': voltageRed,
-//       'mode': motorMode,
-//       'voltageYellow': voltageYellow,
-//       'voltageBlue': voltageBlue,
-//       'currentRed': currentRed,
-//       'currentYellow': currentYellow,
-//       'currentBlue': currentBlue,
-//       'modeIndex': modeIndex,
-//       'state': state,
-//       'runTime': runTime,
-//       'automationMode': automationMode,
-//       'faultCode': faultCode,
-//       'alertCode': alertCode,
-//       'pondId': pondId,
-//       'ipv6': ipv6,
-//       'mac': mac,
-//       'title': title,
-//       "power": power
-//     };
-//   }
+//   MotorData({
+//     this.macAddress,
+//     this.groupId,
+//     this.title,
+//   });
 
 //   void dispose() {
 //     controller.dispose();
@@ -98,150 +43,124 @@
 
 // class MqttService {
 //   static final MqttService _instance = MqttService._internal();
-//   static String? mainGateway;
-//   static String? topic1;
-//   static String? topic2;
-//   static String? topic3;
-//   static String? topic4;
 
-//   // Factory constructor to allow initial population of pondMotorMap
-//   factory MqttService(
-//       {Map<String, List<Map<String, String>>>? initialPondMotorMap}) {
-//     if (initialPondMotorMap != null) {
-//       _instance.pondMotorMap = initialPondMotorMap;
-//       _instance._populateMotorDataMapFromPondMotorMap();
+//   factory MqttService({Map<String, Motor>? initialMotors}) {
+//     if (initialMotors != null) {
+//       _instance.motors = initialMotors;
+//       _instance._populateMotorDataFromMotors();
 //     }
-//     _instance._initializeService();
 //     return _instance;
 //   }
 
 //   MqttServerClient? mqttClient;
-//   late Map<String, MotorData>
-//       motorDataMap; // Stores motor data by fullMotorId (ipv6-motorRefId)
+//   late Map<String, MotorData> motorDataMap; // key: "mac-groupId"
 //   bool isConnected = false;
 //   String statusMessage = 'Connecting to MQTT broker...';
 //   DateTime? lastMessageTime;
 //   final ValueNotifier<int> _dataUpdateNotifier = ValueNotifier(0);
-//   Map<String, List<Map<String, String>>> pondMotorMap =
-//       {}; // Maps pond IDs to lists of motor details
+
+//   Map<String, Motor> motors = {}; // Stores Motor objects by mac-groupId
 //   bool _isDataLoaded = false;
-//   final Map<String, DateTime> _lastAckTimes =
-//       {}; // Tracks last acknowledgment times
-//   final Map<String, DateTime> _lastCommandTimes =
-//       {}; // Tracks last command times
-//   Map<String, Map<String, Motor>> deviceDataMap = {};
+//   final Map<String, DateTime> _lastAckTimes = {};
+//   final Map<String, DateTime> _lastCommandTimes = {};
+
 //   MqttService._internal() {
 //     motorDataMap = {};
-//     _initializeService();
 //   }
 
 //   ValueNotifier<int> get dataUpdateNotifier => _dataUpdateNotifier;
 
-//   // Method to manually update pondMotorMap from outside the class
-//   void updatePondMotorMap(
-//       Map<String, List<Map<String, String>>> newPondMotorMap) {
-//     pondMotorMap = newPondMotorMap;
+//   void updateMotors(Map<String, Motor> newMotors) {
+//     motors = newMotors;
+//     _populateMotorDataFromMotors();
 //     _dataUpdateNotifier.value++;
 //   }
 
-//   Motor? getDeviceByMac(String mac) {
-//     for (var pondEntry in deviceDataMap.entries) {
-//       if (pondEntry.value.containsKey(mac)) {
-//         return pondEntry.value[mac];
-//       }
-//     }
-//     return null; // Not found
+//   Motor? getMotorByMacAndGroup(String mac, String groupId) {
+//     final key = '$mac-$groupId';
+//     return motors[key];
 //   }
 
-//   void updateDeviceModeByMac(String mac, String newMode) {
-//     for (var pondEntry in deviceDataMap.entries) {
-//       if (pondEntry.value.containsKey(mac)) {
-//         pondEntry.value[mac]!.mode = newMode;
-
-//         dataUpdateNotifier.value++;
-//         return;
-//       }
-//     }
-//   }
-
-//   // Initializes the service by requesting permissions and fetching initial data
-//   Future<void> _initializeService() async {
-//     // await _requestPermissions();
-
-//     await initializeMqttClient();
-//     // if (gateway != null && gateway.isNotEmpty) {
-
-//     // }
-//   }
-
-//   void _populateMotorDataMapFromPondMotorMap() {
+//   void _populateMotorDataFromMotors() {
 //     motorDataMap.clear();
-//     for (var entry in pondMotorMap.entries) {
-//       final pondId = entry.key;
-//       for (var motor in entry.value) {
-//         final fullMotorId = motor['id']!;
-//         final ipv6 = motor['ipv6']!;
-//         final mac = motor['mac'];
-//         final motorRefId = motor['motorRefId']!;
-//         final title = motor['motorName'];
+//     for (var entry in motors.entries) {
+//       final motor = entry.value;
+//       final key = entry.key; // mac-groupId
 
-//         motorDataMap[fullMotorId] = MotorData(
-//             pondId: pondId,
-//             ipv6: ipv6,
-//             mac: mac,
-//             title: title,
-//             faultCode: motor['faultCode'],
-//             alertCode: motor['alertCode'])
-//           ..power = motor['power']
-//           ..motorMode = motor['mode'] ?? ""
-//           ..modeIndex = int.tryParse(motor['modeIndex']!)
-//           ..state = int.tryParse(motor['state']!) ?? 0
-//           ..voltageRed = motor['voltageRed']!
-//           ..voltageYellow = motor['voltageYellow']!
-//           ..voltageBlue = motor['voltageBlue']!
-//           ..currentRed = motor['currentRed']!
-//           ..currentYellow = motor['currentYellow']!
-//           ..currentBlue = motor['currentBlue']!
-//           ..automationMode = motor['motor_mode'] ?? '--'
-//           ..hasReceivedData = true;
-//         final newId = "$mac - $motorRefId";
+//       motorDataMap[key] = MotorData(
+//         macAddress: motor.starter?.macAddress,
+//         groupId: key.split('-').last,
+//         title: motor.name,
+//       )
+//         ..state = motor.state ?? 0
+//         ..motorMode = motor.mode ?? '--'
+//         ..modeIndex = _getModeIndex(motor.mode ?? '--')
+//         ..controller.value = motor.state == 1
+//         ..modeswitchcontroller.value = _getModeIndex(motor.mode ?? '--')
+//         ..hasReceivedData =
+//             false; // Set to false initially, will be true when MQTT data arrives
 
-//         // try {
-//         //   ModesController modeController = Get.find<ModesController>();
+//       // Update from latest starter parameters if available
+//       if (motor.starter?.starterParameters?.isNotEmpty ?? false) {
+//         final params = motor.starter!.starterParameters!.first;
+//         motorDataMap[key]!
+//           ..voltageRed = params.lineVoltageR?.toString() ?? '0'
+//           ..voltageYellow = params.lineVoltageY?.toString() ?? '0'
+//           ..voltageBlue = params.lineVoltageB?.toString() ?? '0'
+//           ..currentRed = params.currentR?.toString() ?? '0'
+//           ..currentYellow = params.currentY?.toString() ?? '0'
+//           ..currentBlue = params.currentB?.toString() ?? '0'
+//           ..fault = params.fault ?? 0;
+//       }
 
-//         //   modeController.switchIndexes[newId] =
-//         //       motorDataMap[fullMotorId]!.modeIndex!;
-//         // } catch (e) {}
+//       if (motor.starter?.power != null) {
+//         motorDataMap[key]!.power = motor.starter!.power!;
 //       }
 //     }
 //     _isDataLoaded = true;
+//     debugPrint('Motor data populated: ${motorDataMap.length} motors');
 //     _dataUpdateNotifier.value++;
+//   }
+
+//   int? _getModeIndex(String mode) {
+//     if (mode.contains('AUTO')) return 0;
+//     if (mode.contains('MANUAL')) return 1;
+//     return null;
+//   }
+
+//   String _modeFromIndex(int index) {
+//     switch (index) {
+//       case 0:
+//         return 'LOCAL+MANUAL';
+//       case 1:
+//         return 'LOCAL+AUTO';
+//       case 2:
+//         return 'REMOTE+MANUAL';
+//       case 3:
+//         return 'REMOTE+AUTO';
+//       default:
+//         return '--';
+//     }
 //   }
 
 //   Future<void> initializeMqttClient() async {
 //     if (mqttClient != null && isConnected) {
+//       debugPrint('Disconnecting existing MQTT client');
 //       mqttClient!.disconnect();
 //     }
-// //e2b4bba3.ala.asia-southeast1.emqxsl.com
-//     // const String broker = 'e2b4bba3.ala.asia-southeast1.emqxsl.com';
-//     // const String username = 'pa_prod_starter';
-//     // const String password = 'Starter@446688';
-//     const int port = 8883;
-//     String broker = AppEnvironment.mqttBroker;
-//     String username = AppEnvironment.mqttUsername;
-//     String password = AppEnvironment.mqttPassword;
-//     String statusTopic = 'gateways/+/devices/live_data';
-//     String ackTopic = 'gateways/+/devices/motor_control/ack';
-//     String ackTopic1 = 'gateways/+/devices/motors/mode/ack';
-//     String ackTopic2 = 'gateways/+/devices/mode_change/ack';
 
-//     // final String clientId = SharedPreference.getClientId();
+//     const int port = 8883;
+//     String broker = 'aeef18e4.ala.asia-southeast1.emqxsl.com';
+//     String username = 'admin';
+//     String password = '123456';
 
 //     const uuid = Uuid();
-//     final String clientId = '123456_${uuid.v4()}';
+//     final String clientId = 'idhara_${uuid.v4()}';
+
+//     debugPrint('Initializing MQTT client with broker: $broker');
 
 //     mqttClient = MqttServerClient(broker, clientId);
-//     mqttClient!.logging(on: true);
+//     mqttClient!.logging(on: false); // Set to true for debugging
 //     mqttClient!.keepAlivePeriod = 60;
 //     mqttClient!.connectTimeoutPeriod = 10000;
 //     mqttClient!.autoReconnect = true;
@@ -253,88 +172,74 @@
 //     mqttClient!.secure = true;
 //     mqttClient!.port = port;
 
-//     final connMessage = MqttConnectMessage()
-//         .authenticateAs(username, password)
-//         // .withWillTopic('willtopic')
-//         // .withWillMessage('Will message')
-//         .startClean();
-//     // .withWillQos(MqttQos.atLeastOnce);
+//     final connMessage =
+//         MqttConnectMessage().authenticateAs(username, password).startClean();
 //     mqttClient!.connectionMessage = connMessage;
+
 //     try {
+//       debugPrint('Connecting to MQTT broker...');
 //       await mqttClient?.connect();
+//       debugPrint('MQTT connection initiated');
 //     } catch (e) {
+//       debugPrint('MQTT Connection Error: $e');
 //       return;
 //     }
 
 //     mqttClient!.updates!.listen(_onMessageReceived, onError: (e) {
+//       debugPrint('MQTT Stream Error: $e');
 //       statusMessage = 'Stream error: $e';
 //       _dataUpdateNotifier.value++;
 //     });
 //   }
 
-//   // Attempts to connect to MQTT broker with retries
-//   Future<void> _connectWithRetry(
-//       {required String topic, int delaySeconds = 5}) async {
-//     int retryCount = 0;
-//     while (!isConnected && retryCount < 5) {
-//       try {
-//         await mqttClient!.connect();
-//         isConnected = true;
-//         statusMessage = 'Connected. Waiting for data on topic: $topic';
-
-//         mqttClient!.subscribe(topic, MqttQos.atLeastOnce);
-//         return;
-//       } catch (e) {
-//         isConnected = false;
-//         statusMessage = 'Reconnecting... ($e)';
-//         _dataUpdateNotifier.value++;
-//         retryCount++;
-//         await Future.delayed(Duration(seconds: delaySeconds));
-//       }
-//     }
-//     if (!isConnected) {
-//       statusMessage = 'Connection failed after multiple attempts';
-//     }
-//   }
-
 //   void _onConnected() {
 //     isConnected = true;
-//     statusMessage = 'Connected. Waiting for device data...';
-//     topic1 = 'gateways/+/devices/live_data';
-//     topic2 = 'gateways/+/devices/motor_control/ack';
-//     topic3 = 'gateways/+/devices/motors/mode/ack';
-//     topic4 = 'gateways/+/devices/mode_change/ack';
+//     statusMessage = 'Connected. Subscribing to topics...';
+//     debugPrint('MQTT Connected successfully');
 
-//     mqttClient!.subscribe(topic1!, MqttQos.atLeastOnce);
-//     mqttClient!.subscribe(topic2!, MqttQos.atLeastOnce);
-//     mqttClient!.subscribe(topic3!, MqttQos.atLeastOnce);
-//     mqttClient!.subscribe(topic4!, MqttQos.atLeastOnce);
+//     // Subscribe to all motor topics
+//     int subscriptionCount = 0;
+//     for (var motor in motors.values) {
+//       if (motor.starter?.macAddress != null) {
+//         final mac = motor.starter!.macAddress!;
+//         mqttClient!.subscribe('peepul/$mac/tele', MqttQos.atMostOnce);
+//         mqttClient!.subscribe('peepul/$mac/status', MqttQos.atMostOnce);
+//         subscriptionCount++;
+//         debugPrint('Subscribed to peepul/$mac/tele and peepul/$mac/status');
+//       }
+//     }
 
+//     debugPrint('Total subscriptions: $subscriptionCount motors');
 //     _dataUpdateNotifier.value++;
 //   }
 
 //   void _onDisconnected() {
 //     isConnected = false;
 //     statusMessage = 'Disconnected. Displaying latest data from API...';
+//     debugPrint('MQTT Disconnected');
 //     _dataUpdateNotifier.value++;
 //   }
 
 //   void _onSubscribed(String topic) {
-//     statusMessage = 'Subscribed to $topic. Waiting for data...';
+//     statusMessage = 'Subscribed to $topic';
+//     debugPrint('Subscribed to topic: $topic');
 //     _dataUpdateNotifier.value++;
 //   }
 
-//   void _onAutoReconnect() {}
+//   void _onAutoReconnect() {
+//     debugPrint('MQTT Auto reconnecting...');
+//   }
 
 //   void _onAutoReconnected() {
-//     topic1 = 'gateways/+/devices/live_data';
-//     topic2 = 'gateways/+/devices/motor_control/ack';
-//     topic3 = 'gateways/+/devices/motors/mode/ack';
-//     topic4 = 'gateways/+/devices/mode_change/ack';
-//     mqttClient!.subscribe(topic1!, MqttQos.atLeastOnce);
-//     mqttClient!.subscribe(topic2!, MqttQos.atLeastOnce);
-//     mqttClient!.subscribe(topic3!, MqttQos.atLeastOnce);
-//     mqttClient!.subscribe(topic4!, MqttQos.atLeastOnce);
+//     debugPrint('MQTT Auto reconnected');
+//     // Resubscribe to all topics
+//     for (var motor in motors.values) {
+//       if (motor.starter?.macAddress != null) {
+//         final mac = motor.starter!.macAddress!;
+//         mqttClient!.subscribe('peepul/$mac/tele', MqttQos.atMostOnce);
+//         mqttClient!.subscribe('peepul/$mac/status', MqttQos.atMostOnce);
+//       }
+//     }
 //   }
 
 //   bool _isRecentAck(String motorId) {
@@ -344,405 +249,247 @@
 //     return timeSinceAck.inSeconds < 5;
 //   }
 
-//   // Handles incoming MQTT messages and updates motorDataMap
 //   void _onMessageReceived(List<MqttReceivedMessage<MqttMessage>> messages) {
 //     lastMessageTime = DateTime.now();
+//     debugPrint('==== MQTT Messages Received: ${messages.length} ====');
+
 //     for (var message in messages) {
 //       final payload = MqttPublishPayload.bytesToStringAsString(
 //           (message.payload as MqttPublishMessage).payload.message);
 //       final topic = message.topic;
 
+//       debugPrint('Topic: $topic');
+//       debugPrint('Payload: $payload');
+
 //       try {
 //         final data = jsonDecode(payload);
-//         if (topic.endsWith('/devices/mode_change/ack')) {
-//           final devices = data['dev'] as List<dynamic>?;
+//         final type = data['T'] as int?;
+//         final payloadData = data['D'];
 
-//           if (devices == null) {
-//             continue;
-//           }
+//         debugPrint('Message Type (T): $type');
 
-//           for (var device in devices) {
-//             final deviceData = device as Map<String, dynamic>;
-
-//             final deviceMac = deviceData['d_id'] as String?;
-
-//             deviceData.entries.where((e) => e.key != 'd_id').forEach((entry) {
-//               final motorRefId = entry.key; // 'mtr_1', 'mtr_2', etc.
-//               final modeValue = entry.value as int?;
-//               if (modeValue == null || modeValue >= 4) return;
-//               final mode = switch (modeValue) {
-//                 0 => "LOCAL + MANUAL",
-//                 1 => "LOCAL + AUTO",
-//                 2 => "REMOTE + MANUAL",
-//                 3 => "REMOTE + AUTO",
-//                 _ => '--',
-//               };
-//               modeConversion(String val) {
-//                 if (val.contains('AUTO')) {
-//                   return 0;
-//                 } else if (val.contains('MANUAL')) {
-//                   return 1;
-//                 } else {
-//                   return null;
-//                 }
-//               }
-
-//               updateDeviceModeByMac(deviceMac!, mode);
-//               final fullMotorId = '$deviceMac-$motorRefId';
-//               final motorData = motorDataMap[fullMotorId];
-//               if (motorData != null) {
-//                 motorData.motorMode = mode;
-//                 motorDataMap[fullMotorId] = motorData;
-//                 try {
-//                   final newId = "${motorData.mac} - $motorRefId";
-//                   final modeController = Get.find<ModesController>();
-//                   modeController.switchIndexes[newId] = modeConversion(mode)!;
-//                 } catch (e) {}
-//               }
-//               _lastAckTimes[fullMotorId] = DateTime.now();
-//             });
-//           }
-//           _dataUpdateNotifier.value++;
-//           continue;
-//         }
-//         if (topic.endsWith('/devices/motors/mode/ack')) {
-//           final devices = data['dev'] as List<dynamic>?;
-
-//           if (devices == null) {
-//             continue;
-//           }
-
-//           for (var device in devices) {
-//             final deviceData = device as Map<String, dynamic>;
-//             final deviceMac = deviceData['d_id'] as String?;
-//             final modeValue = deviceData['mode'];
-//             if (deviceMac == null) {
-//               continue;
-//             }
-//             final mode = switch (modeValue) {
-//               0 => "LOCAL + MANUAL",
-//               1 => "LOCAL + AUTO",
-//               2 => "REMOTE + MANUAL",
-//               3 => "REMOTE + AUTO",
-//               _ => '--',
-//             };
-//             updateDeviceModeByMac(deviceMac, mode);
-//           }
-//           _dataUpdateNotifier.value++;
+//         if (type == null || payloadData == null) {
+//           debugPrint('Invalid message: Missing T or D field');
 //           continue;
 //         }
 
-//         if (topic.endsWith('/motor_control/ack')) {
-//           final devices = data['dev'] as List<dynamic>?;
-//           if (devices == null) {
-//             continue;
-//           }
-
-//           for (var device in devices) {
-//             final deviceData = device as Map<String, dynamic>;
-//             final deviceMac = deviceData['d_id'] as String?;
-//             if (deviceMac == null) {
-//               continue;
-//             }
-
-//             final pondId = _getPondIdForMac(deviceMac);
-
-//             // Process each key-value pair except 'd_id'
-//             for (var entry in deviceData.entries) {
-//               if (entry.key == 'd_id') continue;
-//               final motorRefId = entry.key;
-//               final state = entry.value as int?;
-
-//               if (state == null || state >= 2) return;
-//               // final fullMotorId = '$deviceMac-$motorRefId';
-//               final fullMotorId = '$deviceMac-$motorRefId';
-//               final motorTitle = _getMotorTitle(deviceMac, motorRefId);
-
-//               final motorData = motorDataMap[fullMotorId] ??
-//                   MotorData(pondId: pondId, mac: deviceMac, title: motorTitle);
-
-//               motorData.state = state;
-//               motorData.controller.value = state == 1 || state == 6;
-
-//               motorDataMap[fullMotorId] = motorData;
-//               _lastAckTimes[fullMotorId] = DateTime.now();
-//             }
-//           }
+//         // Extract MAC from topic: peepul/{mac}/tele or peepul/{mac}/status
+//         final topicParts = topic.split('/');
+//         if (topicParts.length < 2) {
+//           debugPrint('Invalid topic format: $topic');
 //           continue;
 //         }
+//         final mac = topicParts[1];
+//         debugPrint('Extracted MAC: $mac');
 
-//         if (topic.endsWith('/live_data')) {
-//           final deviceMac = data['d_id'] as String?;
-//           final motorsData = data['mtr'] as List<dynamic>?;
-//           final power = data['pwr'].toString();
-//           final deviceMode = data['mode'] as int?;
-//           String mainMode;
-//           if (deviceMode != null) {
-//             mainMode = switch (deviceMode) {
-//               0 => 'LOCAL+MANUAL',
-//               1 => 'LOCAL+AUTO',
-//               2 => 'REMOTE+MANUAL',
-//               3 => 'REMOTE+AUTO',
-//               _ => '--',
-//             };
-//             try {
-//               updateDeviceModeByMac(deviceMac!, mainMode);
-//             } catch (e) {}
-//           }
-
-//           if (deviceMac == null || motorsData == null) {
-//             continue;
-//           }
-
-//           for (var motor in motorsData) {
-//             String motorRefId;
-//             motor['mtr_id'] == 1 ? motorRefId = "mtr_1" : motorRefId = "mtr_2";
-
-//             final current = motor['amp'] as List<dynamic>? ?? [0, 0, 0];
-//             final state = motor['mtr_sts'] as int?;
-//             final faultCode = motor['flt'] as int?;
-//             final alertCode = motor['alt'] as int?;
-//             // Modified: Use mode from motor data instead of top-level mode
-//             final motorMode = motor['mode'] as int?;
-
-//             if (motorMode != null) {
-//               mainMode = switch (motorMode) {
-//                 0 => 'LOCAL+MANUAL',
-//                 1 => 'LOCAL+AUTO',
-//                 2 => 'REMOTE+MANUAL',
-//                 3 => 'REMOTE+AUTO',
-//                 _ => '--',
-//               };
-
-//               // Modified: Update device mode with motor-specific mode
-//               try {
-//                 updateDeviceModeByMac(deviceMac, mainMode);
-//               } catch (e) {}
-//             }
-
-//             if (state == null || state >= 2) {
-//               continue;
-//             }
-//             final fullMotorId = '$deviceMac-$motorRefId';
-//             final pondId = _getPondIdForMac(deviceMac);
-//             final motorTitle = _getMotorTitle(deviceMac, motorRefId);
-
-//             final motorData = motorDataMap[fullMotorId] ??
-//                 MotorData(pondId: pondId, mac: deviceMac, title: motorTitle);
-
-//             final lv = data['ll_v'] as List<dynamic>? ?? [0, 0, 0];
-//             motorData.modeswitchcontroller.value = motorMode;
-
-//             modeConversion(String val) {
-//               if (val.contains('AUTO')) {
-//                 return 0;
-//               } else if (val.contains('MANUAL')) {
-//                 return 1;
-//               } else {
-//                 return null;
-//               }
-//             }
-
-//             try {
-//               if (mainMode.isNotEmpty) {
-//                 final newId = "${motor.mac} - $motorRefId";
-//                 final modeController = Get.find<ModesController>();
-//                 modeController.switchIndexes[newId] = modeConversion(mainMode)!;
-//               }
-//             } catch (e) {}
-//             motorData.voltageRed = lv.isNotEmpty ? lv[0].toString() : '0';
-//             motorData.voltageYellow = lv.length > 1 ? lv[1].toString() : '0';
-//             motorData.voltageBlue = lv.length > 2 ? lv[2].toString() : '0';
-//             motorData.currentRed =
-//                 current.isNotEmpty ? current[0].toString() : '0';
-//             motorData.currentYellow =
-//                 current.length > 1 ? current[1].toString() : '0';
-//             motorData.currentBlue =
-//                 current.length > 2 ? current[2].toString() : '0';
-//             motorData.power = power;
-//             motorData.state = state;
-//             motorData.controller.value = state == 1;
-//             // Modified: Set automationMode to motor-specific mode
-//             motorData.automationMode = mainMode;
-//             motorData.motorMode = mainMode;
-//             motorData.faultCode =
-//                 faultCode?.toString();
-//             motorData.alertCode =
-//                 alertCode?.toString();
-//             motorData.hasReceivedData = true;
-
-//             motorDataMap[fullMotorId] = motorData;
-//             _lastAckTimes[fullMotorId] = DateTime.now();
-
-//             // Added: Publish the mode to MQTT broker
-//             final modePayload = {
-//               "dev": [
-//                 {
-//                   "d_id": deviceMac,
-//                   motorRefId: motorMode,
-//                 }
-//               ]
-//             };
-//             // publishModeCommand(modePayload);
-//           }
-//           continue;
-//         }
-
-//         final motorsData = data['mtr'];
-//         final mac = data['d_id'] as String?;
-//         // final motorMode = data['mode'] as int?;
-//         final power = data['pwr'].toString();
-//         // final mode;
-//         // switch (motorMode) {
-//         //   case 0:
-//         //     mode = 'LOCAL + MANUAL';
-//         //     break;
-//         //   case 1:
-//         //     mode = 'LOCAL + AUTO';
-//         //     break;
-//         //   case 2:
-//         //     mode = 'REMOTE + MANUAL';
-//         //     break;
-//         //   case 3:
-//         //     mode = 'REMOTE + AUTO';
-//         //     break;
-//         //   default:
-//         //     mode = '--';
-//         //     break;
-//         // }
-
-//         // updateDeviceModeByMac(mac ?? '', mode);
-//         // if (mac == null) {
-//         //   continue;
-//         // }
-
-//         if (mac == null) {
-//           continue;
-//         }
-
-//         if (motorsData != null) {
-//           List<Map<String, dynamic>> motorsList = motorsData is List
-//               ? motorsData.cast<Map<String, dynamic>>()
-//               : [motorsData];
-
-//           for (var motor in motorsList) {
-//             final String motorRefId;
-//             motor['mtr_id'] == 1 ? motorRefId = "mtr_1" : motorRefId = "mtr_2";
-//             final fullMotorId = '$mac-$motorRefId';
-//             final pondId = _getPondIdForMac(mac);
-//             final motorTitle = _getMotorTitle(mac, motorRefId);
-
-//             final currentMotor = motorDataMap[fullMotorId] ??
-//                 MotorData(pondId: pondId, mac: mac, title: motorTitle);
-
-//             if (currentMotor.hasReceivedData && _isRecentAck(fullMotorId)) {
-//               continue;
-//             }
-
-//             currentMotor.hasReceivedData = true;
-
-//             final lv = data['ll_v'] as List<dynamic>? ?? [0, 0, 0];
-//             currentMotor.voltageRed = lv.isNotEmpty ? lv[0].toString() : '0';
-//             currentMotor.voltageYellow = lv.length > 1 ? lv[1].toString() : '0';
-//             currentMotor.voltageBlue = lv.length > 2 ? lv[2].toString() : '0';
-
-//             final current = motor['amp'] as List<dynamic>? ?? [0, 0, 0];
-//             currentMotor.currentRed =
-//                 current.isNotEmpty ? current[0].toString() : '0';
-//             currentMotor.currentYellow =
-//                 current.length > 1 ? current[1].toString() : '0';
-//             currentMotor.currentBlue =
-//                 current.length > 2 ? current[2].toString() : '0';
-//             currentMotor.power = power;
-//             currentMotor.state = motor['mtr_sts']?.toInt() ?? 0;
-//             currentMotor.controller.value = currentMotor.state == 1;
-//             // currentMotor.modeswitchcontroller.value = currentMotor.modeIndex;
-
-//             currentMotor.runTime = data['t'] != null ? '${data['t']}s' : '-';
-//             // currentMotor.automationMode = mode;
-//             final motorMode = motor['mode'] as int?;
-
-//             final mode = switch (motorMode) {
-//               0 => 'LOCAL + MANUAL',
-//               1 => 'LOCAL + AUTO',
-//               2 => 'REMOTE + MANUAL',
-//               3 => 'REMOTE + AUTO',
-//               _ => '--',
-//             };
-
-//             final modePayload = {
-//               "dev": [
-//                 {
-//                   "d_id": mac,
-//                   motorRefId: motorMode,
-//                 }
-//               ]
-//             };
-//             // publishModeCommand(modePayload);
-
-//             currentMotor.automationMode = mode;
-//             currentMotor.faultCode =
-//                 motor['flt']?.toString();
-//             currentMotor.alertCode =
-//                 motor['alt']?.toString();
-
-//             motorDataMap[fullMotorId] = currentMotor;
-//           }
+//         // Handle different message types
+//         switch (type) {
+//           case 35: // LIVE DATA REQUEST ACK
+//             debugPrint('Handling LIVE DATA REQUEST ACK (35)');
+//             _handleLiveData(mac, payloadData);
+//             break;
+//           case 31: // MOTOR CONTROL ACK
+//             debugPrint('Handling MOTOR CONTROL ACK (31)');
+//             _handleMotorControlAck(mac, payloadData);
+//             break;
+//           case 32: // MODE CHANGE ACK
+//             debugPrint('Handling MODE CHANGE ACK (32)');
+//             _handleModeChangeAck(mac, payloadData);
+//             break;
+//           case 40: // HEART BEAT
+//             debugPrint('Heartbeat received from $mac');
+//             break;
+//           case 41: // LIVE DATA
+//             debugPrint('Handling LIVE DATA (41)');
+//             _handleLiveData(mac, payloadData);
+//             break;
+//           default:
+//             debugPrint('Unknown message type: $type');
 //         }
 //       } catch (e, stackTrace) {
+//         debugPrint('Error parsing MQTT message: $e');
+//         debugPrint('StackTrace: $stackTrace');
 //         statusMessage = 'Invalid data format received';
 //       }
 //     }
+
+//     // CRITICAL: Notify listeners after processing all messages
+//     debugPrint(
+//         'Notifying UI update - Current value: ${_dataUpdateNotifier.value}');
 //     _dataUpdateNotifier.value++;
+//     debugPrint('New notification value: ${_dataUpdateNotifier.value}');
 //   }
 
-//   String? _getPondIdForMac(String mac) {
-//     for (var entry in pondMotorMap.entries) {
-//       for (var motor in entry.value) {
-//         if (motor['id']!.startsWith(mac)) {
-//           return entry.key;
+//   void _handleLiveData(String mac, dynamic payloadData) {
+//     debugPrint('_handleLiveData called for MAC: $mac');
+
+//     if (payloadData is! Map<String, dynamic>) {
+//       debugPrint('Invalid payload data type: ${payloadData.runtimeType}');
+//       return;
+//     }
+
+//     int updatedMotors = 0;
+
+//     for (var entry in payloadData.entries) {
+//       final groupId = entry.key; // G01, G02, G03, G04
+//       if (groupId == 'ct') continue; // Skip timestamp
+
+//       debugPrint('Processing group: $groupId');
+
+//       final groupData = entry.value as Map<String, dynamic>?;
+//       if (groupData == null) {
+//         debugPrint('Group data is null for $groupId');
+//         continue;
+//       }
+
+//       final fullMotorId = '$mac-$groupId';
+//       debugPrint('Full Motor ID: $fullMotorId');
+
+//       var motorData = motorDataMap[fullMotorId];
+//       if (motorData == null) {
+//         debugPrint('Creating new MotorData for $fullMotorId');
+//         motorData =
+//             MotorData(macAddress: mac, groupId: groupId, title: groupId);
+//         motorDataMap[fullMotorId] = motorData;
+//       }
+
+//       // Update based on available fields
+//       debugPrint('Group data keys: ${groupData.keys}');
+
+//       if (groupData.containsKey('p_v')) {
+//         // This is G01 with full data
+//         debugPrint('Processing G01 with full data');
+//         motorData.state = groupData['m_s'] ?? 0;
+//         motorData.controller.value = motorData.state == 1;
+//         debugPrint(
+//             'Motor state: ${motorData.state}, Controller: ${motorData.controller.value}');
+
+//         final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+//         motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+//         motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+//         motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+//         debugPrint(
+//             'Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
+
+//         final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+//         motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+//         motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+//         motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+//         debugPrint(
+//             'Currents: R=${motorData.currentRed}, Y=${motorData.currentYellow}, B=${motorData.currentBlue}');
+
+//         motorData.power = groupData['pwr'] ?? 0;
+//         motorData.fault = groupData['flt'] ?? 0;
+//         motorData.alert = groupData['alt'] ?? 0;
+//         debugPrint(
+//             'Power: ${motorData.power}, Fault: ${motorData.fault}, Alert: ${motorData.alert}');
+
+//         if (groupData.containsKey('mode')) {
+//           final modeValue = groupData['mode'] as int?;
+//           motorData.motorMode = _modeFromIndex(modeValue ?? 0);
+//           motorData.modeIndex = _getModeIndex(motorData.motorMode);
+//           motorData.modeswitchcontroller.value = motorData.modeIndex;
+//           debugPrint(
+//               'Mode: ${motorData.motorMode} (index: ${motorData.modeIndex})');
+//         }
+//       } else if (groupData.containsKey('pwr')) {
+//         // G02, G03 - partial data
+//         debugPrint('Processing G02/G03 with partial data');
+//         motorData.power = groupData['pwr'] ?? 0;
+
+//         if (groupData.containsKey('mode')) {
+//           final modeValue = groupData['mode'] as int?;
+//           motorData.motorMode = _modeFromIndex(modeValue ?? 0);
+//           motorData.modeIndex = _getModeIndex(motorData.motorMode);
+//           motorData.modeswitchcontroller.value = motorData.modeIndex;
+//         }
+
+//         if (groupData.containsKey('llv')) {
+//           final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+//           motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+//           motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+//           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+//         }
+
+//         if (groupData.containsKey('amp')) {
+//           final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+//           motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+//           motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+//           motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+//         }
+
+//         if (groupData.containsKey('m_s')) {
+//           motorData.state = groupData['m_s'] ?? 0;
+//           motorData.controller.value = motorData.state == 1;
+//         }
+//       } else if (groupData.containsKey('mode')) {
+//         // G04 - only power and mode
+//         debugPrint('Processing G04 with mode only');
+//         motorData.power = groupData['pwr'] ?? 0;
+//         final modeValue = groupData['mode'] as int?;
+//         motorData.motorMode = _modeFromIndex(modeValue ?? 0);
+//         motorData.modeIndex = _getModeIndex(motorData.motorMode);
+//         motorData.modeswitchcontroller.value = motorData.modeIndex;
+//       }
+
+//       motorData.hasReceivedData = true;
+//       motorDataMap[fullMotorId] = motorData;
+//       _lastAckTimes[fullMotorId] = DateTime.now();
+//       updatedMotors++;
+
+//       debugPrint('Motor $fullMotorId updated successfully');
+//     }
+
+//     debugPrint('Total motors updated in this message: $updatedMotors');
+//     debugPrint('Total motors in map: ${motorDataMap.length}');
+//   }
+
+//   void _handleMotorControlAck(String mac, dynamic payloadData) {
+//     final ackStatus = payloadData as int?;
+//     debugPrint('Motor control ACK status: $ackStatus for MAC: $mac');
+//     if (ackStatus == 1) {
+//       debugPrint('Motor control acknowledged for $mac');
+//       // Update all motors with this MAC
+//       for (var key in motorDataMap.keys) {
+//         if (key.startsWith(mac)) {
+//           _lastAckTimes[key] = DateTime.now();
 //         }
 //       }
 //     }
-//     return null;
 //   }
 
-//   String? _getMotorTitle(String mac, String motorRefId) {
-//     for (var entry in pondMotorMap.entries) {
-//       for (var motor in entry.value) {
-//         if (motor['id'] == '$mac-$motorRefId') {
-//           return motor['title'];
+//   void _handleModeChangeAck(String mac, dynamic payloadData) {
+//     final ackStatus = payloadData as int?;
+//     debugPrint('Mode change ACK status: $ackStatus for MAC: $mac');
+//     if (ackStatus == 1) {
+//       debugPrint('Mode change acknowledged for $mac');
+//       // Update all motors with this MAC
+//       for (var key in motorDataMap.keys) {
+//         if (key.startsWith(mac)) {
+//           _lastAckTimes[key] = DateTime.now();
 //         }
 //       }
 //     }
-//     return motorRefId;
 //   }
 
-//   // Filters motor data for a specific pond ID using pondMotorMap
-
-//   Map<String, MotorData> getMotorDataForPond(String selectedPondId) {
-//     final macsForPond = pondMotorMap[selectedPondId]
-//             ?.map((motor) => motor['id']?.split('-')[0] ?? '')
-//             .toSet()
-//             .toList() ??
-//         [];
+//   Map<String, MotorData> getMotorDataForLocation(int? locationId) {
+//     if (locationId == null) {
+//       return motorDataMap;
+//     }
 
 //     final result = Map<String, MotorData>.fromEntries(
 //       motorDataMap.entries.where((entry) {
-//         final motorMac = entry.value.mac;
-//         final isMatch = macsForPond.contains(motorMac);
-
-//         return isMatch;
+//         final motor = motors[entry.key];
+//         return motor?.location?.id == locationId;
 //       }),
 //     );
 
 //     return result;
 //   }
 
-//   // Publishes a motor command to the MQTT broker
-//   Future<void> publishMotorCommand(
-//       String pondId, String motorId, int state) async {
+//   Future<void> publishMotorCommand(String motorId, int state) async {
 //     if (mqttClient == null || !isConnected) {
+//       debugPrint('Cannot publish: MQTT not connected');
 //       statusMessage = 'MQTT not connected';
 //       _dataUpdateNotifier.value++;
 //       return;
@@ -751,30 +498,27 @@
 //     final lastCommandTime = _lastCommandTimes[motorId];
 //     if (lastCommandTime != null &&
 //         DateTime.now().difference(lastCommandTime).inSeconds < 2) {
-//       return;
-//     }
-
-//     final currentMotorData = motorDataMap[motorId];
-//     if (currentMotorData != null && currentMotorData.state == state) {
+//       debugPrint('Command throttled for $motorId');
 //       return;
 //     }
 
 //     final parts = motorId.split('-');
-//     final mac = parts.length > 1 ? parts[0] : pondId;
+//     if (parts.length != 2) {
+//       debugPrint('Invalid motorId format: $motorId');
+//       return;
+//     }
 
-//     final motorRefId = parts.length > 1 ? parts[1] : motorId;
+//     final mac = parts[0];
+//     final groupId = parts[1];
 
-//     final topic =
-//         'gateways/${SharedPreference.getpeepulagri()}/devices/motor_control';
+//     final topic = 'peepul/$mac/status';
 
 //     final payload = {
-//       "dev": [
-//         {
-//           "d_id": mac,
-//           motorRefId: state,
-//         }
-//       ]
+//       "T": 31, // MOTOR CONTROL
+//       "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
+//       "D": state,
 //     };
+
 //     final message = jsonEncode(payload);
 //     final builder = MqttClientPayloadBuilder();
 //     builder.addString(message);
@@ -784,10 +528,11 @@
 
 //     try {
 //       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-
-//       statusMessage = 'Command sent successfully';
+//       statusMessage = 'Motor command sent successfully';
+//       debugPrint('Published motor command to $topic: $message');
 //     } catch (e) {
-//       statusMessage = 'Failed to publish command: $e';
+//       statusMessage = 'Failed to publish motor command: $e';
+//       debugPrint('Failed to publish motor command: $e');
 //       _lastCommandTimes.remove(motorId);
 //       _dataUpdateNotifier.value++;
 //       rethrow;
@@ -795,162 +540,69 @@
 //     _dataUpdateNotifier.value++;
 //   }
 
-//   Future<void> publishGroupedMotorCommand(
-//       List<Map<String, dynamic>> devList) async {
+//   Future<void> publishModeCommand(String motorId, int mode) async {
 //     if (mqttClient == null || !isConnected) {
+//       debugPrint('Cannot publish: MQTT not connected');
 //       statusMessage = 'MQTT not connected';
 //       _dataUpdateNotifier.value++;
 //       return;
 //     }
 
-//     final topic =
-//         'gateways/${SharedPreference.getpeepulagri()}/devices/motor_control';
+//     final parts = motorId.split('-');
+//     if (parts.length != 2) {
+//       debugPrint('Invalid motorId format: $motorId');
+//       return;
+//     }
 
-//     final payload = {"dev": devList};
+//     final mac = parts[0];
+//     final groupId = parts[1];
+
+//     final topic = 'peepul/$mac/status ';
+
+//     final payload = {
+//       "T": 32, // MODE CHANGE
+//       "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
+//       "D": mode,
+//     };
+
 //     final message = jsonEncode(payload);
 //     final builder = MqttClientPayloadBuilder();
 //     builder.addString(message);
 
 //     try {
 //       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-
-//       statusMessage = 'Grouped command sent successfully';
+//       statusMessage = 'Mode command sent successfully';
+//       debugPrint('Published mode command to $topic: $message');
 //     } catch (e) {
-//       statusMessage = 'Failed to publish grouped command: $e';
+//       statusMessage = 'Failed to publish mode command: $e';
+//       debugPrint('Failed to publish mode command: $e');
 //       _dataUpdateNotifier.value++;
 //       rethrow;
 //     }
 //     _dataUpdateNotifier.value++;
 //   }
 
-//   Future<void> publishSchedule(Map<String, dynamic> schedule) async {
-//     if (mqttClient == null || !isConnected) {
-//       statusMessage = 'MQTT not connected';
-//       _dataUpdateNotifier.value++;
-//       return;
-//     }
-
-//     final topic =
-//         'gateways/${SharedPreference.getpeepulagri()}/devices/schedule';
-
-//     final payload = schedule;
-
-//     //  {"dev": devList};
-//     final message = jsonEncode(payload);
-//     final builder = MqttClientPayloadBuilder();
-//     builder.addString(message);
-
-//     try {
-//       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-
-//       statusMessage = 'Grouped command sent successfully';
-//       print(statusMessage);
-//     } catch (e) {
-//       statusMessage = 'Failed to publish grouped command: $e';
-//       _dataUpdateNotifier.value++;
-//       rethrow;
-//     }
-//     _dataUpdateNotifier.value++;
-//   }
-
-//   Future<void> publishModeCommand(Map<String, dynamic> payload) async {
-//     if (mqttClient == null || !isConnected) {
-//       statusMessage = 'MQTT not connected';
-//       _dataUpdateNotifier.value++;
-
-//       return;
-//     }
-
-//     final topic =
-//         'gateways/${SharedPreference.getpeepulagri()}/devices/mode_change';
-
-//     // 'gateways/${SharedPreference.getpeepulagri()}/devices/motors/mode';
-
-//     // final payload = payload;
-//     // {
-
-//     // "dev": [
-//     //   {
-//     //     "d_id": mac,
-//     //     "mtr_1": mode,
-//     //   }
-//     // ]
-//     // };
-//     final message = jsonEncode(payload);
-//     final builder = MqttClientPayloadBuilder();
-//     builder.addString(message);
-
-//     try {
-//       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-//       statusMessage = 'Command sent successfully';
-//       if (statusMessage == 'Command sent successfully') {
-//         final modeController = Get.find<ModesController>();
-//       }
-//     } catch (e) {
-//       statusMessage = 'Failed to publish command: $e';
-
-//       // _lastCommandTimes.remove(motorId);
-//       _dataUpdateNotifier.value++;
-//       rethrow;
-//     }
-//     _dataUpdateNotifier.value++;
-//   }
-
-//   Future<void> publishModeChanges() async {
-//     if (mqttClient == null || !isConnected) {
-//       statusMessage = 'MQTT not connected';
-//       _dataUpdateNotifier.value++;
-//       return;
-//     }
-//     final modeController = Get.find<ModesController>();
-//     if (modeController.selectModes.isEmpty) {
-//       return;
-//     }
-
-//     final devList = modeController.selectModes
-//         .map((modeEntry) {
-//           final mac = modeEntry['id'] as String?;
-//           final motorRefId = modeEntry['mtr'] as String?;
-//           final modeValue = modeEntry['mode'] as int?;
-//           if (mac == null || motorRefId == null || modeValue == null) {
-//             return null;
-//           }
-//           return {
-//             "d_id": mac,
-//             motorRefId: modeValue,
-//           };
-//         })
-//         .where((entry) => entry != null)
-//         .cast<Map<String, dynamic>>()
-//         .toList();
-
-//     if (devList.isEmpty) {
-//       return;
-//     }
-
-//     final payload = {"dev": devList};
-//     await publishModeCommand(payload);
-//   }
-
-//   // Returns a list of all pond IDs from pondMotorMap
-//   List<String> getPondIds() => pondMotorMap.keys.toList();
-
-//   // Cleans up resources by disconnecting the MQTT client
 //   void dispose() {
 //     mqttClient?.disconnect();
+//     for (var motorData in motorDataMap.values) {
+//       motorData.dispose();
+//     }
 //   }
 // }
 
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:i_dhara/app/core/config/env.dart';
+import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:uuid/uuid.dart';
 
 class MotorData {
   ValueNotifier<bool> controller = ValueNotifier<bool>(false);
+  ValueNotifier<int?> modeswitchcontroller = ValueNotifier<int?>(null);
+  bool? pendingCommand;
+
   String voltageRed = '0';
   String voltageYellow = '0';
   String voltageBlue = '0';
@@ -959,118 +611,177 @@ class MotorData {
   String currentBlue = '0';
   int state = 0;
   String motorMode = '_';
-  String? faultCode;
-  String? alertCode;
-  String? power;
+  int? modeIndex; // 0 = Auto, 1 = Manual (simplified)
+  int power = 0;
+  int fault = 0;
+  int alert = 0;
+
+  String runTime = '-';
   bool hasReceivedData = false;
-  String? mac;
-  String? motorRefId;
+  String? macAddress;
+  String? groupId; // G01, G02, G03, G04
   String? title;
 
   MotorData({
-    this.mac,
-    this.motorRefId,
+    this.macAddress,
+    this.groupId,
     this.title,
-    this.faultCode,
-    this.alertCode,
   });
-
-  void updateFromPayload(Map<String, dynamic> data, String groupKey) {
-    final groupData = data[groupKey] as Map<String, dynamic>?;
-    if (groupData == null) return;
-
-    // Update power
-    if (groupData.containsKey('pwr')) {
-      power = groupData['pwr'].toString();
-    }
-
-    // Update mode
-    if (groupData.containsKey('mode')) {
-      final modeValue = groupData['mode'] as int?;
-      motorMode = _getModeString(modeValue);
-    }
-
-    // Update line voltages
-    if (groupData.containsKey('llv')) {
-      final lv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
-      voltageRed = lv.isNotEmpty ? lv[0].toString() : '0';
-      voltageYellow = lv.length > 1 ? lv[1].toString() : '0';
-      voltageBlue = lv.length > 2 ? lv[2].toString() : '0';
-    }
-
-    // Update motor state
-    if (groupData.containsKey('m_s')) {
-      state = groupData['m_s'] as int? ?? 0;
-      controller.value = state == 1;
-    }
-
-    // Update current (amp)
-    if (groupData.containsKey('amp')) {
-      final current = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
-      currentRed = current.isNotEmpty ? current[0].toString() : '0';
-      currentYellow = current.length > 1 ? current[1].toString() : '0';
-      currentBlue = current.length > 2 ? current[2].toString() : '0';
-    }
-
-    // Update fault code
-    if (groupData.containsKey('flt')) {
-      faultCode = groupData['flt']?.toString();
-    }
-
-    // Update alert code
-    if (groupData.containsKey('alt')) {
-      alertCode = groupData['alt']?.toString();
-    }
-
-    hasReceivedData = true;
-  }
-
-  String _getModeString(int? mode) {
-    return switch (mode) {
-      0 => 'LOCAL + MANUAL',
-      1 => 'LOCAL + AUTO',
-      2 => 'REMOTE + MANUAL',
-      3 => 'REMOTE + AUTO',
-      _ => '--',
-    };
-  }
 
   void dispose() {
     controller.dispose();
+    modeswitchcontroller.dispose();
   }
 }
 
 class MqttService {
   static final MqttService _instance = MqttService._internal();
-  factory MqttService() => _instance;
+
+  factory MqttService({Map<String, Motor>? initialMotors}) {
+    if (initialMotors != null) {
+      _instance.motors = initialMotors;
+      _instance._populateMotorDataFromMotors();
+    }
+    return _instance;
+  }
 
   MqttServerClient? mqttClient;
-  Map<String, MotorData> motorDataMap = {};
+  late Map<String, MotorData> motorDataMap; // key: "mac-groupId"
   bool isConnected = false;
   String statusMessage = 'Connecting to MQTT broker...';
   DateTime? lastMessageTime;
   final ValueNotifier<int> _dataUpdateNotifier = ValueNotifier(0);
 
-  // Motor ID format: {mac}-{motorRefId}
-  // motorRefId can be "G01", "G02", "mtr_1", "mtr_2"
-  Map<String, String> macToMotorRefMap = {};
+  Map<String, Motor> motors = {}; // Stores Motor objects by mac-groupId
+  bool _isDataLoaded = false;
+  final Map<String, DateTime> _lastAckTimes = {};
+  final Map<String, DateTime> _lastCommandTimes = {};
 
-  MqttService._internal();
+  MqttService._internal() {
+    motorDataMap = {};
+  }
 
   ValueNotifier<int> get dataUpdateNotifier => _dataUpdateNotifier;
 
+  void updateMotors(Map<String, Motor> newMotors) {
+    motors = newMotors;
+    _populateMotorDataFromMotors();
+    _dataUpdateNotifier.value++;
+  }
+
+  Motor? getMotorByMacAndGroup(String mac, String groupId) {
+    final key = '$mac-$groupId';
+    return motors[key];
+  }
+
+  void _populateMotorDataFromMotors() {
+    motorDataMap.clear();
+    for (var entry in motors.entries) {
+      final motor = entry.value;
+      final key = entry.key; // mac-groupId
+
+      motorDataMap[key] = MotorData(
+        macAddress: motor.starter?.macAddress,
+        groupId: key.split('-').last,
+        title: motor.name,
+      )
+        ..state = motor.state ?? 0
+        ..motorMode = motor.mode ?? '--'
+        ..modeIndex = _getSimplifiedModeIndex(motor.mode ?? '--')
+        ..controller.value = motor.state == 1
+        ..modeswitchcontroller.value =
+            _getSimplifiedModeIndex(motor.mode ?? '--')
+        ..hasReceivedData = false;
+
+      // Update from latest starter parameters if available
+      if (motor.starter?.starterParameters?.isNotEmpty ?? false) {
+        final params = motor.starter!.starterParameters!.first;
+        motorDataMap[key]!
+          ..voltageRed = params.lineVoltageR?.toString() ?? '0'
+          ..voltageYellow = params.lineVoltageY?.toString() ?? '0'
+          ..voltageBlue = params.lineVoltageB?.toString() ?? '0'
+          ..currentRed = params.currentR?.toString() ?? '0'
+          ..currentYellow = params.currentY?.toString() ?? '0'
+          ..currentBlue = params.currentB?.toString() ?? '0'
+          ..fault = params.fault ?? 0;
+      }
+
+      if (motor.starter?.power != null) {
+        motorDataMap[key]!.power = motor.starter!.power!;
+      }
+    }
+    _isDataLoaded = true;
+    debugPrint('Motor data populated: ${motorDataMap.length} motors');
+    _dataUpdateNotifier.value++;
+  }
+
+  // Simplified mode index: 0 = Auto, 1 = Manual
+  int? _getSimplifiedModeIndex(String mode) {
+    if (mode.contains('AUTO')) return 0;
+    if (mode.contains('MANUAL')) return 1;
+    return null;
+  }
+
+  // Convert simplified index to full mode string
+  String _modeFromSimplifiedIndex(int index) {
+    switch (index) {
+      case 0:
+        return 'REMOTE+AUTO';
+      case 1:
+        return 'REMOTE+MANUAL';
+      default:
+        return '--';
+    }
+  }
+
+  // Convert full mode index (0-3) from MQTT to simplified index (0-1)
+  int? _fullModeToSimplified(int fullModeIndex) {
+    // Full mode mapping:
+    // 0 = LOCAL+MANUAL
+    // 1 = LOCAL+AUTO
+    // 2 = REMOTE+MANUAL
+    // 3 = REMOTE+AUTO
+
+    switch (fullModeIndex) {
+      case 0: // LOCAL+MANUAL
+      case 2: // REMOTE+MANUAL
+        return 1; // Manual
+      case 1: // LOCAL+AUTO
+      case 3: // REMOTE+AUTO
+        return 0; // Auto
+      default:
+        return null;
+    }
+  }
+
+  // Convert simplified index (0-1) to full mode index for MQTT
+  int _simplifiedToFullMode(int simplifiedIndex) {
+    // Always use REMOTE modes
+    switch (simplifiedIndex) {
+      case 0: // Auto
+        return 3; // REMOTE+AUTO
+      case 1: // Manual
+        return 2; // REMOTE+MANUAL
+      default:
+        return 3; // Default to REMOTE+AUTO
+    }
+  }
+
   Future<void> initializeMqttClient() async {
     if (mqttClient != null && isConnected) {
+      debugPrint('Disconnecting existing MQTT client');
       mqttClient!.disconnect();
     }
 
     const int port = 8883;
-    String broker = AppEnvironment.mqttBroker;
-    String username = AppEnvironment.mqttUsername;
-    String password = AppEnvironment.mqttPassword;
+    String broker = 'aeef18e4.ala.asia-southeast1.emqxsl.com';
+    String username = 'admin';
+    String password = '123456';
 
     const uuid = Uuid();
     final String clientId = 'idhara_${uuid.v4()}';
+
+    debugPrint('Initializing MQTT client with broker: $broker');
 
     mqttClient = MqttServerClient(broker, clientId);
     mqttClient!.logging(on: false);
@@ -1079,6 +790,7 @@ class MqttService {
     mqttClient!.autoReconnect = true;
     mqttClient!.onConnected = _onConnected;
     mqttClient!.onDisconnected = _onDisconnected;
+    mqttClient!.onSubscribed = _onSubscribed;
     mqttClient!.onAutoReconnect = _onAutoReconnect;
     mqttClient!.onAutoReconnected = _onAutoReconnected;
     mqttClient!.secure = true;
@@ -1086,17 +798,19 @@ class MqttService {
 
     final connMessage =
         MqttConnectMessage().authenticateAs(username, password).startClean();
-
     mqttClient!.connectionMessage = connMessage;
 
     try {
+      debugPrint('Connecting to MQTT broker...');
       await mqttClient?.connect();
+      debugPrint('MQTT connection initiated');
     } catch (e) {
       debugPrint('MQTT Connection Error: $e');
       return;
     }
 
     mqttClient!.updates!.listen(_onMessageReceived, onError: (e) {
+      debugPrint('MQTT Stream Error: $e');
       statusMessage = 'Stream error: $e';
       _dataUpdateNotifier.value++;
     });
@@ -1104,61 +818,117 @@ class MqttService {
 
   void _onConnected() {
     isConnected = true;
-    statusMessage = 'Connected. Waiting for device data...';
+    statusMessage = 'Connected. Subscribing to topics...';
+    debugPrint('MQTT Connected successfully');
 
-    // Subscribe to all device telemetry topics
-    mqttClient!.subscribe('peepul/+/tele', MqttQos.atLeastOnce);
+    // Subscribe to all motor topics
+    int subscriptionCount = 0;
+    for (var motor in motors.values) {
+      if (motor.starter?.macAddress != null) {
+        final mac = motor.starter!.macAddress!;
+        mqttClient!.subscribe('peepul/$mac/tele', MqttQos.atMostOnce);
+        mqttClient!.subscribe('peepul/$mac/status', MqttQos.atMostOnce);
+        subscriptionCount++;
+        debugPrint('Subscribed to peepul/$mac/tele and peepul/$mac/status');
+      }
+    }
 
-    // Subscribe to all device status topics
-    mqttClient!.subscribe('peepul/+/status', MqttQos.atLeastOnce);
-
+    debugPrint('Total subscriptions: $subscriptionCount motors');
     _dataUpdateNotifier.value++;
-    debugPrint('MQTT Connected and subscribed to topics');
   }
 
   void _onDisconnected() {
     isConnected = false;
-    statusMessage = 'Disconnected. Attempting to reconnect...';
-    _dataUpdateNotifier.value++;
+    statusMessage = 'Disconnected. Displaying latest data from API...';
     debugPrint('MQTT Disconnected');
+    _dataUpdateNotifier.value++;
+  }
+
+  void _onSubscribed(String topic) {
+    statusMessage = 'Subscribed to $topic';
+    debugPrint('Subscribed to topic: $topic');
+    _dataUpdateNotifier.value++;
   }
 
   void _onAutoReconnect() {
-    debugPrint('MQTT Auto-reconnecting...');
+    debugPrint('MQTT Auto reconnecting...');
   }
 
   void _onAutoReconnected() {
-    debugPrint('MQTT Auto-reconnected');
-    // Resubscribe to topics
-    mqttClient!.subscribe('peepul/+/tele', MqttQos.atLeastOnce);
-    mqttClient!.subscribe('peepul/+/status', MqttQos.atLeastOnce);
+    debugPrint('MQTT Auto reconnected');
+    // Resubscribe to all topics
+    for (var motor in motors.values) {
+      if (motor.starter?.macAddress != null) {
+        final mac = motor.starter!.macAddress!;
+        mqttClient!.subscribe('peepul/$mac/tele', MqttQos.atMostOnce);
+        mqttClient!.subscribe('peepul/$mac/status', MqttQos.atMostOnce);
+      }
+    }
+  }
+
+  bool _isRecentAck(String motorId) {
+    final lastAckTime = _lastAckTimes[motorId];
+    if (lastAckTime == null) return false;
+    final timeSinceAck = DateTime.now().difference(lastAckTime);
+    return timeSinceAck.inSeconds < 5;
   }
 
   void _onMessageReceived(List<MqttReceivedMessage<MqttMessage>> messages) {
     lastMessageTime = DateTime.now();
+    debugPrint('==== MQTT Messages Received: ${messages.length} ====');
 
     for (var message in messages) {
       final payload = MqttPublishPayload.bytesToStringAsString(
           (message.payload as MqttPublishMessage).payload.message);
       final topic = message.topic;
 
+      debugPrint('Topic: $topic');
+      debugPrint('Payload: $payload');
+
       try {
         final data = jsonDecode(payload);
+        final type = data['T'] as int?;
+        final payloadData = data['D'];
 
-        // Extract MAC address from topic (peepul/{mac}/tele or peepul/{mac}/status)
-        final topicParts = topic.split('/');
-        if (topicParts.length < 2) continue;
+        debugPrint('Message Type (T): $type');
 
-        final mac = topicParts[1];
-        final topicType = topicParts.length > 2 ? topicParts[2] : '';
-
-        // Handle telemetry data (live data)
-        if (topicType == 'tele') {
-          _handleTelemetryData(data, mac);
+        if (type == null || payloadData == null) {
+          debugPrint('Invalid message: Missing T or D field');
+          continue;
         }
-        // Handle status data (ACK messages)
-        else if (topicType == 'status') {
-          _handleStatusData(data, mac);
+
+        // Extract MAC from topic
+        final topicParts = topic.split('/');
+        if (topicParts.length < 2) {
+          debugPrint('Invalid topic format: $topic');
+          continue;
+        }
+        final mac = topicParts[1];
+        debugPrint('Extracted MAC: $mac');
+
+        // Handle different message types
+        switch (type) {
+          case 35: // LIVE DATA REQUEST ACK
+            debugPrint('Handling LIVE DATA REQUEST ACK (35)');
+            _handleLiveData(mac, payloadData);
+            break;
+          case 31: // MOTOR CONTROL ACK
+            debugPrint('Handling MOTOR CONTROL ACK (31)');
+            _handleMotorControlAck(mac, payloadData);
+            break;
+          case 32: // MODE CHANGE ACK
+            debugPrint('Handling MODE CHANGE ACK (32)');
+            _handleModeChangeAck(mac, payloadData);
+            break;
+          case 40: // HEART BEAT
+            debugPrint('Heartbeat received from $mac');
+            break;
+          case 41: // LIVE DATA
+            debugPrint('Handling LIVE DATA (41)');
+            _handleLiveData(mac, payloadData);
+            break;
+          default:
+            debugPrint('Unknown message type: $type');
         }
       } catch (e, stackTrace) {
         debugPrint('Error parsing MQTT message: $e');
@@ -1167,170 +937,393 @@ class MqttService {
       }
     }
 
+    // Notify listeners after processing all messages
+    debugPrint(
+        'Notifying UI update - Current value: ${_dataUpdateNotifier.value}');
     _dataUpdateNotifier.value++;
+    debugPrint('New notification value: ${_dataUpdateNotifier.value}');
   }
 
-  void _handleTelemetryData(Map<String, dynamic> data, String mac) {
-    final type = data['T'] as int?;
+  void _handleLiveData(String mac, dynamic payloadData) {
+    debugPrint('_handleLiveData called for MAC: $mac');
 
-    // Type 35 is LIVE DATA
-    if (type != 41) return;
+    if (payloadData is! Map<String, dynamic>) {
+      debugPrint('Invalid payload data type: ${payloadData.runtimeType}');
+      return;
+    }
 
-    final deviceData = data['D'] as Map<String, dynamic>?;
-    if (deviceData == null) return;
+    int updatedMotors = 0;
 
-    // Process each group (G01, G02, G03, G04)
-    for (var entry in deviceData.entries) {
-      final groupKey = entry.key;
-      if (groupKey == 'ct') continue; // Skip timestamp
+    for (var entry in payloadData.entries) {
+      final groupId = entry.key; // G01, G02, G03, G04
+      if (groupId == 'ct') continue; // Skip timestamp
 
-      // Group keys are like "G01", "G02", etc.
-      final motorId = '$mac-$groupKey';
+      debugPrint('Processing group: $groupId');
 
-      // Get or create motor data
-      final motorData = motorDataMap[motorId] ??
-          MotorData(
-            mac: mac,
-            motorRefId: groupKey,
-            title: groupKey,
-          );
+      final groupData = entry.value as Map<String, dynamic>?;
+      if (groupData == null) {
+        debugPrint('Group data is null for $groupId');
+        continue;
+      }
 
-      // Update motor data from payload
-      motorData.updateFromPayload(data['D'], groupKey);
+      final fullMotorId = '$mac-$groupId';
+      debugPrint('Full Motor ID: $fullMotorId');
 
-      motorDataMap[motorId] = motorData;
+      var motorData = motorDataMap[fullMotorId];
+      if (motorData == null) {
+        debugPrint('Creating new MotorData for $fullMotorId');
+        motorData =
+            MotorData(macAddress: mac, groupId: groupId, title: groupId);
+        motorDataMap[fullMotorId] = motorData;
+      }
+
+      // Update based on available fields
+      debugPrint('Group data keys: ${groupData.keys}');
+
+      if (groupData.containsKey('p_v')) {
+        // This is G01 with full data
+        debugPrint('Processing G01 with full data');
+        // motorData.state = groupData['m_s'] ?? 0;
+        // motorData.controller.value = motorData.state == 1;
+        final newState = groupData['m_s'] ?? 0;
+        motorData.state = newState;
+// Only update controller if state actually changed
+        if (motorData.controller.value != (newState == 1)) {
+          motorData.controller.value = (newState == 1);
+        }
+        debugPrint(
+            'Motor state: ${motorData.state}, Controller: ${motorData.controller.value}');
+
+        final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+        motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+        motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+        motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+
+        final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+        motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+        motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+        motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+
+        motorData.power = groupData['pwr'] ?? 0;
+        motorData.fault = groupData['flt'] ?? 0;
+        motorData.alert = groupData['alt'] ?? 0;
+
+        // Handle mode - convert full mode to simplified
+        if (groupData.containsKey('mode')) {
+          final fullModeValue = groupData['mode'] as int?;
+          if (fullModeValue != null) {
+            motorData.modeIndex = _fullModeToSimplified(fullModeValue);
+            motorData.modeswitchcontroller.value = motorData.modeIndex;
+
+            // Update motorMode string for display
+            switch (fullModeValue) {
+              case 0:
+                motorData.motorMode = 'LOCAL+MANUAL';
+                break;
+              case 1:
+                motorData.motorMode = 'LOCAL+AUTO';
+                break;
+              case 2:
+                motorData.motorMode = 'REMOTE+MANUAL';
+                break;
+              case 3:
+                motorData.motorMode = 'REMOTE+AUTO';
+                break;
+              default:
+                motorData.motorMode = '--';
+            }
+
+            debugPrint(
+                'Mode: ${motorData.motorMode} (simplified index: ${motorData.modeIndex})');
+          }
+        }
+      } else if (groupData.containsKey('pwr')) {
+        // G02, G03 - partial data
+        debugPrint('Processing G02/G03 with partial data');
+        motorData.power = groupData['pwr'] ?? 0;
+
+        if (groupData.containsKey('mode')) {
+          final fullModeValue = groupData['mode'] as int?;
+          if (fullModeValue != null) {
+            motorData.modeIndex = _fullModeToSimplified(fullModeValue);
+            motorData.modeswitchcontroller.value = motorData.modeIndex;
+          }
+        }
+
+        if (groupData.containsKey('llv')) {
+          final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+          motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+          motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+          motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+        }
+
+        if (groupData.containsKey('amp')) {
+          final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+          motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+          motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+          motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+        }
+
+        if (groupData.containsKey('m_s')) {
+          motorData.state = groupData['m_s'] ?? 0;
+          motorData.controller.value = motorData.state == 1;
+        }
+      } else if (groupData.containsKey('mode')) {
+        // G04 - only power and mode
+        debugPrint('Processing G04 with mode only');
+        motorData.power = groupData['pwr'] ?? 0;
+        final fullModeValue = groupData['mode'] as int?;
+        if (fullModeValue != null) {
+          motorData.modeIndex = _fullModeToSimplified(fullModeValue);
+          motorData.modeswitchcontroller.value = motorData.modeIndex;
+        }
+      }
+
+      motorData.hasReceivedData = true;
+      motorDataMap[fullMotorId] = motorData;
+      _lastAckTimes[fullMotorId] = DateTime.now();
+      updatedMotors++;
+
+      debugPrint('Motor $fullMotorId updated successfully');
+    }
+
+    debugPrint('Total motors updated in this message: $updatedMotors');
+    debugPrint('Total motors in map: ${motorDataMap.length}');
+  }
+
+  void _handleMotorControlAck(String mac, dynamic payloadData) {
+    final ackStatus = payloadData as int?;
+    debugPrint('Motor control ACK status: $ackStatus for MAC: $mac');
+    if (ackStatus == 1) {
+      debugPrint('Motor control acknowledged for $mac');
+      for (var key in motorDataMap.keys) {
+        if (key.startsWith(mac)) {
+          _lastAckTimes[key] = DateTime.now();
+        }
+      }
     }
   }
 
-  void _handleStatusData(Map<String, dynamic> data, String mac) {
-    final type = data['T'] as int?;
-    final statusData = data['D'];
-
-    // Type 31 is MOTOR CONTROL ACK
-    // Type 32 is MODE CHANGE ACK
-    if (type == 31) {
-      _handleMotorControlAck(statusData, mac);
-    } else if (type == 32) {
-      _handleModeChangeAck(statusData, mac);
+  void _handleModeChangeAck(String mac, dynamic payloadData) {
+    final ackStatus = payloadData as int?;
+    debugPrint('Mode change ACK status: $ackStatus for MAC: $mac');
+    if (ackStatus == 1) {
+      debugPrint('Mode change acknowledged for $mac');
+      for (var key in motorDataMap.keys) {
+        if (key.startsWith(mac)) {
+          _lastAckTimes[key] = DateTime.now();
+        }
+      }
     }
   }
 
-  void _handleMotorControlAck(dynamic statusData, String mac) {
-    // statusData should be 1 for success
-    if (statusData == 1) {
-      debugPrint('Motor control ACK received for $mac');
-      // The actual state update will come through telemetry
+  Map<String, MotorData> getMotorDataForLocation(int? locationId) {
+    if (locationId == null) {
+      return motorDataMap;
     }
-  }
 
-  void _handleModeChangeAck(dynamic statusData, String mac) {
-    // statusData should be 1 for success
-    if (statusData == 1) {
-      debugPrint('Mode change ACK received for $mac');
-      // The actual mode update will come through telemetry
-    }
+    final result = Map<String, MotorData>.fromEntries(
+      motorDataMap.entries.where((entry) {
+        final motor = motors[entry.key];
+        return motor?.location?.id == locationId;
+      }),
+    );
+
+    return result;
   }
 
   Future<void> publishMotorCommand(String motorId, int state) async {
     if (mqttClient == null || !isConnected) {
+      debugPrint('Cannot publish: MQTT not connected');
       statusMessage = 'MQTT not connected';
       _dataUpdateNotifier.value++;
-      throw Exception('MQTT not connected');
+      return;
+    }
+
+    final lastCommandTime = _lastCommandTimes[motorId];
+    if (lastCommandTime != null &&
+        DateTime.now().difference(lastCommandTime).inSeconds < 2) {
+      debugPrint('Command throttled for $motorId');
+      return;
     }
 
     final parts = motorId.split('-');
     if (parts.length != 2) {
-      throw Exception('Invalid motor ID format');
+      debugPrint('Invalid motorId format: $motorId');
+      return;
     }
 
     final mac = parts[0];
-    final groupKey = parts[1];
+    final topic = 'peepul/$mac/status';
 
-    // Topic format: peepul/{mac}/ctrl
-    final topic = 'peepul/$mac/ctrl';
-
-    // Payload format for motor control
     final payload = {
-      "T": 21, // Motor control type
-      "D": {
-        groupKey: {
-          "m_s": state, // 0 = OFF, 1 = ON
-        }
-      }
+      "T": 31, // MOTOR CONTROL
+      "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      "D": state,
     };
 
     final message = jsonEncode(payload);
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
+
+    _lastAckTimes.remove(motorId);
+    _lastCommandTimes[motorId] = DateTime.now();
 
     try {
       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-      statusMessage = 'Command sent successfully';
-      debugPrint('Published motor command: $message to $topic');
+      statusMessage = 'Motor command sent successfully';
+      debugPrint('Published motor command to $topic: $message');
     } catch (e) {
-      statusMessage = 'Failed to publish command: $e';
+      statusMessage = 'Failed to publish motor command: $e';
+      debugPrint('Failed to publish motor command: $e');
+      _lastCommandTimes.remove(motorId);
       _dataUpdateNotifier.value++;
       rethrow;
     }
-
     _dataUpdateNotifier.value++;
   }
 
-  Future<void> publishModeCommand(String motorId, int mode) async {
+  Future<void> publishModeCommand(String motorId, int simplifiedMode) async {
     if (mqttClient == null || !isConnected) {
+      debugPrint('Cannot publish: MQTT not connected');
       statusMessage = 'MQTT not connected';
       _dataUpdateNotifier.value++;
-      throw Exception('MQTT not connected');
+      return;
     }
 
     final parts = motorId.split('-');
     if (parts.length != 2) {
-      throw Exception('Invalid motor ID format');
+      debugPrint('Invalid motorId format: $motorId');
+      return;
     }
 
     final mac = parts[0];
-    final groupKey = parts[1];
+    final groupId = parts[1];
+    final topic = 'peepul/$mac/status';
 
-    // Topic format: peepul/{mac}/ctrl
-    final topic = 'peepul/$mac/ctrl';
+    // Convert simplified mode (0=Auto, 1=Manual) to full mode
+    final fullMode = _simplifiedToFullMode(simplifiedMode);
 
-    // Payload format for mode change
     final payload = {
-      "T": 22, // Mode change type
-      "D": {
-        groupKey: {
-          "mode":
-              mode, // 0=LOCAL+MANUAL, 1=LOCAL+AUTO, 2=REMOTE+MANUAL, 3=REMOTE+AUTO
-        }
-      }
+      "T": 32, // MODE CHANGE
+      "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      "D": fullMode,
     };
 
     final message = jsonEncode(payload);
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
+
+    _lastAckTimes.remove(motorId);
 
     try {
       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
       statusMessage = 'Mode command sent successfully';
-      debugPrint('Published mode command: $message to $topic');
+      debugPrint('========================================');
+      debugPrint('Published mode command to topic: $topic');
+      debugPrint('Motor ID: $motorId');
+      debugPrint('Group ID: $groupId');
+      debugPrint(
+          'Simplified mode: $simplifiedMode (${simplifiedMode == 0 ? "Auto" : "Manual"})');
+      debugPrint(
+          'Full mode sent: $fullMode (${_modeFromSimplifiedIndex(simplifiedMode)})');
+      debugPrint('Payload: $message');
+      debugPrint('========================================');
+
+      _lastAckTimes[motorId] = DateTime.now();
     } catch (e) {
       statusMessage = 'Failed to publish mode command: $e';
+      debugPrint('Failed to publish mode command: $e');
       _dataUpdateNotifier.value++;
       rethrow;
     }
-
     _dataUpdateNotifier.value++;
   }
 
-  MotorData? getMotorData(String motorId) {
-    return motorDataMap[motorId];
+  Future<void> publishGroupedMotorCommands(
+    List<Map<String, dynamic>> motorCommands,
+  ) async {
+    if (mqttClient == null || !isConnected) {
+      debugPrint('Cannot publish: MQTT not connected');
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+
+    // Group commands by MAC address
+    Map<String, List<Map<String, dynamic>>> commandsByMac = {};
+
+    for (var command in motorCommands) {
+      final motorId = command['motorId'] as String;
+      final parts = motorId.split('-');
+      if (parts.length != 2) continue;
+
+      final mac = parts[0];
+      final groupId = parts[1];
+      final state = command['state'] as int;
+
+      if (!commandsByMac.containsKey(mac)) {
+        commandsByMac[mac] = [];
+      }
+
+      commandsByMac[mac]!.add({
+        'groupId': groupId,
+        'state': state,
+        'motorId': motorId,
+      });
+    }
+
+    // Send commands for each MAC address
+    for (var entry in commandsByMac.entries) {
+      final mac = entry.key;
+      final commands = entry.value;
+      final topic = 'peepul/$mac/status';
+
+      // Build payload with all group commands
+      final Map<String, dynamic> groupStates = {};
+      for (var cmd in commands) {
+        groupStates[cmd['groupId']] = cmd['state'];
+      }
+
+      final payload = {
+        "T": 31, // MOTOR CONTROL
+        "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        "D": groupStates, // Multiple groups in one payload
+      };
+
+      final message = jsonEncode(payload);
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(message);
+
+      // Clear ack times for all motors in this command
+      for (var cmd in commands) {
+        _lastAckTimes.remove(cmd['motorId']);
+        _lastCommandTimes[cmd['motorId']] = DateTime.now();
+      }
+
+      try {
+        mqttClient!
+            .publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+        debugPrint('========================================');
+        debugPrint('Published grouped motor command to: $topic');
+        debugPrint('Payload: $message');
+        debugPrint('Motors affected: ${commands.length}');
+        debugPrint('========================================');
+      } catch (e) {
+        statusMessage = 'Failed to publish grouped command: $e';
+        debugPrint('Failed to publish grouped command: $e');
+        rethrow;
+      }
+    }
+
+    statusMessage = 'Grouped motor commands sent successfully';
+    _dataUpdateNotifier.value++;
   }
 
   void dispose() {
     mqttClient?.disconnect();
-    for (var motor in motorDataMap.values) {
-      motor.dispose();
+    for (var motorData in motorDataMap.values) {
+      motorData.dispose();
     }
-    motorDataMap.clear();
   }
 }

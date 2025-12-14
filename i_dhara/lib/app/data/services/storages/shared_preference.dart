@@ -5,17 +5,14 @@ class SharedPreference {
 
   static String accestoken = 'accesstoken';
 
-   static String phone = 'phone';
-     static String userId = 'userId';
+  static String phone = 'phone';
+  static String userId = 'userId';
+  static String peepulagri = 'PEEPUL_AGRI_01';
 
-
-
-
-   static Future<SharedPreferences> init() async {
+  static Future<SharedPreferences> init() async {
     preferences = await SharedPreferences.getInstance();
     return preferences;
   }
-
 
   ///Method that saves the [accestoken].
   static Future<bool> setAccessToken(String value) async =>
@@ -31,9 +28,15 @@ class SharedPreference {
   ///Method that returns the [phone].
   static String getPhone() => preferences.getString(phone) ?? '';
 
+  ///Method that saves the [peepulagri].
+  static Future<bool> setpeepulagri(String value) async =>
+      preferences.setString(peepulagri, value);
 
-    static Future<bool> setUserId(int? value) async =>
+  ///Method that returns the [gatewaytitle].
+  static String getpeepulagri() => preferences.getString(peepulagri) ?? '';
+
+  static Future<bool> setUserId(int? value) async =>
       preferences.setInt(userId, value!);
 
-  static int? getUserId() => preferences.getInt(userId) ?? null;
+  static int? getUserId() => preferences.getInt(userId);
 }

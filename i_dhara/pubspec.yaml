@@ -80,6 +80,9 @@ dependencies:
   geolocator: ^13.0.0
   mqtt_client: ^10.5.1
   flutter_dotenv: ^6.0.0
+  flutter_advanced_switch: ^3.1.0
+  toggle_switch: ^2.3.0
+  mobile_scanner: ^5.2.2
 
 dependency_overrides:
   http: 1.4.0

@@ -1,4 +1,4 @@
-class Routes{
+class Routes {
   static const String splash = '/splash';
   static const String loginwithmobile = '/login-with-mobile';
   static const String otp = '/otp';
@@ -7,5 +7,5 @@ class Routes{
   static const String devices = '/devices';
   static const String addDevices = '/add-devices';
   static const String locations = '/locations';
-  static const String qrCode = '/qr-code';
+  static const String qrCode = '/qrcode';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -33,6 +34,43 @@ class DevicesPage extends StatelessWidget {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: const Color(0xFFEBF3FE),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(right: 8, bottom: 4),
+          child: Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF3686AF),
+                  Color(0xFF004E7E),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              onPressed: () {
+                Get.toNamed(Routes.qrCode);
+              },
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+        ),
         endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
         body: SafeArea(
           top: true,
@@ -199,9 +237,7 @@ class DevicesPage extends StatelessWidget {
                           );
                         }
                         if (controller.devicesList.isEmpty) {
-                          return const Center(
-                            child: Text('No devices found'),
-                          );
+                          return const NoStartersFound();
                         }
 
                         return Skeletonizer(

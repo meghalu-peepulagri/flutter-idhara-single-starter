@@ -45,21 +45,37 @@ class DevicesCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.max,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                device.name ?? 'Unknown Device',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      color: const Color(0xFF13120D),
-                                      fontSize: 16.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w500,
+                              Row(
+                                children: [
+                                  Text(
+                                    motor?.name ?? 'No Motor',
+                                    style: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .override(
+                                          font: GoogleFonts.dmSans(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          color: const Color(0xFF13120D),
+                                          fontSize: 16.0,
+                                          letterSpacing: 0.0,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const Spacer(),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(0.0),
+                                    child: SvgPicture.asset(
+                                      device.power == 1
+                                          ? 'assets/images/power.svg'
+                                          : 'assets/images/Power_red.svg',
+                                      width: 17,
+                                      height: 17,
+                                      fit: BoxFit.cover,
                                     ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                               Text(
                                 '#${device.pcbNumber ?? 'N/A'}',
@@ -89,22 +105,22 @@ class DevicesCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.max,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                motor?.name ?? 'No Motor',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      color: const Color(0xFF13120D),
-                                      fontSize: 16.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              // Text(
+                              //   motor?.name ?? 'No Motor',
+                              //   style: FlutterFlowTheme.of(context)
+                              //       .bodyMedium
+                              //       .override(
+                              //         font: GoogleFonts.dmSans(
+                              //           fontWeight: FontWeight.w500,
+                              //         ),
+                              //         color: const Color(0xFF13120D),
+                              //         fontSize: 16.0,
+                              //         letterSpacing: 0.0,
+                              //         fontWeight: FontWeight.w500,
+                              //       ),
+                              //   maxLines: 1,
+                              //   overflow: TextOverflow.ellipsis,
+                              // ),
                               Text(
                                 motor?.hp ?? 'N/A',
                                 style: FlutterFlowTheme.of(context)
@@ -126,7 +142,7 @@ class DevicesCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(0.0),
                           child: SvgPicture.asset(
                             (motor?.state == 1)
-                                ? 'assets/images/device_on.svg'
+                                ? 'assets/images/pump.svg'
                                 : 'assets/images/pump_off.svg',
                             width: 24,
                             height: 24,

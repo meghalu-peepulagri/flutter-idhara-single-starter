@@ -47,10 +47,24 @@ class SidebarWidget extends StatelessWidget {
         },
         child: Container(
             padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+            // decoration: BoxDecoration(
+            //   color: isSelected
+            //       ? FlutterFlowTheme.of(context).primary.withOpacity(0.1)
+            //       : Colors.transparent,
+            //   borderRadius: BorderRadius.circular(8),
+            // ),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? FlutterFlowTheme.of(context).primary.withOpacity(0.1)
-                  : Colors.transparent,
+              gradient: isSelected
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF3686AF), // main blue
+                        Color(0xFF004E7E), // lighter gradient blue
+                      ],
+                    )
+                  : null,
+              color: isSelected ? null : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: ListTile(
@@ -62,9 +76,7 @@ class SidebarWidget extends StatelessWidget {
                   fontSize: 15, // slightly smaller font
                   textStyle: TextStyle(
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected
-                        ? FlutterFlowTheme.of(context).primary
-                        : const Color(0xFF0F0F0F),
+                    color: isSelected ? Colors.white : const Color(0xFF0F0F0F),
                     letterSpacing: .4,
                   ),
                 ),
@@ -153,15 +165,15 @@ class SidebarWidget extends StatelessWidget {
                             const EdgeInsetsDirectional.fromSTEB(0, 16, 0, 0),
                         child: _buildMenuItem(
                             route: Routes.dashboard,
-                            label: 'Pumps',
+                            label: 'Home',
                             icon: SvgPicture.asset(
-                              'assets/images/Pond.svg',
-                              height: 24,
-                              width: 24,
+                              'assets/images/Home.svg',
+                              height: 22,
+                              width: 22,
                               fit: BoxFit.cover,
                               color: _controller.selectedRoute.value ==
                                       Routes.dashboard
-                                  ? FlutterFlowTheme.of(context).primary
+                                  ? Colors.white
                                   : Colors.black,
                             ),
                             onTap: () {
@@ -176,13 +188,15 @@ class SidebarWidget extends StatelessWidget {
                       child: _buildMenuItem(
                           route: Routes.locations,
                           label: 'Locations',
-                          icon: Icon(
-                            Icons.location_on_outlined,
+                          icon: SvgPicture.asset(
+                            'assets/images/location.svg',
+                            height: 22,
+                            width: 22,
+                            fit: BoxFit.cover,
                             color: _controller.selectedRoute.value ==
                                     Routes.locations
-                                ? FlutterFlowTheme.of(context).primary
+                                ? Colors.white
                                 : FlutterFlowTheme.of(context).primaryText,
-                            size: 24,
                           ),
                           onTap: () {
                             // Get.delete<SidebarLocationController>();
@@ -217,13 +231,13 @@ class SidebarWidget extends StatelessWidget {
                         route: Routes.devices,
                         label: 'Devices',
                         icon: SvgPicture.asset(
-                          'assets/images/smart-devices_1_(1).svg',
-                          height: 24,
-                          width: 24,
+                          'assets/images/devices.svg',
+                          height: 22,
+                          width: 22,
                           fit: BoxFit.cover,
                           color:
                               _controller.selectedRoute.value == Routes.devices
-                                  ? FlutterFlowTheme.of(context).primary
+                                  ? Colors.white
                                   : null,
                         ),
                         onTap: () {

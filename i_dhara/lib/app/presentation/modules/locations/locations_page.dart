@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -190,9 +191,7 @@ class LocationsWidget extends StatelessWidget {
                         }
 
                         if (controller.locationsList.isEmpty) {
-                          return const Center(
-                            child: Text('No locations found'),
-                          );
+                          return const NoLocationsFound();
                         }
 
                         return Skeletonizer(

@@ -216,12 +216,12 @@ class StarterParameter {
   DateTime? timeStamp;
   int? fault;
   String? faultDescription;
-  int? lineVoltageR;
-  double? lineVoltageY;
-  double? lineVoltageB;
-  int? currentR;
-  int? currentY;
-  int? currentB;
+  num? lineVoltageR;
+  num? lineVoltageY;
+  num? lineVoltageB;
+  num? currentR;
+  num? currentY;
+  num? currentB;
 
   StarterParameter({
     this.id,
