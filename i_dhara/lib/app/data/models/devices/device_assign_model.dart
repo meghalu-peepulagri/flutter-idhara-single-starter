@@ -15,7 +15,7 @@ class DeviceAssignResponse {
   bool? success;
   String? message;
   dynamic data;
-  Errors? errors;
+  ErrorsClass? errors;
 
   DeviceAssignResponse(
       {this.status, this.success, this.message, this.data, this.errors});
@@ -26,7 +26,9 @@ class DeviceAssignResponse {
         success: json["success"],
         message: json["message"],
         data: json["data"],
-        errors: json["errors"] == null ? null : Errors.fromJson(json["errors"]),
+        errors: json["errors"] == null
+            ? null
+            : ErrorsClass.fromJson(json["errors"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -38,26 +40,30 @@ class DeviceAssignResponse {
       };
 }
 
-class Errors {
-  bool? success;
-  int? status;
-  String? message;
+class ErrorsClass {
+  String? pcbNumber;
+  String? motorName;
+  String? locationId;
+  String? hp;
 
-  Errors({
-    this.success,
-    this.status,
-    this.message,
+  ErrorsClass({
+    this.pcbNumber,
+    this.motorName,
+    this.locationId,
+    this.hp,
   });
 
-  factory Errors.fromJson(Map<String, dynamic> json) => Errors(
-        success: json["success"],
-        status: json["status"],
-        message: json["message"],
+  factory ErrorsClass.fromJson(Map<String, dynamic> json) => ErrorsClass(
+        pcbNumber: json["pcb_number"],
+        motorName: json["motor_name"],
+        locationId: json["location_id"],
+        hp: json["hp"],
       );
 
   Map<String, dynamic> toJson() => {
-        "success": success,
-        "status": status,
-        "message": message,
+        "pcb_number": pcbNumber,
+        "motor_name": motorName,
+        "location_id": locationId,
+        "hp": hp,
       };
 }

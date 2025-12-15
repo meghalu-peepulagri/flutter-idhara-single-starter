@@ -8,4 +8,5 @@ class Routes {
   static const String addDevices = '/add-devices';
   static const String locations = '/locations';
   static const String qrCode = '/qrcode';
+  static const String motorDetails = '/motordetails';
 }

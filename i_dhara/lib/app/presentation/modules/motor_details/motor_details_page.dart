@@ -1,13 +1,12 @@
-import '../app/presentation/widgets/motor_control_card_widget.dart';
-import '../app/core/flutter_flow/flutter_flow_theme.dart';
-import '../app/core/flutter_flow/flutter_flow_util.dart';
-import '../app/core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import 'motor_control_model.dart';
-export 'motor_control_model.dart';
+
+import '../../../core/flutter_flow/flutter_flow_theme.dart';
+import '../../../core/flutter_flow/flutter_flow_util.dart';
+import '../../widgets/motor_control_card_widget.dart';
+import 'motor_details_controller.dart';
+
+export 'motor_details_controller.dart';
 
 class MotorControlWidget extends StatefulWidget {
   const MotorControlWidget({super.key});
@@ -48,21 +47,21 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
       },
       child: Scaffold(
         key: scaffoldKey,
-        backgroundColor: Color(0xFFEBF3FE),
-        body: Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(1.0, 0.0, 0.0, 0.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
+        backgroundColor: const Color(0xFFEBF3FE),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(1.0, 16.0, 0.0, 0.0),
+            child: Column(mainAxisSize: MainAxisSize.max, children: [
               Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                padding:
+                    const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                 child: Row(
                   mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      decoration: BoxDecoration(),
-                      child: Padding(
+                      decoration: const BoxDecoration(),
+                      child: const Padding(
                         padding: EdgeInsets.all(6.0),
                         child: Icon(
                           Icons.arrow_back,
@@ -80,7 +79,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                   .bodyMedium
                                   .fontStyle,
                             ),
-                            color: Color(0xFF004E7E),
+                            color: const Color(0xFF004E7E),
                             fontSize: 16.0,
                             letterSpacing: 0.0,
                             fontWeight: FontWeight.w500,
@@ -102,7 +101,8 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
               ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                      16.0, 0.0, 16.0, 0.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -113,7 +113,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                           borderRadius: BorderRadius.circular(10.0),
                         ),
                         child: Padding(
-                          padding: EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.all(12.0),
                           child: Column(
                             mainAxisSize: MainAxisSize.max,
                             children: [
@@ -140,7 +140,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                                         .bodyMedium
                                                         .fontStyle,
                                               ),
-                                              color: Color(0xFF0A0A0A),
+                                              color: const Color(0xFF0A0A0A),
                                               fontSize: 20.0,
                                               letterSpacing: 0.0,
                                               fontWeight: FontWeight.w500,
@@ -162,7 +162,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                                         .bodyMedium
                                                         .fontStyle,
                                               ),
-                                              color: Color(0xFF6A7282),
+                                              color: const Color(0xFF6A7282),
                                               fontSize: 14.0,
                                               letterSpacing: 0.0,
                                               fontWeight: FontWeight.normal,
@@ -172,16 +172,16 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                                       .fontStyle,
                                             ),
                                       ),
-                                    ].divide(SizedBox(height: 8.0)),
+                                    ].divide(const SizedBox(height: 8.0)),
                                   ),
                                   Switch.adaptive(
                                     value: _model.switchValue!,
                                     onChanged: (newValue) async {
                                       safeSetState(
-                                          () => _model.switchValue = newValue!);
+                                          () => _model.switchValue = newValue);
                                     },
-                                    activeColor: Color(0xFF34C759),
-                                    activeTrackColor: Color(0xFF34C759),
+                                    activeColor: const Color(0xFF34C759),
+                                    activeTrackColor: const Color(0xFF34C759),
                                     inactiveTrackColor:
                                         FlutterFlowTheme.of(context).alternate,
                                     inactiveThumbColor:
@@ -190,13 +190,13 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                   ),
                                 ],
                               ),
-                            ].divide(SizedBox(height: 12.0)),
+                            ].divide(const SizedBox(height: 12.0)),
                           ),
                         ),
                       ),
                       Expanded(
                         child: ListView(
-                          padding: EdgeInsets.fromLTRB(
+                          padding: const EdgeInsets.fromLTRB(
                             0,
                             0,
                             0,
@@ -210,17 +210,17 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(6.0),
                                 border: Border.all(
-                                  color: Color(0xFFE5E7EB),
+                                  color: const Color(0xFFE5E7EB),
                                 ),
                               ),
                               child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     12.0, 8.0, 12.0, 8.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
                                   mainAxisAlignment: MainAxisAlignment.start,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.calendar_month_outlined,
                                       color: Color(0xFF4D4D4D),
                                       size: 20.0,
@@ -240,7 +240,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                                       .bodyMedium
                                                       .fontStyle,
                                             ),
-                                            color: Color(0xB2000000),
+                                            color: const Color(0xB2000000),
                                             letterSpacing: 0.0,
                                             fontWeight:
                                                 FlutterFlowTheme.of(context)
@@ -252,31 +252,21 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                                                     .fontStyle,
                                           ),
                                     ),
-                                  ].divide(SizedBox(width: 8.0)),
+                                  ].divide(const SizedBox(width: 8.0)),
                                 ),
                               ),
                             ),
                             wrapWithModel(
                               model: _model.motorControlCardModel1,
                               updateCallback: () => safeSetState(() {}),
-                              child: MotorControlCardWidget(),
+                              child: const MotorControlCardWidget(),
                             ),
-                            wrapWithModel(
-                              model: _model.motorControlCardModel2,
-                              updateCallback: () => safeSetState(() {}),
-                              child: MotorControlCardWidget(),
-                            ),
-                            wrapWithModel(
-                              model: _model.motorControlCardModel3,
-                              updateCallback: () => safeSetState(() {}),
-                              child: MotorControlCardWidget(),
-                            ),
-                          ].divide(SizedBox(height: 12.0)),
+                          ].divide(const SizedBox(height: 12.0)),
                         ),
                       ),
                     ]
-                        .divide(SizedBox(height: 24.0))
-                        .addToStart(SizedBox(height: 24.0)),
+                        .divide(const SizedBox(height: 24.0))
+                        .addToStart(const SizedBox(height: 24.0)),
                   ),
                 ),
               ),
@@ -284,7 +274,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: FlutterFlowTheme.of(context).secondaryBackground,
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       blurRadius: 6.0,
                       color: Color(0x1F000000),
@@ -294,14 +284,14 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                       ),
                     )
                   ],
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(0.0),
                     bottomRight: Radius.circular(0.0),
                     topLeft: Radius.circular(8.0),
                     topRight: Radius.circular(8.0),
                   ),
                 ),
-                child: Padding(
+                child: const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
@@ -309,7 +299,7 @@ class _MotorControlWidgetState extends State<MotorControlWidget> {
                   ),
                 ),
               ),
-            ].addToStart(SizedBox(height: 56.0)),
+            ]),
           ),
         ),
       ),

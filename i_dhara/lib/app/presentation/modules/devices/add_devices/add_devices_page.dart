@@ -258,11 +258,19 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                     width: double.infinity,
                                     child: TextFieldComponent(
                                       controller: _model.textController1!,
-                                      // errors: _model.errorInstance,
-                                      errorKey: 'full_name',
+                                      errors: _model.errorInstance,
+                                      errorKey: 'pcb_number',
                                       hintText: 'Enter PCB number',
                                       readOnly: false,
-                                      onChanged: (value) {},
+                                      onChanged: (value) {
+                                        if (_model.errorInstance
+                                            .containsKey('pcb_number')) {
+                                          setState(() {
+                                            _model.errorInstance
+                                                .remove('pcb_number');
+                                          });
+                                        }
+                                      },
                                       // inputFormatters: [
                                       //   FilteringTextInputFormatter.allow(
                                       //       RegExp(r'[a-zA-Z\s]')),
@@ -342,10 +350,19 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                               Expanded(
                                 child: TextFieldComponent(
                                   controller: _model.textController2!,
-                                  errorKey: 'full_name',
+                                  errors: _model.errorInstance,
+                                  errorKey: 'motor_name',
                                   hintText: 'Enter Pump Name',
                                   readOnly: false,
-                                  onChanged: (value) {},
+                                  onChanged: (value) {
+                                    if (_model.errorInstance
+                                        .containsKey('motor_name')) {
+                                      setState(() {
+                                        _model.errorInstance
+                                            .remove('motor_name');
+                                      });
+                                    }
+                                  },
                                 ),
                               ),
                               SizedBox(
@@ -460,8 +477,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                             child: AbsorbPointer(
                               child: TextFieldComponent(
                                 controller: _model.textController4!,
-                                // errors: _model.errorInstance,
-                                errorKey: 'full_name',
+                                errors: _model.errorInstance,
+                                errorKey: 'location_id',
                                 hintText: 'Select Location',
                                 readOnly: false,
                                 onChanged: (value) {},
@@ -483,17 +500,39 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                       ),
                       FFButtonWidget(
                         onPressed: () async {
-                          if (selectedLocationId == null ||
-                              _model.textController1!.text.isEmpty ||
-                              _model.textController2!.text.isEmpty ||
-                              _model.textController3!.text.isEmpty) {
+                          FocusScope.of(context).unfocus();
+                          if (_model.textController1!.text.trim().isEmpty) {
+                            _model.errorInstance['pcb_number'] =
+                                'PCB number is required';
+                          }
+
+                          if (_model.textController2!.text.trim().isEmpty) {
+                            _model.errorInstance['motor_name'] =
+                                'Pump name is required';
+                          }
+
+                          if (_model.textController3!.text.trim().isEmpty) {
+                            _model.errorInstance['hp'] = 'HP is required';
+                          } else if (double.tryParse(
+                                  _model.textController3!.text.trim()) ==
+                              null) {
+                            _model.errorInstance['hp'] = 'Enter a valid number';
+                          }
+
+                          if (selectedLocationId == null) {
+                            _model.errorInstance['location_id'] =
+                                'Location is required';
+                          }
+                          if (_model.errorInstance.isNotEmpty) {
+                            setState(() {});
                             return;
                           }
                           await _model.assignDevice(
-                            pcbNumber: _model.textController1!.text,
-                            pumpName: _model.textController2!.text,
-                            hp: double.parse(_model.textController3!.text),
-                            locationId: int.parse(selectedLocationId!),
+                            pcbNumber: _model.textController1!.text.trim(),
+                            pumpName: _model.textController2!.text.trim(),
+                            hp: double.parse(
+                                _model.textController3!.text.trim()),
+                            locationId: int.parse(selectedLocationId!.trim()),
                           );
                         },
                         text: 'Add Device',

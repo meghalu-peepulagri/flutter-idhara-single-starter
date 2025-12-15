@@ -83,6 +83,7 @@ dependencies:
   flutter_advanced_switch: ^3.1.0
   toggle_switch: ^2.3.0
   mobile_scanner: ^5.2.2
+  syncfusion_flutter_charts: ^29.1.38
 
 dependency_overrides:
   http: 1.4.0

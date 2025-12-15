@@ -33,7 +33,9 @@ class DevicesRepositoryImpl extends DevicesRepository {
     final body = dto.toJson();
     final response =
         await NetworkManager().patch('/starters/assign', data: body);
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 422) {
       final data = DeviceAssignResponse.fromJson(response.data);
       return data;
     } else {

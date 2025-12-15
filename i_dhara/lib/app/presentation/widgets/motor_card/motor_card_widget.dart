@@ -688,7 +688,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             borderRadius: BorderRadius.circular(12.0),
           ),
           child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 12.0),
+            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 10.0),
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
@@ -777,18 +777,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                       color: Color(0xFFEB5757),
                                       size: 14.0,
                                     ),
-                                    Text(
-                                      '${motorData?.fault ?? 0}',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.dmSans(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            color: const Color(0xFF2B2B2B),
-                                            letterSpacing: 0.0,
-                                          ),
-                                    ),
+                                    // Text(
+                                    //   '${motorData?.fault ?? 0}',
+                                    //   style: FlutterFlowTheme.of(context)
+                                    //       .bodyMedium
+                                    //       .override(
+                                    //         font: GoogleFonts.dmSans(
+                                    //           fontWeight: FontWeight.w500,
+                                    //         ),
+                                    //         color: const Color(0xFF2B2B2B),
+                                    //         letterSpacing: 0.0,
+                                    //       ),
+                                    // ),
                                   ].divide(const SizedBox(width: 6.0)),
                                 ),
                               ),
@@ -799,6 +799,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   ),
                 ),
                 const Divider(
+                  height: 2,
                   thickness: 1.0,
                   color: Color(0xFFECECEC),
                 ),
@@ -812,6 +813,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   ),
                 ),
                 const Divider(
+                  height: 2,
                   thickness: 1.0,
                   color: Color(0xFFECECEC),
                 ),
@@ -845,10 +847,17 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                         [const Color(0xFF2F80ED)]
                                       ]
                                     : [
-                                        [Colors.grey.shade300],
-                                        [Colors.grey.shade300]
+                                        [
+                                          const Color(0xFFFFA500)
+                                              .withOpacity(0.3)
+                                        ],
+                                        [
+                                          const Color(0xFF2F80ED)
+                                              .withOpacity(0.3)
+                                        ],
                                       ],
-                                activeFgColor: Colors.white,
+                                activeFgColor:
+                                    isAvailable ? Colors.white : Colors.black,
                                 inactiveBgColor: Colors.white,
                                 inactiveFgColor: Colors.black,
                                 fontSize: 12,

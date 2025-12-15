@@ -94,14 +94,24 @@ class DashboardWidget extends StatelessWidget {
                                 return Row(
                                   children: [
                                     SvgPicture.asset(
-                                        'assets/images/location_pin.svg'),
+                                      'assets/images/location_pin.svg',
+                                      width: 20,
+                                      fit: BoxFit.cover,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       locationName,
                                       style: FlutterFlowTheme.of(context)
-                                          .bodyMedium,
+                                          .bodyMedium
+                                          .override(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                     ),
-                                    const Icon(Icons.keyboard_arrow_down),
+                                    const Icon(
+                                      Icons.keyboard_arrow_down,
+                                      size: 30,
+                                    ),
                                   ],
                                 );
                               }),

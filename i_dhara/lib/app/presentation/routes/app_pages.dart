@@ -7,6 +7,7 @@ import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_page.dart';
 import 'package:i_dhara/app/presentation/modules/devices/add_devices/add_devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_page.dart';
 import 'package:i_dhara/app/presentation/modules/qr_code/q_r_code_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -59,6 +60,12 @@ class AppPages {
     GetPage(
       name: Routes.addDevices,
       page: () => const AddDevicesWidget(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.motorDetails,
+      page: () => const MotorControlWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),

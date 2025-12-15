@@ -9,9 +9,10 @@ import '../../../../core/flutter_flow/flutter_flow_util.dart';
 import 'add_devices_page.dart' show AddDevicesWidget;
 
 class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
-  dynamic errorInstance;
+  // dynamic errorInstance;
   dynamic errorInstance1;
   String message = '';
+  Map<String, dynamic> errorInstance = {};
 
   // State field(s) for TextField widget.
   FocusNode? textFieldFocusNode1;
@@ -74,7 +75,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
       Get.offAllNamed(Routes.dashboard);
       // Get.offAllNamed(Routes.locations);
     } else if (response?.errors != null) {
-      errorInstance = response?.errors!.toJson();
+      errorInstance = response?.errors!.toJson() ?? {};
     }
   }
 }

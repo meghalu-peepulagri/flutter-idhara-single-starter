@@ -1,12 +1,8 @@
-import '../app/presentation/widgets/motor_control_card_widget.dart';
-import '../app/core/flutter_flow/flutter_flow_theme.dart';
-import '../app/core/flutter_flow/flutter_flow_util.dart';
-import '../app/core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import 'motor_control_widget.dart' show MotorControlWidget;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+
+import '../../../core/flutter_flow/flutter_flow_util.dart';
+import '../../widgets/motor_control_card_widget.dart';
+import 'motor_details_page.dart' show MotorControlWidget;
 
 class MotorControlModel extends FlutterFlowModel<MotorControlWidget> {
   ///  State fields for stateful widgets in this page.
