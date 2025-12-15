@@ -735,15 +735,14 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(0.0),
                               child: SvgPicture.asset(
-                                'assets/images/wifi.svg',
+                                'assets/images/network.svg',
                                 fit: BoxFit.cover,
                               ),
                             )
                           else
-                            const Icon(
-                              Icons.wifi_off,
-                              color: Colors.grey,
-                              size: 20,
+                            SvgPicture.asset(
+                              'assets/images/no_network.svg',
+                              fit: BoxFit.cover,
                             ),
                           // Power status
                           ClipRRect(

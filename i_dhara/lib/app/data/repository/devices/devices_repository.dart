@@ -3,7 +3,7 @@ import 'package:i_dhara/app/data/models/devices/device_assign_model.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 
 abstract class DevicesRepository {
-  Future<DevicesResponse?> getDevices();
+  Future<DevicesResponse?> getDevices(int? page, String? search, int? limit);
   Future<DeviceAssignResponse?> deviceassign(
     StarterCreateDto dto,
   );

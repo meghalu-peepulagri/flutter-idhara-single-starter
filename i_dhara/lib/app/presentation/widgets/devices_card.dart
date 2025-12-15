@@ -3,7 +3,11 @@ import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
+import 'package:i_dhara/app/core/utils/dialogs/pop_up_menu.dart';
+import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -12,6 +16,29 @@ class DevicesCard extends StatelessWidget {
     super.key,
     required this.device,
   });
+
+  void _showDeleteDialog(BuildContext context) {
+    FocusScope.of(context).unfocus();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return PopupDialog(
+          title: "Delete Device",
+          description:
+              "This device will be deleted permanently. Do you wish to go ahead?",
+          iconAssetPath: 'assets/images/devices.svg',
+          buttonlable: 'Delete',
+          onDelete: () async {
+            // TODO: call delete API
+            // await controller.deleteDevice(device.id);
+
+            Navigator.pop(context);
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,21 +91,120 @@ class DevicesCard extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const Spacer(),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(0.0),
-                                    child: SvgPicture.asset(
-                                      device.power == 1
-                                          ? 'assets/images/power.svg'
-                                          : 'assets/images/Power_red.svg',
-                                      width: 17,
-                                      height: 17,
-                                      fit: BoxFit.cover,
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final RenderBox button = context
+                                          .findRenderObject() as RenderBox;
+                                      final RenderBox overlay =
+                                          Overlay.of(context)
+                                              .context
+                                              .findRenderObject() as RenderBox;
+
+                                      final Offset buttonPosition =
+                                          button.localToGlobal(
+                                        Offset.zero,
+                                        ancestor: overlay,
+                                      );
+
+                                      final RelativeRect position =
+                                          RelativeRect.fromLTRB(
+                                        buttonPosition.dx +
+                                            button.size.width -
+                                            130,
+                                        buttonPosition.dy + 28,
+                                        buttonPosition.dx + button.size.width,
+                                        0,
+                                      );
+
+                                      await showMenu(
+                                        context: context,
+                                        position: position,
+                                        color: Colors.transparent,
+                                        elevation: 0,
+                                        items: [
+                                          PopupMenuItem(
+                                            enabled: false,
+                                            padding: EdgeInsets.zero,
+                                            child: DeviceOptionsMenu(
+                                              onSelected: (action) {
+                                                Navigator.pop(context);
+                                                switch (action) {
+                                                  case DeviceMenuAction.rename:
+                                                    showModalBottomSheet(
+                                                      context: context,
+                                                      isScrollControlled: true,
+                                                      shape:
+                                                          const RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .vertical(
+                                                          top: Radius.circular(
+                                                              16),
+                                                        ),
+                                                      ),
+                                                      builder: (context) {
+                                                        return Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                            bottom:
+                                                                MediaQuery.of(
+                                                                        context)
+                                                                    .viewInsets
+                                                                    .bottom,
+                                                          ),
+                                                          child: EditDevicePage(
+                                                            motorName:
+                                                                motor?.name ??
+                                                                    '',
+                                                            onLocationAdded:
+                                                                (updatedName) {
+                                                              // TODO: refresh card if needed
+                                                            },
+                                                          ),
+                                                        );
+                                                      },
+                                                    );
+                                                    break;
+                                                  case DeviceMenuAction.replace:
+                                                    showModalBottomSheet(
+                                                      context: context,
+                                                      backgroundColor:
+                                                          Colors.transparent,
+                                                      builder: (_) =>
+                                                          LocationSelectionBottomSheet(
+                                                        selectedLocationId:
+                                                            motor?.location?.id
+                                                                ?.toString(),
+                                                        onLocationSelected:
+                                                            (locationName,
+                                                                locationId) {
+                                                          Navigator.pop(
+                                                              context);
+                                                        },
+                                                      ),
+                                                    );
+                                                    break;
+                                                  case DeviceMenuAction.delete:
+                                                    _showDeleteDialog(context);
+                                                    break;
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                    child: Icon(
+                                      Icons.more_vert,
+                                      color: FlutterFlowTheme.of(context)
+                                          .secondaryText,
+                                      size: 20.0,
                                     ),
-                                  ),
+                                  )
                                 ],
                               ),
                               Text(
-                                '#${device.pcbNumber ?? 'N/A'}',
+                                '${motor?.hp ?? 'N/A'} Hp',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -105,24 +231,40 @@ class DevicesCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.max,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Text(
-                              //   motor?.name ?? 'No Motor',
-                              //   style: FlutterFlowTheme.of(context)
-                              //       .bodyMedium
-                              //       .override(
-                              //         font: GoogleFonts.dmSans(
-                              //           fontWeight: FontWeight.w500,
-                              //         ),
-                              //         color: const Color(0xFF13120D),
-                              //         fontSize: 16.0,
-                              //         letterSpacing: 0.0,
-                              //         fontWeight: FontWeight.w500,
-                              //       ),
-                              //   maxLines: 1,
-                              //   overflow: TextOverflow.ellipsis,
-                              // ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'PCB',
+                                    style: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .override(
+                                          font: GoogleFonts.dmSans(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          color: const Color(0xFF13120D),
+                                          fontSize: 14.0,
+                                          letterSpacing: 0.0,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(0.0),
+                                    child: SvgPicture.asset(
+                                      device.power == 1
+                                          ? 'assets/images/power.svg'
+                                          : 'assets/images/Power_red.svg',
+                                      width: 17,
+                                      height: 17,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ],
+                              ),
                               Text(
-                                motor?.hp ?? 'N/A',
+                                '#${device.pcbNumber ?? 'N/A'}',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -134,6 +276,8 @@ class DevicesCard extends StatelessWidget {
                                       letterSpacing: 0.0,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ].divide(const SizedBox(height: 4.0)),
                           ),

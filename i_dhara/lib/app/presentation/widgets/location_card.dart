@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
+import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_delete_location_page.dart';
 
 class LocationCard extends StatelessWidget {
   final Location location;
@@ -137,10 +138,25 @@ class LocationCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Icon(
-                      Icons.more_vert,
-                      color: FlutterFlowTheme.of(context).primaryText,
-                      size: 20.0,
+                    GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(16)),
+                          ),
+                          builder: (_) => EditDeleteLocationPage(
+                            locationId: location.id!,
+                            locationName: location.name!,
+                          ),
+                        );
+                      },
+                      child: Icon(
+                        Icons.more_vert,
+                        color: FlutterFlowTheme.of(context).primaryText,
+                        size: 20.0,
+                      ),
                     ),
                   ].divide(const SizedBox(width: 12.0)),
                 ),

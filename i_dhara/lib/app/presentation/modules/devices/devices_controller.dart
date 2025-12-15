@@ -1,14 +1,19 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
 class DevicesController extends GetxController {
+  final controller1 = TextEditingController();
   final RxList<Devices> devicesList = <Devices>[].obs;
 
   final RxBool isLoading = false.obs;
   var isRefreshing = false.obs;
 
   final RxString errorMessage = ''.obs;
+  var page = 1.obs;
+  var limit = 10.obs;
+  var searchQuery = ''.obs;
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
@@ -16,14 +21,35 @@ class DevicesController extends GetxController {
   void onInit() {
     super.onInit();
     fetchDevices();
+    debounce<String>(
+      searchQuery,
+      (_) => fetchDevices(),
+      time: const Duration(milliseconds: 400),
+    );
+
+    controller1.addListener(() {
+      final value = controller1.text.trim();
+      if (value == searchQuery.value) return;
+      searchQuery.value = value;
+    });
+  }
+
+  @override
+  void onClose() {
+    controller1.dispose();
+    super.onClose();
   }
 
   /// Fetch devices from API
-  Future<void> fetchDevices() async {
+  Future<void> fetchDevices({String? search}) async {
     try {
       if (!isRefreshing.value) isLoading.value = true;
 
-      final response = await _repository.getDevices();
+      final response = await _repository.getDevices(
+        page.value,
+        searchQuery.value.isEmpty ? null : searchQuery.value,
+        limit.value,
+      );
 
       if (response != null && response.data != null) {
         devicesList.value = response.data!.records ?? [];
@@ -31,7 +57,6 @@ class DevicesController extends GetxController {
         errorMessage.value = 'No data found';
       }
     } catch (e) {
-      isLoading.value = false;
       errorMessage.value = 'Error fetching devices: $e';
       print('Error in fetchDevices: $e');
     } finally {

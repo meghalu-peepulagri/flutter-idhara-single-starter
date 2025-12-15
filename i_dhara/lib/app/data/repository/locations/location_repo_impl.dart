@@ -16,8 +16,16 @@ class LocationRepoImpl extends LocationDropdownRepository {
   }
 
   @override
-  Future<LocationResponse?> getAllLocations() async {
-    final response = await NetworkManager().get('/locations');
+  Future<LocationResponse?> getAllLocations(
+      int? page, int? limit, String? search) async {
+    Map<String, dynamic> queryParams = {};
+    if (search != null && search.isNotEmpty) {
+      queryParams['search_string'] = search;
+    }
+    queryParams['page'] = page.toString();
+    queryParams['limit'] = limit.toString();
+    final response =
+        await NetworkManager().get('/locations', queryParameters: queryParams);
     if (response.statusCode == 200) {
       final res = LocationResponse.fromJson(response.data);
       return res;

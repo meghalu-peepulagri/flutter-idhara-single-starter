@@ -5,7 +5,6 @@ import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.
 
 class LocationBottomSheet extends StatelessWidget {
   LocationBottomSheet({super.key});
-
   final controller = Get.find<DashboardController>();
 
   @override
@@ -20,23 +19,41 @@ class LocationBottomSheet extends StatelessWidget {
         if (controller.locations.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
-
-        return ListView.separated(
+        return ListView.builder(
           shrinkWrap: true,
           itemCount: controller.locations.length,
-          separatorBuilder: (_, __) => const Divider(),
           itemBuilder: (context, index) {
             final loc = controller.locations[index];
+            final isSelected = controller.selectedLocationId.value == loc.id;
 
-            return ListTile(
-              title: Text(loc.name ?? ''),
-              trailing: controller.selectedLocationId.value == loc.id
-                  ? const Icon(Icons.check, color: Colors.blue)
-                  : null,
+            return InkWell(
               onTap: () {
                 controller.filterMotorsByLocation(loc.id);
                 Get.back();
               },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
+                decoration: const BoxDecoration(
+                    // border: Border(
+                    //   bottom: BorderSide(
+                    //     color: Colors.grey.shade300,
+                    //     width: 0.5,
+                    //   ),
+                    // ),
+                    ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      loc.name?.capitalizeFirst ?? '',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    if (isSelected)
+                      const Icon(Icons.check, color: Colors.blue, size: 20),
+                  ],
+                ),
+              ),
             );
           },
         );
@@ -85,36 +102,63 @@ class LocationSelectionBottomSheet extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          // const Divider(height: 1),
           Expanded(
             child: Obx(() {
               if (controller.locations.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              return ListView.separated(
-                itemCount: controller.locations.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final loc = controller.locations[index];
+              final locations = controller.locations
+                  .where((e) => e.name?.toLowerCase() != 'all')
+                  .toList();
 
+              return ListView.builder(
+                itemCount: locations.length,
+                itemBuilder: (context, index) {
+                  final loc = locations[index];
                   final bool isSelected =
                       selectedLocationId == loc.id.toString();
 
-                  return ListTile(
-                    title: Text(
-                      loc.name?.capitalizeFirst ?? '',
-                      style: GoogleFonts.dmSans(fontSize: 16),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check, color: Colors.blue)
-                        : null,
+                  return InkWell(
                     onTap: () {
                       onLocationSelected(
                         loc.name ?? '',
                         loc.id.toString(),
                       );
                     },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.grey.shade300,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            loc.name?.capitalizeFirst ?? '',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(
+                              Icons.check,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               );

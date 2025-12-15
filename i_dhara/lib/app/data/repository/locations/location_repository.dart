@@ -6,7 +6,8 @@ abstract class LocationDropdownRepository {
   Future<LocationDropDownResponse?> getLocations();
 
   //[Get all locations]
-  Future<LocationResponse?> getAllLocations();
+  Future<LocationResponse?> getAllLocations(
+      int? page, int? limit, String? search);
   //[Add new location]
   Future<AddNewLocationResponse?> addLocation(String name);
 }

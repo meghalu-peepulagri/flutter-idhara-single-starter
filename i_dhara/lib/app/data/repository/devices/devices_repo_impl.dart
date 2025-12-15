@@ -6,8 +6,19 @@ import 'package:i_dhara/app/data/repository/devices/devices_repository.dart';
 
 class DevicesRepositoryImpl extends DevicesRepository {
   @override
-  Future<DevicesResponse?> getDevices() async {
-    final response = await NetworkManager().get('/starters/mobile');
+  Future<DevicesResponse?> getDevices(
+      int? page, String? search, int? limit) async {
+    Map<String, dynamic> params = {
+      'page': page,
+      'limit': limit,
+    };
+
+    if (search != null && search.isNotEmpty) {
+      params['search_string'] = search;
+    }
+
+    final response =
+        await NetworkManager().get('/starters/mobile', queryParameters: params);
     if (response.statusCode == 200) {
       final res = DevicesResponse.fromJson(response.data);
       return res;

@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
-import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_locaton_controller.dart';
+import 'package:i_dhara/app/presentation/modules/locations/new_location/add_new_location_model.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
 
-class AddNewLocation extends StatefulWidget {
-  const AddNewLocation({super.key, required this.onLocationAdded});
+class NewLocation extends StatefulWidget {
+  const NewLocation({super.key, required this.onLocationAdded});
   final Function(String) onLocationAdded;
 
   @override
-  State<AddNewLocation> createState() => _AddNewLocationState();
+  State<NewLocation> createState() => _NewLocationState();
 }
 
-class _AddNewLocationState extends State<AddNewLocation> {
-  late AddNewLocatonController _model;
+class _NewLocationState extends State<NewLocation> {
+  late NewLocationController _model;
 
   @override
   void initState() {
     super.initState();
-    _model = AddNewLocatonController();
+    _model = NewLocationController();
     _model.textController = TextEditingController();
     _model.textFieldFocusNode = FocusNode();
   }
@@ -139,7 +140,6 @@ class _AddNewLocationState extends State<AddNewLocation> {
                 Expanded(
                   child: FFButtonWidget(
                     onPressed: () async {
-                      // Validate that location name is not empty
                       if (_model.textController!.text.trim().isEmpty) {
                         // Show error
                         return;
@@ -151,7 +151,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                       final locationName = _model.textController!.text.trim();
 
                       Get.back();
-                      widget.onLocationAdded(locationName);
+                      Get.offAllNamed(Routes.locations);
                     },
                     text: 'Save',
                     options: FFButtonOptions(

@@ -5,7 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/hp_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
-import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
+import 'package:i_dhara/app/presentation/modules/devices/add_new_location/add_new_location_page.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -136,7 +137,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                       decoration: const BoxDecoration(),
                       child: GestureDetector(
                         onTap: () {
-                          Get.back();
+                          Get.offAllNamed(Routes.devices);
                         },
                         child: const Padding(
                           padding: EdgeInsets.all(6.0),
@@ -211,30 +212,45 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                               mainAxisSize: MainAxisSize.max,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'PCB  Number',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.dmSans(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: Colors.black,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
+                                Row(
+                                  children: [
+                                    Text(
+                                      'PCB  Number',
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            font: GoogleFonts.dmSans(
+                                              fontWeight:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontWeight,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontStyle,
+                                            ),
+                                            color: Colors.black,
+                                            letterSpacing: 0.0,
+                                            fontWeight:
+                                                FlutterFlowTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                            fontStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      '*',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
                                       ),
+                                    ),
+                                  ],
                                 ),
                                 SizedBox(
                                   width: double.infinity,
@@ -262,54 +278,74 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                         ],
                       ),
                       Column(
-                        mainAxisSize: MainAxisSize.max,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Pump Name ',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.urbanist(
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                                  color: Colors.black,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontWeight,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontStyle,
-                                ),
-                          ),
                           Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: SizedBox(
-                                  width:
-                                      MediaQuery.sizeOf(context).width * 0.25,
-                                  child: TextFieldComponent(
-                                    controller: _model.textController2!,
-                                    // errors: _model.errorInstance,
-                                    errorKey: 'full_name',
-                                    hintText: 'Enter Pump Name',
-                                    readOnly: false,
-                                    onChanged: (value) {},
-                                    // inputFormatters: [
-                                    //   FilteringTextInputFormatter.allow(
-                                    //       RegExp(r'[a-zA-Z\s]')),
-                                    //   FilteringTextInputFormatter.deny(
-                                    //       RegExp(r'^\s')),
-                                    // ],
-                                  ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Pump Name',
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            font: GoogleFonts.urbanist(
+                                              fontWeight:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontWeight,
+                                            ),
+                                            color: Colors.black,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      '*',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(
+                                width: MediaQuery.sizeOf(context).width * 0.2,
+                                child: const Row(
+                                  children: [
+                                    Text(
+                                      'HP',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      '*',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ].divide(const SizedBox(width: 8)),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFieldComponent(
+                                  controller: _model.textController2!,
+                                  errorKey: 'full_name',
+                                  hintText: 'Enter Pump Name',
+                                  readOnly: false,
+                                  onChanged: (value) {},
                                 ),
                               ),
                               SizedBox(
@@ -321,9 +357,9 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   },
                                 ),
                               ),
-                            ].divide(const SizedBox(width: 8.0)),
+                            ].divide(const SizedBox(width: 8)),
                           ),
-                        ].divide(const SizedBox(height: 8.0)),
+                        ],
                       ),
                       Column(
                         mainAxisSize: MainAxisSize.max,
@@ -333,28 +369,45 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                             mainAxisSize: MainAxisSize.max,
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Location',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Colors.black,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
+                              Row(
+                                children: [
+                                  Text(
+                                    'Location',
+                                    style: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .override(
+                                          font: GoogleFonts.dmSans(
+                                            fontWeight:
+                                                FlutterFlowTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                            fontStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
+                                          ),
+                                          color: Colors.black,
+                                          letterSpacing: 0.0,
+                                          fontWeight:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontWeight,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontStyle,
+                                        ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    '*',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
                                     ),
+                                  ),
+                                ],
                               ),
                               GestureDetector(
                                 onTap: () {
