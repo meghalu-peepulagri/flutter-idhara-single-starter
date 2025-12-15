@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get/get_state_manager/get_state_manager.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 
 class AddNewLocatonController extends GetxController {
   FocusNode? textFieldFocusNode;
@@ -19,34 +20,13 @@ class AddNewLocatonController extends GetxController {
     textFieldFocusNode?.dispose();
     textController?.dispose();
   }
-  //  Future<void> fetchaddapi({required String title})async{
-  //   CustomResponse<Addapiresponse>response = await AddApi().call(title: title);
-  //   error = false;
-  //   isValidation = false;
-  //   message = '';
-  //   appResponse = AppResponse(response: response);
-  //   switch (response.statusCode) {
-  //     case 200:
-  //     case 201:
-  //       message = response.data!.message.toString();
-  //       break;
-  //     case 422:
-  //       message = response.data!.message.toString();
-  //       isValidation = true;
-  //       error = true;
-  //       errorInstance = response.data!.errors != null
-  //           ? {'title': response.data!.errors!.title}
-  //           : null;
-  //       break;
 
-  //     case 401:
-  //       message = response.data!.message.toString();
-  //       isValidation = false;
-  //       error = true;
-  //       break;
-  //     default:
-  //       message = response.data!.message.toString();
-  //       error = true;
-  //   }
-  // }
+  Future<void> fetchnewlocation({required String name}) async {
+    final response = await LocationRepoImpl().addLocation(name);
+    if (response != null && response.errors == null) {
+      // Get.offAllNamed(Routes.locations);
+    } else if (response!.errors != null) {
+      errorInstance = response.errors!.toJson();
+    }
+  }
 }

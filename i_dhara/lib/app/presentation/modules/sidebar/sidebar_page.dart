@@ -118,7 +118,7 @@ class SidebarWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
+        color: const Color(0xFFEBF3FE),
         boxShadow: const [
           BoxShadow(
             blurRadius: 8,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/hp_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
@@ -25,6 +26,7 @@ class AddDevicesWidget extends StatefulWidget {
 
 class _AddDevicesWidgetState extends State<AddDevicesWidget> {
   late AddDevicesModel _model;
+  String? selectedLocationId;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -49,6 +51,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
     if (args != null && args['pcbNumber'] != null) {
       _model.textController1!.text = args['pcbNumber'];
     }
+    _model.fetchLocationDropDown();
   }
 
   @override
@@ -56,6 +59,31 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
     _model.dispose();
 
     super.dispose();
+  }
+
+  void showLocationBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.50,
+          child: LocationSelectionBottomSheet(
+            onLocationSelected: (String name, String id) {
+              setState(() {
+                _model.textController4!.text = name;
+                selectedLocationId = id;
+              });
+              Navigator.pop(context);
+            },
+            selectedLocationId: selectedLocationId,
+          ),
+        );
+      },
+    );
   }
 
   ontaplocation(BuildContext context) {
@@ -73,7 +101,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
           child: AddNewLocation(
             onLocationAdded: (String newLocation) {
               setState(() {
-                _model.textController3!.text = newLocation;
+                _model.textController4!.text = newLocation;
               });
             },
           ),
@@ -106,12 +134,17 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                   children: [
                     Container(
                       decoration: const BoxDecoration(),
-                      child: const Padding(
-                        padding: EdgeInsets.all(6.0),
-                        child: Icon(
-                          Icons.arrow_back,
-                          color: Color(0xFF004E7E),
-                          size: 20.0,
+                      child: GestureDetector(
+                        onTap: () {
+                          Get.back();
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(6.0),
+                          child: Icon(
+                            Icons.arrow_back,
+                            color: Color(0xFF004E7E),
+                            size: 20.0,
+                          ),
                         ),
                       ),
                     ),
@@ -135,15 +168,10 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                     ),
                     Opacity(
                       opacity: 0.0,
-                      child: GestureDetector(
-                        onTap: () {
-                          Get.back();
-                        },
-                        child: Icon(
-                          Icons.arrow_back,
-                          color: FlutterFlowTheme.of(context).primaryText,
-                          size: 24.0,
-                        ),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: FlutterFlowTheme.of(context).primaryText,
+                        size: 24.0,
                       ),
                     ),
                   ],
@@ -219,12 +247,12 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                       hintText: 'Enter PCB number',
                                       readOnly: false,
                                       onChanged: (value) {},
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                            RegExp(r'[a-zA-Z\s]')),
-                                        FilteringTextInputFormatter.deny(
-                                            RegExp(r'^\s')),
-                                      ],
+                                      // inputFormatters: [
+                                      //   FilteringTextInputFormatter.allow(
+                                      //       RegExp(r'[a-zA-Z\s]')),
+                                      //   FilteringTextInputFormatter.deny(
+                                      //       RegExp(r'^\s')),
+                                      // ],
                                     ),
                                   ),
                                 ),
@@ -275,19 +303,19 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                     hintText: 'Enter Pump Name',
                                     readOnly: false,
                                     onChanged: (value) {},
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(
-                                          RegExp(r'[a-zA-Z\s]')),
-                                      FilteringTextInputFormatter.deny(
-                                          RegExp(r'^\s')),
-                                    ],
+                                    // inputFormatters: [
+                                    //   FilteringTextInputFormatter.allow(
+                                    //       RegExp(r'[a-zA-Z\s]')),
+                                    //   FilteringTextInputFormatter.deny(
+                                    //       RegExp(r'^\s')),
+                                    // ],
                                   ),
                                 ),
                               ),
                               SizedBox(
                                 width: MediaQuery.sizeOf(context).width * 0.2,
                                 child: AddHpFieldWidget(
-                                  controller: _model.textController4!,
+                                  controller: _model.textController3!,
                                   onChanged: (value) {
                                     print('HP: $value');
                                   },
@@ -372,10 +400,11 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                               ),
                             ],
                           ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: SizedBox(
-                              width: double.infinity,
+                          GestureDetector(
+                            onTap: () {
+                              showLocationBottomSheet(context);
+                            },
+                            child: AbsorbPointer(
                               child: TextFieldComponent(
                                 controller: _model.textController4!,
                                 // errors: _model.errorInstance,
@@ -383,6 +412,11 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                 hintText: 'Select Location',
                                 readOnly: false,
                                 onChanged: (value) {},
+                                suffixIcon: const Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Color(0xFF757575),
+                                  size: 24.0,
+                                ),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r'[a-zA-Z\s]')),
@@ -395,8 +429,19 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                         ].divide(const SizedBox(height: 8.0)),
                       ),
                       FFButtonWidget(
-                        onPressed: () {
-                          print('Button pressed ...');
+                        onPressed: () async {
+                          if (selectedLocationId == null ||
+                              _model.textController1!.text.isEmpty ||
+                              _model.textController2!.text.isEmpty ||
+                              _model.textController3!.text.isEmpty) {
+                            return;
+                          }
+                          await _model.assignDevice(
+                            pcbNumber: _model.textController1!.text,
+                            pumpName: _model.textController2!.text,
+                            hp: double.parse(_model.textController3!.text),
+                            locationId: int.parse(selectedLocationId!),
+                          );
                         },
                         text: 'Add Device',
                         options: FFButtonOptions(
@@ -429,35 +474,6 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                     ]
                         .divide(const SizedBox(height: 16.0))
                         .addToStart(const SizedBox(height: 24.0)),
-                  ),
-                ),
-              ),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: FlutterFlowTheme.of(context).secondaryBackground,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 6.0,
-                      color: Color(0x1F000000),
-                      offset: Offset(
-                        0.0,
-                        -1.0,
-                      ),
-                    )
-                  ],
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(0.0),
-                    bottomRight: Radius.circular(0.0),
-                    topLeft: Radius.circular(8.0),
-                    topRight: Radius.circular(8.0),
-                  ),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [],
                   ),
                 ),
               ),

@@ -12,6 +12,7 @@ class TextFieldComponent extends StatelessWidget {
   final String hintText;
   final bool readOnly;
   final Function()? ontap;
+  final Widget? suffixIcon;
   final Icon? icon;
   final TextInputType? keyboardType;
   final Function(String)? onChanged;
@@ -29,6 +30,7 @@ class TextFieldComponent extends StatelessWidget {
     this.ontap,
     this.icon,
     this.onChanged,
+    this.suffixIcon,
   });
 
   String? message() {
@@ -80,7 +82,7 @@ class TextFieldComponent extends StatelessWidget {
               BorderSide(color: FlutterFlowTheme.of(context).error, width: 1),
           borderRadius: BorderRadius.circular(9.12),
         ),
-        suffixIcon: icon,
+        suffixIcon: suffixIcon,
         filled: true,
         errorText: message(),
         errorStyle: const TextStyle(color: Colors.red),

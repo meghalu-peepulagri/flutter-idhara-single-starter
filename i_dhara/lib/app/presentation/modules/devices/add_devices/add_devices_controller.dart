@@ -1,14 +1,17 @@
-import '../../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import 'add_devices_page.dart' show AddDevicesWidget;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
+import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
+import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+
+import '../../../../core/flutter_flow/flutter_flow_util.dart';
+import 'add_devices_page.dart' show AddDevicesWidget;
 
 class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
-  ///  State fields for stateful widgets in this page.
+  dynamic errorInstance;
+  dynamic errorInstance1;
+  String message = '';
 
   // State field(s) for TextField widget.
   FocusNode? textFieldFocusNode1;
@@ -43,5 +46,35 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
 
     textFieldFocusNode4?.dispose();
     textController4?.dispose();
+  }
+
+  Future<void> fetchLocationDropDown() async {
+    final response = await LocationRepoImpl().getLocations();
+    if (response != null) {
+      response.data ?? [];
+    }
+  }
+
+  Future<void> assignDevice({
+    required String pcbNumber,
+    required String pumpName,
+    required double hp,
+    required int locationId,
+  }) async {
+    final dto = StarterCreateDto(
+      pcbNumber: pcbNumber,
+      motorName: pumpName,
+      hp: hp,
+      locationId: locationId,
+    );
+
+    final response = await DevicesRepositoryImpl().deviceassign(dto);
+
+    if (response != null && response.errors == null) {
+      Get.offAllNamed(Routes.dashboard);
+      // Get.offAllNamed(Routes.locations);
+    } else if (response?.errors != null) {
+      errorInstance = response?.errors!.toJson();
+    }
   }
 }

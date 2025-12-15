@@ -145,10 +145,13 @@ class _AddNewLocationState extends State<AddNewLocation> {
                         return;
                       }
 
-                      // Pass the location name back
-                      widget
-                          .onLocationAdded(_model.textController!.text.trim());
+                      await _model.fetchnewlocation(
+                        name: _model.textController!.text.trim(),
+                      );
+                      final locationName = _model.textController!.text.trim();
+
                       Get.back();
+                      widget.onLocationAdded(locationName);
                     },
                     text: 'Save',
                     options: FFButtonOptions(
