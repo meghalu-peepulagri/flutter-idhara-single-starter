@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
+import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_delete_location_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_location_page.dart';
 
@@ -19,6 +20,8 @@ class EditDeleteLocationPage extends StatelessWidget {
 
   final EditDeleteLocationController controller =
       Get.put(EditDeleteLocationController());
+  final LocationsController locationsController =
+      Get.find<LocationsController>();
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +102,8 @@ class EditDeleteLocationPage extends StatelessWidget {
                             bottom: MediaQuery.of(context).viewInsets.bottom,
                           ),
                           child: EditLocationWidget(
+                            locationId: locationId,
+                            locationName: locationName,
                             onLocationAdded: (String newLocation) {},
                           ),
                         );
@@ -148,20 +153,10 @@ class EditDeleteLocationPage extends StatelessWidget {
                           title: "Delete Location",
                           iconAssetPath: 'assets/images/location.svg',
                           onDelete: () async {
-                            // await _model.fetchremoveapi();
-                            // Get.offAllNamed(Routes.locations);
-                            // setState(() {});
-                            // if (_model.error &&
-                            //     (_model.message ==
-                            //             'Location with ponds cannot be deleted' ||
-                            //         _model.message ==
-                            //             'Location with gateways cannot be deleted')) {
-                            //   errorSnackBar(context, _model.message);
-                            // } else if (!_model.error &&
-                            //     _model.message.isNotEmpty) {
-                            //   Get.offAndToNamed(Routes.locations);
-                            //   successSnackBar(context, _model.message);
-                            // }
+                            await locationsController
+                                .deleteLocation(locationId);
+                            Navigator.pop(context);
+                            Get.back();
                           },
                           buttonlable: 'Delete',
                         );

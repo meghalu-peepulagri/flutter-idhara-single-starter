@@ -16,6 +16,9 @@ class LocationsController extends GetxController {
   var limit = 10.obs;
   var searchQuery = ''.obs;
 
+  dynamic errorInstance; // Changed to dynamic to match LocationpopupModel
+  String message = '';
+
   @override
   void onInit() {
     super.onInit();
@@ -58,6 +61,24 @@ class LocationsController extends GetxController {
     } finally {
       isLoading.value = false;
       isRefreshing.value = false;
+    }
+  }
+
+  Future<void> renamelocation(
+      {required int locationId, required String name}) async {
+    final response = await LocationRepoImpl().renameLocation(locationId, name);
+    if (response != null && response.errors == null) {
+      await fetchLocations();
+      Get.back();
+    } else if (response!.errors != null) {
+      errorInstance = response.errors!.toJson();
+    }
+  }
+
+  Future<void> deleteLocation(int locationId) async {
+    final response = await _locationRepo.deleteLocation(locationId);
+    if (response != null) {
+      await fetchLocations();
     }
   }
 

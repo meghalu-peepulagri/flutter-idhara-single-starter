@@ -3,90 +3,87 @@ import 'package:flutter/services.dart';
 
 class AddHpFieldWidget extends StatelessWidget {
   final TextEditingController controller;
+  final Map<String, dynamic> errors;
+  final String errorKey;
   final String hintText;
   final void Function(String)? onChanged;
 
   const AddHpFieldWidget({
     super.key,
     required this.controller,
+    required this.errors,
+    required this.errorKey,
     this.hintText = 'Enter HP',
     this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      textAlignVertical: TextAlignVertical.center,
-      inputFormatters: <TextInputFormatter>[
-        LengthLimitingTextInputFormatter(7),
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-        TextInputFormatter.withFunction((oldValue, newValue) {
-          final newText = newValue.text;
+    final String? errorText =
+        errors.containsKey(errorKey) ? errors[errorKey] : null;
 
-          // Allow only one dot
-          if (newText.contains('.') &&
-              newText.indexOf('.') != newText.lastIndexOf('.')) {
-            return oldValue;
-          }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(7),
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            TextInputFormatter.withFunction((oldValue, newValue) {
+              final text = newValue.text;
 
-          // Prevent starting with dot
-          if (newText.startsWith('.') && newText.length == 1) {
-            return oldValue;
-          }
+              // Only one decimal
+              if ('.'.allMatches(text).length > 1) return oldValue;
 
-          // Prevent dot at 7th position
-          if (newText.length >= 7 &&
-              newText.endsWith('.') &&
-              newText.indexOf('.') == newText.length - 1) {
-            return oldValue;
-          }
-
-          // Allow only 2 digits after decimal
-          if (newText.contains('.')) {
-            final parts = newText.split('.');
-            if (parts.length > 1 && parts[1].length > 2) {
-              return oldValue;
-            }
-          }
-
-          return newValue;
-        }),
+              // Max 2 decimal places
+              if (text.contains('.')) {
+                final parts = text.split('.');
+                if (parts.length > 1 && parts[1].length > 2) {
+                  return oldValue;
+                }
+              }
+              return newValue;
+            }),
+          ],
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: hintText,
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Color(0xFFB4C1D6)),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Color(0xFF45A845)),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.red),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.red),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            errorText,
+            style: const TextStyle(
+              color: Colors.red,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ],
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: hintText,
-        hintStyle: const TextStyle(
-          fontSize: 16,
-          color: Color(0xFFC5C5C5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFFB4C1D6)),
-          borderRadius: BorderRadius.circular(9.12),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFF45A845)),
-          borderRadius: BorderRadius.circular(9.12),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.red),
-          borderRadius: BorderRadius.circular(9.12),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.red),
-          borderRadius: BorderRadius.circular(9.12),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-      style: const TextStyle(
-        fontFamily: 'Lexend',
-        color: Colors.black,
-      ),
     );
   }
 }

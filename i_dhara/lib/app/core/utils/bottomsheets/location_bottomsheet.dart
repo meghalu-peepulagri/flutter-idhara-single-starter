@@ -72,7 +72,7 @@ class LocationSelectionBottomSheet extends StatelessWidget {
     required this.selectedLocationId,
   });
 
-  final controller = Get.find<DashboardController>();
+  final controller = Get.put(DashboardController());
 
   @override
   Widget build(BuildContext context) {

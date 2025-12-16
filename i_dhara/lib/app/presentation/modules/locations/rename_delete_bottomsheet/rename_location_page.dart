@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
+import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_locaiton_controller.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -9,8 +10,14 @@ import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
 // import 'locationpopup_model.dart';
 
 class EditLocationWidget extends StatefulWidget {
-  const EditLocationWidget({super.key, required this.onLocationAdded});
+  const EditLocationWidget(
+      {super.key,
+      required this.locationId,
+      required this.locationName,
+      required this.onLocationAdded});
   final Function(String) onLocationAdded;
+  final int locationId;
+  final String locationName;
 
   @override
   State<EditLocationWidget> createState() => _LocationpopupWidgetState();
@@ -18,6 +25,8 @@ class EditLocationWidget extends StatefulWidget {
 
 class _LocationpopupWidgetState extends State<EditLocationWidget> {
   late EditLocationModel _model;
+  final LocationsController locationsController =
+      Get.find<LocationsController>();
   //  String? errorMessage; // Error message state
 
   @override
@@ -26,6 +35,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
     _model = createModel(context, () => EditLocationModel());
     _model.textController ??= TextEditingController();
     _model.textFieldFocusNode ??= FocusNode();
+    _model.textController!.text = widget.locationName;
     _getLocationName();
   }
 
@@ -166,31 +176,27 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                   Expanded(
                     child: FFButtonWidget(
                       onPressed: () async {
-                        // FocusScope.of(context).unfocus();
-                        // String locationName =
-                        //     _model.textController!.text.trim();
-                        // await _model.fetcheditapi(title: locationName);
+                        FocusScope.of(context).unfocus();
 
-                        // setState(() {});
-                        // if (_model.error &&
-                        //     _model.message.isNotEmpty &&
-                        //     !_model.isValidation) {
-                        //   // errorSnackBar(context, _model.message);
-                        // } else if (!_model.error && _model.message.isNotEmpty) {
-                        //   if (_model.message == 'Location already exists') {
-                        //     errorSnackBar(context, _model.message);
-                        //   } else {
-                        //     successSnackBar(context, _model.message);
-                        //     widget.onLocationAdded(locationName);
-                        //     Get.back();
-                        //     Get.offAndToNamed(Routes.locations);
-                        //   }
-                        // }
-                        // // else if (_model.error &&
-                        // //     _model.message.isNotEmpty &&
-                        // //     _model.isValidation) {
-                        // //   errorSnackBar(context, _model.message);
-                        // // }
+                        final newName = _model.textController!.text.trim();
+
+                        if (newName.isEmpty) {
+                          setState(() {
+                            _model.errorInstance = {
+                              'title': ['Location name is required']
+                            };
+                          });
+                          return;
+                        }
+
+                        await locationsController.renamelocation(
+                          locationId: widget.locationId,
+                          name: newName,
+                        );
+
+                        widget.onLocationAdded(newName);
+
+                        Get.back();
                       },
                       text: 'Save',
                       options: FFButtonOptions(

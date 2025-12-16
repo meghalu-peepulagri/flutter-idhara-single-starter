@@ -34,11 +34,8 @@ class DevicesCard extends StatelessWidget {
           iconAssetPath: 'assets/images/devices.svg',
           buttonlable: 'Delete',
           onDelete: () async {
-            final motor =
-                device.motors?.isNotEmpty == true ? device.motors!.first : null;
-
-            if (motor?.id != null) {
-              await controller.deleteDevice(motor!.id!);
+            if (device.id != null) {
+              await controller.deleteDevice(device.id!);
             }
 
             Navigator.pop(context);
@@ -161,9 +158,14 @@ class DevicesCard extends StatelessWidget {
                                                                     .bottom,
                                                           ),
                                                           child: EditDevicePage(
+                                                            motorId: motor!.id!,
                                                             motorName:
-                                                                motor?.name ??
+                                                                motor.name ??
                                                                     '',
+                                                            hp: double.tryParse(
+                                                                    motor.hp?.toString() ??
+                                                                        '0') ??
+                                                                0.0,
                                                             onLocationAdded:
                                                                 (updatedName) {
                                                               // TODO: refresh card if needed
@@ -185,9 +187,20 @@ class DevicesCard extends StatelessWidget {
                                                                 ?.toString(),
                                                         onLocationSelected:
                                                             (locationName,
-                                                                locationId) {
+                                                                locationId) async {
                                                           Navigator.pop(
                                                               context);
+                                                          await controller
+                                                              .locationreplace(
+                                                                  starterId:
+                                                                      device
+                                                                          .id!,
+                                                                  motorId:
+                                                                      motor!
+                                                                          .id!,
+                                                                  locationId:
+                                                                      int.parse(
+                                                                          locationId));
                                                         },
                                                       ),
                                                     );

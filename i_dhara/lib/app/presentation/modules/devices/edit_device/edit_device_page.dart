@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_controller.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -10,9 +11,15 @@ import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
 
 class EditDevicePage extends StatefulWidget {
   const EditDevicePage(
-      {super.key, required this.motorName, required this.onLocationAdded});
+      {super.key,
+      required this.motorId,
+      required this.motorName,
+      required this.hp,
+      required this.onLocationAdded});
   final Function(String) onLocationAdded;
+  final int motorId;
   final String motorName;
+  final double hp;
 
   @override
   State<EditDevicePage> createState() => _EditDevicePageState();
@@ -20,6 +27,8 @@ class EditDevicePage extends StatefulWidget {
 
 class _EditDevicePageState extends State<EditDevicePage> {
   late EditDeviceController _model;
+
+  final DevicesController devicesController = Get.find<DevicesController>();
 
   @override
   void initState() {
@@ -168,31 +177,26 @@ class _EditDevicePageState extends State<EditDevicePage> {
                   Expanded(
                     child: FFButtonWidget(
                       onPressed: () async {
-                        // FocusScope.of(context).unfocus();
-                        // String locationName =
-                        //     _model.textController!.text.trim();
-                        // await _model.fetcheditapi(title: locationName);
+                        FocusScope.of(context).unfocus();
 
-                        // setState(() {});
-                        // if (_model.error &&
-                        //     _model.message.isNotEmpty &&
-                        //     !_model.isValidation) {
-                        //   // errorSnackBar(context, _model.message);
-                        // } else if (!_model.error && _model.message.isNotEmpty) {
-                        //   if (_model.message == 'Location already exists') {
-                        //     errorSnackBar(context, _model.message);
-                        //   } else {
-                        //     successSnackBar(context, _model.message);
-                        //     widget.onLocationAdded(locationName);
-                        //     Get.back();
-                        //     Get.offAndToNamed(Routes.locations);
-                        //   }
-                        // }
-                        // // else if (_model.error &&
-                        // //     _model.message.isNotEmpty &&
-                        // //     _model.isValidation) {
-                        // //   errorSnackBar(context, _model.message);
-                        // // }
+                        final newName = _model.textController!.text.trim();
+
+                        if (newName.isEmpty) {
+                          setState(() {
+                            _model.errorInstance = {
+                              'title': ['Motor name is required']
+                            };
+                          });
+                          return;
+                        }
+
+                        await devicesController.renamedevice(
+                          motorId: widget.motorId,
+                          name: newName,
+                          hp: widget.hp,
+                        );
+
+                        widget.onLocationAdded(newName);
                       },
                       text: 'Save',
                       options: FFButtonOptions(

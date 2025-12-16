@@ -1,24 +1,24 @@
 import 'dart:convert';
 
-DeleteMotorResponse deletePondResponseFromJson(String str) =>
-    DeleteMotorResponse.fromJson(json.decode(str));
+DeleteStarterResponse deletePondResponseFromJson(String str) =>
+    DeleteStarterResponse.fromJson(json.decode(str));
 
-String deletePondResponseToJson(DeleteMotorResponse data) =>
+String deletePondResponseToJson(DeleteStarterResponse data) =>
     json.encode(data.toJson());
 
-class DeleteMotorResponse {
+class DeleteStarterResponse {
   final bool success;
   final String message;
   final int status;
 
-  DeleteMotorResponse({
+  DeleteStarterResponse({
     required this.success,
     required this.message,
     required this.status,
   });
 
-  factory DeleteMotorResponse.fromJson(Map<String, dynamic> json) =>
-      DeleteMotorResponse(
+  factory DeleteStarterResponse.fromJson(Map<String, dynamic> json) =>
+      DeleteStarterResponse(
         success: json["success"] ?? false,
         message: json["message"],
         status: json["status"],

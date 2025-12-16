@@ -14,6 +14,8 @@ class DevicesController extends GetxController {
   var page = 1.obs;
   var limit = 10.obs;
   var searchQuery = ''.obs;
+  dynamic errorInstance; // Changed to dynamic to match LocationpopupModel
+  String message = '';
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
@@ -70,8 +72,30 @@ class DevicesController extends GetxController {
     await fetchDevices();
   }
 
-  Future<void> deleteDevice(int motorName) async {
-    final response = await _repository.deletemotor(motorName);
+  Future<void> renamedevice(
+      {required int motorId, required double hp, required String name}) async {
+    final response = await _repository.renameDevice(motorId, name, hp);
+    if (response != null && response.errors == null) {
+      await fetchDevices();
+      Get.back();
+    } else if (response!.errors != null) {
+      errorInstance = response.errors!.toJson();
+    }
+  }
+
+  Future<void> deleteDevice(int starterId) async {
+    final response = await _repository.deletestarter(starterId);
+    if (response != null) {
+      await fetchDevices();
+    }
+  }
+
+  Future<void> locationreplace(
+      {required int starterId,
+      required int locationId,
+      required int motorId}) async {
+    final response =
+        await _repository.locationreplace(starterId, locationId, motorId);
     if (response != null) {
       await fetchDevices();
     }

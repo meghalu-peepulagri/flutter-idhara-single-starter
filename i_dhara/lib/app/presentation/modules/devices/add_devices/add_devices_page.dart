@@ -369,8 +369,15 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                 width: MediaQuery.sizeOf(context).width * 0.2,
                                 child: AddHpFieldWidget(
                                   controller: _model.textController3!,
+                                  errors: _model.errorInstance,
+                                  errorKey: 'hp',
                                   onChanged: (value) {
-                                    print('HP: $value');
+                                    if (_model.errorInstance
+                                        .containsKey('hp')) {
+                                      setState(() {
+                                        _model.errorInstance.remove('hp');
+                                      });
+                                    }
                                   },
                                 ),
                               ),
@@ -512,7 +519,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                           }
 
                           if (_model.textController3!.text.trim().isEmpty) {
-                            _model.errorInstance['hp'] = 'HP is required';
+                            _model.errorInstance['hp'] = 'HP required';
                           } else if (double.tryParse(
                                   _model.textController3!.text.trim()) ==
                               null) {

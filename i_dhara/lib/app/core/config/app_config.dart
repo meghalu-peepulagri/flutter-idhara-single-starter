@@ -14,14 +14,14 @@ class NetworkManager {
   }
   void _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = await SharedPreference.getAccessToken();
+    final token = SharedPreference.getAccessToken();
     options.headers["Authorization"] = "Bearer $token";
 
     handler.next(options);
   }
 
   Future<Response<T>> get<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 10}) async {
+      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.get<T>(path,
           queryParameters: queryParameters,
@@ -33,7 +33,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> post<T>(String path, Map<String, dynamic> queryParameters,
-      {dynamic data, int timeoutSeconds = 10}) async {
+      {dynamic data, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.post<T>(path,
           queryParameters: queryParameters,
@@ -57,7 +57,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> patch<T>(String path,
-      {dynamic data, int timeoutSeconds = 10}) async {
+      {dynamic data, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.patch<T>(path,
           data: data, options: _getRequestOptions(timeoutSeconds));
@@ -68,7 +68,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> delete<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 10}) async {
+      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.delete<T>(path,
           queryParameters: queryParameters,
@@ -81,9 +81,7 @@ class NetworkManager {
 
   Options _getRequestOptions(int timeoutSeconds) {
     return Options(
-      receiveTimeout: Duration(
-          milliseconds:
-              timeoutSeconds * 1000), 
+      receiveTimeout: Duration(milliseconds: timeoutSeconds * 1000),
       sendTimeout: Duration(milliseconds: timeoutSeconds * 1000),
     );
   }

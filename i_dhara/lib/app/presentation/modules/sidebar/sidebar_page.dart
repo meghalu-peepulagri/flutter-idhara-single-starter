@@ -269,6 +269,71 @@ class SidebarWidget extends StatelessWidget {
               ),
             ),
             // Logout Section at the Bottom
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(0, 16, 4, 16),
+              child: ValueListenableBuilder(
+                valueListenable: _isLoading,
+                builder: (context, isLoading, child) {
+                  return GestureDetector(
+                    onTap: isLoading
+                        ? null
+                        : () async {
+                            // _isLoading.value = true;
+                            // await _model.fetchfcmtoken();
+                            // if (!_model.isError && !_model.isMessage.isEmpty) {
+                            Get.offAllNamed(Routes.loginwithmobile);
+                            //   SharedPreference.clear();
+                            //   FirebaseMessaging.instance
+                            //       .getToken()
+                            //       .then((value) {
+                            //     SharedPreference.setFcmToken(value!);
+                            //   });
+                            // } else {
+                            //   errorSnackBar(context, _model.isMessage);
+                            // }
+                            // _isLoading.value = false;
+                          },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        const Icon(
+                          Icons.logout_rounded,
+                          color: Color(0xFFEB5757),
+                          size: 20.0,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 10),
+                          child: Text(
+                            'LOG OUT',
+                            style: TextStyle(
+                              fontFamily: 'Lexend',
+                              color: Color(0xFFEB5757),
+                              fontSize: 18.0,
+                              letterSpacing: 0.0,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        isLoading
+                            ? const SizedBox(
+                                width: 20.0,
+                                height: 20.0,
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFFEB5757),
+                                  strokeWidth: 2.0,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.chevron_right,
+                                color: Color(0xFFEB5757),
+                                size: 25.0,
+                              ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),

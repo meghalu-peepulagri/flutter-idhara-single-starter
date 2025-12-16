@@ -5,6 +5,7 @@ import 'package:i_dhara/app/presentation/modules/auth/otp/otp_page.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_page.dart';
 import 'package:i_dhara/app/presentation/modules/devices/add_devices/add_devices_page.dart';
+import 'package:i_dhara/app/presentation/modules/devices/devices_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_page.dart';
@@ -46,11 +47,11 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 300),
     ),
     GetPage(
-      name: Routes.devices,
-      page: () => DevicesPage(),
-      transition: Transition.fade,
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
+        name: Routes.devices,
+        page: () => DevicesPage(),
+        transition: Transition.fade,
+        transitionDuration: const Duration(milliseconds: 300),
+        binding: DevicesBinding()),
     GetPage(
       name: Routes.qrCode,
       page: () => const QRCodeWidget(),
