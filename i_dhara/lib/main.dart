@@ -1,16 +1,13 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+
 import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
-import 'app/core/flutter_flow/nav/nav.dart';
-import 'index.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +17,12 @@ void main() async {
 
   await FlutterFlowTheme.initialize();
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   // This widget is the root of your application.
   @override
   State<MyApp> createState() => _MyAppState();
@@ -68,7 +67,7 @@ class _MyAppState extends State<MyApp> {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'I Dhara',
-      localizationsDelegates: [
+      localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -84,9 +83,9 @@ class _MyAppState extends State<MyApp> {
       // ),
       // themeMode: _themeMode,
       // routerConfig: _router,
-      initialRoute: SharedPreference.getAccessToken().isNotEmpty 
-        ? Routes.dashboard
-        : Routes.splash,
+      initialRoute: SharedPreference.getAccessToken().isNotEmpty
+          ? Routes.dashboard
+          : Routes.splash,
       getPages: AppPages.getPages,
     );
   }

@@ -2,6 +2,7 @@ import 'package:i_dhara/app/core/config/app_config.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
 import 'package:i_dhara/app/data/models/devices/device_assign_model.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/data/models/motors/delete_motor_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repository.dart';
 
 class DevicesRepositoryImpl extends DevicesRepository {
@@ -41,5 +42,18 @@ class DevicesRepositoryImpl extends DevicesRepository {
     } else {
       return null;
     }
+  }
+
+  @override
+  Future<DeleteMotorResponse?> deletemotor(int motorId) async {
+    final response = await NetworkManager().delete('/motors/$motorId');
+    print("line 268 -----------> $motorId");
+    print("line 269 -----------> ${response.data}");
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 422) {
+      return DeleteMotorResponse.fromJson(response.data);
+    }
+    return null;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
@@ -7,15 +8,18 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/pop_up_menu.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
 
-  const DevicesCard({
+  DevicesCard({
     super.key,
     required this.device,
   });
+
+  final DevicesController controller = Get.find<DevicesController>();
 
   void _showDeleteDialog(BuildContext context) {
     FocusScope.of(context).unfocus();
@@ -30,8 +34,12 @@ class DevicesCard extends StatelessWidget {
           iconAssetPath: 'assets/images/devices.svg',
           buttonlable: 'Delete',
           onDelete: () async {
-            // TODO: call delete API
-            // await controller.deleteDevice(device.id);
+            final motor =
+                device.motors?.isNotEmpty == true ? device.motors!.first : null;
+
+            if (motor?.id != null) {
+              await controller.deleteDevice(motor!.id!);
+            }
 
             Navigator.pop(context);
           },

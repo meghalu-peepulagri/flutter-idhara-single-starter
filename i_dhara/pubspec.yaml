@@ -84,6 +84,7 @@ dependencies:
   toggle_switch: ^2.3.0
   mobile_scanner: ^5.2.2
   syncfusion_flutter_charts: ^29.1.38
+  permission_handler: ^12.0.1
 
 dependency_overrides:
   http: 1.4.0

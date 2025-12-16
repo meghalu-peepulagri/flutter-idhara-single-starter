@@ -70,6 +70,13 @@ class DevicesController extends GetxController {
     await fetchDevices();
   }
 
+  Future<void> deleteDevice(int motorName) async {
+    final response = await _repository.deletemotor(motorName);
+    if (response != null) {
+      await fetchDevices();
+    }
+  }
+
   List<Devices> searchDevices(String query) {
     if (query.isEmpty) return devicesList;
 
