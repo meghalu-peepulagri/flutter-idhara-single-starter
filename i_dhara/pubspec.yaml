@@ -85,6 +85,7 @@ dependencies:
   mobile_scanner: ^5.2.2
   syncfusion_flutter_charts: ^29.1.38
   permission_handler: ^12.0.1
+  lottie: ^3.3.1
 
 dependency_overrides:
   http: 1.4.0
@@ -123,7 +124,8 @@ flutter:
     - assets/rive_animations/
     - assets/pdfs/
     - assets/jsons/
-
+    - assets/lottie_animations/pump_on.json
+    - assets/lottie_animations/warning 1.json
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

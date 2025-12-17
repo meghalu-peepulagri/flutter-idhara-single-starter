@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/hp_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
+import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart';
 import 'package:i_dhara/app/presentation/modules/devices/add_new_location/add_new_location_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -271,12 +272,13 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                           });
                                         }
                                       },
-                                      // inputFormatters: [
-                                      //   FilteringTextInputFormatter.allow(
-                                      //       RegExp(r'[a-zA-Z\s]')),
-                                      //   FilteringTextInputFormatter.deny(
-                                      //       RegExp(r'^\s')),
-                                      // ],
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(
+                                              r'[A-Za-z0-9]'), // allow letters & numbers
+                                        ),
+                                        UpperCaseTextFormatter(), // 👈 auto convert to CAPITAL
+                                      ],
                                     ),
                                   ),
                                 ),

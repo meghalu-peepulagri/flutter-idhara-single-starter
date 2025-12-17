@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
+import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -79,6 +80,10 @@ class DashboardWidget extends StatelessWidget {
                               child: Obx(() {
                                 final selectedId =
                                     controller.selectedLocationId.value;
+
+                                //                             final locationName = controller.locations
+                                // .firstWhere((e) => e.id == selectedId)
+                                // .name;
 
                                 String locationName;
 
@@ -264,12 +269,7 @@ class DashboardWidget extends StatelessWidget {
                             );
                           }
                           if (controller.motors.isEmpty) {
-                            return Center(
-                              child: Text(
-                                'No motors available',
-                                style: FlutterFlowTheme.of(context).bodyMedium,
-                              ),
-                            );
+                            return const NoMotorFound();
                           }
                           return Skeletonizer(
                             enabled: controller.isRefreshing.value,

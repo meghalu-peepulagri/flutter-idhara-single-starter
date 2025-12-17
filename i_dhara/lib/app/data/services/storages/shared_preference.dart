@@ -63,4 +63,6 @@ class SharedPreference {
       preferences.setInt(userId, value!);
 
   static int? getUserId() => preferences.getInt(userId);
+
+  static Future<void> clear() async => await preferences.clear();
 }

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
+import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -73,6 +74,13 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
 
     if (response != null && response.errors == null) {
       Get.offAllNamed(Routes.dashboard);
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (Get.isRegistered<DashboardController>()) {
+        final dashboardController = Get.find<DashboardController>();
+        dashboardController.isLoading.value = true;
+        await dashboardController.fetchMotors();
+      }
       // Get.offAllNamed(Routes.locations);
     } else if (response?.errors != null) {
       errorInstance = response?.errors!.toJson() ?? {};

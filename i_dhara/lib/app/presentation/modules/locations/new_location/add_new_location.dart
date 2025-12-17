@@ -52,7 +52,7 @@ class _NewLocationState extends State<NewLocation> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Farm Location',
+                      'New Location',
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
                           fontFamily: 'Manrope',
                           color: Colors.black,

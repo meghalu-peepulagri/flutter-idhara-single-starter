@@ -189,10 +189,10 @@ class NoMotorFound extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SvgPicture.asset(
-            'assets/images/Motors.svg',
+            'assets/images/motor.svg',
             height: 80,
             width: 80,
-            color: Colors.grey.shade500,
+            // color: Colors.grey.shade500,
           ),
           AppText(
             fontSize: 16,

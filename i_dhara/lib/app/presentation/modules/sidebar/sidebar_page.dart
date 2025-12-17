@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 export 'sidebar_controller.dart';
@@ -282,7 +283,7 @@ class SidebarWidget extends StatelessWidget {
                             // await _model.fetchfcmtoken();
                             // if (!_model.isError && !_model.isMessage.isEmpty) {
                             Get.offAllNamed(Routes.loginwithmobile);
-                            //   SharedPreference.clear();
+                            SharedPreference.clear();
                             //   FirebaseMessaging.instance
                             //       .getToken()
                             //       .then((value) {
