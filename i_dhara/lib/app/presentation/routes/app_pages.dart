@@ -66,7 +66,7 @@ class AppPages {
     ),
     GetPage(
       name: Routes.motorDetails,
-      page: () => const MotorControlWidget(),
+      page: () => MotorControlWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),

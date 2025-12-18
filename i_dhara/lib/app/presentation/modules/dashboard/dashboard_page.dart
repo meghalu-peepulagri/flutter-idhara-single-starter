@@ -3,7 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -283,10 +285,29 @@ class DashboardWidget extends StatelessWidget {
                                   final motor = controller.motors[index];
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 10),
-                                    child: MotorCardWidget(
-                                      motor: motor,
-                                      mqttService: controller.mqttService,
-                                      onToggleMotor: controller.toggleMotor,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        SharedPreference.setMotorId(
+                                            motor.id ?? 0);
+                                        SharedPreference.setStarterId(
+                                            motor.starter?.id ?? 0);
+                                        Get.toNamed(
+                                          Routes.motorDetails,
+                                          arguments: {
+                                            'motor': motor,
+                                            'motorId': motor.id,
+                                            'motorName': motor.name ?? 'Motor',
+                                            'deviceId':
+                                                motor.starter?.macAddress ??
+                                                    'N/A',
+                                          },
+                                        );
+                                      },
+                                      child: MotorCardWidget(
+                                        motor: motor,
+                                        mqttService: controller.mqttService,
+                                        onToggleMotor: controller.toggleMotor,
+                                      ),
                                     ),
                                   );
                                 },

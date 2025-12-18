@@ -86,6 +86,7 @@ dependencies:
   syncfusion_flutter_charts: ^29.1.38
   permission_handler: ^12.0.1
   lottie: ^3.3.1
+  calendar_date_picker2: ^2.0.1
 
 dependency_overrides:
   http: 1.4.0

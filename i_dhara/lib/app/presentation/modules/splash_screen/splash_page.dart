@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-
-import '../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../core/flutter_flow/flutter_flow_widgets.dart';
 
 class SplashCopyWidget extends StatefulWidget {
   const SplashCopyWidget({super.key});
+
+  static String routeName = 'Splash';
+  static String routePath = '/splash';
 
   @override
   State<SplashCopyWidget> createState() => _SplashCopyWidgetState();
@@ -37,115 +40,80 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-        body: SafeArea(
-          top: true,
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              fit: BoxFit.cover,
+              image: Image.asset(
+                'assets/images/idhara_splash_bg.png',
+              ).image,
+            ),
+          ),
           child: Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: FlutterFlowTheme.of(context).secondaryBackground,
-                    image: DecorationImage(
-                      fit: BoxFit.cover,
-                      image: Image.asset(
-                        'assets/images/splashScreen.jpg',
-                      ).image,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Column(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(0.0),
-                                child: SvgPicture.asset(
-                                  'assets/images/Peepul_Agri_white_logo.svg',
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  Text(
-                                    'IOT Soft Starter App',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          fontFamily: 'Lexend',
-                                          color: Colors.white,
-                                          fontSize: 26.92,
-                                          letterSpacing: 0.0,
-                                        ),
-                                  ),
-                                  Text(
-                                    'Empowering Your Motor Control Experience',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          fontFamily: 'Lexend',
-                                          color: Colors.white,
-                                          fontSize: 13.46,
-                                          letterSpacing: 0.0,
-                                        ),
-                                  ),
-                                ].divide(SizedBox(height: 4.0)),
-                              ),
-                            ]
-                                .divide(SizedBox(height: 52.0))
-                                .addToStart(SizedBox(height: 115.0)),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(
-                            20.0, 0.0, 20.0, 47.0),
-                        child: FFButtonWidget(
-                          onPressed: () async {
-                            // SharedPreference.setAccessToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsImlhdCI6MTc2NTM0Mzc0MSwiZXhwIjoxNzY2MjA3NzQ2fQ.tcxjkTBsMbgGKhSUol9hFjojHO5GrEsR5eu3_hdCeaw');
-                            Get.toNamed(Routes.loginwithmobile);
-                          },
-                          text: 'Get Started',
-                          icon: Icon(
-                            Icons.arrow_right_alt_outlined,
-                            size: 28.0,
-                          ),
-                          options: FFButtonOptions(
-                            width: double.infinity,
-                            height: 40.0,
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                16.0, 0.0, 16.0, 0.0),
-                            iconAlignment: IconAlignment.end,
-                            iconPadding: EdgeInsetsDirectional.fromSTEB(
-                                0.0, 0.0, 0.0, 0.0),
-                            color: FlutterFlowTheme.of(context)
-                                .secondaryBackground,
-                            textStyle: FlutterFlowTheme.of(context)
-                                .titleSmall
-                                .override(
-                                  fontFamily: 'Lexend',
-                                  color:
-                                      FlutterFlowTheme.of(context).primaryText,
-                                  letterSpacing: 0.0,
-                                ),
-                            elevation: 0.0,
-                            borderRadius: BorderRadius.circular(60.0),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(36, 0, 36, 0),
+                  child: Container(
+                    decoration: const BoxDecoration(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(0),
+                          child: SvgPicture.asset(
+                            'assets/images/idhara_splash_logo.svg',
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      ),
-                    ],
+                        Text(
+                          'Real-time monitoring for pumps, motors, voltage, and weather.',
+                          textAlign: TextAlign.center,
+                          style:
+                              FlutterFlowTheme.of(context).bodyMedium.override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w600,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .fontStyle,
+                                    ),
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FontWeight.w600,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .fontStyle,
+                                  ),
+                        ),
+                      ].divide(const SizedBox(height: 36)),
+                    ),
                   ),
                 ),
               ),
-            ],
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF004E7E),
+                  borderRadius: BorderRadius.circular(80),
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    Get.toNamed(Routes.loginwithmobile);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: FaIcon(
+                      FontAwesomeIcons.arrowRight,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ].addToEnd(const SizedBox(height: 64)),
           ),
         ),
       ),
