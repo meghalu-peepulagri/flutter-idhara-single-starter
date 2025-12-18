@@ -80,7 +80,7 @@ class DevicesCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Text(
-                                    motor?.name ?? 'No Motor',
+                                    motor?.name!.capitalizeFirst ?? 'No Motor',
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .override(

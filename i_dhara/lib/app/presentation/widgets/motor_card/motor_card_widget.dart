@@ -125,12 +125,13 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   bool _isMotorAvailable() {
-    if (widget.motor.starter == null) {
+    if (widget.motor.starter?.macAddress == null ||
+        widget.motor.starter!.macAddress!.isEmpty) {
       return false;
     }
-    if (widget.motor.starter?.status?.toUpperCase() != 'ACTIVE') {
-      return false;
-    }
+    // if (widget.motor.starter?.status?.toUpperCase() != 'ACTIVE') {
+    //   return false;
+    // }
     return true;
   }
 

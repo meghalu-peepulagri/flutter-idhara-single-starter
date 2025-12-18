@@ -6,7 +6,6 @@ import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -160,7 +159,7 @@ class DashboardWidget extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.max,
                     children: [
-                      const WeatherCard(),
+                      // const WeatherCard(),
                       // Container(
                       //   decoration: BoxDecoration(
                       //     color: Colors.white,
@@ -294,12 +293,12 @@ class DashboardWidget extends StatelessWidget {
                                         Get.toNamed(
                                           Routes.motorDetails,
                                           arguments: {
-                                            'motor': motor,
+                                            // 'motor': motor,
                                             'motorId': motor.id,
-                                            'motorName': motor.name ?? 'Motor',
-                                            'deviceId':
-                                                motor.starter?.macAddress ??
-                                                    'N/A',
+                                            // 'motorName': motor.name ?? 'Motor',
+                                            // 'deviceId':
+                                            //     motor.starter?.macAddress ??
+                                            //         'N/A',
                                           },
                                         );
                                       },

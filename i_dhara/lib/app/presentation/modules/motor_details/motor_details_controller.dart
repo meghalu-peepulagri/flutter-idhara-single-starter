@@ -766,12 +766,17 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
 import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
+import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
+import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 class AnalyticsController extends GetxController {
   var voltage = <Voltage>[].obs;
   var current = <Current>[].obs;
+  var isMotorDetailsLoading = false.obs;
+
+  var motorDetails = Rxn<MotorDetails>();
   var isLoadingVoltage = true.obs;
   var isLoadingCurrent = true.obs;
   var isLoadingruntime = false.obs;
@@ -794,26 +799,37 @@ class AnalyticsController extends GetxController {
   final ValueNotifier<dynamic> valueNotifier = ValueNotifier(null);
   var voltageTrackball = Rxn<TrackballBehavior>();
   var currentTrackball = Rxn<TrackballBehavior>();
+  final ScrollController monthScrollController = ScrollController();
   var motorId = Rxn<int>();
   var motorName = ''.obs;
   var deviceId = ''.obs;
+  var motorState = 0.obs;
+  var motorMode = ''.obs;
   dynamic motorData;
 
   @override
   void onInit() {
     super.onInit();
 
-    // Get motor data from navigation arguments
+    // // Get motor data from navigation arguments
+    // final args = Get.arguments as Map<String, dynamic>?;
+    // if (args != null) {
+    //   motorData = args['motor'];
+    //   motorId.value = args['motorId'] as int?;
+    //   motorName.value = args['motorName'] as String? ?? 'Motor';
+    //   deviceId.value = args['deviceId'] as String? ?? 'N/A';
+    //   selectedTitle.value = motorName.value;
+
+    //   // Set selectedMotorId for API calls if needed
+    //   selectedMotorId.value = motorId.value;
+    // }
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
-      motorData = args['motor'];
-      motorId.value = args['motorId'] as int?;
-      motorName.value = args['motorName'] as String? ?? 'Motor';
-      deviceId.value = args['deviceId'] as String? ?? 'N/A';
-      selectedTitle.value = motorName.value;
+      motorId.value = args['motorId'];
+    }
 
-      // Set selectedMotorId for API calls if needed
-      selectedMotorId.value = motorId.value;
+    if (motorId.value != null) {
+      fetchMotorDetails();
     }
 
     // Fetch initial data
@@ -1081,6 +1097,33 @@ class AnalyticsController extends GetxController {
     } finally {
       isLoadingCurrent.value = false;
     }
+  }
+
+  Future<void> fetchMotorDetails() async {
+    try {
+      isMotorDetailsLoading.value = true;
+
+      final response = await MotorsRepositoryImpl().getMotorDetails();
+
+      if (response != null && response.data != null) {
+        motorDetails.value = response.data;
+
+        motorName.value = response.data!.name ?? 'Motor';
+        deviceId.value = response.data!.starter?.macAddress ?? 'N/A';
+        motorState.value = response.data!.state ?? 0;
+        motorMode.value = response.data!.mode ?? 'N/A';
+      }
+    } catch (e) {
+      debugPrint('Motor details error: $e');
+    } finally {
+      isMotorDetailsLoading.value = false;
+    }
+  }
+
+  @override
+  void onClose() {
+    monthScrollController.dispose();
+    super.onClose();
   }
 }
 

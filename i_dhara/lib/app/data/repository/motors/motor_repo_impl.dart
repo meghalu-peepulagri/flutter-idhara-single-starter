@@ -16,7 +16,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
   }
 
   @override
-  Future<MotorDetailsResponse?> getMotorDetails(int motorId) async {
+  Future<MotorDetailsResponse?> getMotorDetails() async {
     final response =
         await NetworkManager().get('/motors/${SharedPreference.getMotorId()}');
     if (response.statusCode == 200) {
