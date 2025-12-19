@@ -9,4 +9,5 @@ class Routes {
   static const String locations = '/locations';
   static const String qrCode = '/qrcode';
   static const String motorDetails = '/motordetails';
+  static const String userprofile = '/userprofile';
 }

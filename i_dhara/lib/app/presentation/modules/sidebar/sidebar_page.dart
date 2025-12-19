@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 export 'sidebar_controller.dart';
@@ -248,91 +247,25 @@ class SidebarWidget extends StatelessWidget {
                         },
                         // count: SharedPreference.getstarterStats(),
                         context: context),
-                    // _buildMenuItem(
-                    //     route: Routes.userprofile,
-                    //     label: 'Profile',
-                    //     icon: Icon(
-                    //       Icons.person,
-                    //       color: _controller.selectedRoute.value ==
-                    //               Routes.userprofile
-                    //           ? FlutterFlowTheme.of(context).primary
-                    //           : FlutterFlowTheme.of(context).primaryText,
-                    //       size: 24,
-                    //     ),
-                    //     onTap: () {
-                    //       SharedPreference.setlocationdropdownid(0);
-                    //       Get.offNamed(Routes.userprofile);
-                    //     },
-                    //     count: null,
-                    //     context: context),
+                    _buildMenuItem(
+                        route: Routes.userprofile,
+                        label: 'Profile',
+                        icon: Icon(
+                          Icons.person,
+                          color: _controller.selectedRoute.value ==
+                                  Routes.userprofile
+                              ? FlutterFlowTheme.of(context).primary
+                              : FlutterFlowTheme.of(context).primaryText,
+                          size: 24,
+                        ),
+                        onTap: () {
+                          // SharedPreference.setlocationdropdownid(0);
+                          Get.offNamed(Routes.userprofile);
+                        },
+                        count: null,
+                        context: context),
                   ].divide(const SizedBox(height: 2)),
                 ),
-              ),
-            ),
-            // Logout Section at the Bottom
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(0, 16, 4, 16),
-              child: ValueListenableBuilder(
-                valueListenable: _isLoading,
-                builder: (context, isLoading, child) {
-                  return GestureDetector(
-                    onTap: isLoading
-                        ? null
-                        : () async {
-                            // _isLoading.value = true;
-                            // await _model.fetchfcmtoken();
-                            // if (!_model.isError && !_model.isMessage.isEmpty) {
-                            Get.offAllNamed(Routes.loginwithmobile);
-                            SharedPreference.clear();
-                            //   FirebaseMessaging.instance
-                            //       .getToken()
-                            //       .then((value) {
-                            //     SharedPreference.setFcmToken(value!);
-                            //   });
-                            // } else {
-                            //   errorSnackBar(context, _model.isMessage);
-                            // }
-                            // _isLoading.value = false;
-                          },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        const Icon(
-                          Icons.logout_rounded,
-                          color: Color(0xFFEB5757),
-                          size: 20.0,
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(left: 10),
-                          child: Text(
-                            'LOG OUT',
-                            style: TextStyle(
-                              fontFamily: 'Lexend',
-                              color: Color(0xFFEB5757),
-                              fontSize: 18.0,
-                              letterSpacing: 0.0,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        isLoading
-                            ? const SizedBox(
-                                width: 20.0,
-                                height: 20.0,
-                                child: CircularProgressIndicator(
-                                  color: Color(0xFFEB5757),
-                                  strokeWidth: 2.0,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.chevron_right,
-                                color: Color(0xFFEB5757),
-                                size: 25.0,
-                              ),
-                      ],
-                    ),
-                  );
-                },
               ),
             ),
           ],

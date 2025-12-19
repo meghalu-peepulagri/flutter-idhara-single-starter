@@ -11,6 +11,7 @@ import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_page.dart';
 import 'package:i_dhara/app/presentation/modules/qr_code/q_r_code_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
+import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class AppPages {
@@ -67,6 +68,12 @@ class AppPages {
     GetPage(
       name: Routes.motorDetails,
       page: () => MotorControlWidget(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.userprofile,
+      page: () => ProfileWidget(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),
