@@ -97,7 +97,7 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF004E7E),
-                  borderRadius: BorderRadius.circular(80),
+                  borderRadius: BorderRadius.circular(40),
                 ),
                 child: GestureDetector(
                   onTap: () {

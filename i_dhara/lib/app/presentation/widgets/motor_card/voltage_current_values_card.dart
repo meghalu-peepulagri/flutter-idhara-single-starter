@@ -487,7 +487,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
         }
 
         return Padding(
-          padding: const EdgeInsets.only(left: 2, right: 2),
+          padding: const EdgeInsets.only(left: 2, right: 8),
           child: Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -514,6 +514,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                         'V',
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w500,
                                 fontStyle: FlutterFlowTheme.of(context)
                                     .bodyMedium
@@ -527,6 +528,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                         'A',
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w500,
                                 fontStyle: FlutterFlowTheme.of(context)
                                     .bodyMedium

@@ -101,232 +101,242 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
-      },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-        body: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              fit: BoxFit.cover,
-              image: Image.asset(
-                'assets/images/login_bg.png',
-              ).image,
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
+          body: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                fit: BoxFit.cover,
+                image: Image.asset(
+                  'assets/images/login_bg.png',
+                ).image,
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(0.0),
-                        child: SvgPicture.asset(
-                          'assets/images/login_image.svg',
-                          fit: BoxFit.cover,
+            child: Padding(
+              padding:
+                  const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(0.0),
+                          child: SvgPicture.asset(
+                            'assets/images/login_image.svg',
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: FlutterFlowTheme.of(context)
-                                  .secondaryBackground,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.max,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: FlutterFlowTheme.of(context)
-                                        .secondaryBackground,
+                    ],
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color:
+                              FlutterFlowTheme.of(context).secondaryBackground,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: FlutterFlowTheme.of(context)
+                                    .secondaryBackground,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.max,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: FlutterFlowTheme.of(context)
+                                          .secondaryBackground,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.max,
+                                      children: [
+                                        Text(
+                                          'Verify Your Phone Number',
+                                          style: FlutterFlowTheme.of(context)
+                                              .bodyMedium
+                                              .override(
+                                                font: GoogleFonts.dmSans(
+                                                  fontWeight:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontWeight,
+                                                  fontStyle:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontStyle,
+                                                ),
+                                                color: const Color(0xFF35353D),
+                                                fontSize: 18.0,
+                                                letterSpacing: 0.0,
+                                                fontWeight:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontWeight,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontStyle,
+                                              ),
+                                        ),
+                                        Text(
+                                          'Enter Phone Number to Access Your Account',
+                                          style: FlutterFlowTheme.of(context)
+                                              .bodyMedium
+                                              .override(
+                                                font: GoogleFonts.dmSans(
+                                                  fontWeight:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontWeight,
+                                                  fontStyle:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontStyle,
+                                                ),
+                                                color: const Color(0xFF6A7185),
+                                                letterSpacing: 0.0,
+                                                fontWeight:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontWeight,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontStyle,
+                                              ),
+                                        ),
+                                      ].divide(const SizedBox(height: 12.0)),
+                                    ),
                                   ),
-                                  child: Column(
+                                  Row(
                                     mainAxisSize: MainAxisSize.max,
+                                    mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Verify Your Phone Number',
-                                        style: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .override(
-                                              font: GoogleFonts.dmSans(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                              color: const Color(0xFF35353D),
-                                              fontSize: 18.0,
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                      ),
-                                      Text(
-                                        'Enter Phone Number to Access Your Account',
-                                        style: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .override(
-                                              font: GoogleFonts.dmSans(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                              color: const Color(0xFF6A7185),
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                      ),
-                                    ].divide(const SizedBox(height: 12.0)),
-                                  ),
-                                ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: SizedBox(
-                                        width:
-                                            MediaQuery.sizeOf(context).width *
-                                                0.25,
-                                        child: TextFieldComponent(
-                                          readOnly: false,
-                                          controller: controller1,
-                                          errors: _model.errorInstance,
-                                          hintText: 'Enter Your Phone Number',
-                                          errorKey: 'phone',
-                                          // maxlength: 10,
-                                          keyboardType: TextInputType.phone,
-                                          inputFormatters: [
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                            LengthLimitingTextInputFormatter(
-                                                10),
-                                          ],
+                                      Expanded(
+                                        child: SizedBox(
+                                          width:
+                                              MediaQuery.sizeOf(context).width *
+                                                  0.25,
+                                          child: TextFieldComponent(
+                                            readOnly: false,
+                                            controller: controller1,
+                                            errors: _model.errorInstance,
+                                            hintText: 'Enter Your Phone Number',
+                                            errorKey: 'phone',
+                                            // maxlength: 10,
+                                            keyboardType: TextInputType.phone,
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter
+                                                  .digitsOnly,
+                                              LengthLimitingTextInputFormatter(
+                                                  10),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ].divide(const SizedBox(width: 8.0)),
-                                ),
-                              ].divide(const SizedBox(height: 24.0)),
+                                    ].divide(const SizedBox(width: 8.0)),
+                                  ),
+                                ].divide(const SizedBox(height: 24.0)),
+                              ),
                             ),
-                          ),
-                          FFButtonWidget(
-                            onPressed: () async {
-                              String id = '';
-                              if (!kIsWeb) {
-                                await SmsAutoFill().unregisterListener();
-                                id = await SmsAutoFill().getAppSignature;
-                                bool isConnected = await _checkConnectivity();
-                                if (!isConnected) {
-                                  errorSnackBar(context,
-                                      'No internet connection. Please check your network.');
-                                  return;
+                            FFButtonWidget(
+                              onPressed: () async {
+                                String id = '';
+                                if (!kIsWeb) {
+                                  await SmsAutoFill().unregisterListener();
+                                  id = await SmsAutoFill().getAppSignature;
+                                  bool isConnected = await _checkConnectivity();
+                                  if (!isConnected) {
+                                    errorSnackBar(context,
+                                        'No internet connection. Please check your network.');
+                                    return;
+                                  }
                                 }
-                              }
 
-                              // bool isConnected = await _checkConnectivity();
-                              // if (!isConnected) {
-                              //   errorSnackBar(context, 'No internet connection. Please check your network.');
-                              //   return;
-                              // }
-                              await _model.fetchMobiel(
-                                  phone: controller1.text.trim());
-                              setState(() {
-                                showVerifyButton =
-                                    _model.message == "User not verified";
-                              });
-                              if (_model.error &&
-                                  _model.message.isNotEmpty &&
-                                  !_model.isValidation) {
-                                errorSnackBar(context, _model.message);
-                              } else if (!_model.error &&
-                                  _model.message.isNotEmpty) {
-                                Get.offNamed(Routes.otp);
+                                // bool isConnected = await _checkConnectivity();
+                                // if (!isConnected) {
+                                //   errorSnackBar(context, 'No internet connection. Please check your network.');
+                                //   return;
+                                // }
+                                await _model.fetchMobiel(
+                                    phone: controller1.text.trim());
+                                setState(() {
+                                  showVerifyButton =
+                                      _model.message == "User not verified";
+                                });
+                                if (_model.error &&
+                                    _model.message.isNotEmpty &&
+                                    !_model.isValidation) {
+                                  errorSnackBar(context, _model.message);
+                                } else if (!_model.error &&
+                                    _model.message.isNotEmpty) {
+                                  Get.offNamed(Routes.otp);
 
-                                // successSnackBar(context, _model.message);
-                                SharedPreference.setPhone(controller1.text);
-                              }
-                            },
-                            text: 'Generate OTP',
-                            options: FFButtonOptions(
-                              width: double.infinity,
-                              height: 40.0,
-                              padding: const EdgeInsetsDirectional.fromSTEB(
-                                  16.0, 0.0, 16.0, 0.0),
-                              iconPadding: const EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 0.0, 0.0, 0.0),
-                              color: const Color(0xFF3686AF),
-                              textStyle: FlutterFlowTheme.of(context)
-                                  .titleSmall
-                                  .override(
-                                    font: GoogleFonts.dmSans(
+                                  // successSnackBar(context, _model.message);
+                                  SharedPreference.setPhone(controller1.text);
+                                }
+                              },
+                              text: 'Generate OTP',
+                              options: FFButtonOptions(
+                                width: double.infinity,
+                                height: 40.0,
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    16.0, 0.0, 16.0, 0.0),
+                                iconPadding:
+                                    const EdgeInsetsDirectional.fromSTEB(
+                                        0.0, 0.0, 0.0, 0.0),
+                                color: const Color(0xFF3686AF),
+                                textStyle: FlutterFlowTheme.of(context)
+                                    .titleSmall
+                                    .override(
+                                      font: GoogleFonts.dmSans(
+                                        fontWeight: FontWeight.normal,
+                                        fontStyle: FlutterFlowTheme.of(context)
+                                            .titleSmall
+                                            .fontStyle,
+                                      ),
+                                      color: Colors.white,
+                                      letterSpacing: 0.0,
                                       fontWeight: FontWeight.normal,
                                       fontStyle: FlutterFlowTheme.of(context)
                                           .titleSmall
                                           .fontStyle,
                                     ),
-                                    color: Colors.white,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.normal,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .titleSmall
-                                        .fontStyle,
-                                  ),
-                              elevation: 0.0,
-                              borderRadius: BorderRadius.circular(8.0),
+                                elevation: 0.0,
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
                             ),
-                          ),
-                        ].divide(const SizedBox(height: 44.0)),
+                          ].divide(const SizedBox(height: 44.0)),
+                        ),
                       ),
-                    ),
-                  ].divide(const SizedBox(height: 24.0)),
-                ),
-              ]
-                  .divide(const SizedBox(height: 24.0))
-                  .addToStart(const SizedBox(height: 56.0)),
+                    ].divide(const SizedBox(height: 24.0)),
+                  ),
+                ]
+                    .divide(const SizedBox(height: 24.0))
+                    .addToStart(const SizedBox(height: 56.0)),
+              ),
             ),
           ),
         ),

@@ -1,3 +1,1441 @@
+// import 'package:flutter/material.dart';
+// import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
+// import 'package:flutter_svg/flutter_svg.dart';
+// import 'package:get/get.dart';
+// import 'package:google_fonts/google_fonts.dart';
+// import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+// import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+// import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+// import 'package:i_dhara/app/presentation/widgets/motor_card/voltage_current_values_card.dart';
+// import 'package:lottie/lottie.dart';
+// import 'package:toggle_switch/toggle_switch.dart';
+
+// import '../../../core/flutter_flow/flutter_flow_theme.dart';
+
+// class MotorCardWidget extends StatefulWidget {
+//   final Motor motor;
+//   final MqttService mqttService;
+//   final Function(Motor, bool) onToggleMotor;
+
+//   const MotorCardWidget({
+//     super.key,
+//     required this.motor,
+//     required this.mqttService,
+//     required this.onToggleMotor,
+//   });
+
+//   @override
+//   State<MotorCardWidget> createState() => _MotorCardWidgetState();
+// }
+
+// class _MotorCardWidgetState extends State<MotorCardWidget> {
+//   late ValueNotifier<bool> _localSwitchController;
+//   late ValueNotifier<int> _localModeController;
+//   bool _isInitialized = false;
+//   bool _hasPendingSwitchCommand = false;
+//   bool _hasPendingModeCommand = false;
+//   bool? _pendingSwitchValue;
+//   int? _pendingModeValue;
+//   bool _isUpdatingFromMqtt = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+
+//     // Determine initial state with proper priority
+//     final motorData = _getMotorData();
+//     bool initialState;
+//     int initialMode;
+
+//     // Check if MQTT has received real data
+//     if (motorData != null && motorData.hasReceivedData) {
+//       // Use MQTT data (highest priority)
+//       initialState = motorData.state == 1;
+//       initialMode = motorData.modeIndex ?? 0;
+//       debugPrint(
+//           '✓ Initializing ${widget.motor.name} with MQTT data: state=${motorData.state} -> switch=$initialState, mode=$initialMode');
+//     } else {
+//       // Use API data with proper null handling
+//       final apiState = widget.motor.state ?? 0;
+//       initialState = apiState == 1;
+//       initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 0;
+//       debugPrint(
+//           '✓ Initializing ${widget.motor.name} with API data: state=$apiState -> switch=$initialState (raw: ${widget.motor.state}), mode=$initialMode');
+//     }
+
+//     _localSwitchController = ValueNotifier(initialState);
+//     _localModeController = ValueNotifier(initialMode);
+//     _isInitialized = true;
+//   }
+
+//   @override
+//   void dispose() {
+//     _localSwitchController.dispose();
+//     _localModeController.dispose();
+//     super.dispose();
+//   }
+
+//   // FIXED: Always check ALL groups dynamically on every call
+//   MotorData? _getMotorData() {
+//     if (widget.motor.starter?.macAddress == null || widget.motor.id == null) {
+//       return null;
+//     }
+
+//     final mac = widget.motor.starter!.macAddress!;
+
+//     // Check all groups and return the MOST RECENTLY UPDATED one with data
+//     MotorData? latestData;
+//     DateTime? latestTimestamp;
+
+//     for (int i = 1; i <= 4; i++) {
+//       final groupId = 'G0$i';
+//       final motorId = '$mac-$groupId';
+//       final data = widget.mqttService.motorDataMap[motorId];
+
+//       if (data != null && data.hasReceivedData) {
+//         // Check if this data is more recent
+//         final dataTimestamp = widget.mqttService.getLastAckTime(motorId);
+
+//         if (latestData == null ||
+//             (dataTimestamp != null &&
+//                 (latestTimestamp == null ||
+//                     dataTimestamp.isAfter(latestTimestamp)))) {
+//           latestData = data;
+//           latestTimestamp = dataTimestamp;
+//           debugPrint(
+//               '${widget.motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
+//         }
+//       }
+//     }
+
+//     return latestData;
+//   }
+
+//   String _getMotorId() {
+//     if (widget.motor.starter?.macAddress == null) return '';
+
+//     // Find the group with the most recent data
+//     final motorData = _getMotorData();
+//     if (motorData != null && motorData.groupId != null) {
+//       return '${widget.motor.starter!.macAddress}-${motorData.groupId}';
+//     }
+
+//     // Fallback to G01 if no data found
+//     return '${widget.motor.starter!.macAddress}-G01';
+//   }
+
+//   bool _isMotorAvailable() {
+//     if (widget.motor.starter?.macAddress == null ||
+//         widget.motor.starter!.macAddress!.isEmpty) {
+//       return false;
+//     }
+//     // if (widget.motor.starter?.status?.toUpperCase() != 'ACTIVE') {
+//     //   return false;
+//     // }
+//     return true;
+//   }
+
+//   Future<void> _handleToggle(bool newValue) async {
+//     if (_isUpdatingFromMqtt) {
+//       debugPrint('Ignoring toggle - triggered by MQTT update');
+//       return;
+//     }
+
+//     if (!_isMotorAvailable()) {
+//       debugPrint('Cannot toggle: Motor not available');
+//       return;
+//     }
+
+//     final motorId = _getMotorId();
+//     if (motorId.isEmpty) {
+//       debugPrint('Cannot toggle: Invalid motor ID');
+//       return;
+//     }
+
+//     _localSwitchController.value = newValue;
+//     _hasPendingSwitchCommand = true;
+//     _pendingSwitchValue = newValue;
+
+//     try {
+//       final state = newValue ? 1 : 0;
+//       await widget.mqttService.publishMotorCommand(motorId, state);
+//       debugPrint('✓ Toggle command sent: $motorId -> $state');
+//     } catch (e) {
+//       _localSwitchController.value = !newValue;
+//       _hasPendingSwitchCommand = false;
+//       _pendingSwitchValue = null;
+//       debugPrint('✗ Failed to toggle motor: $e');
+//     }
+//   }
+
+//   Future<void> _handleModeToggle(int? index) async {
+//     if (index == null || !_isMotorAvailable()) {
+//       return;
+//     }
+
+//     final motorId = _getMotorId();
+//     if (motorId.isEmpty) {
+//       debugPrint('Cannot change mode: Invalid motor ID');
+//       return;
+//     }
+
+//     final oldIndex = _localModeController.value;
+//     _localModeController.value = index;
+//     _hasPendingModeCommand = true;
+//     _pendingModeValue = index;
+
+//     try {
+//       await widget.mqttService.publishModeCommand(motorId, index);
+//       debugPrint('✓ Mode command sent: $motorId -> $index');
+//     } catch (e) {
+//       _localModeController.value = oldIndex;
+//       _hasPendingModeCommand = false;
+//       _pendingModeValue = null;
+//       debugPrint('✗ Failed to change mode: $e');
+//     }
+//   }
+
+//   int? _getSimplifiedModeIndex(String motorMode) {
+//     if (motorMode.toUpperCase().contains('AUTO')) {
+//       return 0;
+//     } else if (motorMode.toUpperCase().contains('MANUAL')) {
+//       return 1;
+//     }
+//     return 0; // Default to AUTO if unknown
+//   }
+
+//   void _updateSwitchFromMqtt(bool newState) {
+//     if (_localSwitchController.value != newState) {
+//       _isUpdatingFromMqtt = true;
+//       _localSwitchController.value = newState;
+//       Future.delayed(const Duration(milliseconds: 50), () {
+//         _isUpdatingFromMqtt = false;
+//       });
+//     }
+//   }
+
+//   void _updateModeFromMqtt(int newMode) {
+//     if (_localModeController.value != newMode) {
+//       debugPrint('🔄 Updating mode from MQTT: $newMode');
+//       _localModeController.value = newMode;
+//     }
+//   }
+
+//   Widget _buildSignalIcon(MotorData? motorData) {
+//     int? signalStrength;
+//     int bars = 0;
+
+//     // Check MQTT first, then fallback to API
+//     if (motorData != null &&
+//         motorData.hasReceivedData &&
+//         !motorData.isSignalStale()) {
+//       // Use MQTT data
+//       bars = motorData.signalBars;
+//       signalStrength = motorData.signalStrength;
+//       debugPrint(
+//           '${widget.motor.name} - Using MQTT signal: strength=$signalStrength, bars=$bars');
+//     } else {
+//       // Fallback to API signal quality - need to calculate bars
+//       signalStrength = widget.motor.starter?.signalQuality;
+//       debugPrint(
+//           '${widget.motor.name} - Using API signal quality: $signalStrength');
+
+//       // Calculate bars from signal strength
+//       if (signalStrength == null || signalStrength < 2 || signalStrength > 31) {
+//         bars = 0;
+//       } else if (signalStrength >= 2 && signalStrength <= 9) {
+//         bars = 1;
+//       } else if (signalStrength >= 10 && signalStrength <= 14) {
+//         bars = 2;
+//       } else if (signalStrength >= 15 && signalStrength <= 19) {
+//         bars = 3;
+//       } else if (signalStrength >= 20 && signalStrength <= 30) {
+//         bars = 4;
+//       } else {
+//         bars = 0;
+//       }
+
+//       debugPrint(
+//           '${widget.motor.name} - Calculated bars from API signal: $bars');
+//     }
+
+//     String assetPath;
+//     double iconWidth = 16;
+//     double iconHeight = 16;
+//     switch (bars) {
+//       case 1:
+//         assetPath = 'assets/images/first_signal.svg';
+//         break;
+//       case 2:
+//         assetPath = 'assets/images/second_signal.svg';
+//         break;
+//       case 3:
+//         assetPath = 'assets/images/third_signal.svg';
+//         break;
+//       case 4:
+//         assetPath = 'assets/images/network.svg';
+//         break;
+//       case 0:
+//       default:
+//         assetPath = 'assets/images/no_network.svg';
+//         iconWidth = 20;
+//         iconHeight = 20;
+//         break;
+//     }
+
+//     return SizedBox(
+//       width: 20,
+//       height: 20,
+//       child: Center(
+//         child: SvgPicture.asset(
+//           assetPath,
+//           width: iconWidth,
+//           height: iconHeight,
+//           fit: BoxFit.contain,
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return ValueListenableBuilder(
+//       valueListenable: widget.mqttService.dataUpdateNotifier,
+//       builder: (context, notificationValue, __) {
+//         // CRITICAL: Get fresh motor data on EVERY build
+//         final motorData = _getMotorData();
+
+//         // Determine power state with proper priority
+//         final bool isPowerOn;
+//         if (motorData != null && motorData.hasReceivedData) {
+//           isPowerOn = motorData.power == 1;
+//           debugPrint(
+//               '${widget.motor.name} - Using MQTT power: ${motorData.power}');
+//         } else {
+//           isPowerOn = (widget.motor.starter?.power ?? 0) == 1;
+//           debugPrint(
+//               '${widget.motor.name} - Using API power: ${widget.motor.starter?.power ?? 0}');
+//         }
+
+//         final isAvailable = _isMotorAvailable();
+
+//         debugPrint('MotorCardWidget rebuild - ${widget.motor.name}');
+//         debugPrint('  isPowerOn: $isPowerOn');
+//         debugPrint('  isAvailable: $isAvailable');
+//         debugPrint(
+//             '  Switch controller value: ${_localSwitchController.value}');
+
+//         // Update local controllers from MQTT data
+//         if (motorData != null && motorData.hasReceivedData) {
+//           debugPrint('  MQTT State: ${motorData.state}');
+//           debugPrint(
+//               '  MQTT Mode: ${motorData.motorMode} (${motorData.modeIndex})');
+//           debugPrint('  MQTT Power: ${motorData.power}');
+//           debugPrint('  MQTT Group: ${motorData.groupId}');
+
+//           // Update switch state
+//           if (_hasPendingSwitchCommand) {
+//             final mqttState = motorData.state == 1;
+//             if (mqttState == _pendingSwitchValue) {
+//               debugPrint(
+//                   '✓ Switch ACK received: $mqttState matches pending $_pendingSwitchValue');
+//               _hasPendingSwitchCommand = false;
+//               _pendingSwitchValue = null;
+//             }
+//           } else {
+//             final mqttState = motorData.state == 1;
+//             if (_localSwitchController.value != mqttState) {
+//               WidgetsBinding.instance.addPostFrameCallback((_) {
+//                 if (mounted && !_hasPendingSwitchCommand) {
+//                   debugPrint('🔄 Updating switch from MQTT: $mqttState');
+//                   _updateSwitchFromMqtt(mqttState);
+//                 }
+//               });
+//             }
+//           }
+
+//           // Update mode
+//           if (_hasPendingModeCommand) {
+//             final mqttMode = motorData.modeIndex;
+//             if (mqttMode == _pendingModeValue) {
+//               debugPrint(
+//                   '✓ Mode ACK received: $mqttMode matches pending $_pendingModeValue');
+//               _hasPendingModeCommand = false;
+//               _pendingModeValue = null;
+//             }
+//           } else {
+//             final mqttMode = motorData.modeIndex;
+//             if (mqttMode != null && _localModeController.value != mqttMode) {
+//               WidgetsBinding.instance.addPostFrameCallback((_) {
+//                 if (mounted && !_hasPendingModeCommand) {
+//                   debugPrint('🔄 Updating mode from MQTT: $mqttMode');
+//                   _updateModeFromMqtt(mqttMode);
+//                 }
+//               });
+//             }
+//           }
+//         }
+
+//         // Fault value - check MQTT first, fallback to API
+//         final int faultValue;
+//         if (motorData != null && motorData.hasReceivedData) {
+//           faultValue = motorData.fault;
+//         } else {
+//           faultValue =
+//               widget.motor.starter?.starterParameters?.firstOrNull?.fault ?? 0;
+//         }
+
+//         return Container(
+//           decoration: BoxDecoration(
+//             color: Colors.white,
+//             borderRadius: BorderRadius.circular(12.0),
+//           ),
+//           child: Padding(
+//             padding: const EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 10.0),
+//             child: Column(
+//               mainAxisSize: MainAxisSize.max,
+//               children: [
+//                 // Header Row
+//                 Padding(
+//                   padding: const EdgeInsetsDirectional.fromSTEB(
+//                       12.0, 0.0, 12.0, 0.0),
+//                   child: Row(
+//                     mainAxisSize: MainAxisSize.max,
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       Row(
+//                         mainAxisSize: MainAxisSize.max,
+//                         children: [
+//                           ClipRRect(
+//                             borderRadius: BorderRadius.circular(0.0),
+//                             child: SvgPicture.asset(
+//                               'assets/images/motor.svg',
+//                               fit: BoxFit.cover,
+//                             ),
+//                           ),
+//                           Text(
+//                             widget.motor.name?.capitalizeFirst ?? '',
+//                             style: FlutterFlowTheme.of(context)
+//                                 .bodyMedium
+//                                 .override(
+//                                   font: GoogleFonts.dmSans(
+//                                     fontWeight: FlutterFlowTheme.of(context)
+//                                         .bodyMedium
+//                                         .fontWeight,
+//                                   ),
+//                                   color: const Color(0xFF1E1E1E),
+//                                   fontSize: 16.0,
+//                                   letterSpacing: 0.0,
+//                                 ),
+//                           ),
+//                         ].divide(const SizedBox(width: 8.0)),
+//                       ),
+//                       Row(
+//                         mainAxisSize: MainAxisSize.max,
+//                         children: [
+//                           _buildSignalIcon(motorData),
+//                           ClipRRect(
+//                             borderRadius: BorderRadius.circular(0.0),
+//                             child: SvgPicture.asset(
+//                               isPowerOn
+//                                   ? 'assets/images/power.svg'
+//                                   : 'assets/images/Power_red.svg',
+//                               width: 17,
+//                               height: 17,
+//                               fit: BoxFit.cover,
+//                             ),
+//                           ),
+//                           if (faultValue > 0)
+//                             Container(
+//                               decoration: BoxDecoration(
+//                                 color: Colors.white,
+//                                 borderRadius: BorderRadius.circular(24.0),
+//                                 border: Border.all(
+//                                   color: const Color(0xFFDCDCDC),
+//                                 ),
+//                               ),
+//                               child: Padding(
+//                                 padding: const EdgeInsetsDirectional.fromSTEB(
+//                                     8.0, 4.0, 8.0, 4.0),
+//                                 child: Row(
+//                                   mainAxisSize: MainAxisSize.max,
+//                                   children: [
+//                                     Lottie.asset(
+//                                       'assets/lottie_animations/warning 1.json',
+//                                       width: 20,
+//                                       height: 20,
+//                                       fit: BoxFit.contain,
+//                                       repeat: true,
+//                                     )
+//                                   ].divide(const SizedBox(width: 6.0)),
+//                                 ),
+//                               ),
+//                             ),
+//                         ].divide(const SizedBox(width: 8.0)),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//                 const Divider(
+//                   height: 2,
+//                   thickness: 1.0,
+//                   color: Color(0xFFECECEC),
+//                 ),
+//                 Padding(
+//                   padding: const EdgeInsetsDirectional.fromSTEB(
+//                       12.0, 0.0, 12.0, 0.0),
+//                   child: VoltageCurrentValuesCard(
+//                     motor: widget.motor,
+//                     mqttService: widget.mqttService,
+//                   ),
+//                 ),
+//                 const Divider(
+//                   height: 2,
+//                   thickness: 1.0,
+//                   color: Color(0xFFECECEC),
+//                 ),
+//                 Padding(
+//                   padding: const EdgeInsetsDirectional.fromSTEB(
+//                       12.0, 0.0, 12.0, 0.0),
+//                   child: Row(
+//                     mainAxisSize: MainAxisSize.max,
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       // Mode Toggle Switch
+//                       ValueListenableBuilder(
+//                         valueListenable: _localModeController,
+//                         builder: (context, currentModeIndex, child) {
+//                           debugPrint('🎨 Mode UI rendering: $currentModeIndex');
+//                           return AbsorbPointer(
+//                             absorbing: !isAvailable,
+//                             child: Opacity(
+//                               opacity: isAvailable ? 1.0 : 0.5,
+//                               child: ToggleSwitch(
+//                                 changeOnTap: isAvailable,
+//                                 customWidths: const [90, 90],
+//                                 radiusStyle: true,
+//                                 minWidth: 80.0,
+//                                 minHeight: 30.0,
+//                                 initialLabelIndex: currentModeIndex ?? 0,
+//                                 cornerRadius: 8.0,
+//                                 activeBgColors: isAvailable
+//                                     ? [
+//                                         [const Color(0xFFFFA500)],
+//                                         [const Color(0xFF2F80ED)]
+//                                       ]
+//                                     : [
+//                                         [
+//                                           const Color(0xFFFFA500)
+//                                               .withOpacity(0.3)
+//                                         ],
+//                                         [
+//                                           const Color(0xFF2F80ED)
+//                                               .withOpacity(0.3)
+//                                         ],
+//                                       ],
+//                                 activeFgColor:
+//                                     isAvailable ? Colors.white : Colors.black,
+//                                 inactiveBgColor: Colors.white,
+//                                 inactiveFgColor: Colors.black,
+//                                 fontSize: 12,
+//                                 totalSwitches: 2,
+//                                 labels: const ['Auto', 'Manual'],
+//                                 borderWidth: 1,
+//                                 borderColor: [Colors.grey.shade300],
+//                                 onToggle:
+//                                     isAvailable ? _handleModeToggle : null,
+//                               ),
+//                             ),
+//                           );
+//                         },
+//                       ),
+//                       // ON/OFF Switch
+//                       ValueListenableBuilder(
+//                         valueListenable: _localSwitchController,
+//                         builder: (context, isOn, child) {
+//                           debugPrint('🎨 Switch UI rendering: $isOn');
+//                           return GestureDetector(
+//                             onTap:
+//                                 isAvailable ? () => _handleToggle(!isOn) : null,
+//                             child: AdvancedSwitch(
+//                               key: ValueKey('switch_${widget.motor.id}_$isOn'),
+//                               controller: _localSwitchController,
+//                               initialValue: isOn,
+//                               activeColor: Colors.green,
+//                               inactiveColor: Colors.red.shade500,
+//                               activeChild: const Text('ON'),
+//                               inactiveChild: const Text('OFF'),
+//                               borderRadius:
+//                                   const BorderRadius.all(Radius.circular(15)),
+//                               width: 55,
+//                               height: 25,
+//                               enabled: isAvailable,
+//                               disabledOpacity: 0.5,
+//                               onChanged: (value) {
+//                                 _handleToggle(value);
+//                               },
+//                             ),
+//                           );
+//                         },
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ].divide(const SizedBox(height: 8.0)),
+//             ),
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }
+//updated code
+
+// import 'package:flutter/material.dart';
+// import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
+// import 'package:flutter_svg/flutter_svg.dart';
+// import 'package:get/get.dart';
+// import 'package:google_fonts/google_fonts.dart';
+// import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+// import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+// import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+// import 'package:i_dhara/app/presentation/widgets/motor_card/voltage_current_values_card.dart';
+// import 'package:lottie/lottie.dart';
+// import 'package:toggle_switch/toggle_switch.dart';
+
+// import '../../../core/flutter_flow/flutter_flow_theme.dart';
+
+// class MotorCardWidget extends StatefulWidget {
+//   final Motor motor;
+//   final MqttService mqttService;
+//   final Function(Motor, bool) onToggleMotor;
+
+//   const MotorCardWidget({
+//     super.key,
+//     required this.motor,
+//     required this.mqttService,
+//     required this.onToggleMotor,
+//   });
+
+//   @override
+//   State<MotorCardWidget> createState() => _MotorCardWidgetState();
+// }
+
+// class _MotorCardWidgetState extends State<MotorCardWidget> {
+//   late ValueNotifier<bool> _localSwitchController;
+//   late ValueNotifier<int> _localModeController;
+//   bool _isInitialized = false;
+//   bool _hasPendingSwitchCommand = false;
+//   bool _hasPendingModeCommand = false;
+//   bool? _pendingSwitchValue;
+//   int? _pendingModeValue;
+//   bool _isUpdatingFromMqtt = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+
+//     // Determine initial state with proper priority
+//     final motorData = _getMotorData();
+//     bool initialState;
+//     int initialMode;
+
+//     // Check if MQTT has received real data
+//     if (motorData != null && motorData.hasReceivedData) {
+//       // Use MQTT data (highest priority)
+//       initialState = motorData.state == 1;
+//       initialMode = motorData.modeIndex ?? 0;
+//       debugPrint(
+//           '✓ Initializing ${widget.motor.name} with MQTT data: state=${motorData.state} -> switch=$initialState, mode=$initialMode');
+//     } else {
+//       // Use API data with proper null handling
+//       final apiState = widget.motor.state ?? 0;
+//       initialState = apiState == 1;
+//       initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 0;
+//       debugPrint(
+//           '✓ Initializing ${widget.motor.name} with API data: state=$apiState -> switch=$initialState (raw: ${widget.motor.state}), mode=$initialMode');
+//     }
+
+//     _localSwitchController = ValueNotifier(initialState);
+//     _localModeController = ValueNotifier(initialMode);
+//     _isInitialized = true;
+//   }
+
+//   @override
+//   void dispose() {
+//     _localSwitchController.dispose();
+//     _localModeController.dispose();
+//     super.dispose();
+//   }
+
+//   // FIXED: Always check ALL groups dynamically on every call
+//   MotorData? _getMotorData() {
+//     if (widget.motor.starter?.macAddress == null || widget.motor.id == null) {
+//       return null;
+//     }
+
+//     final mac = widget.motor.starter!.macAddress!;
+
+//     // Check all groups and return the MOST RECENTLY UPDATED one with data
+//     MotorData? latestData;
+//     DateTime? latestTimestamp;
+
+//     for (int i = 1; i <= 4; i++) {
+//       final groupId = 'G0$i';
+//       final motorId = '$mac-$groupId';
+//       final data = widget.mqttService.motorDataMap[motorId];
+
+//       if (data != null && data.hasReceivedData) {
+//         // Check if this data is more recent
+//         final dataTimestamp = widget.mqttService.getLastAckTime(motorId);
+
+//         if (latestData == null ||
+//             (dataTimestamp != null &&
+//                 (latestTimestamp == null ||
+//                     dataTimestamp.isAfter(latestTimestamp)))) {
+//           latestData = data;
+//           latestTimestamp = dataTimestamp;
+//           debugPrint(
+//               '${widget.motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
+//         }
+//       }
+//     }
+
+//     return latestData;
+//   }
+
+//   String _getMotorId() {
+//     if (widget.motor.starter?.macAddress == null) return '';
+
+//     // Find the group with the most recent data
+//     final motorData = _getMotorData();
+//     if (motorData != null && motorData.groupId != null) {
+//       return '${widget.motor.starter!.macAddress}-${motorData.groupId}';
+//     }
+
+//     // Fallback to G01 if no data found
+//     return '${widget.motor.starter!.macAddress}-G01';
+//   }
+
+//   bool _isMotorAvailable() {
+//     if (widget.motor.starter?.macAddress == null ||
+//         widget.motor.starter!.macAddress!.isEmpty) {
+//       return false;
+//     }
+//     return true;
+//   }
+
+//   // Show bottom sheet confirmation
+//   void _showConfirmationBottomSheet(bool newValue) {
+//     showModalBottomSheet(
+//       context: context,
+//       backgroundColor: Colors.white,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (context) {
+//         return Padding(
+//           padding: const EdgeInsets.all(16.0),
+//           child: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             children: [
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: OutlinedButton(
+//                       onPressed: () {
+//                         Navigator.pop(context);
+//                       },
+//                       style: OutlinedButton.styleFrom(
+//                         padding: const EdgeInsets.symmetric(vertical: 12),
+//                         side: BorderSide(color: Colors.grey[300]!),
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                       ),
+//                       child: Text(
+//                         'Cancel',
+//                         style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                               fontSize: 16,
+//                               fontWeight: FontWeight.w600,
+//                               color: Colors.grey[700],
+//                             ),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 12),
+//                   Expanded(
+//                     child: ElevatedButton(
+//                       onPressed: () {
+//                         Navigator.pop(context);
+//                         _showCommandDialog(newValue);
+//                       },
+//                       style: ElevatedButton.styleFrom(
+//                         padding: const EdgeInsets.symmetric(vertical: 12),
+//                         backgroundColor: newValue ? Colors.green : Colors.red,
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                       ),
+//                       child: Text(
+//                         'Continue',
+//                         style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                               fontSize: 16,
+//                               fontWeight: FontWeight.w600,
+//                               color: Colors.white,
+//                             ),
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//         );
+//       },
+//     );
+//   }
+
+//   void _showCommandDialog(bool newValue) {
+//     showDialog(
+//       context: context,
+//       builder: (context) {
+//         return AlertDialog(
+//           shape: RoundedRectangleBorder(
+//             borderRadius: BorderRadius.circular(16),
+//           ),
+//           content: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Text(
+//                 'Are you sure you want to control this motor?',
+//                 style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                       fontSize: 16,
+//                     ),
+//               ),
+//               const SizedBox(height: 16),
+//               Row(
+//                 children: [
+//                   Text(
+//                     "Motor: ",
+//                     style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                           fontSize: 16,
+//                           fontWeight: FontWeight.w600,
+//                         ),
+//                   ),
+//                   const SizedBox(width: 8),
+//                   Text(
+//                     widget.motor.name?.capitalizeFirst ?? "Unknown",
+//                     style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                           fontSize: 16,
+//                           fontWeight: FontWeight.w400,
+//                         ),
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 4),
+//               Row(
+//                 children: [
+//                   Text(
+//                     'State:',
+//                     style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                           fontSize: 16,
+//                           fontWeight: FontWeight.w600,
+//                         ),
+//                   ),
+//                   const SizedBox(width: 8),
+//                   Text(
+//                     newValue ? 'ON' : 'OFF',
+//                     style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                           fontSize: 16,
+//                           fontWeight: FontWeight.w400,
+//                         ),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//           actions: [
+//             TextButton(
+//               onPressed: () {
+//                 Navigator.pop(context);
+//               },
+//               child: Text(
+//                 'Cancel',
+//                 style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                       fontSize: 16,
+//                       color: Colors.grey[700],
+//                     ),
+//               ),
+//             ),
+//             ElevatedButton(
+//               onPressed: () {
+//                 Navigator.pop(context);
+//                 _handleToggle(newValue);
+//               },
+//               style: ElevatedButton.styleFrom(
+//                 backgroundColor: Colors.green,
+//                 foregroundColor: Colors.white,
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(8),
+//                 ),
+//               ),
+//               child: Text(
+//                 'Confirm',
+//                 style: FlutterFlowTheme.of(context).bodyMedium.override(
+//                       fontSize: 16,
+//                       fontWeight: FontWeight.w600,
+//                       color: Colors.white,
+//                     ),
+//               ),
+//             ),
+//           ],
+//         );
+//       },
+//     );
+//   }
+
+//   Future<void> _handleToggle(bool newValue) async {
+//     if (_isUpdatingFromMqtt) {
+//       debugPrint('Ignoring toggle - triggered by MQTT update');
+//       return;
+//     }
+
+//     if (!_isMotorAvailable()) {
+//       debugPrint('Cannot toggle: Motor not available');
+//       return;
+//     }
+
+//     final motorId = _getMotorId();
+//     if (motorId.isEmpty) {
+//       debugPrint('Cannot toggle: Invalid motor ID');
+//       return;
+//     }
+
+//     _localSwitchController.value = newValue;
+//     _hasPendingSwitchCommand = true;
+//     _pendingSwitchValue = newValue;
+
+//     try {
+//       final state = newValue ? 1 : 0;
+//       await widget.mqttService.publishMotorCommand(motorId, state);
+//       debugPrint('✓ Toggle command sent: $motorId -> $state');
+//     } catch (e) {
+//       _localSwitchController.value = !newValue;
+//       _hasPendingSwitchCommand = false;
+//       _pendingSwitchValue = null;
+//       debugPrint('✗ Failed to toggle motor: $e');
+//     }
+//   }
+
+//   Future<void> _handleModeToggle(int? index) async {
+//     if (index == null || !_isMotorAvailable()) {
+//       return;
+//     }
+
+//     final motorId = _getMotorId();
+//     if (motorId.isEmpty) {
+//       debugPrint('Cannot change mode: Invalid motor ID');
+//       return;
+//     }
+
+//     final oldIndex = _localModeController.value;
+//     _localModeController.value = index;
+//     _hasPendingModeCommand = true;
+//     _pendingModeValue = index;
+
+//     try {
+//       await widget.mqttService.publishModeCommand(motorId, index);
+//       debugPrint('✓ Mode command sent: $motorId -> $index');
+//     } catch (e) {
+//       _localModeController.value = oldIndex;
+//       _hasPendingModeCommand = false;
+//       _pendingModeValue = null;
+//       debugPrint('✗ Failed to change mode: $e');
+//     }
+//   }
+
+//   int? _getSimplifiedModeIndex(String motorMode) {
+//     if (motorMode.toUpperCase().contains('AUTO')) {
+//       return 0;
+//     } else if (motorMode.toUpperCase().contains('MANUAL')) {
+//       return 1;
+//     }
+//     return 0; // Default to AUTO if unknown
+//   }
+
+//   void _updateSwitchFromMqtt(bool newState) {
+//     if (_localSwitchController.value != newState) {
+//       _isUpdatingFromMqtt = true;
+//       _localSwitchController.value = newState;
+//       Future.delayed(const Duration(milliseconds: 50), () {
+//         _isUpdatingFromMqtt = false;
+//       });
+//     }
+//   }
+
+//   void _updateModeFromMqtt(int newMode) {
+//     if (_localModeController.value != newMode) {
+//       debugPrint('🔄 Updating mode from MQTT: $newMode');
+//       _localModeController.value = newMode;
+//     }
+//   }
+
+//   Widget _buildSignalIcon(MotorData? motorData) {
+//     int? signalStrength;
+//     int bars = 0;
+
+//     // Check MQTT first, then fallback to API
+//     if (motorData != null &&
+//         motorData.hasReceivedData &&
+//         !motorData.isSignalStale()) {
+//       // Use MQTT data
+//       bars = motorData.signalBars;
+//       signalStrength = motorData.signalStrength;
+//       debugPrint(
+//           '${widget.motor.name} - Using MQTT signal: strength=$signalStrength, bars=$bars');
+//     } else {
+//       // Fallback to API signal quality - need to calculate bars
+//       signalStrength = widget.motor.starter?.signalQuality;
+//       debugPrint(
+//           '${widget.motor.name} - Using API signal quality: $signalStrength');
+
+//       // Calculate bars from signal strength
+//       if (signalStrength == null || signalStrength < 2 || signalStrength > 31) {
+//         bars = 0;
+//       } else if (signalStrength >= 2 && signalStrength <= 9) {
+//         bars = 1;
+//       } else if (signalStrength >= 10 && signalStrength <= 14) {
+//         bars = 2;
+//       } else if (signalStrength >= 15 && signalStrength <= 19) {
+//         bars = 3;
+//       } else if (signalStrength >= 20 && signalStrength <= 30) {
+//         bars = 4;
+//       } else {
+//         bars = 0;
+//       }
+
+//       debugPrint(
+//           '${widget.motor.name} - Calculated bars from API signal: $bars');
+//     }
+
+//     String assetPath;
+//     double iconWidth = 16;
+//     double iconHeight = 16;
+//     switch (bars) {
+//       case 1:
+//         assetPath = 'assets/images/first_signal.svg';
+//         break;
+//       case 2:
+//         assetPath = 'assets/images/second_signal.svg';
+//         break;
+//       case 3:
+//         assetPath = 'assets/images/third_signal.svg';
+//         break;
+//       case 4:
+//         assetPath = 'assets/images/network.svg';
+//         break;
+//       case 0:
+//       default:
+//         assetPath = 'assets/images/no_network.svg';
+//         iconWidth = 20;
+//         iconHeight = 20;
+//         break;
+//     }
+
+//     return SizedBox(
+//       width: 20,
+//       height: 20,
+//       child: Center(
+//         child: SvgPicture.asset(
+//           assetPath,
+//           width: iconWidth,
+//           height: iconHeight,
+//           fit: BoxFit.contain,
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return ValueListenableBuilder(
+//       valueListenable: widget.mqttService.dataUpdateNotifier,
+//       builder: (context, notificationValue, __) {
+//         // CRITICAL: Get fresh motor data on EVERY build
+//         final motorData = _getMotorData();
+
+//         // Determine power state with proper priority
+//         final bool isPowerOn;
+//         if (motorData != null && motorData.hasReceivedData) {
+//           isPowerOn = motorData.power == 1;
+//           debugPrint(
+//               '${widget.motor.name} - Using MQTT power: ${motorData.power}');
+//         } else {
+//           isPowerOn = (widget.motor.starter?.power ?? 0) == 1;
+//           debugPrint(
+//               '${widget.motor.name} - Using API power: ${widget.motor.starter?.power ?? 0}');
+//         }
+
+//         final isAvailable = _isMotorAvailable();
+
+//         debugPrint('MotorCardWidget rebuild - ${widget.motor.name}');
+//         debugPrint('  isPowerOn: $isPowerOn');
+//         debugPrint('  isAvailable: $isAvailable');
+//         debugPrint(
+//             '  Switch controller value: ${_localSwitchController.value}');
+
+//         // Update local controllers from MQTT data
+//         if (motorData != null && motorData.hasReceivedData) {
+//           debugPrint('  MQTT State: ${motorData.state}');
+//           debugPrint(
+//               '  MQTT Mode: ${motorData.motorMode} (${motorData.modeIndex})');
+//           debugPrint('  MQTT Power: ${motorData.power}');
+//           debugPrint('  MQTT Group: ${motorData.groupId}');
+
+//           // Update switch state
+//           if (_hasPendingSwitchCommand) {
+//             final mqttState = motorData.state == 1;
+//             if (mqttState == _pendingSwitchValue) {
+//               debugPrint(
+//                   '✓ Switch ACK received: $mqttState matches pending $_pendingSwitchValue');
+//               _hasPendingSwitchCommand = false;
+//               _pendingSwitchValue = null;
+//             }
+//           } else {
+//             final mqttState = motorData.state == 1;
+//             if (_localSwitchController.value != mqttState) {
+//               WidgetsBinding.instance.addPostFrameCallback((_) {
+//                 if (mounted && !_hasPendingSwitchCommand) {
+//                   debugPrint('🔄 Updating switch from MQTT: $mqttState');
+//                   _updateSwitchFromMqtt(mqttState);
+//                 }
+//               });
+//             }
+//           }
+
+//           // Update mode
+//           if (_hasPendingModeCommand) {
+//             final mqttMode = motorData.modeIndex;
+//             if (mqttMode == _pendingModeValue) {
+//               debugPrint(
+//                   '✓ Mode ACK received: $mqttMode matches pending $_pendingModeValue');
+//               _hasPendingModeCommand = false;
+//               _pendingModeValue = null;
+//             }
+//           } else {
+//             final mqttMode = motorData.modeIndex;
+//             if (mqttMode != null && _localModeController.value != mqttMode) {
+//               WidgetsBinding.instance.addPostFrameCallback((_) {
+//                 if (mounted && !_hasPendingModeCommand) {
+//                   debugPrint('🔄 Updating mode from MQTT: $mqttMode');
+//                   _updateModeFromMqtt(mqttMode);
+//                 }
+//               });
+//             }
+//           }
+//         }
+
+//         // Fault value - check MQTT first, fallback to API
+//         final int faultValue;
+//         if (motorData != null && motorData.hasReceivedData) {
+//           faultValue = motorData.fault;
+//         } else {
+//           faultValue =
+//               widget.motor.starter?.starterParameters?.firstOrNull?.fault ?? 0;
+//         }
+
+//         return Container(
+//           decoration: BoxDecoration(
+//             color: Colors.white,
+//             borderRadius: BorderRadius.circular(12.0),
+//           ),
+//           child: Padding(
+//             padding: const EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 10.0),
+//             child: Column(
+//               mainAxisSize: MainAxisSize.max,
+//               children: [
+//                 // Header Row
+//                 Padding(
+//                   padding: const EdgeInsetsDirectional.fromSTEB(
+//                       12.0, 0.0, 12.0, 0.0),
+//                   child: Row(
+//                     mainAxisSize: MainAxisSize.max,
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       Row(
+//                         mainAxisSize: MainAxisSize.max,
+//                         children: [
+//                           ClipRRect(
+//                             borderRadius: BorderRadius.circular(0.0),
+//                             child: SvgPicture.asset(
+//                               'assets/images/motor.svg',
+//                               fit: BoxFit.cover,
+//                             ),
+//                           ),
+//                           Text(
+//                             widget.motor.name?.capitalizeFirst ?? '',
+//                             style: FlutterFlowTheme.of(context)
+//                                 .bodyMedium
+//                                 .override(
+//                                   font: GoogleFonts.dmSans(
+//                                     fontWeight: FlutterFlowTheme.of(context)
+//                                         .bodyMedium
+//                                         .fontWeight,
+//                                   ),
+//                                   color: const Color(0xFF1E1E1E),
+//                                   fontSize: 16.0,
+//                                   letterSpacing: 0.0,
+//                                 ),
+//                           ),
+//                         ].divide(const SizedBox(width: 8.0)),
+//                       ),
+//                       Row(
+//                         mainAxisSize: MainAxisSize.max,
+//                         children: [
+//                           _buildSignalIcon(motorData),
+//                           ClipRRect(
+//                             borderRadius: BorderRadius.circular(0.0),
+//                             child: SvgPicture.asset(
+//                               isPowerOn
+//                                   ? 'assets/images/power.svg'
+//                                   : 'assets/images/Power_red.svg',
+//                               width: 17,
+//                               height: 17,
+//                               fit: BoxFit.cover,
+//                             ),
+//                           ),
+//                           if (faultValue > 0)
+//                             Container(
+//                               decoration: BoxDecoration(
+//                                 color: Colors.white,
+//                                 borderRadius: BorderRadius.circular(24.0),
+//                                 border: Border.all(
+//                                   color: const Color(0xFFDCDCDC),
+//                                 ),
+//                               ),
+//                               child: Padding(
+//                                 padding: const EdgeInsetsDirectional.fromSTEB(
+//                                     8.0, 4.0, 8.0, 4.0),
+//                                 child: Row(
+//                                   mainAxisSize: MainAxisSize.max,
+//                                   children: [
+//                                     Lottie.asset(
+//                                       'assets/lottie_animations/warning 1.json',
+//                                       width: 20,
+//                                       height: 20,
+//                                       fit: BoxFit.contain,
+//                                       repeat: true,
+//                                     )
+//                                   ].divide(const SizedBox(width: 6.0)),
+//                                 ),
+//                               ),
+//                             ),
+//                         ].divide(const SizedBox(width: 8.0)),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//                 const Divider(
+//                   height: 2,
+//                   thickness: 1.0,
+//                   color: Color(0xFFECECEC),
+//                 ),
+//                 Padding(
+//                   padding: const EdgeInsetsDirectional.fromSTEB(
+//                       12.0, 0.0, 12.0, 0.0),
+//                   child: VoltageCurrentValuesCard(
+//                     motor: widget.motor,
+//                     mqttService: widget.mqttService,
+//                   ),
+//                 ),
+//                 const Divider(
+//                   height: 2,
+//                   thickness: 1.0,
+//                   color: Color(0xFFECECEC),
+//                 ),
+//                 Padding(
+//                   padding: const EdgeInsetsDirectional.fromSTEB(
+//                       12.0, 0.0, 12.0, 0.0),
+//                   child: Row(
+//                     mainAxisSize: MainAxisSize.max,
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       // Mode Toggle Switch
+//                       ValueListenableBuilder(
+//                         valueListenable: _localModeController,
+//                         builder: (context, currentModeIndex, child) {
+//                           debugPrint('🎨 Mode UI rendering: $currentModeIndex');
+//                           return AbsorbPointer(
+//                             absorbing: !isAvailable,
+//                             child: Opacity(
+//                               opacity: isAvailable ? 1.0 : 0.5,
+//                               child: ToggleSwitch(
+//                                 changeOnTap: isAvailable,
+//                                 customWidths: const [90, 90],
+//                                 radiusStyle: true,
+//                                 minWidth: 80.0,
+//                                 minHeight: 30.0,
+//                                 initialLabelIndex: currentModeIndex ?? 0,
+//                                 cornerRadius: 8.0,
+//                                 activeBgColors: isAvailable
+//                                     ? [
+//                                         [const Color(0xFFFFA500)],
+//                                         [const Color(0xFF2F80ED)]
+//                                       ]
+//                                     : [
+//                                         [
+//                                           const Color(0xFFFFA500)
+//                                               .withOpacity(0.3)
+//                                         ],
+//                                         [
+//                                           const Color(0xFF2F80ED)
+//                                               .withOpacity(0.3)
+//                                         ],
+//                                       ],
+//                                 activeFgColor:
+//                                     isAvailable ? Colors.white : Colors.black,
+//                                 inactiveBgColor: Colors.white,
+//                                 inactiveFgColor: Colors.black,
+//                                 fontSize: 12,
+//                                 totalSwitches: 2,
+//                                 labels: const ['Auto', 'Manual'],
+//                                 borderWidth: 1,
+//                                 borderColor: [Colors.grey.shade300],
+//                                 onToggle:
+//                                     isAvailable ? _handleModeToggle : null,
+//                               ),
+//                             ),
+//                           );
+//                         },
+//                       ),
+//                       // ON/OFF Switch with confirmation
+//                       ValueListenableBuilder(
+//                         valueListenable: _localSwitchController,
+//                         builder: (context, isOn, child) {
+//                           debugPrint('🎨 Switch UI rendering: $isOn');
+//                           return GestureDetector(
+//                             onTap: isAvailable
+//                                 ? () {
+//                                     debugPrint(
+//                                         '🔥 Switch tapped! Current: $isOn, New: ${!isOn}');
+//                                     _showConfirmationBottomSheet(!isOn);
+//                                   }
+//                                 : null,
+//                             behavior: HitTestBehavior
+//                                 .opaque, // Important: capture all taps
+//                             child: AbsorbPointer(
+//                               absorbing:
+//                                   true, // Block touch events to the switch
+//                               child: Opacity(
+//                                 opacity: isAvailable ? 1.0 : 0.5,
+//                                 child: AdvancedSwitch(
+//                                   key: ValueKey(
+//                                       'switch_${widget.motor.id}_$isOn'),
+//                                   controller: _localSwitchController,
+//                                   initialValue: isOn,
+//                                   activeColor: Colors.green,
+//                                   inactiveColor: Colors.red.shade500,
+//                                   activeChild: const Text(
+//                                     'ON',
+//                                     style: TextStyle(
+//                                       color: Colors.white,
+//                                       fontSize: 11,
+//                                       fontWeight: FontWeight.bold,
+//                                     ),
+//                                   ),
+//                                   inactiveChild: const Text(
+//                                     'OFF',
+//                                     style: TextStyle(
+//                                       color: Colors.white,
+//                                       fontSize: 10,
+//                                       fontWeight: FontWeight.bold,
+//                                     ),
+//                                   ),
+//                                   borderRadius: const BorderRadius.all(
+//                                       Radius.circular(15)),
+//                                   width: 55,
+//                                   height: 25,
+//                                   enabled: true,
+//                                   disabledOpacity: 0.5,
+//                                 ),
+//                               ),
+//                             ),
+//                           );
+//                         },
+//                       ),
+//                       // ValueListenableBuilder(
+//                       //   valueListenable: _localSwitchController,
+//                       //   builder: (context, isOn, child) {
+//                       //     debugPrint('🎨 Switch UI rendering: $isOn');
+//                       //     return GestureDetector(
+//                       //       onTap: isAvailable
+//                       //           ? () {
+//                       //               debugPrint(
+//                       //                   'Switch tapped! Current: $isOn, New: ${!isOn}');
+//                       //               _showConfirmationBottomSheet(!isOn);
+//                       //             }
+//                       //           : null,
+//                       //       child: Opacity(
+//                       //         opacity: isAvailable ? 1.0 : 0.5,
+//                       //         child: Container(
+//                       //           width: 55,
+//                       //           height: 25,
+//                       //           decoration: BoxDecoration(
+//                       //             color:
+//                       //                 isOn ? Colors.green : Colors.red.shade500,
+//                       //             borderRadius: BorderRadius.circular(15),
+//                       //           ),
+//                       //           child: Stack(
+//                       //             children: [
+//                       //               AnimatedAlign(
+//                       //                 duration:
+//                       //                     const Duration(milliseconds: 200),
+//                       //                 curve: Curves.easeInOut,
+//                       //                 alignment: isOn
+//                       //                     ? Alignment.centerRight
+//                       //                     : Alignment.centerLeft,
+//                       //                 child: Container(
+//                       //                   width: 21,
+//                       //                   height: 21,
+//                       //                   margin: const EdgeInsets.all(2),
+//                       //                   decoration: BoxDecoration(
+//                       //                     color: Colors.white,
+//                       //                     borderRadius:
+//                       //                         BorderRadius.circular(13),
+//                       //                   ),
+//                       //                 ),
+//                       //               ),
+//                       //               Center(
+//                       //                 child: Text(
+//                       //                   isOn ? 'ON' : 'OFF',
+//                       //                   style: const TextStyle(
+//                       //                     color: Colors.white,
+//                       //                     fontSize: 10,
+//                       //                     fontWeight: FontWeight.bold,
+//                       //                   ),
+//                       //                 ),
+//                       //               ),
+//                       //             ],
+//                       //           ),
+//                       //         ),
+//                       //       ),
+//                       //     );
+//                       //   },
+//                       // ),
+//                     ],
+//                   ),
+//                 ),
+//               ].divide(const SizedBox(height: 8.0)),
+//             ),
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }
+
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -129,10 +1567,355 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         widget.motor.starter!.macAddress!.isEmpty) {
       return false;
     }
-    // if (widget.motor.starter?.status?.toUpperCase() != 'ACTIVE') {
-    //   return false;
-    // }
     return true;
+  }
+
+  // Show bottom sheet confirmation for switch
+  void _showSwitchConfirmationBottomSheet(bool newValue) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey[300]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showSwitchCommandDialog(newValue);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: newValue ? Colors.green : Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Continue',
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Show bottom sheet confirmation for mode
+  void _showModeConfirmationBottomSheet(int newMode) {
+    final modeName = newMode == 0 ? 'Auto' : 'Manual';
+    final modeColor =
+        newMode == 0 ? const Color(0xFFFFA500) : const Color(0xFF2F80ED);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey[300]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showModeCommandDialog(newMode);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: modeColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Continue',
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSwitchCommandDialog(bool newValue) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to control this motor?',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontSize: 16,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Text(
+                    "Motor: ",
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.motor.name?.capitalizeFirst ?? "Unknown",
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    'State:',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    newValue ? 'ON' : 'OFF',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                    ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _handleToggle(newValue);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Confirm',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showModeCommandDialog(int newMode) {
+    final modeName = newMode == 0 ? 'Auto' : 'Manual';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to change the motor mode?',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontSize: 16,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Text(
+                    "Motor: ",
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.motor.name?.capitalizeFirst ?? "Unknown",
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    'Mode:',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    modeName,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                    ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _handleModeToggle(newMode);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Confirm',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _handleToggle(bool newValue) async {
@@ -501,79 +2284,117 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Mode Toggle Switch
+                      // Mode Toggle Switch with confirmation
                       ValueListenableBuilder(
                         valueListenable: _localModeController,
                         builder: (context, currentModeIndex, child) {
                           debugPrint('🎨 Mode UI rendering: $currentModeIndex');
-                          return AbsorbPointer(
-                            absorbing: !isAvailable,
-                            child: Opacity(
-                              opacity: isAvailable ? 1.0 : 0.5,
-                              child: ToggleSwitch(
-                                changeOnTap: isAvailable,
-                                customWidths: const [90, 90],
-                                radiusStyle: true,
-                                minWidth: 80.0,
-                                minHeight: 30.0,
-                                initialLabelIndex: currentModeIndex ?? 0,
-                                cornerRadius: 8.0,
-                                activeBgColors: isAvailable
-                                    ? [
-                                        [const Color(0xFFFFA500)],
-                                        [const Color(0xFF2F80ED)]
-                                      ]
-                                    : [
-                                        [
-                                          const Color(0xFFFFA500)
-                                              .withOpacity(0.3)
+                          return GestureDetector(
+                            onTap: isAvailable
+                                ? () {
+                                    // Toggle to opposite mode
+                                    final newMode =
+                                        currentModeIndex == 0 ? 1 : 0;
+                                    debugPrint(
+                                        '🔥 Mode tapped! Current: $currentModeIndex, New: $newMode');
+                                    _showModeConfirmationBottomSheet(newMode);
+                                  }
+                                : null,
+                            behavior: HitTestBehavior.opaque,
+                            child: AbsorbPointer(
+                              absorbing:
+                                  true, // Block touch events to the toggle switch
+                              child: Opacity(
+                                opacity: isAvailable ? 1.0 : 0.5,
+                                child: ToggleSwitch(
+                                  changeOnTap: false, // Disable direct tap
+                                  customWidths: const [90, 90],
+                                  radiusStyle: true,
+                                  minWidth: 80.0,
+                                  minHeight: 30.0,
+                                  initialLabelIndex: currentModeIndex ?? 0,
+                                  cornerRadius: 8.0,
+                                  activeBgColors: isAvailable
+                                      ? [
+                                          [const Color(0xFFFFA500)],
+                                          [const Color(0xFF2F80ED)]
+                                        ]
+                                      : [
+                                          [
+                                            const Color(0xFFFFA500)
+                                                .withOpacity(0.3)
+                                          ],
+                                          [
+                                            const Color(0xFF2F80ED)
+                                                .withOpacity(0.3)
+                                          ],
                                         ],
-                                        [
-                                          const Color(0xFF2F80ED)
-                                              .withOpacity(0.3)
-                                        ],
-                                      ],
-                                activeFgColor:
-                                    isAvailable ? Colors.white : Colors.black,
-                                inactiveBgColor: Colors.white,
-                                inactiveFgColor: Colors.black,
-                                fontSize: 12,
-                                totalSwitches: 2,
-                                labels: const ['Auto', 'Manual'],
-                                borderWidth: 1,
-                                borderColor: [Colors.grey.shade300],
-                                onToggle:
-                                    isAvailable ? _handleModeToggle : null,
+                                  activeFgColor:
+                                      isAvailable ? Colors.white : Colors.black,
+                                  inactiveBgColor: Colors.white,
+                                  inactiveFgColor: Colors.black,
+                                  fontSize: 12,
+                                  totalSwitches: 2,
+                                  labels: const ['Auto', 'Manual'],
+                                  borderWidth: 1,
+                                  borderColor: [Colors.grey.shade300],
+                                  onToggle:
+                                      null, // Disable the default callback
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
-                      // ON/OFF Switch
+                      // ON/OFF Switch with confirmation
                       ValueListenableBuilder(
                         valueListenable: _localSwitchController,
                         builder: (context, isOn, child) {
                           debugPrint('🎨 Switch UI rendering: $isOn');
                           return GestureDetector(
-                            onTap:
-                                isAvailable ? () => _handleToggle(!isOn) : null,
-                            child: AdvancedSwitch(
-                              key: ValueKey('switch_${widget.motor.id}_$isOn'),
-                              controller: _localSwitchController,
-                              initialValue: isOn,
-                              activeColor: Colors.green,
-                              inactiveColor: Colors.red.shade500,
-                              activeChild: const Text('ON'),
-                              inactiveChild: const Text('OFF'),
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(15)),
-                              width: 55,
-                              height: 25,
-                              enabled: isAvailable,
-                              disabledOpacity: 0.5,
-                              onChanged: (value) {
-                                _handleToggle(value);
-                              },
+                            onTap: isAvailable
+                                ? () {
+                                    debugPrint(
+                                        '🔥 Switch tapped! Current: $isOn, New: ${!isOn}');
+                                    _showSwitchConfirmationBottomSheet(!isOn);
+                                  }
+                                : null,
+                            behavior: HitTestBehavior.opaque,
+                            child: AbsorbPointer(
+                              absorbing: true,
+                              child: Opacity(
+                                opacity: isAvailable ? 1.0 : 0.5,
+                                child: AdvancedSwitch(
+                                  key: ValueKey(
+                                      'switch_${widget.motor.id}_$isOn'),
+                                  controller: _localSwitchController,
+                                  initialValue: isOn,
+                                  activeColor: Colors.green,
+                                  inactiveColor: Colors.red.shade500,
+                                  activeChild: const Text(
+                                    'ON',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  inactiveChild: const Text(
+                                    'OFF',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  borderRadius: const BorderRadius.all(
+                                      Radius.circular(15)),
+                                  width: 55,
+                                  height: 25,
+                                  enabled: true,
+                                  disabledOpacity: 0.5,
+                                ),
+                              ),
                             ),
                           );
                         },

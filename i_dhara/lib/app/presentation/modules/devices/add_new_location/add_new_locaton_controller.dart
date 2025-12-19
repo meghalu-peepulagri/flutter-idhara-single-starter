@@ -12,8 +12,11 @@ class AddNewLocatonController extends GetxController {
   Record? record;
   bool error = false;
   bool isValidation = false;
-  dynamic errorInstance;
+  // dynamic errorInstance;
   String message = '';
+  Map<String, dynamic> errorInstance = {};
+  String locationName = '';
+  String locationId = '';
 
   @override
   void dispose() {
@@ -24,9 +27,11 @@ class AddNewLocatonController extends GetxController {
   Future<void> fetchnewlocation({required String name}) async {
     final response = await LocationRepoImpl().addLocation(name);
     if (response != null && response.errors == null) {
-      // Get.offAllNamed(Routes.locations);
+      // return response.data;
+      // Get.offAllNamed(Routes.addDevices);
     } else if (response!.errors != null) {
       errorInstance = response.errors!.toJson();
     }
+    return;
   }
 }

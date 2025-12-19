@@ -374,16 +374,45 @@ class DashboardController extends GetxController {
     }
   }
 
-  void filterMotorsByLocation(int? locationId) {
+  // void filterMotorsByLocation(int? locationId) {
+  //   selectedLocationId.value = locationId;
+
+  //   isFiltering.value = true;
+
+  //   if (locationId == null) {
+  //     motors.value = allMotors.toList();
+  //     return;
+  //   }
+
+  //   motors.value =
+  //       allMotors.where((m) => m.location?.id == locationId).toList();
+  // }
+  Future<void> filterMotorsByLocation(int? locationId) async {
     selectedLocationId.value = locationId;
 
-    if (locationId == null) {
-      motors.value = allMotors.toList();
-      return;
-    }
+    // 🔵 SHOW LOADING
+    isFiltering.value = true;
 
-    motors.value =
-        allMotors.where((m) => m.location?.id == locationId).toList();
+    try {
+      // OPTIONAL: If you want fresh API data every time
+      // await refreshMotors();
+
+      await Future.delayed(const Duration(milliseconds: 300)); // smooth UX
+
+      if (locationId == null) {
+        motors.value = allMotors.toList();
+      } else {
+        motors.value =
+            allMotors.where((m) => m.location?.id == locationId).toList();
+      }
+
+      motors.refresh();
+    } catch (e) {
+      debugPrint('❌ Error filtering motors: $e');
+    } finally {
+      // 🔵 HIDE LOADING
+      isFiltering.value = false;
+    }
   }
 
   Future<void> toggleMotor(Motor motor, bool newState) async {

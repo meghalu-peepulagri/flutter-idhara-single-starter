@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
+import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
@@ -14,6 +15,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
   dynamic errorInstance1;
   String message = '';
   Map<String, dynamic> errorInstance = {};
+  List<Location>? locations;
 
   // State field(s) for TextField widget.
   FocusNode? textFieldFocusNode1;
@@ -70,6 +72,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
       locationId: locationId,
     );
 
+    print("line 28 -----------> $locationId");
     final response = await DevicesRepositoryImpl().deviceassign(dto);
 
     if (response != null && response.errors == null) {

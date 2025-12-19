@@ -27,9 +27,11 @@ class LocationBottomSheet extends StatelessWidget {
             final isSelected = controller.selectedLocationId.value == loc.id;
 
             return InkWell(
-              onTap: () {
-                controller.filterMotorsByLocation(loc.id);
+              onTap: () async {
                 Get.back();
+                await Future.delayed(const Duration(milliseconds: 200));
+                controller.filterMotorsByLocation(loc.id);
+                // Get.back();
               },
               child: Container(
                 padding:
