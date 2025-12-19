@@ -5,10 +5,12 @@ enum DeviceMenuAction { rename, replace, delete }
 
 class DeviceOptionsMenu extends StatelessWidget {
   final Function(DeviceMenuAction action) onSelected;
+  final bool hasMotor;
 
   const DeviceOptionsMenu({
     super.key,
     required this.onSelected,
+    required this.hasMotor,
   });
 
   @override
@@ -23,6 +25,7 @@ class DeviceOptionsMenu extends StatelessWidget {
           _menuItem(
             icon: Icons.edit,
             text: 'Rename',
+            enabled: hasMotor,
             onTap: () => onSelected(DeviceMenuAction.rename),
           ),
           _menuItem(
@@ -30,6 +33,13 @@ class DeviceOptionsMenu extends StatelessWidget {
             text: 'Replace',
             onTap: () => onSelected(DeviceMenuAction.replace),
           ),
+
+          // if (!hasMotor)
+          //   _menuItem(
+          //     icon: Icons.add,
+          //     text: 'Add Motor',
+          //     onTap: () => onSelected(DeviceMenuAction.addMotor),
+          //   ),
           _menuItem(
             icon: Icons.delete_outline,
             text: 'Delete',
@@ -45,22 +55,24 @@ class DeviceOptionsMenu extends StatelessWidget {
     required IconData icon,
     required String text,
     required VoidCallback onTap,
+    bool enabled = true,
     Color color = Colors.black,
   }) {
+    final effectiveColor = enabled ? color : Colors.grey.shade400;
     return InkWell(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: color),
+            Icon(icon, size: 18, color: effectiveColor),
             const SizedBox(width: 8),
             Text(
               text,
               style: GoogleFonts.dmSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: color,
+                color: effectiveColor,
               ),
             ),
           ],

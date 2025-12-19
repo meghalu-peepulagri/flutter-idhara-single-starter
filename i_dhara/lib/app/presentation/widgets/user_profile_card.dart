@@ -66,7 +66,7 @@ class UserProfileCard extends StatelessWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(0),
                             child: SvgPicture.asset(
-                              'assets/images/Icon.svg',
+                              'assets/images/mail.svg',
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -127,7 +127,7 @@ class UserProfileCard extends StatelessWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(0),
                             child: SvgPicture.asset(
-                              'assets/images/Icon-1.svg',
+                              'assets/images/phone.svg',
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -194,7 +194,7 @@ class UserProfileCard extends StatelessWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(0),
                             child: SvgPicture.asset(
-                              'assets/images/Icon-2.svg',
+                              'assets/images/address.svg',
                               fit: BoxFit.cover,
                             ),
                           ),

@@ -10,6 +10,7 @@ import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -41,6 +42,16 @@ class DevicesCard extends StatelessWidget {
             Navigator.pop(context);
           },
         );
+      },
+    );
+  }
+
+  void _openAddMotorPage(BuildContext context) {
+    Get.toNamed(
+      Routes.addDevices,
+      arguments: {
+        'pcbNumber': device.pcbNumber,
+        'isFromDeviceCard': true,
       },
     );
   }
@@ -80,7 +91,14 @@ class DevicesCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Text(
-                                    motor?.name!.capitalizeFirst ?? 'No Motor',
+                                    (() {
+                                      final name =
+                                          motor?.name?.capitalizeFirst ??
+                                              'No Motor';
+                                      return name.length > 10
+                                          ? '${name.substring(0, 10)}...'
+                                          : name;
+                                    })(),
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .override(
@@ -120,7 +138,8 @@ class DevicesCard extends StatelessWidget {
                                         buttonPosition.dx + button.size.width,
                                         0,
                                       );
-
+                                      final bool hasMotor =
+                                          device.motors?.isNotEmpty == true;
                                       await showMenu(
                                         context: context,
                                         position: position,
@@ -130,86 +149,100 @@ class DevicesCard extends StatelessWidget {
                                           PopupMenuItem(
                                             enabled: false,
                                             padding: EdgeInsets.zero,
-                                            child: DeviceOptionsMenu(
-                                              onSelected: (action) {
-                                                Navigator.pop(context);
-                                                switch (action) {
-                                                  case DeviceMenuAction.rename:
-                                                    showModalBottomSheet(
-                                                      context: context,
-                                                      isScrollControlled: true,
-                                                      shape:
-                                                          const RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .vertical(
-                                                          top: Radius.circular(
-                                                              16),
+                                            child: SizedBox(
+                                              width: 130,
+                                              child: DeviceOptionsMenu(
+                                                hasMotor: hasMotor,
+                                                onSelected: (action) {
+                                                  Navigator.pop(context);
+                                                  switch (action) {
+                                                    case DeviceMenuAction
+                                                          .rename:
+                                                      showModalBottomSheet(
+                                                        context: context,
+                                                        isScrollControlled:
+                                                            true,
+                                                        shape:
+                                                            const RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .vertical(
+                                                            top:
+                                                                Radius.circular(
+                                                                    16),
+                                                          ),
                                                         ),
-                                                      ),
-                                                      builder: (context) {
-                                                        return Padding(
-                                                          padding:
-                                                              EdgeInsets.only(
-                                                            bottom:
-                                                                MediaQuery.of(
-                                                                        context)
-                                                                    .viewInsets
-                                                                    .bottom,
-                                                          ),
-                                                          child: EditDevicePage(
-                                                            motorId: motor!.id!,
-                                                            motorName:
-                                                                motor.name ??
-                                                                    '',
-                                                            hp: double.tryParse(
-                                                                    motor.hp?.toString() ??
-                                                                        '0') ??
-                                                                0.0,
-                                                            onLocationAdded:
-                                                                (updatedName) {
-                                                              // TODO: refresh card if needed
-                                                            },
-                                                          ),
-                                                        );
-                                                      },
-                                                    );
-                                                    break;
-                                                  case DeviceMenuAction.replace:
-                                                    showModalBottomSheet(
-                                                      context: context,
-                                                      backgroundColor:
-                                                          Colors.transparent,
-                                                      builder: (_) =>
-                                                          LocationSelectionBottomSheet(
-                                                        selectedLocationId:
-                                                            motor?.location?.id
-                                                                ?.toString(),
-                                                        onLocationSelected:
-                                                            (locationName,
-                                                                locationId) async {
-                                                          Navigator.pop(
-                                                              context);
-                                                          await controller
-                                                              .locationreplace(
-                                                                  starterId:
-                                                                      device
-                                                                          .id!,
-                                                                  motorId:
-                                                                      motor!
-                                                                          .id!,
-                                                                  locationId:
-                                                                      int.parse(
-                                                                          locationId));
+                                                        builder: (context) {
+                                                          return Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                              bottom: MediaQuery
+                                                                      .of(context)
+                                                                  .viewInsets
+                                                                  .bottom,
+                                                            ),
+                                                            child:
+                                                                EditDevicePage(
+                                                              motorId:
+                                                                  motor!.id!,
+                                                              motorName:
+                                                                  motor.name ??
+                                                                      '',
+                                                              hp: double.tryParse(
+                                                                      motor.hp?.toString() ??
+                                                                          '0') ??
+                                                                  0.0,
+                                                              onLocationAdded:
+                                                                  (updatedName) {
+                                                                // TODO: refresh card if needed
+                                                              },
+                                                            ),
+                                                          );
                                                         },
-                                                      ),
-                                                    );
-                                                    break;
-                                                  case DeviceMenuAction.delete:
-                                                    _showDeleteDialog(context);
-                                                    break;
-                                                }
-                                              },
+                                                      );
+                                                      break;
+                                                    case DeviceMenuAction
+                                                          .replace:
+                                                      showModalBottomSheet(
+                                                        context: context,
+                                                        backgroundColor:
+                                                            Colors.transparent,
+                                                        builder: (_) =>
+                                                            LocationSelectionBottomSheet(
+                                                          selectedLocationId:
+                                                              motor
+                                                                  ?.location?.id
+                                                                  ?.toString(),
+                                                          onLocationSelected:
+                                                              (locationName,
+                                                                  locationId) async {
+                                                            Navigator.pop(
+                                                                context);
+                                                            await controller.locationreplace(
+                                                                starterId:
+                                                                    device.id!,
+                                                                motorId:
+                                                                    motor!.id!,
+                                                                locationId:
+                                                                    int.parse(
+                                                                        locationId));
+                                                          },
+                                                        ),
+                                                      );
+                                                      break;
+                                                    // case DeviceMenuAction
+                                                    //       .addMotor:
+                                                    //   _openAddMotorPage(
+                                                    //       context);
+                                                    //   break;
+                                                    case DeviceMenuAction
+                                                          .delete:
+                                                      _showDeleteDialog(
+                                                          context);
+                                                      break;
+                                                  }
+                                                },
+                                              ),
                                             ),
                                           ),
                                         ],

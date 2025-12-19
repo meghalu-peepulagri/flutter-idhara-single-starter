@@ -204,10 +204,10 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(children: [
-                          // Image.asset(
-                          //   'assets/images/motorruntime.png',
-                          //   height: 20,
-                          // ),
+                          Image.asset(
+                            'assets/images/motorruntime.png',
+                            height: 20,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Motor Runtime',

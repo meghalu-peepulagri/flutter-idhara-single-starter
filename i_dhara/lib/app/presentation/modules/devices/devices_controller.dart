@@ -37,6 +37,12 @@ class DevicesController extends GetxController {
   }
 
   @override
+  void dispose() {
+    controller1.dispose();
+    super.dispose();
+  }
+
+  @override
   void onClose() {
     controller1.dispose();
     super.onClose();
@@ -110,7 +116,12 @@ class DevicesController extends GetxController {
       final pcbMatch =
           device.pcbNumber?.toLowerCase().contains(query.toLowerCase()) ??
               false;
-      return nameMatch || pcbMatch;
+      final motorMatch = device.motors?.any((motor) =>
+              motor.name?.toLowerCase().contains(query.toLowerCase()) ??
+              false) ??
+          false;
+
+      return nameMatch || pcbMatch || motorMatch;
     }).toList();
   }
 }

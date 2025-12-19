@@ -805,6 +805,7 @@ class AnalyticsController extends GetxController {
   var deviceId = ''.obs;
   var motorState = 0.obs;
   var motorMode = ''.obs;
+  var locationName = ''.obs;
   dynamic motorData;
 
   @override
@@ -1112,6 +1113,7 @@ class AnalyticsController extends GetxController {
         deviceId.value = response.data!.starter?.macAddress ?? 'N/A';
         motorState.value = response.data!.state ?? 0;
         motorMode.value = response.data!.mode ?? 'N/A';
+        locationName.value = response.data!.location?.name ?? 'N/A';
       }
     } catch (e) {
       debugPrint('Motor details error: $e');

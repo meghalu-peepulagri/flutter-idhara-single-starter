@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
@@ -89,7 +90,7 @@ class DevicesPage extends StatelessWidget {
                       mainAxisSize: MainAxisSize.max,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        GestureDetector(
+                        InkWell(
                           onTap: () {
                             Get.offAllNamed(Routes.dashboard);
                           },
@@ -175,9 +176,7 @@ class DevicesPage extends StatelessWidget {
                       Expanded(
                         child: Obx(() {
                           if (controller.isLoading.value) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
+                            return const AppLottieLoading();
                           }
                           if (controller.devicesList.isEmpty) {
                             return const NoStartersFound();

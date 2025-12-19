@@ -15,6 +15,7 @@ class DashboardController extends GetxController {
   final isLoading = true.obs;
   var isRefreshing = false.obs;
   final isFiltering = false.obs;
+  final isPageLoading = true.obs;
 
   final selectedLocationId = Rxn<int>();
   final errorMessage = RxnString();
@@ -28,8 +29,22 @@ class DashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchMotors();
-    fetchLocationDropDown();
+    _loadAllData();
+    // fetchMotors();
+    // fetchLocationDropDown();
+  }
+
+  Future<void> _loadAllData() async {
+    try {
+      isLoading.value = true;
+
+      await Future.wait([
+        fetchMotors(),
+        fetchLocationDropDown(),
+      ]);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   @override
@@ -124,7 +139,7 @@ class DashboardController extends GetxController {
 
   Future<void> fetchMotors() async {
     try {
-      if (!isRefreshing.value) isLoading.value = true;
+      if (!isRefreshing.value) {}
 
       debugPrint('📡 Fetching motors from API (initial load)...');
       final response = await MotorsRepositoryImpl().getMotors();
@@ -181,10 +196,10 @@ class DashboardController extends GetxController {
     } catch (e, stackTrace) {
       debugPrint('❌ Error fetching motors: $e');
       debugPrint('StackTrace: $stackTrace');
-      isLoading.value = false;
+      // isLoading.value = false;
       errorMessage.value = 'Error: $e';
     } finally {
-      isLoading.value = false;
+      // isLoading.value = false;
       isRefreshing.value = false;
     }
   }
@@ -390,14 +405,10 @@ class DashboardController extends GetxController {
   Future<void> filterMotorsByLocation(int? locationId) async {
     selectedLocationId.value = locationId;
 
-    // 🔵 SHOW LOADING
     isFiltering.value = true;
 
     try {
-      // OPTIONAL: If you want fresh API data every time
-      // await refreshMotors();
-
-      await Future.delayed(const Duration(milliseconds: 300)); // smooth UX
+      await Future.delayed(const Duration(milliseconds: 300));
 
       if (locationId == null) {
         motors.value = allMotors.toList();
@@ -407,10 +418,7 @@ class DashboardController extends GetxController {
       }
 
       motors.refresh();
-    } catch (e) {
-      debugPrint('❌ Error filtering motors: $e');
     } finally {
-      // 🔵 HIDE LOADING
       isFiltering.value = false;
     }
   }

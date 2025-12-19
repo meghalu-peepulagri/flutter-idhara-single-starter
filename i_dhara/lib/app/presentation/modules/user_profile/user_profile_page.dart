@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
@@ -35,23 +36,7 @@ class ProfileWidget extends StatelessWidget {
               return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      color: Color(0xFF004E7E),
-                    ),
-                    SizedBox(height: 16),
-                    // Text(
-                    //   'Loading profile...',
-                    //   style: FlutterFlowTheme.of(context).bodyMedium.override(
-                    //         font: GoogleFonts.dmSans(
-                    //           fontWeight: FontWeight.normal,
-                    //         ),
-                    //         color: const Color(0xFF004E7E),
-                    //         fontSize: 16,
-                    //         letterSpacing: 0.0,
-                    //       ),
-                    // ),
-                  ],
+                  children: [AppLottieLoading()],
                 ),
               );
             }
@@ -67,7 +52,7 @@ class ProfileWidget extends StatelessWidget {
                     children: [
                       Container(
                         decoration: const BoxDecoration(),
-                        child: GestureDetector(
+                        child: InkWell(
                           onTap: () {
                             Get.offAllNamed(Routes.dashboard);
                           },
@@ -133,17 +118,43 @@ class ProfileWidget extends StatelessWidget {
                                   Column(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      Container(
-                                        width: 100,
-                                        height: 100,
-                                        clipBehavior: Clip.antiAlias,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Image.network(
-                                          'https://picsum.photos/seed/967/600',
-                                          fit: BoxFit.cover,
-                                        ),
+                                      Stack(
+                                        alignment:
+                                            AlignmentDirectional.bottomEnd,
+                                        children: [
+                                          Container(
+                                            width: 150,
+                                            height: 150,
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .secondaryBackground,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  blurRadius: 8,
+                                                  color: Colors.black
+                                                      .withOpacity(0.1),
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Container(
+                                                clipBehavior: Clip.antiAlias,
+                                                decoration: const BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.person,
+                                                  color: Colors.black45,
+                                                  size: 120,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       Container(
                                         decoration: BoxDecoration(

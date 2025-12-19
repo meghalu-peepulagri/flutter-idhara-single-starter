@@ -423,8 +423,10 @@ import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/current_graph_card.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/motor_run_time_graph_card.dart';
@@ -460,9 +462,7 @@ class MotorControlWidget extends StatelessWidget {
           body: SafeArea(
             child: Obx(() {
               if (controller1.isMotorDetailsLoading.value) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+                return const AppLottieLoading();
               }
               return Padding(
                 padding:
@@ -546,20 +546,33 @@ class MotorControlWidget extends StatelessWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Column(
-                                        mainAxisSize: MainAxisSize.max,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Obx(() {
-                                            return Text(
-                                              controller1.motorName.value
-                                                  .capitalizeFirst!,
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    font: GoogleFonts.dmSans(
+                                      Expanded(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.max,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Obx(() {
+                                              return Text(
+                                                controller1.motorName.value
+                                                    .capitalizeFirst!,
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .bodyMedium
+                                                    .override(
+                                                      font: GoogleFonts.dmSans(
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontStyle,
+                                                      ),
+                                                      color: const Color(
+                                                          0xFF0A0A0A),
+                                                      fontSize: 20.0,
+                                                      letterSpacing: 0.0,
                                                       fontWeight:
                                                           FontWeight.w500,
                                                       fontStyle:
@@ -568,35 +581,37 @@ class MotorControlWidget extends StatelessWidget {
                                                               .bodyMedium
                                                               .fontStyle,
                                                     ),
-                                                    color:
-                                                        const Color(0xFF0A0A0A),
-                                                    fontSize: 20.0,
-                                                    letterSpacing: 0.0,
-                                                    fontWeight: FontWeight.w500,
-                                                    fontStyle:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .bodyMedium
-                                                            .fontStyle,
-                                                  ),
-                                            );
-                                          }),
-                                          Obx(() {
-                                            final deviceId =
-                                                controller1.deviceId.value;
-                                            final displayId = deviceId.length >
-                                                    10
-                                                ? '${deviceId.substring(0, 10)}...'
-                                                : deviceId;
-                                            return Text(
-                                              'Device ID: $displayId',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    font: GoogleFonts.dmSans(
+                                              );
+                                            }),
+                                            Obx(() {
+                                              final deviceId =
+                                                  controller1.deviceId.value;
+                                              final displayId = deviceId
+                                                          .length >
+                                                      10
+                                                  ? '${deviceId.substring(0, 10)}...'
+                                                  : deviceId;
+                                              return Text(
+                                                'Device ID: $displayId',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .bodyMedium
+                                                    .override(
+                                                      font: GoogleFonts.dmSans(
+                                                        fontWeight:
+                                                            FontWeight.normal,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontStyle,
+                                                      ),
+                                                      color: const Color(
+                                                          0xFF6A7282),
+                                                      fontSize: 14.0,
+                                                      letterSpacing: 0.0,
                                                       fontWeight:
                                                           FontWeight.normal,
                                                       fontStyle:
@@ -605,82 +620,335 @@ class MotorControlWidget extends StatelessWidget {
                                                               .bodyMedium
                                                               .fontStyle,
                                                     ),
-                                                    color:
-                                                        const Color(0xFF6A7282),
-                                                    fontSize: 14.0,
-                                                    letterSpacing: 0.0,
-                                                    fontWeight:
-                                                        FontWeight.normal,
-                                                    fontStyle:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .bodyMedium
-                                                            .fontStyle,
-                                                  ),
-                                            );
-                                          }),
-                                          Obx(() {
-                                            final mode = controller1
-                                                .motorMode.value
-                                                .toLowerCase();
-                                            final isAuto = mode == 'auto';
-                                            final int selectedIndex =
-                                                isAuto ? 0 : 1;
+                                              );
+                                            }),
+                                            const SizedBox(height: 8.0),
+                                            // Toggle Switch - separate row
+                                            Obx(() {
+                                              final mode = controller1
+                                                  .motorMode.value
+                                                  .toLowerCase();
+                                              final isAuto = mode == 'auto';
+                                              final int selectedIndex =
+                                                  isAuto ? 0 : 1;
 
-                                            return ToggleSwitch(
-                                              key: ValueKey(mode),
-                                              changeOnTap: false,
-                                              customWidths: const [90, 90],
-                                              radiusStyle: true,
-                                              minWidth: 80.0,
-                                              minHeight: 30.0,
-                                              initialLabelIndex: selectedIndex,
-                                              cornerRadius: 8.0,
-                                              activeBgColor: [
-                                                isAuto
-                                                    ? const Color(0xFFFFA500)
-                                                        .withOpacity(
-                                                            0.5) // Auto → ORANGE
-                                                    : !isAuto
-                                                        ? const Color(
-                                                            0xFF2F80ED)
-                                                        : const Color(
-                                                            0xFF2F80ED)
-                                              ],
-                                              activeFgColor: Colors.white,
-                                              inactiveBgColor: Colors.white,
-                                              inactiveFgColor: Colors.black,
-                                              fontSize: 12,
-                                              totalSwitches: 2,
-                                              labels: const ['Auto', 'Manual'],
-                                              borderWidth: 1,
-                                              borderColor: [
-                                                Colors.grey.shade300
-                                              ],
-                                              onToggle: null,
+                                              return ToggleSwitch(
+                                                key: ValueKey(mode),
+                                                changeOnTap: false,
+                                                customWidths: const [90, 90],
+                                                radiusStyle: true,
+                                                minWidth: 80.0,
+                                                minHeight: 30.0,
+                                                initialLabelIndex:
+                                                    selectedIndex,
+                                                cornerRadius: 8.0,
+                                                activeBgColor: [
+                                                  isAuto
+                                                      ? const Color(0xFFFFA500)
+                                                          .withOpacity(0.5)
+                                                      : !isAuto
+                                                          ? const Color(
+                                                                  0xFF2F80ED)
+                                                              .withOpacity(0.5)
+                                                          : const Color(
+                                                              0xFF2F80ED)
+                                                ],
+                                                activeFgColor: Colors.white,
+                                                inactiveBgColor: Colors.white,
+                                                inactiveFgColor: Colors.black,
+                                                fontSize: 12,
+                                                totalSwitches: 2,
+                                                labels: const [
+                                                  'Auto',
+                                                  'Manual'
+                                                ],
+                                                borderWidth: 1,
+                                                borderColor: [
+                                                  Colors.grey.shade300
+                                                ],
+                                                onToggle: null,
+                                              );
+                                            }),
+                                          ],
+                                        ),
+                                      ),
+                                      // Right side column with switch and location
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          // ON/OFF Switch at top
+                                          Obx(() {
+                                            return AdvancedSwitch(
+                                              activeColor: Colors.green,
+                                              inactiveColor:
+                                                  Colors.red.shade500,
+                                              activeChild: const Text('ON'),
+                                              inactiveChild: const Text('OFF'),
+                                              initialValue: controller1
+                                                      .motorState.value ==
+                                                  1,
+                                              borderRadius:
+                                                  const BorderRadius.all(
+                                                      Radius.circular(15)),
+                                              width: 55,
+                                              height: 25,
+                                              enabled: false,
+                                              disabledOpacity: 0.5,
+                                              onChanged: null,
                                             );
                                           }),
-                                        ].divide(const SizedBox(height: 8.0)),
+                                          const SizedBox(height: 40.0),
+                                          // Location at bottom right corner
+                                          Obx(() {
+                                            final locationName =
+                                                controller1.locationName.value;
+                                            final displayName = locationName
+                                                        .length >
+                                                    15
+                                                ? '${locationName.substring(0, 15)}...'
+                                                : locationName;
+                                            return Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SvgPicture.asset(
+                                                  'assets/images/location.svg',
+                                                  fit: BoxFit.cover,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  displayName,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .bodyMedium
+                                                      .override(
+                                                        font:
+                                                            GoogleFonts.dmSans(
+                                                          fontWeight:
+                                                              FontWeight.normal,
+                                                          fontStyle:
+                                                              FlutterFlowTheme.of(
+                                                                      context)
+                                                                  .bodyMedium
+                                                                  .fontStyle,
+                                                        ),
+                                                        color: const Color(
+                                                            0xFF6A7282),
+                                                        fontSize: 16.0,
+                                                        letterSpacing: 0.0,
+                                                        fontWeight:
+                                                            FontWeight.normal,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontStyle,
+                                                      ),
+                                                ),
+                                              ],
+                                            );
+                                          }),
+                                        ],
                                       ),
-                                      Obx(() {
-                                        return AdvancedSwitch(
-                                          activeColor: Colors.green,
-                                          inactiveColor: Colors.red.shade500,
-                                          activeChild: const Text('ON'),
-                                          inactiveChild: const Text('OFF'),
-                                          initialValue:
-                                              controller1.motorState.value == 1,
-                                          borderRadius: const BorderRadius.all(
-                                              Radius.circular(15)),
-                                          width: 55,
-                                          height: 25,
-                                          enabled: false,
-                                          disabledOpacity: 0.5,
-                                          onChanged: null,
-                                        );
-                                      }),
                                     ],
-                                  ),
+                                  )
+                                  // Row(
+                                  //   mainAxisSize: MainAxisSize.max,
+                                  //   mainAxisAlignment:
+                                  //       MainAxisAlignment.spaceBetween,
+                                  //   crossAxisAlignment:
+                                  //       CrossAxisAlignment.start,
+                                  //   children: [
+                                  //     Column(
+                                  //       mainAxisSize: MainAxisSize.max,
+                                  //       crossAxisAlignment:
+                                  //           CrossAxisAlignment.start,
+                                  //       children: [
+                                  //         Obx(() {
+                                  //           return Text(
+                                  //             controller1.motorName.value
+                                  //                 .capitalizeFirst!,
+                                  //             style: FlutterFlowTheme.of(
+                                  //                     context)
+                                  //                 .bodyMedium
+                                  //                 .override(
+                                  //                   font: GoogleFonts.dmSans(
+                                  //                     fontWeight:
+                                  //                         FontWeight.w500,
+                                  //                     fontStyle:
+                                  //                         FlutterFlowTheme.of(
+                                  //                                 context)
+                                  //                             .bodyMedium
+                                  //                             .fontStyle,
+                                  //                   ),
+                                  //                   color:
+                                  //                       const Color(0xFF0A0A0A),
+                                  //                   fontSize: 20.0,
+                                  //                   letterSpacing: 0.0,
+                                  //                   fontWeight: FontWeight.w500,
+                                  //                   fontStyle:
+                                  //                       FlutterFlowTheme.of(
+                                  //                               context)
+                                  //                           .bodyMedium
+                                  //                           .fontStyle,
+                                  //                 ),
+                                  //           );
+                                  //         }),
+                                  //         Obx(() {
+                                  //           final deviceId =
+                                  //               controller1.deviceId.value;
+                                  //           final displayId = deviceId.length >
+                                  //                   10
+                                  //               ? '${deviceId.substring(0, 10)}...'
+                                  //               : deviceId;
+                                  //           return Text(
+                                  //             'Device ID: $displayId',
+                                  //             maxLines: 1,
+                                  //             overflow: TextOverflow.ellipsis,
+                                  //             style: FlutterFlowTheme.of(
+                                  //                     context)
+                                  //                 .bodyMedium
+                                  //                 .override(
+                                  //                   font: GoogleFonts.dmSans(
+                                  //                     fontWeight:
+                                  //                         FontWeight.normal,
+                                  //                     fontStyle:
+                                  //                         FlutterFlowTheme.of(
+                                  //                                 context)
+                                  //                             .bodyMedium
+                                  //                             .fontStyle,
+                                  //                   ),
+                                  //                   color:
+                                  //                       const Color(0xFF6A7282),
+                                  //                   fontSize: 14.0,
+                                  //                   letterSpacing: 0.0,
+                                  //                   fontWeight:
+                                  //                       FontWeight.normal,
+                                  //                   fontStyle:
+                                  //                       FlutterFlowTheme.of(
+                                  //                               context)
+                                  //                           .bodyMedium
+                                  //                           .fontStyle,
+                                  //                 ),
+                                  //           );
+                                  //         }),
+
+                                  //         Row(
+                                  //           children: [
+                                  //             Obx(() {
+                                  //               final mode = controller1
+                                  //                   .motorMode.value
+                                  //                   .toLowerCase();
+                                  //               final isAuto = mode == 'auto';
+                                  //               final int selectedIndex =
+                                  //                   isAuto ? 0 : 1;
+
+                                  //               return ToggleSwitch(
+                                  //                 key: ValueKey(mode),
+                                  //                 changeOnTap: false,
+                                  //                 customWidths: const [90, 90],
+                                  //                 radiusStyle: true,
+                                  //                 minWidth: 80.0,
+                                  //                 minHeight: 30.0,
+                                  //                 initialLabelIndex:
+                                  //                     selectedIndex,
+                                  //                 cornerRadius: 8.0,
+                                  //                 activeBgColor: [
+                                  //                   isAuto
+                                  //                       ? const Color(
+                                  //                               0xFFFFA500)
+                                  //                           .withOpacity(0.5)
+                                  //                       : !isAuto
+                                  //                           ? const Color(
+                                  //                                   0xFF2F80ED)
+                                  //                               .withOpacity(
+                                  //                                   0.5)
+                                  //                           : const Color(
+                                  //                               0xFF2F80ED)
+                                  //                 ],
+                                  //                 activeFgColor: Colors.white,
+                                  //                 inactiveBgColor: Colors.white,
+                                  //                 inactiveFgColor: Colors.black,
+                                  //                 fontSize: 12,
+                                  //                 totalSwitches: 2,
+                                  //                 labels: const [
+                                  //                   'Auto',
+                                  //                   'Manual'
+                                  //                 ],
+                                  //                 borderWidth: 1,
+                                  //                 borderColor: [
+                                  //                   Colors.grey.shade300
+                                  //                 ],
+                                  //                 onToggle: null,
+                                  //               );
+                                  //             }),
+                                  //             Obx(() {
+                                  //               final locationName = controller1
+                                  //                   .locationName.value;
+                                  //               final displayName = locationName
+                                  //                           .length >
+                                  //                       10
+                                  //                   ? '${locationName.substring(0, 10)}...'
+                                  //                   : locationName;
+                                  //               return Text(
+                                  //                 displayName,
+                                  //                 maxLines: 1,
+                                  //                 overflow:
+                                  //                     TextOverflow.ellipsis,
+                                  //                 style: FlutterFlowTheme.of(
+                                  //                         context)
+                                  //                     .bodyMedium
+                                  //                     .override(
+                                  //                       font:
+                                  //                           GoogleFonts.dmSans(
+                                  //                         fontWeight:
+                                  //                             FontWeight.normal,
+                                  //                         fontStyle:
+                                  //                             FlutterFlowTheme.of(
+                                  //                                     context)
+                                  //                                 .bodyMedium
+                                  //                                 .fontStyle,
+                                  //                       ),
+                                  //                       color: const Color(
+                                  //                           0xFF6A7282),
+                                  //                       fontSize: 14.0,
+                                  //                       letterSpacing: 0.0,
+                                  //                       fontWeight:
+                                  //                           FontWeight.normal,
+                                  //                       fontStyle:
+                                  //                           FlutterFlowTheme.of(
+                                  //                                   context)
+                                  //                               .bodyMedium
+                                  //                               .fontStyle,
+                                  //                     ),
+                                  //               );
+                                  //             }),
+                                  //           ],
+                                  //         ),
+                                  //       ].divide(const SizedBox(height: 8.0)),
+                                  //     ),
+                                  //     Obx(() {
+                                  //       return AdvancedSwitch(
+                                  //         activeColor: Colors.green,
+                                  //         inactiveColor: Colors.red.shade500,
+                                  //         activeChild: const Text('ON'),
+                                  //         inactiveChild: const Text('OFF'),
+                                  //         initialValue:
+                                  //             controller1.motorState.value == 1,
+                                  //         borderRadius: const BorderRadius.all(
+                                  //             Radius.circular(15)),
+                                  //         width: 55,
+                                  //         height: 25,
+                                  //         enabled: false,
+                                  //         disabledOpacity: 0.5,
+                                  //         onChanged: null,
+                                  //       );
+                                  //     }),
+                                  //   ],
+                                  // ),
                                 ].divide(const SizedBox(height: 12.0)),
                               ),
                             ),
