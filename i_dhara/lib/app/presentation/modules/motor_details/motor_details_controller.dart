@@ -806,6 +806,7 @@ class AnalyticsController extends GetxController {
   var motorState = 0.obs;
   var motorMode = ''.obs;
   var locationName = ''.obs;
+  RxString faultMessage = ''.obs;
   dynamic motorData;
 
   @override
@@ -1109,11 +1110,14 @@ class AnalyticsController extends GetxController {
       if (response != null && response.data != null) {
         motorDetails.value = response.data;
 
-        motorName.value = response.data!.name ?? 'Motor';
+        motorName.value = response.data!.aliasName ?? 'Motor';
         deviceId.value = response.data!.starter?.macAddress ?? 'N/A';
         motorState.value = response.data!.state ?? 0;
         motorMode.value = response.data!.mode ?? 'N/A';
         locationName.value = response.data!.location?.name ?? 'N/A';
+        faultMessage.value =
+            response.data!.starter!.starterParameters!.first.faultDescription ??
+                'N/A';
       }
     } catch (e) {
       debugPrint('Motor details error: $e');

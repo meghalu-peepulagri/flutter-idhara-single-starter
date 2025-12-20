@@ -46,6 +46,7 @@ class MotorDetails {
   int? state;
   String? mode;
   int? createdBy;
+  String? aliasName;
   Location? location;
   Starter? starter;
 
@@ -55,6 +56,7 @@ class MotorDetails {
     this.hp,
     this.state,
     this.mode,
+    this.aliasName,
     this.createdBy,
     this.location,
     this.starter,
@@ -67,6 +69,7 @@ class MotorDetails {
         state: json["state"],
         mode: json["mode"],
         createdBy: json["created_by"],
+        aliasName: json["alias_name"],
         location: json["location"] == null
             ? null
             : Location.fromJson(json["location"]),
@@ -81,6 +84,7 @@ class MotorDetails {
         "state": state,
         "mode": mode,
         "created_by": createdBy,
+        "alias_name": aliasName,
         "location": location?.toJson(),
         "starter": starter?.toJson(),
       };
@@ -114,6 +118,7 @@ class Starter {
   int? signalQuality;
   int? power;
   String? networkType;
+  List<StarterParameter>? starterParameters;
 
   Starter({
     this.id,
@@ -123,6 +128,7 @@ class Starter {
     this.signalQuality,
     this.power,
     this.networkType,
+    this.starterParameters,
   });
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
@@ -133,6 +139,10 @@ class Starter {
         signalQuality: json["signal_quality"],
         power: json["power"],
         networkType: json["network_type"],
+        starterParameters: json["starterParameters"] == null
+            ? []
+            : List<StarterParameter>.from(json["starterParameters"]!
+                .map((x) => StarterParameter.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
@@ -143,5 +153,63 @@ class Starter {
         "signal_quality": signalQuality,
         "power": power,
         "network_type": networkType,
+        "starterParameters": starterParameters == null
+            ? []
+            : List<dynamic>.from(starterParameters!.map((x) => x.toJson())),
+      };
+}
+
+class StarterParameter {
+  int? id;
+  int? lineVoltageR;
+  double? lineVoltageY;
+  double? lineVoltageB;
+  int? currentR;
+  int? currentY;
+  double? currentB;
+  DateTime? timeStamp;
+  int? fault;
+  String? faultDescription;
+
+  StarterParameter({
+    this.id,
+    this.lineVoltageR,
+    this.lineVoltageY,
+    this.lineVoltageB,
+    this.currentR,
+    this.currentY,
+    this.currentB,
+    this.timeStamp,
+    this.fault,
+    this.faultDescription,
+  });
+
+  factory StarterParameter.fromJson(Map<String, dynamic> json) =>
+      StarterParameter(
+        id: json["id"],
+        lineVoltageR: json["line_voltage_r"],
+        lineVoltageY: json["line_voltage_y"]?.toDouble(),
+        lineVoltageB: json["line_voltage_b"]?.toDouble(),
+        currentR: json["current_r"],
+        currentY: json["current_y"],
+        currentB: json["current_b"]?.toDouble(),
+        timeStamp: json["time_stamp"] == null
+            ? null
+            : DateTime.parse(json["time_stamp"]),
+        fault: json["fault"],
+        faultDescription: json["fault_description"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "id": id,
+        "line_voltage_r": lineVoltageR,
+        "line_voltage_y": lineVoltageY,
+        "line_voltage_b": lineVoltageB,
+        "current_r": currentR,
+        "current_y": currentY,
+        "current_b": currentB,
+        "time_stamp": timeStamp?.toIso8601String(),
+        "fault": fault,
+        "fault_description": faultDescription,
       };
 }

@@ -440,48 +440,48 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                     ),
                                   ],
                                 ),
-                                GestureDetector(
-                                  onTap: () {
-                                    ontaplocation(context);
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    children: [
-                                      const Icon(
-                                        Icons.add,
-                                        color: Color(0xFF087D40),
-                                        size: 18.0,
-                                      ),
-                                      Text(
-                                        'Location',
-                                        style: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .override(
-                                              font: GoogleFonts.dmSans(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                              color: const Color(0xFF087D40),
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                      ),
-                                    ].divide(const SizedBox(width: 4.0)),
-                                  ),
-                                ),
+                                // GestureDetector(
+                                //   onTap: () {
+                                //     ontaplocation(context);
+                                //   },
+                                //   child: Row(
+                                //     mainAxisSize: MainAxisSize.max,
+                                //     children: [
+                                //       const Icon(
+                                //         Icons.add,
+                                //         color: Color(0xFF087D40),
+                                //         size: 18.0,
+                                //       ),
+                                //       Text(
+                                //         'Location',
+                                //         style: FlutterFlowTheme.of(context)
+                                //             .bodyMedium
+                                //             .override(
+                                //               font: GoogleFonts.dmSans(
+                                //                 fontWeight:
+                                //                     FlutterFlowTheme.of(context)
+                                //                         .bodyMedium
+                                //                         .fontWeight,
+                                //                 fontStyle:
+                                //                     FlutterFlowTheme.of(context)
+                                //                         .bodyMedium
+                                //                         .fontStyle,
+                                //               ),
+                                //               color: const Color(0xFF087D40),
+                                //               letterSpacing: 0.0,
+                                //               fontWeight:
+                                //                   FlutterFlowTheme.of(context)
+                                //                       .bodyMedium
+                                //                       .fontWeight,
+                                //               fontStyle:
+                                //                   FlutterFlowTheme.of(context)
+                                //                       .bodyMedium
+                                //                       .fontStyle,
+                                //             ),
+                                //       ),
+                                //     ].divide(const SizedBox(width: 4.0)),
+                                //   ),
+                                // ),
                               ],
                             ),
                             GestureDetector(

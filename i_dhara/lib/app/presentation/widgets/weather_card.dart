@@ -1487,14 +1487,14 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                                 letterSpacing: 0.0,
                               ),
                         ),
-                      ].divide(const SizedBox(height: 4.0)),
+                      ].divide(const SizedBox(height: 2.0)),
                     ),
                   );
                 },
               ),
             ),
           ),
-        ].divide(const SizedBox(height: 12.0)),
+        ].divide(const SizedBox(height: 16.0)),
       ),
     );
   }

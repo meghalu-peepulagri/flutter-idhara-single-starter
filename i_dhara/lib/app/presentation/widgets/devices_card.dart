@@ -93,7 +93,7 @@ class DevicesCard extends StatelessWidget {
                                   Text(
                                     (() {
                                       final name =
-                                          motor?.name?.capitalizeFirst ??
+                                          motor?.aliasName?.capitalizeFirst ??
                                               'No Motor';
                                       return name.length > 10
                                           ? '${name.substring(0, 10)}...'

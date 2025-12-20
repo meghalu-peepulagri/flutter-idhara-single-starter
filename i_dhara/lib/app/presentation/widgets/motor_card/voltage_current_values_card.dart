@@ -166,7 +166,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                               letterSpacing: 0.0,
                             ),
                       ),
-                    ].divide(const SizedBox(height: 14)),
+                    ].divide(const SizedBox(height: 10)),
                   ),
                   // Phase R Column
                   Column(
@@ -207,7 +207,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                               letterSpacing: 0.0,
                             ),
                       ),
-                    ].divide(const SizedBox(height: 16)),
+                    ].divide(const SizedBox(height: 10)),
                   ),
                   // Phase Y Column
                   Column(
@@ -248,7 +248,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                               letterSpacing: 0.0,
                             ),
                       ),
-                    ].divide(const SizedBox(height: 16)),
+                    ].divide(const SizedBox(height: 10)),
                   ),
                   // Phase B Column
                   Column(
@@ -289,7 +289,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                               letterSpacing: 0.0,
                             ),
                       ),
-                    ].divide(const SizedBox(height: 16)),
+                    ].divide(const SizedBox(height: 10)),
                   ),
                 ].divide(const SizedBox(width: 16)),
               ),

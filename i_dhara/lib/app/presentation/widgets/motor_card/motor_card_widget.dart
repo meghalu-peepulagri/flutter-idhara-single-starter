@@ -308,7 +308,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    widget.motor.name?.capitalizeFirst ?? "Unknown",
+                    widget.motor.aliasName?.capitalizeFirst ?? "Unknown",
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           fontSize: 16,
                           fontWeight: FontWeight.w400,
@@ -410,7 +410,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    widget.motor.name?.capitalizeFirst ?? "Unknown",
+                    widget.motor.aliasName?.capitalizeFirst ?? "Unknown",
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           fontSize: 16,
                           fontWeight: FontWeight.w400,
@@ -736,7 +736,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             borderRadius: BorderRadius.circular(12.0),
           ),
           child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 10.0),
+            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 10.0),
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
@@ -755,11 +755,13 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                             borderRadius: BorderRadius.circular(0.0),
                             child: SvgPicture.asset(
                               'assets/images/motor.svg',
+                              width: 24,
+                              height: 24,
                               fit: BoxFit.cover,
                             ),
                           ),
                           Text(
-                            widget.motor.name?.capitalizeFirst ?? '',
+                            widget.motor.aliasName?.capitalizeFirst ?? '',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
@@ -822,7 +824,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   ),
                 ),
                 const Divider(
-                  height: 2,
+                  height: 0,
                   thickness: 1.0,
                   color: Color(0xFFECECEC),
                 ),
@@ -859,7 +861,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                         currentModeIndex == 0 ? 1 : 0;
                                     debugPrint(
                                         '🔥 Mode tapped! Current: $currentModeIndex, New: $newMode');
-                                    _showModeConfirmationBottomSheet(newMode);
+                                    _showModeCommandDialog(newMode);
                                   }
                                 : null,
                             behavior: HitTestBehavior.opaque,
@@ -918,7 +920,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                 ? () {
                                     debugPrint(
                                         '🔥 Switch tapped! Current: $isOn, New: ${!isOn}');
-                                    _showSwitchConfirmationBottomSheet(!isOn);
+                                    _showSwitchCommandDialog(!isOn);
                                   }
                                 : null,
                             behavior: HitTestBehavior.opaque,
@@ -964,7 +966,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     ],
                   ),
                 ),
-              ].divide(const SizedBox(height: 8.0)),
+              ].divide(const SizedBox(height: 4.0)),
             ),
           ),
         );

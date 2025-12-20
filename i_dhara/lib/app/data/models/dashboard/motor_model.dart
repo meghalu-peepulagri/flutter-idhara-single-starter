@@ -105,6 +105,7 @@ class Motor {
   String? hp;
   String? mode;
   int? state;
+  String? aliasName;
   Location? location;
   Starter? starter;
 
@@ -115,6 +116,7 @@ class Motor {
     this.mode,
     this.state,
     this.location,
+    this.aliasName,
     this.starter,
   });
 
@@ -124,6 +126,7 @@ class Motor {
         hp: json["hp"],
         mode: json["mode"],
         state: json["state"],
+        aliasName: json["alias_name"],
         location: json["location"] == null
             ? null
             : Location.fromJson(json["location"]),
@@ -137,6 +140,7 @@ class Motor {
         "hp": hp,
         "mode": mode,
         "state": state,
+        "alias_name": aliasName,
         "location": location?.toJson(),
         "starter": starter?.toJson(),
       };

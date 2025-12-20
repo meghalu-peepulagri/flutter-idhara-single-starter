@@ -211,8 +211,8 @@ class MqttService {
     }
 
     const int port = 8883;
-    String broker = 'h42c786f.ala.asia-southeast1.emqxsl.com';
-    String username = 'test_user';
+    String broker = 'e0be1176.ala.asia-southeast1.emqxsl.com';
+    String username = 'ss_user';
     String password = '123456';
 
     const uuid = Uuid();
@@ -708,7 +708,7 @@ class MqttService {
     }
 
     final mac = parts[0];
-    final topic = 'peepul/$mac/status';
+    final topic = 'peepul/$mac/cmd';
 
     // PUBLISH with type 1 for motor control command
     final payload = {
@@ -760,7 +760,7 @@ class MqttService {
 
     final mac = parts[0];
     final groupId = parts[1];
-    final topic = 'peepul/$mac/status';
+    final topic = 'peepul/$mac/cmd';
 
     // PUBLISH with type 2 for mode change command
     final payload = {

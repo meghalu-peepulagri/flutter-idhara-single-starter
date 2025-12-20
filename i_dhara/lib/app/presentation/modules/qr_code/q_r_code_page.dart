@@ -25,8 +25,8 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
 
   // Mobile Scanner Controller
   late MobileScannerController cameraController;
-
   bool isScanCompleted = false;
+  bool isTorchOn = false;
 
   @override
   void initState() {
@@ -48,61 +48,43 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
   }
 
   void _handleBarcodeDetected(BarcodeCapture capture) async {
-    await Future.delayed(const Duration(seconds: 1)).then((value) {
-      if (isScanCompleted) return;
+    if (isScanCompleted) return;
+
+    setState(() {
       isScanCompleted = true;
-
-      final List<Barcode> barcodes = capture.barcodes;
-      for (final barcode in barcodes) {
-        final String? code = barcode.rawValue;
-        if (code != null && context.mounted) {
-          cameraController.stop();
-
-          // Handle the scanned QR code here
-          print('QR Code detected: $code');
-          Get.toNamed(Routes.addDevices, arguments: {
-            'pcbNumber': code,
-          });
-          break;
-        }
-      }
     });
+
+    final List<Barcode> barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      final String? code = barcode.rawValue;
+      if (code != null && context.mounted) {
+        // Handle the scanned QR code here
+        print('QR Code detected: $code');
+
+        // Turn off torch before navigating
+        if (isTorchOn) {
+          await cameraController.toggleTorch();
+        }
+
+        cameraController.stop();
+
+        Get.toNamed(Routes.addDevices, arguments: {
+          'pcbNumber': code,
+        });
+        break;
+      }
+    }
   }
 
-  // void _showScannedDialog(String code) {
-  //   showDialog(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text('QR Code Scanned'),
-  //       content: Text('Code: $code'),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () {
-  //             Navigator.pop(context);
-  //             setState(() {
-  //               isScanCompleted = false;
-  //             });
-  //             cameraController.start();
-  //           },
-  //           child: const Text('Scan Again'),
-  //         ),
-  //         TextButton(
-  //           onPressed: () {
-  //             Navigator.pop(context);
-  //             // TODO: Navigate to next screen or process the code
-  //             // Example: context.pushNamed('/nextScreen', extra: {'code': code});
-  //             Navigator.pop(context); // Go back to previous screen
-  //           },
-  //           child: const Text('OK'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  void _toggleFlash() {
-    cameraController.toggleTorch();
+  Future<void> _toggleFlash() async {
+    try {
+      await cameraController.toggleTorch();
+      setState(() {
+        isTorchOn = !isTorchOn;
+      });
+    } catch (e) {
+      print('Error toggling torch: $e');
+    }
   }
 
   @override
@@ -157,18 +139,16 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                       ),
                       InkWell(
                         onTap: _toggleFlash,
-                        child: const Icon(
-                          Icons.flash_on,
-                          color: Colors.white,
+                        child: Icon(
+                          isTorchOn ? Icons.flash_on : Icons.flash_off,
+                          color: isTorchOn ? Colors.yellow : Colors.white,
                           size: 24.0,
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 30),
-
                 // Instruction Text
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 30.0),
@@ -184,9 +164,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 // QR Scanner View - Centered
                 Center(
                   child: Padding(
@@ -204,7 +182,6 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12.0),
                         child: MobileScanner(
-                          key: UniqueKey(),
                           controller: cameraController,
                           onDetect: _handleBarcodeDetected,
                         ),
@@ -212,9 +189,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 // Manual PCB entry text
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30.0),

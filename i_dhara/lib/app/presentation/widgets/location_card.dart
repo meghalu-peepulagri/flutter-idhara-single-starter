@@ -207,7 +207,7 @@ class LocationCard extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                motor.name ?? 'Pump ${index + 1}',
+                                motor.aliasName ?? 'Pump ${index + 1}',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(

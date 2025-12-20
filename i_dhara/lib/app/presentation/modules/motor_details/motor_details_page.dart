@@ -431,6 +431,7 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/current_graph_card.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/motor_run_time_graph_card.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/voltage_graph_card.dart';
+import 'package:lottie/lottie.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -477,7 +478,7 @@ class MotorControlWidget extends StatelessWidget {
                       children: [
                         Container(
                           decoration: const BoxDecoration(),
-                          child: GestureDetector(
+                          child: InkWell(
                             onTap: () {
                               Get.offAllNamed(Routes.dashboard);
                             },
@@ -492,7 +493,7 @@ class MotorControlWidget extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Motor Details',
+                          controller1.motorName.value.capitalizeFirst!,
                           style:
                               FlutterFlowTheme.of(context).bodyMedium.override(
                                     font: GoogleFonts.dmSans(
@@ -538,6 +539,7 @@ class MotorControlWidget extends StatelessWidget {
                               padding: const EdgeInsets.all(12.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.max,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Row(
                                     mainAxisSize: MainAxisSize.max,
@@ -672,12 +674,10 @@ class MotorControlWidget extends StatelessWidget {
                                           ],
                                         ),
                                       ),
-                                      // Right side column with switch and location
                                       Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.end,
                                         children: [
-                                          // ON/OFF Switch at top
                                           Obx(() {
                                             return AdvancedSwitch(
                                               activeColor: Colors.green,
@@ -698,8 +698,7 @@ class MotorControlWidget extends StatelessWidget {
                                               onChanged: null,
                                             );
                                           }),
-                                          const SizedBox(height: 40.0),
-                                          // Location at bottom right corner
+                                          const SizedBox(height: 30.0),
                                           Obx(() {
                                             final locationName =
                                                 controller1.locationName.value;
@@ -754,7 +753,52 @@ class MotorControlWidget extends StatelessWidget {
                                         ],
                                       ),
                                     ],
-                                  )
+                                  ),
+                                  Obx(() {
+                                    final fault =
+                                        controller1.faultMessage.value.trim();
+
+                                    if (fault.isEmpty)
+                                      return const SizedBox.shrink();
+
+                                    return Container(
+                                      margin: const EdgeInsets.only(top: 0),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFCF4D9),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Lottie.asset(
+                                            'assets/lottie_animations/warning 1.json',
+                                            width: 20,
+                                            height: 20,
+                                            fit: BoxFit.contain,
+                                            repeat: true,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              fault,
+                                              style: FlutterFlowTheme.of(
+                                                      context)
+                                                  .bodyMedium
+                                                  .override(
+                                                    font: GoogleFonts.dmSans(
+                                                        fontWeight:
+                                                            FontWeight.w300),
+                                                    fontSize: 12,
+                                                    color:
+                                                        const Color(0xFFFF8A00),
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
                                   // Row(
                                   //   mainAxisSize: MainAxisSize.max,
                                   //   mainAxisAlignment:
@@ -996,37 +1040,8 @@ class MotorControlWidget extends StatelessWidget {
                             ),
                           ),
                         ]
-                            .divide(const SizedBox(height: 24.0))
-                            .addToStart(const SizedBox(height: 24.0)),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).secondaryBackground,
-                      boxShadow: const [
-                        BoxShadow(
-                          blurRadius: 6.0,
-                          color: Color(0x1F000000),
-                          offset: Offset(
-                            0.0,
-                            -1.0,
-                          ),
-                        )
-                      ],
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(0.0),
-                        bottomRight: Radius.circular(0.0),
-                        topLeft: Radius.circular(8.0),
-                        topRight: Radius.circular(8.0),
-                      ),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [],
+                            .divide(const SizedBox(height: 12.0))
+                            .addToStart(const SizedBox(height: 10.0)),
                       ),
                     ),
                   ),
