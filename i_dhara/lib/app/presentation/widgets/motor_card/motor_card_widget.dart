@@ -42,25 +42,17 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   void initState() {
     super.initState();
 
-    // Determine initial state with proper priority
     final motorData = _getMotorData();
     bool initialState;
     int initialMode;
 
-    // Check if MQTT has received real data
     if (motorData != null && motorData.hasReceivedData) {
-      // Use MQTT data (highest priority)
       initialState = motorData.state == 1;
       initialMode = motorData.modeIndex ?? 0;
-      debugPrint(
-          '✓ Initializing ${widget.motor.name} with MQTT data: state=${motorData.state} -> switch=$initialState, mode=$initialMode');
     } else {
-      // Use API data with proper null handling
       final apiState = widget.motor.state ?? 0;
       initialState = apiState == 1;
       initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 0;
-      debugPrint(
-          '✓ Initializing ${widget.motor.name} with API data: state=$apiState -> switch=$initialState (raw: ${widget.motor.state}), mode=$initialMode');
     }
 
     _localSwitchController = ValueNotifier(initialState);
@@ -75,7 +67,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     super.dispose();
   }
 
-  // FIXED: Always check ALL groups dynamically on every call
   MotorData? _getMotorData() {
     if (widget.motor.starter?.macAddress == null || widget.motor.id == null) {
       return null;
@@ -83,7 +74,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     final mac = widget.motor.starter!.macAddress!;
 
-    // Check all groups and return the MOST RECENTLY UPDATED one with data
     MotorData? latestData;
     DateTime? latestTimestamp;
 
@@ -93,7 +83,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       final data = widget.mqttService.motorDataMap[motorId];
 
       if (data != null && data.hasReceivedData) {
-        // Check if this data is more recent
         final dataTimestamp = widget.mqttService.getLastAckTime(motorId);
 
         if (latestData == null ||
@@ -114,13 +103,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   String _getMotorId() {
     if (widget.motor.starter?.macAddress == null) return '';
 
-    // Find the group with the most recent data
     final motorData = _getMotorData();
     if (motorData != null && motorData.groupId != null) {
       return '${widget.motor.starter!.macAddress}-${motorData.groupId}';
     }
 
-    // Fallback to G01 if no data found
     return '${widget.motor.starter!.macAddress}-G01';
   }
 
@@ -132,7 +119,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     return true;
   }
 
-  // Show bottom sheet confirmation for switch
   void _showSwitchConfirmationBottomSheet(bool newValue) {
     showModalBottomSheet(
       context: context,
@@ -203,7 +189,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
-  // Show bottom sheet confirmation for mode
   void _showModeConfirmationBottomSheet(int newMode) {
     final modeName = newMode == 0 ? 'Auto' : 'Manual';
     final modeColor =
@@ -546,7 +531,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     } else if (motorMode.toUpperCase().contains('MANUAL')) {
       return 1;
     }
-    return 0; // Default to AUTO if unknown
+    return 0;
   }
 
   void _updateSwitchFromMqtt(bool newState) {
@@ -570,22 +555,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     int? signalStrength;
     int bars = 0;
 
-    // Check MQTT first, then fallback to API
     if (motorData != null &&
         motorData.hasReceivedData &&
         !motorData.isSignalStale()) {
-      // Use MQTT data
       bars = motorData.signalBars;
       signalStrength = motorData.signalStrength;
       debugPrint(
           '${widget.motor.name} - Using MQTT signal: strength=$signalStrength, bars=$bars');
     } else {
-      // Fallback to API signal quality - need to calculate bars
       signalStrength = widget.motor.starter?.signalQuality;
       debugPrint(
           '${widget.motor.name} - Using API signal quality: $signalStrength');
 
-      // Calculate bars from signal strength
       if (signalStrength == null || signalStrength < 2 || signalStrength > 31) {
         bars = 0;
       } else if (signalStrength >= 2 && signalStrength <= 9) {
@@ -647,10 +628,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     return ValueListenableBuilder(
       valueListenable: widget.mqttService.dataUpdateNotifier,
       builder: (context, notificationValue, __) {
-        // CRITICAL: Get fresh motor data on EVERY build
         final motorData = _getMotorData();
 
-        // Determine power state with proper priority
         final bool isPowerOn;
         if (motorData != null && motorData.hasReceivedData) {
           isPowerOn = motorData.power == 1;
@@ -664,20 +643,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
         final isAvailable = _isMotorAvailable();
 
-        debugPrint('MotorCardWidget rebuild - ${widget.motor.name}');
-        debugPrint('  isPowerOn: $isPowerOn');
-        debugPrint('  isAvailable: $isAvailable');
-        debugPrint(
-            '  Switch controller value: ${_localSwitchController.value}');
-
-        // Update local controllers from MQTT data
         if (motorData != null && motorData.hasReceivedData) {
-          debugPrint('  MQTT State: ${motorData.state}');
-          debugPrint(
-              '  MQTT Mode: ${motorData.motorMode} (${motorData.modeIndex})');
-          debugPrint('  MQTT Power: ${motorData.power}');
-          debugPrint('  MQTT Group: ${motorData.groupId}');
-
           // Update switch state
           if (_hasPendingSwitchCommand) {
             final mqttState = motorData.state == 1;
@@ -721,7 +687,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           }
         }
 
-        // Fault value - check MQTT first, fallback to API
         final int faultValue;
         if (motorData != null && motorData.hasReceivedData) {
           faultValue = motorData.fault;
@@ -848,7 +813,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Mode Toggle Switch with confirmation
                       ValueListenableBuilder(
                         valueListenable: _localModeController,
                         builder: (context, currentModeIndex, child) {
@@ -856,22 +820,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                           return GestureDetector(
                             onTap: isAvailable
                                 ? () {
-                                    // Toggle to opposite mode
                                     final newMode =
                                         currentModeIndex == 0 ? 1 : 0;
-                                    debugPrint(
-                                        '🔥 Mode tapped! Current: $currentModeIndex, New: $newMode');
                                     _showModeCommandDialog(newMode);
                                   }
                                 : null,
                             behavior: HitTestBehavior.opaque,
                             child: AbsorbPointer(
-                              absorbing:
-                                  true, // Block touch events to the toggle switch
+                              absorbing: true,
                               child: Opacity(
                                 opacity: isAvailable ? 1.0 : 0.5,
                                 child: ToggleSwitch(
-                                  changeOnTap: false, // Disable direct tap
+                                  changeOnTap: false,
                                   customWidths: const [90, 90],
                                   radiusStyle: true,
                                   minWidth: 80.0,
@@ -902,24 +862,19 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                   labels: const ['Auto', 'Manual'],
                                   borderWidth: 1,
                                   borderColor: [Colors.grey.shade300],
-                                  onToggle:
-                                      null, // Disable the default callback
+                                  onToggle: null,
                                 ),
                               ),
                             ),
                           );
                         },
                       ),
-                      // ON/OFF Switch with confirmation
                       ValueListenableBuilder(
                         valueListenable: _localSwitchController,
                         builder: (context, isOn, child) {
-                          debugPrint('🎨 Switch UI rendering: $isOn');
                           return GestureDetector(
                             onTap: isAvailable
                                 ? () {
-                                    debugPrint(
-                                        '🔥 Switch tapped! Current: $isOn, New: ${!isOn}');
                                     _showSwitchCommandDialog(!isOn);
                                   }
                                 : null,

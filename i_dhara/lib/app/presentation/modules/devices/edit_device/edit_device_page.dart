@@ -126,15 +126,15 @@ class _EditDevicePageState extends State<EditDevicePage> {
                       TextFieldComponent(
                         controller: _model.textController!,
                         errors: _model.errorInstance,
-                        errorKey: 'title',
-                        hintText: 'Enter location name',
+                        errorKey: 'name',
+                        hintText: 'Enter Motor name',
                         readOnly: false,
                         onChanged: (value) {
                           if (value.isNotEmpty) {
                             setState(() {
                               _model.errorInstance =
                                   Map.from(_model.errorInstance)
-                                    ..remove('title');
+                                    ..remove('name');
                             });
                           }
                         },
@@ -195,8 +195,16 @@ class _EditDevicePageState extends State<EditDevicePage> {
                           name: newName,
                           hp: widget.hp,
                         );
+                        setState(() {
+                          _model.error = true;
+                          _model.message = devicesController.message ?? '';
+                          _model.errorInstance =
+                              devicesController.errorInstance;
+                        });
 
-                        widget.onLocationAdded(newName);
+                        return;
+
+                        // widget.onLocationAdded(newName);
                       },
                       text: 'Save',
                       options: FFButtonOptions(

@@ -44,25 +44,17 @@ class AddNewLocationResponse {
 }
 
 class Error {
-  bool? success;
-  int? status;
-  String? message;
+  String? name;
 
   Error({
-    this.success,
-    this.status,
-    this.message,
+    this.name,
   });
 
   factory Error.fromJson(Map<String, dynamic> json) => Error(
-        success: json["success"],
-        status: json["status"],
-        message: json["message"],
+        name: json["name"],
       );
 
   Map<String, dynamic> toJson() => {
-        "success": success,
-        "status": status,
-        "message": message,
+        "name": name,
       };
 }

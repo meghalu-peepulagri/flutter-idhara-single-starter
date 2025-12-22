@@ -13,7 +13,8 @@ class EditDeviceController extends FlutterFlowModel {
   Record? record;
   bool error = false;
   bool isValidation = false;
-  dynamic errorInstance; // Changed to dynamic to match LocationpopupModel
+  Map<String, dynamic> errorInstance =
+      {}; // Changed to dynamic to match LocationpopupModel
   String message = '';
 
   @override

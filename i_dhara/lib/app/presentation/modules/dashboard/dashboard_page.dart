@@ -87,11 +87,6 @@ class DashboardWidget extends StatelessWidget {
                                 child: Obx(() {
                                   final selectedId =
                                       controller.selectedLocationId.value;
-
-                                  //                             final locationName = controller.locations
-                                  // .firstWhere((e) => e.id == selectedId)
-                                  // .name;
-
                                   String locationName;
 
                                   if (selectedId == null) {
@@ -129,13 +124,6 @@ class DashboardWidget extends StatelessWidget {
                                   );
                                 }),
                               ),
-                              // ClipRRect(
-                              //   borderRadius: BorderRadius.circular(0.0),
-                              //   child: SvgPicture.asset(
-                              //     'assets/images/bell-simple_1.svg',
-                              //     fit: BoxFit.cover,
-                              //   ),
-                              // ),
                             ].divide(const SizedBox(width: 10.0)),
                           ),
                           GestureDetector(
@@ -205,12 +193,7 @@ class DashboardWidget extends StatelessWidget {
                                           Get.toNamed(
                                             Routes.motorDetails,
                                             arguments: {
-                                              // 'motor': motor,
                                               'motorId': motor.id,
-                                              // 'motorName': motor.name ?? 'Motor',
-                                              // 'deviceId':
-                                              //     motor.starter?.macAddress ??
-                                              //         'N/A',
                                             },
                                           );
                                         },

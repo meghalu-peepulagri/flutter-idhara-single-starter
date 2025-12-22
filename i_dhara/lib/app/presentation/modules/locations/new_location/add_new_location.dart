@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/presentation/modules/locations/new_location/add_new_location_model.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
@@ -102,8 +102,15 @@ class _NewLocationState extends State<NewLocation> {
                     TextFieldComponent(
                         controller: _model.textController!,
                         errors: _model.errorInstance,
-                        errorKey: 'title',
+                        errorKey: 'name',
                         hintText: 'Enter location name',
+                        onChanged: (value) {
+                          if (_model.errorInstance.containsKey('name')) {
+                            setState(() {
+                              _model.errorInstance.remove('name');
+                            });
+                          }
+                        },
                         readOnly: false),
                   ],
                 ),
@@ -140,18 +147,30 @@ class _NewLocationState extends State<NewLocation> {
                 Expanded(
                   child: FFButtonWidget(
                     onPressed: () async {
-                      if (_model.textController!.text.trim().isEmpty) {
-                        // Show error
-                        return;
-                      }
+                      // if (!_model.validateLocationName()) {
+                      //   return; // Stop execution if invalid
+                      // }
 
                       await _model.fetchnewlocation(
                         name: _model.textController!.text.trim(),
                       );
+                      setState(() {});
+
+                      if (_model.error &&
+                          _model.message.isNotEmpty &&
+                          !_model.isValidation) {
+                        errorSnackBar(context, _model.message);
+                      } else if (!_model.error && _model.message.isNotEmpty) {
+                        // successSnackBar(context, _model.message);
+                        // Get.back();
+                        // Get.offAllNamed(Routes.locations);
+                      }
                       final locationName = _model.textController!.text.trim();
 
-                      Get.back();
-                      Get.offAllNamed(Routes.locations);
+                      return;
+
+                      // Get.back();
+                      // Get.offAllNamed(Routes.locations);
                     },
                     text: 'Save',
                     options: FFButtonOptions(

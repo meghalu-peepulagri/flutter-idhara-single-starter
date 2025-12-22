@@ -19,7 +19,7 @@ class MotorData {
   String currentBlue = '0';
   int state = 0;
   String motorMode = '_';
-  int? modeIndex; // 0 = Auto, 1 = Manual (simplified)
+  int? modeIndex;
   int power = 0;
   int fault = 0;
   int alert = 0;
@@ -30,9 +30,8 @@ class MotorData {
   String? groupId;
   String? title;
 
-  // Signal strength properties
-  int signalStrength = 0; // Raw signal strength value (0-30)
-  int signalBars = 0; // Number of bars (0-4)
+  int signalStrength = 0;
+  int signalBars = 0;
   DateTime? lastSignalUpdate;
 
   MotorData({
@@ -46,12 +45,10 @@ class MotorData {
     modeswitchcontroller.dispose();
   }
 
-  // Calculate signal bars based on signal strength
   void updateSignalStrength(int strength) {
     signalStrength = strength;
     lastSignalUpdate = DateTime.now();
 
-    // Determine signal bars based on strength
     if (strength < 2 || strength > 31) {
       signalBars = 0; // Invalid signal
     } else if (strength >= 2 && strength <= 9) {
@@ -65,11 +62,8 @@ class MotorData {
     } else {
       signalBars = 0; // Invalid
     }
-
-    debugPrint('Signal strength updated: $strength -> $signalBars bars');
   }
 
-  // Check if signal data is stale (older than 60 seconds)
   bool isSignalStale() {
     if (lastSignalUpdate == null) return true;
     return DateTime.now().difference(lastSignalUpdate!).inSeconds > 60;
@@ -156,9 +150,6 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
-  // Add this method to your MqttService class
-
-  /// Get the last ACK time for a motor ID
   DateTime? getLastAckTime(String motorId) {
     return _lastAckTimes[motorId];
   }
@@ -265,7 +256,6 @@ class MqttService {
         mqttClient!.subscribe('peepul/$mac/cmd', MqttQos.atMostOnce);
         mqttClient!.subscribe('peepul/$mac/status', MqttQos.atMostOnce);
         subscriptionCount++;
-        debugPrint('Subscribed to peepul/$mac/cmd and peepul/$mac/status');
       }
     }
 
@@ -335,31 +325,24 @@ class MqttService {
 
         switch (type) {
           case 31: // MOTOR CONTROL ACK (from device)
-            debugPrint('Handling MOTOR CONTROL ACK (31)');
             _handleMotorControlAck(mac, payloadData);
             break;
           case 32: // MODE CHANGE ACK (from device)
-            debugPrint('Handling MODE CHANGE ACK (32)');
             _handleModeChangeAck(mac, payloadData);
             break;
           case 35: // LIVE DATA REQUEST ACK
-            debugPrint('Handling LIVE DATA REQUEST ACK (35)');
             _handleLiveData(mac, payloadData);
             break;
           case 40: // HEART BEAT with Signal Strength
-            debugPrint('Handling HEARTBEAT with Signal Strength (40)');
             _handleHeartbeat(mac, payloadData);
             break;
           case 41: // LIVE DATA
-            debugPrint('Handling LIVE DATA (41)');
             _handleLiveData(mac, payloadData);
             break;
           default:
             debugPrint('Unknown message type: $type');
         }
       } catch (e, stackTrace) {
-        debugPrint('Error parsing MQTT message: $e');
-        debugPrint('StackTrace: $stackTrace');
         statusMessage = 'Invalid data format received';
       }
     }
@@ -398,13 +381,8 @@ class MqttService {
         motorData.updateSignalStrength(signalQuality);
         motorData.hasReceivedData = true;
         updatedCount++;
-
-        debugPrint(
-            '✓ Updated signal for ${entry.key}: strength=$signalQuality, bars=${motorData.signalBars}');
       }
     }
-
-    debugPrint('Updated signal strength for $updatedCount motors');
   }
 
   void _handleMotorControlAck(String mac, dynamic payloadData) {
@@ -412,7 +390,6 @@ class MqttService {
     debugPrint('MAC: $mac');
     debugPrint('Payload Data: $payloadData');
 
-    // payloadData should be the state (0 or 1)
     final newState = payloadData as int?;
 
     if (newState == null) {
@@ -420,10 +397,6 @@ class MqttService {
       return;
     }
 
-    debugPrint(
-        'New state from ACK: $newState (${newState == 1 ? "ON" : "OFF"})');
-
-    // Update all motors with this MAC address
     int updatedCount = 0;
     for (var entry in motorDataMap.entries) {
       if (entry.key.startsWith(mac)) {
@@ -433,21 +406,11 @@ class MqttService {
         motorData.hasReceivedData = true;
         _lastAckTimes[entry.key] = DateTime.now();
         updatedCount++;
-
-        debugPrint(
-            '✓ Updated motor ${entry.key}: state=$newState, controller=${motorData.controller.value}');
       }
     }
-
-    debugPrint('Updated $updatedCount motors with new state from ACK');
   }
 
   void _handleModeChangeAck(String mac, dynamic payloadData) {
-    debugPrint('=== Mode Change ACK (Type 32) ===');
-    debugPrint('MAC: $mac');
-    debugPrint('Payload Data: $payloadData');
-
-    // payloadData should be the mode index (0 = Auto, 1 = Manual)
     final newModeIndex = payloadData as int?;
 
     if (newModeIndex == null || (newModeIndex != 0 && newModeIndex != 1)) {
@@ -455,10 +418,6 @@ class MqttService {
       return;
     }
 
-    debugPrint(
-        'New mode from ACK: $newModeIndex (${newModeIndex == 0 ? "Auto" : "Manual"})');
-
-    // Update all motors with this MAC address
     int updatedCount = 0;
     for (var entry in motorDataMap.entries) {
       if (entry.key.startsWith(mac)) {
@@ -469,13 +428,8 @@ class MqttService {
         motorData.hasReceivedData = true;
         _lastAckTimes[entry.key] = DateTime.now();
         updatedCount++;
-
-        debugPrint(
-            '✓ Updated motor ${entry.key}: mode=${motorData.motorMode}, index=$newModeIndex');
       }
     }
-
-    debugPrint('Updated $updatedCount motors with new mode from ACK');
   }
 
   void _handleLiveData(String mac, dynamic payloadData) {
@@ -513,143 +467,104 @@ class MqttService {
 
       debugPrint('Group data keys: ${groupData.keys}');
 
-      // G01 - Full data with p_v
+      // G01
       if (groupData.containsKey('p_v')) {
         debugPrint('Processing $groupId with full data');
 
-        // Update motor state
         final newState = groupData['m_s'] ?? 0;
         motorData.state = newState;
         if (motorData.controller.value != (newState == 1)) {
           motorData.controller.value = (newState == 1);
         }
-        debugPrint(
-            'Motor state: ${motorData.state}, Controller: ${motorData.controller.value}');
 
-        // Update voltages
         final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
         motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
         motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
         motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
 
-        // Update currents
         final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
         motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
         motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
         motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
 
-        // Update power, fault, alert
         motorData.power = groupData['pwr'] ?? 0;
         motorData.fault = groupData['flt'] ?? 0;
         motorData.alert = groupData['alt'] ?? 0;
 
-        // Update mode if present
         if (groupData.containsKey('mode')) {
           final modeValue = groupData['mode'] as int?;
           if (modeValue != null) {
-            // Mode is already simplified: 0 = Auto, 1 = Manual
             motorData.modeIndex = modeValue;
             motorData.modeswitchcontroller.value = modeValue;
             motorData.motorMode = modeValue == 0 ? 'AUTO' : 'MANUAL';
-
-            debugPrint(
-                'Mode: ${motorData.motorMode} (index: ${motorData.modeIndex})');
           }
         }
       }
-      // G02/G03 - Partial data with power
+      // G02/G03
       else if (groupData.containsKey('pwr')) {
         debugPrint('Processing $groupId with partial data');
 
-        // Update power
         motorData.power = groupData['pwr'] ?? 0;
 
         // Update mode if present
         if (groupData.containsKey('mode')) {
           final modeValue = groupData['mode'] as int?;
           if (modeValue != null) {
-            // Mode is already simplified: 0 = Auto, 1 = Manual
             motorData.modeIndex = modeValue;
             motorData.modeswitchcontroller.value = modeValue;
             motorData.motorMode = modeValue == 0 ? 'AUTO' : 'MANUAL';
-
-            debugPrint(
-                'Mode: ${motorData.motorMode} (index: ${motorData.modeIndex})');
           }
         }
 
-        // Update voltages if present
         if (groupData.containsKey('llv')) {
           final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
           motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
           motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
-          debugPrint(
-              'Updated voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
         }
 
-        // Update currents if present
         if (groupData.containsKey('amp')) {
           final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
           motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
           motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
           motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
-          debugPrint(
-              'Updated currents: R=${motorData.currentRed}, Y=${motorData.currentYellow}, B=${motorData.currentBlue}');
         }
 
-        // Update motor state if present
         if (groupData.containsKey('m_s')) {
           motorData.state = groupData['m_s'] ?? 0;
           motorData.controller.value = motorData.state == 1;
           debugPrint('Updated motor state: ${motorData.state}');
         }
       }
-      // G04 - Mode only (don't overwrite existing data)
+      // G04
       else if (groupData.containsKey('mode')) {
-        debugPrint('Processing $groupId with mode only');
-
-        // Only update power if it's explicitly provided
         if (groupData.containsKey('pwr')) {
           motorData.power = groupData['pwr'] ?? 0;
           debugPrint('Updated power: ${motorData.power}');
-        } else {
-          debugPrint(
-              'Power not in payload, keeping existing value: ${motorData.power}');
-        }
+        } else {}
 
-        // Update mode
         final modeValue = groupData['mode'] as int?;
         if (modeValue != null) {
           // Mode is already simplified: 0 = Auto, 1 = Manual
           motorData.modeIndex = modeValue;
           motorData.modeswitchcontroller.value = modeValue;
           motorData.motorMode = modeValue == 0 ? 'AUTO' : 'MANUAL';
-
-          debugPrint(
-              'Mode: ${motorData.motorMode} (index: ${motorData.modeIndex})');
         }
 
-        // Update voltages if present (shouldn't be in G04, but check anyway)
         if (groupData.containsKey('llv')) {
           final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
           motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
           motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
-          debugPrint(
-              'Updated voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
         } else {
           debugPrint('Voltages not in payload, keeping existing values');
         }
 
-        // Update currents if present (shouldn't be in G04, but check anyway)
         if (groupData.containsKey('amp')) {
           final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
           motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
           motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
           motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
-          debugPrint(
-              'Updated currents: R=${motorData.currentRed}, Y=${motorData.currentYellow}, B=${motorData.currentBlue}');
         } else {
           debugPrint('Currents not in payload, keeping existing values');
         }
@@ -662,10 +577,6 @@ class MqttService {
       motorData.hasReceivedData = true;
       motorDataMap[fullMotorId] = motorData;
       _lastAckTimes[fullMotorId] = DateTime.now();
-
-      debugPrint('Motor $fullMotorId updated successfully');
-      debugPrint(
-          'Current values - Power: ${motorData.power}, VoltageR: ${motorData.voltageRed}, Mode: ${motorData.motorMode}');
     }
 
     debugPrint('Total motors in map: ${motorDataMap.length}');
@@ -710,7 +621,6 @@ class MqttService {
     final mac = parts[0];
     final topic = 'peepul/$mac/cmd';
 
-    // PUBLISH with type 1 for motor control command
     final payload = {
       "T": 1,
       "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -727,16 +637,9 @@ class MqttService {
     try {
       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
       statusMessage = 'Motor command sent successfully';
-      debugPrint('========================================');
-      debugPrint('Published motor command to: $topic');
-      debugPrint('Motor ID: $motorId');
-      debugPrint('State: $state (${state == 1 ? "ON" : "OFF"})');
-      debugPrint('Payload: $message');
-      debugPrint('Waiting for ACK (Type 31) on: peepul/$mac/status');
-      debugPrint('========================================');
     } catch (e) {
       statusMessage = 'Failed to publish motor command: $e';
-      debugPrint('Failed to publish motor command: $e');
+
       _lastCommandTimes.remove(motorId);
       _dataUpdateNotifier.value++;
       rethrow;
@@ -762,11 +665,10 @@ class MqttService {
     final groupId = parts[1];
     final topic = 'peepul/$mac/cmd';
 
-    // PUBLISH with type 2 for mode change command
     final payload = {
       "T": 2,
       "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      "D": simplifiedMode, // Send 0 or 1 directly
+      "D": simplifiedMode,
     };
 
     final message = jsonEncode(payload);
@@ -778,15 +680,6 @@ class MqttService {
     try {
       mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
       statusMessage = 'Mode command sent successfully';
-      debugPrint('========================================');
-      debugPrint('Published mode command to: $topic');
-      debugPrint('Motor ID: $motorId');
-      debugPrint('Group ID: $groupId');
-      debugPrint(
-          'Mode: $simplifiedMode (${simplifiedMode == 0 ? "Auto" : "Manual"})');
-      debugPrint('Payload: $message');
-      debugPrint('Waiting for ACK (Type 32) on: peepul/$mac/status');
-      debugPrint('========================================');
 
       _lastAckTimes[motorId] = DateTime.now();
     } catch (e) {
@@ -840,7 +733,6 @@ class MqttService {
         groupStates[cmd['groupId']] = cmd['state'];
       }
 
-      // PUBLISH with type 1 for grouped motor control commands
       final payload = {
         "T": 1,
         "S": DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -859,11 +751,6 @@ class MqttService {
       try {
         mqttClient!
             .publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-        debugPrint('========================================');
-        debugPrint('Published grouped motor command to: $topic');
-        debugPrint('Payload: $message');
-        debugPrint('Motors affected: ${commands.length}');
-        debugPrint('========================================');
       } catch (e) {
         statusMessage = 'Failed to publish grouped command: $e';
         debugPrint('Failed to publish grouped command: $e');

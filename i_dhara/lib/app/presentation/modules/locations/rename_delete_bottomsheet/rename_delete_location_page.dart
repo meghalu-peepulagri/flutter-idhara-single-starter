@@ -89,6 +89,7 @@ class EditDeleteLocationPage extends StatelessWidget {
                     FocusScope.of(context).unfocus();
                     Navigator.pop(context);
                     showModalBottomSheet(
+                      isScrollControlled: true,
                       shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(25),

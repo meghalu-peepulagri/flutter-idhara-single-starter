@@ -93,14 +93,10 @@ class NetworkManager {
           geterrorSnackBar(errorsMap['timeout_error']);
           break;
         case DioExceptionType.connectionTimeout:
-
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.sendTimeout:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.badCertificate:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.badResponse:
           if (error.response != null) {
@@ -135,16 +131,12 @@ class NetworkManager {
             throw NetworkException("No response from server.");
           }
 
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.cancel:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.connectionError:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.unknown:
-          // TODO: Handle this case.
           throw UnimplementedError();
       }
     }

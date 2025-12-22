@@ -44,25 +44,17 @@ class RenameDeviceResponse {
 }
 
 class Errors {
-  bool? success;
-  int? status;
-  String? message;
+  String? name;
 
   Errors({
-    this.success,
-    this.status,
-    this.message,
+    this.name,
   });
 
   factory Errors.fromJson(Map<String, dynamic> json) => Errors(
-        success: json["success"],
-        status: json["status"],
-        message: json["message"],
+        name: json["name"],
       );
 
   Map<String, dynamic> toJson() => {
-        "success": success,
-        "status": status,
-        "message": message,
+        "name": name,
       };
 }

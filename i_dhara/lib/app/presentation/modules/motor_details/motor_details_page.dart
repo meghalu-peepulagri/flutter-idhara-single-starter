@@ -427,7 +427,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/current_graph_card.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/motor_run_time_graph_card.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/voltage_graph_card.dart';
@@ -480,7 +479,7 @@ class MotorControlWidget extends StatelessWidget {
                           decoration: const BoxDecoration(),
                           child: InkWell(
                             onTap: () {
-                              Get.offAllNamed(Routes.dashboard);
+                              Get.back();
                             },
                             child: const Padding(
                               padding: EdgeInsets.all(6.0),

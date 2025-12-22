@@ -125,7 +125,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                       TextFieldComponent(
                         controller: _model.textController!,
                         errors: _model.errorInstance,
-                        errorKey: 'title',
+                        errorKey: 'name',
                         hintText: 'Enter location name',
                         readOnly: false,
                         onChanged: (value) {
@@ -133,7 +133,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                             setState(() {
                               _model.errorInstance =
                                   Map.from(_model.errorInstance)
-                                    ..remove('title');
+                                    ..remove('name');
                             });
                           }
                         },
@@ -180,23 +180,31 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
 
                         final newName = _model.textController!.text.trim();
 
-                        if (newName.isEmpty) {
-                          setState(() {
-                            _model.errorInstance = {
-                              'title': ['Location name is required']
-                            };
-                          });
-                          return;
-                        }
+                        // if (newName.isEmpty) {
+                        //   setState(() {
+                        //     _model.errorInstance = {
+                        //       'title': ['Location name is required']
+                        //     };
+                        //   });
+                        //   return;
+                        // }
 
                         await locationsController.renamelocation(
                           locationId: widget.locationId,
                           name: newName,
                         );
+                        setState(() {
+                          _model.error = true;
+                          _model.message = locationsController.message ?? '';
+                          _model.errorInstance =
+                              locationsController.errorInstance;
+                        });
 
-                        widget.onLocationAdded(newName);
+                        return;
 
-                        Get.back();
+                        // widget.onLocationAdded(newName);
+
+                        // Get.back();
                       },
                       text: 'Save',
                       options: FFButtonOptions(

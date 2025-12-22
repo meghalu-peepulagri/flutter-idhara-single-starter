@@ -14,7 +14,8 @@ class DevicesController extends GetxController {
   var page = 1.obs;
   var limit = 10.obs;
   var searchQuery = ''.obs;
-  dynamic errorInstance; // Changed to dynamic to match LocationpopupModel
+  Map<String, dynamic> errorInstance =
+      {}; // Changed to dynamic to match LocationpopupModel
   String message = '';
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();

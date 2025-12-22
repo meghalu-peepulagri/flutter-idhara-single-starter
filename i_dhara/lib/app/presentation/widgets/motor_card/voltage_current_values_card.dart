@@ -69,9 +69,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                 ? motor.starter!.starterParameters!.first
                 : null;
 
-        debugPrint('🔧 VoltageCurrentValuesCard rebuild - ${motor.name}');
-        debugPrint('  Notification value: $notificationValue');
-        debugPrint('  Has MQTT data: ${motorData?.hasReceivedData ?? false}');
         if (motorData != null) {
           debugPrint('  MQTT Group: ${motorData.groupId}');
         }
@@ -88,11 +85,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
           currentY = _formatValue(motorData.currentYellow);
           currentB = _formatValue(motorData.currentBlue);
           motorState = motorData.state;
-
-          debugPrint('  Using MQTT data from ${motorData.groupId}:');
-          debugPrint('    Voltages: R=$voltageR, Y=$voltageY, B=$voltageB');
-          debugPrint('    Currents: R=$currentR, Y=$currentY, B=$currentB');
-          debugPrint('    State: $motorState');
         } else {
           voltageR =
               _formatValue(starterParameter?.lineVoltageR?.toString() ?? '0');
@@ -107,11 +99,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
           currentB =
               _formatValue(starterParameter?.currentB?.toString() ?? '0');
           motorState = motor.state ?? 0;
-
-          debugPrint('  Using API data:');
-          debugPrint('    Voltages: R=$voltageR, Y=$voltageY, B=$voltageB');
-          debugPrint('    Currents: R=$currentR, Y=$currentY, B=$currentB');
-          debugPrint('    State: $motorState');
         }
 
         return Padding(
@@ -123,7 +110,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  // Labels Column
                   Column(
                     mainAxisSize: MainAxisSize.max,
                     // crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +154,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                       ),
                     ].divide(const SizedBox(height: 10)),
                   ),
-                  // Phase R Column
                   Column(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -209,7 +194,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                       ),
                     ].divide(const SizedBox(height: 10)),
                   ),
-                  // Phase Y Column
                   Column(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -250,7 +234,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                       ),
                     ].divide(const SizedBox(height: 10)),
                   ),
-                  // Phase B Column
                   Column(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -293,7 +276,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                   ),
                 ].divide(const SizedBox(width: 16)),
               ),
-              // Motor/Pump Icon
               ClipRRect(
                 borderRadius: BorderRadius.circular(0),
                 child: motorState == 1

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
-class NewLocationController extends GetxController {
+class NewLocationController extends FlutterFlowModel {
   FocusNode? textFieldFocusNode;
   TextEditingController? textController;
   String? Function(BuildContext, String?)? textControllerValidator;
@@ -12,8 +14,10 @@ class NewLocationController extends GetxController {
   Record? record;
   bool error = false;
   bool isValidation = false;
-  dynamic errorInstance;
+  // dynamic errorInstance;
   String message = '';
+
+  Map<String, dynamic> errorInstance = {};
 
   @override
   void dispose() {
@@ -24,7 +28,7 @@ class NewLocationController extends GetxController {
   Future<void> fetchnewlocation({required String name}) async {
     final response = await LocationRepoImpl().addLocation(name);
     if (response != null && response.errors == null) {
-      // Get.offAllNamed(Routes.locations);
+      Get.offAllNamed(Routes.locations);
     } else if (response!.errors != null) {
       errorInstance = response.errors!.toJson();
     }
