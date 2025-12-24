@@ -4,10 +4,10 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
+import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -58,7 +58,7 @@ class DashboardWidget extends StatelessWidget {
               child: Column(mainAxisSize: MainAxisSize.max, children: [
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(
-                      16.0, 16.0, 16.0, 0.0),
+                      16.0, 12.0, 16.0, 0.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -156,18 +156,22 @@ class DashboardWidget extends StatelessWidget {
                         return const Center(
                           child: AppLottieLoading(),
                         );
+                      } else if (!controller.hasInternet.value) {
+                        return const Center(
+                          child: NoInternetWidget(),
+                        );
                       }
                       return Column(
                         // mainAxisSize: MainAxisSize.max,
                         children: [
-                          const WeatherCard(),
+                          // const WeatherCard(),
                           Expanded(child: Obx(() {
                             if (controller.isFiltering.value) {
                               return const Center(
                                 child: AppLottieLoading(),
                               );
-                            }
-                            if (controller.motors.isEmpty) {
+                            } else if (controller.motors.isEmpty &&
+                                !controller.isLoading.value) {
                               return const NoMotorFound();
                             }
 

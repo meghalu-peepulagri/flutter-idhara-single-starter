@@ -9,6 +9,7 @@ import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/widgets/motor_card/voltage_current_values_card.dart';
 import 'package:lottie/lottie.dart';
 import 'package:toggle_switch/toggle_switch.dart';
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 
@@ -48,20 +49,83 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     if (motorData != null && motorData.hasReceivedData) {
       initialState = motorData.state == 1;
-      initialMode = motorData.modeIndex ?? 0;
+      initialMode = motorData.modeIndex ?? 1;
     } else {
       final apiState = widget.motor.state ?? 0;
       initialState = apiState == 1;
-      initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 0;
+      initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 1;
     }
 
     _localSwitchController = ValueNotifier(initialState);
     _localModeController = ValueNotifier(initialMode);
     _isInitialized = true;
+    widget.mqttService.commandStatusNotifier
+        .addListener(_onCommandStatusChanged);
+  }
+
+  void _onCommandStatusChanged() {
+    final message = widget.mqttService.commandStatusNotifier.value;
+    if (message != null && mounted) {
+      final motorName = widget.motor.aliasName ?? 'Motor';
+      if (message.contains(motorName)) {
+        showTopSnackBar(
+          Overlay.of(context),
+          Container(
+            constraints: const BoxConstraints(
+              maxWidth: 350,
+              minHeight: 40,
+              maxHeight: 50,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0XFFDB3B2A),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w400,
+                      fontSize: 13,
+                      color: Colors.white,
+                      decoration: TextDecoration.none,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          displayDuration: const Duration(seconds: 4),
+        );
+
+        // Clear the message after showing
+        widget.mqttService.commandStatusNotifier.value = null;
+      }
+    }
   }
 
   @override
   void dispose() {
+    widget.mqttService.commandStatusNotifier
+        .removeListener(_onCommandStatusChanged);
     _localSwitchController.dispose();
     _localModeController.dispose();
     super.dispose();
@@ -190,9 +254,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _showModeConfirmationBottomSheet(int newMode) {
-    final modeName = newMode == 0 ? 'Auto' : 'Manual';
+    final modeName = newMode == 1 ? 'Auto' : 'Manual';
     final modeColor =
-        newMode == 0 ? const Color(0xFFFFA500) : const Color(0xFF2F80ED);
+        newMode == 1 ? const Color(0xFFFFA500) : const Color(0xFF2F80ED);
 
     showModalBottomSheet(
       context: context,
@@ -364,7 +428,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _showModeCommandDialog(int newMode) {
-    final modeName = newMode == 0 ? 'Auto' : 'Manual';
+    final modeName = newMode == 1 ? 'Auto' : 'Manual';
 
     showDialog(
       context: context,
@@ -526,12 +590,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   int? _getSimplifiedModeIndex(String motorMode) {
-    if (motorMode.toUpperCase().contains('AUTO')) {
+    if (motorMode.toUpperCase().contains('MANUAL')) {
       return 0;
-    } else if (motorMode.toUpperCase().contains('MANUAL')) {
+    } else if (motorMode.toUpperCase().contains('AUTO')) {
       return 1;
     }
-    return 0;
+    return 1;
   }
 
   void _updateSwitchFromMqtt(bool newState) {
@@ -816,56 +880,60 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       ValueListenableBuilder(
                         valueListenable: _localModeController,
                         builder: (context, currentModeIndex, child) {
+                          final uiIndex = currentModeIndex == 1 ? 0 : 1;
                           debugPrint('🎨 Mode UI rendering: $currentModeIndex');
-                          return GestureDetector(
-                            onTap: isAvailable
-                                ? () {
-                                    final newMode =
-                                        currentModeIndex == 0 ? 1 : 0;
-                                    _showModeCommandDialog(newMode);
+                          return ToggleSwitch(
+                            changeOnTap: false,
+                            customWidths: const [90, 90],
+                            radiusStyle: true,
+                            minWidth: 80.0,
+                            minHeight: 30.0,
+                            initialLabelIndex: uiIndex,
+                            cornerRadius: 8.0,
+                            activeBgColors: isAvailable
+                                ? [
+                                    [const Color(0xFFFFA500)],
+                                    [const Color(0xFF2F80ED)]
+                                  ]
+                                : [
+                                    [const Color(0xFFFFA500).withOpacity(0.3)],
+                                    [const Color(0xFF2F80ED).withOpacity(0.3)],
+                                  ],
+                            activeFgColor:
+                                isAvailable ? Colors.white : Colors.black,
+                            inactiveBgColor: Colors.white,
+                            inactiveFgColor: Colors.black,
+                            fontSize: 12,
+                            totalSwitches: 2,
+                            labels: const ['Auto', 'Manual'],
+                            borderWidth: 1,
+                            borderColor: [Colors.grey.shade300],
+                            onToggle: isAvailable
+                                ? (index) {
+                                    if (index == null) return;
+
+                                    debugPrint(
+                                        '🔄 Toggle clicked: UI index=$index');
+
+                                    // Map UI index back to mode index
+                                    // UI index 0 (Auto) -> Mode 1
+                                    // UI index 1 (Manual) -> Mode 0
+                                    final newMode = index == 0 ? 1 : 0;
+
+                                    debugPrint(
+                                        '🔄 Mapped mode: $newMode (current=$currentModeIndex)');
+
+                                    // Only show dialog if mode is actually changing
+                                    if (newMode != currentModeIndex) {
+                                      debugPrint(
+                                          '✓ Mode changed, showing dialog');
+                                      _showModeCommandDialog(newMode);
+                                    } else {
+                                      debugPrint(
+                                          '⊗ Same mode clicked, ignoring');
+                                    }
                                   }
                                 : null,
-                            behavior: HitTestBehavior.opaque,
-                            child: AbsorbPointer(
-                              absorbing: true,
-                              child: Opacity(
-                                opacity: isAvailable ? 1.0 : 0.5,
-                                child: ToggleSwitch(
-                                  changeOnTap: false,
-                                  customWidths: const [90, 90],
-                                  radiusStyle: true,
-                                  minWidth: 80.0,
-                                  minHeight: 30.0,
-                                  initialLabelIndex: currentModeIndex ?? 0,
-                                  cornerRadius: 8.0,
-                                  activeBgColors: isAvailable
-                                      ? [
-                                          [const Color(0xFFFFA500)],
-                                          [const Color(0xFF2F80ED)]
-                                        ]
-                                      : [
-                                          [
-                                            const Color(0xFFFFA500)
-                                                .withOpacity(0.3)
-                                          ],
-                                          [
-                                            const Color(0xFF2F80ED)
-                                                .withOpacity(0.3)
-                                          ],
-                                        ],
-                                  activeFgColor:
-                                      isAvailable ? Colors.white : Colors.black,
-                                  inactiveBgColor: Colors.white,
-                                  inactiveFgColor: Colors.black,
-                                  fontSize: 12,
-                                  totalSwitches: 2,
-                                  labels: const ['Auto', 'Manual'],
-                                  borderWidth: 1,
-                                  borderColor: [Colors.grey.shade300],
-                                  onToggle: null,
-                                ),
-                              ),
-                            ),
                           );
                         },
                       ),

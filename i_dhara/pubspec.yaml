@@ -128,6 +128,7 @@ flutter:
     - assets/lottie_animations/pump_on.json
     - assets/lottie_animations/warning 1.json
     - assets/lottie_animations/loading.json
+    - assets/lottie_animations/i_Dhara_loading.json
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

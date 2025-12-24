@@ -1,5 +1,7 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 
@@ -18,11 +20,14 @@ class LocationsController extends GetxController {
 
   Map<String, dynamic> errorInstance =
       {}; // Changed to dynamic to match LocationpopupModel
-  String message = '';
+  String? message = '';
+  final connectivity = Connectivity();
+  var hasInternet = true.obs;
 
   @override
   void onInit() {
     super.onInit();
+    _initConnectivity();
     fetchLocations();
     debounce<String>(
       searchQuery,
@@ -35,6 +40,18 @@ class LocationsController extends GetxController {
       if (value == searchQuery.value) return;
       searchQuery.value = value;
     });
+  }
+
+  void _initConnectivity() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    _updateConnectionStatus(connectivityResult.first);
+    connectivity.onConnectivityChanged.listen((results) {
+      _updateConnectionStatus(results.first);
+    });
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    hasInternet.value = result != ConnectivityResult.none;
   }
 
   @override
@@ -71,6 +88,7 @@ class LocationsController extends GetxController {
     if (response != null && response.errors == null) {
       await fetchLocations();
       Get.back();
+      getsuccessSnackBar(response.message ?? 'Location renamed successfully');
     } else if (response!.errors != null) {
       errorInstance = response.errors!.toJson();
     }
@@ -80,6 +98,9 @@ class LocationsController extends GetxController {
     final response = await _locationRepo.deleteLocation(locationId);
     if (response != null) {
       await fetchLocations();
+      Get.back();
+      getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
+      print("line 26 -----------> ${response.message}");
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_delete_location_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_location_page.dart';
@@ -158,6 +159,7 @@ class EditDeleteLocationPage extends StatelessWidget {
                                 .deleteLocation(locationId);
                             Navigator.pop(context);
                             Get.back();
+                            getsuccessSnackBar('Location Deleted successfully');
                           },
                           buttonlable: 'Delete',
                         );

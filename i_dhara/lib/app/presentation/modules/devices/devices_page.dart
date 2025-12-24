@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
+import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
@@ -83,7 +84,7 @@ class DevicesPage extends StatelessWidget {
             child: Column(mainAxisSize: MainAxisSize.max, children: [
               Padding(
                 padding:
-                    const EdgeInsetsDirectional.fromSTEB(16.0, 16.0, 16.0, 0.0),
+                    const EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 0.0),
                 child: Column(
                   children: [
                     Row(
@@ -166,7 +167,7 @@ class DevicesPage extends StatelessWidget {
                                 height: 40,
                                 child: SearchFieldComponent(
                                   controller: controller.controller1,
-                                  hintText: 'Search Pumps',
+                                  hintText: 'Search devices',
                                 ),
                               ),
                             ),
@@ -177,6 +178,10 @@ class DevicesPage extends StatelessWidget {
                         child: Obx(() {
                           if (controller.isLoading.value) {
                             return const AppLottieLoading();
+                          } else if (!controller.hasInternet.value) {
+                            return const Center(
+                              child: NoInternetWidget(),
+                            );
                           }
                           if (controller.devicesList.isEmpty) {
                             return const NoStartersFound();

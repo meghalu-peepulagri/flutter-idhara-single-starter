@@ -220,6 +220,19 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                 ),
                           ),
                         ]),
+                        Obx(() {
+                          final total =
+                              analyticsController.motortotalRuntime.value;
+                          if (total.isEmpty) return const SizedBox.shrink();
+
+                          return Text(
+                            total,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              // fontWeight: FontWeight.w400,
+                            ),
+                          );
+                        }),
                         // if (analyticsController.motortotalRuntimeData.value
                         //         ?.totalRuntimeHours !=
                         //     null)
@@ -264,13 +277,13 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                       primaryXAxis: DateTimeAxis(
                                         labelStyle:
                                             const TextStyle(fontSize: 10),
-                                        dateFormat: DateFormat('HH:mm'),
+                                        dateFormat: DateFormat('hh:mm a'),
                                         minimum: minTime,
                                         maximum: maxTime,
                                         intervalType:
                                             DateTimeIntervalType.minutes,
                                         // interval: 1,
-                                        labelRotation: -40,
+                                        labelRotation: -20,
                                         majorGridLines:
                                             const MajorGridLines(width: 0),
                                       ),

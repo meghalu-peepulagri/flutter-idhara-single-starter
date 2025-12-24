@@ -171,7 +171,7 @@ class NoStartersFound extends StatelessWidget {
           AppText(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              text: "No Starters Found"),
+              text: "No Devices Found"),
         ],
       ),
     );

@@ -1,32 +1,40 @@
+// To parse this JSON data, do
+//
+//     final deleteStarterResponse = deleteStarterResponseFromJson(jsonString);
+
 import 'dart:convert';
 
-DeleteStarterResponse deletePondResponseFromJson(String str) =>
+DeleteStarterResponse deleteStarterResponseFromJson(String str) =>
     DeleteStarterResponse.fromJson(json.decode(str));
 
-String deletePondResponseToJson(DeleteStarterResponse data) =>
+String deleteStarterResponseToJson(DeleteStarterResponse data) =>
     json.encode(data.toJson());
 
 class DeleteStarterResponse {
-  final bool success;
-  final String message;
-  final int status;
+  int? status;
+  bool? success;
+  String? message;
+  dynamic data;
 
   DeleteStarterResponse({
-    required this.success,
-    required this.message,
-    required this.status,
+    this.status,
+    this.success,
+    this.message,
+    this.data,
   });
 
   factory DeleteStarterResponse.fromJson(Map<String, dynamic> json) =>
       DeleteStarterResponse(
-        success: json["success"] ?? false,
-        message: json["message"],
         status: json["status"],
+        success: json["success"],
+        message: json["message"],
+        data: json["data"],
       );
 
   Map<String, dynamic> toJson() => {
+        "status": status,
         "success": success,
         "message": message,
-        "status": status,
+        "data": data,
       };
 }

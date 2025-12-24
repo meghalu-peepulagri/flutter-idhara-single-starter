@@ -75,18 +75,25 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     print("line 28 -----------> $locationId");
     final response = await DevicesRepositoryImpl().deviceassign(dto);
 
-    if (response != null && response.errors == null) {
-      Get.offAllNamed(Routes.dashboard);
-      await Future.delayed(const Duration(milliseconds: 300));
+    // if (response != null && response.errors == null) {
+    //   await Future.delayed(const Duration(milliseconds: 300));
 
+    //   if (Get.isRegistered<DashboardController>()) {
+    //     final dashboardController = Get.find<DashboardController>();
+    //     dashboardController.isLoading.value = true;
+    //     await dashboardController.fetchMotors();
+    //   }
+    //   Get.offAllNamed(Routes.dashboard);
+    // }
+    if (response != null && response.errors == null) {
       if (Get.isRegistered<DashboardController>()) {
-        final dashboardController = Get.find<DashboardController>();
-        dashboardController.isLoading.value = true;
-        await dashboardController.fetchMotors();
+        Get.find<DashboardController>().refreshMotors();
       }
-      // Get.offAllNamed(Routes.locations);
+
+      Get.offAllNamed(Routes.dashboard);
     } else if (response?.errors != null) {
-      errorInstance = response?.errors!.toJson() ?? {};
+      errorInstance.clear();
+      errorInstance.addAll(response!.errors!.toJson());
     }
   }
 }

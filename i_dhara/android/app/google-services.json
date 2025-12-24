@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "722620968052",
+    "project_id": "idhara-7c6cb",
+    "storage_bucket": "idhara-7c6cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:722620968052:android:72c97fdeb87bb2e95bf521",
+        "android_client_info": {
+          "package_name": "com.mycompany.idhara"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbNeYLN35nbcEktkJsycbS4L57eoMOVDM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

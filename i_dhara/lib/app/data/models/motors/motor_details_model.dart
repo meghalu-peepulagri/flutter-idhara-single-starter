@@ -56,8 +56,8 @@ class MotorDetails {
     this.hp,
     this.state,
     this.mode,
-    this.aliasName,
     this.createdBy,
+    this.aliasName,
     this.location,
     this.starter,
   });
@@ -164,7 +164,7 @@ class StarterParameter {
   int? lineVoltageR;
   double? lineVoltageY;
   double? lineVoltageB;
-  int? currentR;
+  double? currentR;
   int? currentY;
   double? currentB;
   DateTime? timeStamp;
@@ -190,7 +190,7 @@ class StarterParameter {
         lineVoltageR: json["line_voltage_r"],
         lineVoltageY: json["line_voltage_y"]?.toDouble(),
         lineVoltageB: json["line_voltage_b"]?.toDouble(),
-        currentR: json["current_r"],
+        currentR: json["current_r"]?.toDouble(),
         currentY: json["current_y"],
         currentB: json["current_b"]?.toDouble(),
         timeStamp: json["time_stamp"] == null

@@ -2,14 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository_impl.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:sms_autofill/sms_autofill.dart';
-import 'package:uuid/uuid.dart';
+
 import '../../../routes/app_routes.dart';
 
 // Controller for OTP screen
@@ -73,7 +72,7 @@ class OtpController extends GetxController with CodeAutoFill {
     }
     try {
       final result = await InternetAddress.lookup('google.com')
-          .timeout(Duration(seconds: 5));
+          .timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } on SocketException catch (_) {
       return false;
@@ -114,9 +113,10 @@ class OtpController extends GetxController with CodeAutoFill {
   //     }
   //   } catch (e) {}
   // }
-   Future<void> verifying(BuildContext context) async {
+  Future<void> verifying(BuildContext context) async {
     try {
       isLoading.value = true;
+      error.value = false;
       errorInstance.value = '';
       FocusScope.of(context).unfocus();
       await fetchOtp(
@@ -126,24 +126,23 @@ class OtpController extends GetxController with CodeAutoFill {
     } catch (e) {}
   }
 
-   Future<void> fetchOtp({String phone = '', required String otp}) async {
-
+  Future<void> fetchOtp({String phone = '', required String otp}) async {
     final response = await AuthRepositoryImpl().verifyOtp(phone, otp);
 
-    if (response?.data != null && response?.errors == null){
+    if (response?.data != null && response?.errors == null) {
+      error.value = false;
       Get.offNamed(Routes.dashboard);
-        SharedPreference.setAccessToken(
+      SharedPreference.setAccessToken(
           response?.data?.accessToken.toString() ?? "");
-        final userId = response!.data!.userDetails!.id;
-        SharedPreference.setUserId(userId!);
+      final userId = response!.data!.userDetails!.id;
+      SharedPreference.setUserId(userId!);
       await SmsAutoFill().unregisterListener();
       // ToastService.showsuccessToast(response?.message?.toString() ?? "");
       pinCodeController.text = '';
-   
-    }else {
+    } else {
+      error.value = true;
       errorInstance.value = response?.errors?.otp.toString() ?? "";
     }
-    
   }
 
   Future<void> _listenSmsCode() async {

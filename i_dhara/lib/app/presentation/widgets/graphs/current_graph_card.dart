@@ -57,9 +57,9 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
         if (sharedIndex != -1) {
           final data = controller.current[sharedIndex];
           widget.sharedPointNotifier.value = {
-            "C1": data.currentY,
-            "C2": data.currentB,
-            "C3": data.currentR,
+            "C1": data.currentR,
+            "C2": data.currentY,
+            "C3": data.currentB,
           };
           _showTrackballAtIndex(sharedIndex);
         }
@@ -149,18 +149,18 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
       int lastNonZeroIndex = controller.current.length - 1;
       for (int i = controller.current.length - 1; i >= 0; i--) {
         final point = controller.current[i];
-        if ((point.currentY ?? 0) > 0 ||
-            (point.currentB ?? 0) > 0 ||
-            (point.currentR ?? 0) > 0) {
+        if ((point.currentR ?? 0) > 0 ||
+            (point.currentY ?? 0) > 0 ||
+            (point.currentB ?? 0) > 0) {
           lastNonZeroIndex = i;
           break;
         }
       }
       final lastPoint = controller.current[lastNonZeroIndex];
       widget.sharedPointNotifier.value = {
-        "C1": lastPoint.currentY,
-        "C2": lastPoint.currentB,
-        "C3": lastPoint.currentR,
+        "C1": lastPoint.currentR,
+        "C2": lastPoint.currentY,
+        "C3": lastPoint.currentB,
       };
       widget.sharedTimeNotifier.value = lastPoint.timeStamp;
 
@@ -175,7 +175,7 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
     if (controller.current.isEmpty) return 40;
     num maxValue = 0;
     for (var e in controller.current) {
-      maxValue = [maxValue, e.currentY ?? 0, e.currentB ?? 0, e.currentR ?? 0]
+      maxValue = [maxValue, e.currentR ?? 0, e.currentY ?? 0, e.currentB ?? 0]
           .reduce((a, b) => a > b ? a : b);
     }
     return maxValue > 0 ? maxValue + 40 : 40;
@@ -185,7 +185,7 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
     if (controller.current.isEmpty) return 0;
     num minValue = 0;
     for (var e in controller.current) {
-      minValue = [minValue, e.currentY ?? 0, e.currentB ?? 0, e.currentR ?? 0]
+      minValue = [minValue, e.currentR ?? 0, e.currentY ?? 0, e.currentB ?? 0]
           .reduce((a, b) => a < b ? a : b);
     }
     return minValue < 0 ? minValue - 10 : 0;
@@ -245,6 +245,83 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
                   ),
                 ),
               ),
+              // Padding(
+              //   padding: const EdgeInsetsDirectional.fromSTEB(8, 12, 8, 0),
+              //   child: Container(
+              //     decoration: const BoxDecoration(
+              //       color: Color(0xFFF2F2F2),
+              //       borderRadius: BorderRadius.all(Radius.circular(10)),
+              //     ),
+              //     padding: const EdgeInsets.all(6),
+              //     child: Row(
+              //       mainAxisAlignment: MainAxisAlignment.center,
+              //       children: [
+              //         ValueListenableBuilder(
+              //           valueListenable: widget.sharedTimeNotifier,
+              //           builder: (context, currentTime, _) {
+              //             return Text(
+              //               currentTime != null
+              //                   ? DateFormat('dd/MM HH:mm').format(currentTime)
+              //                   : '--',
+              //               style: FlutterFlowTheme.of(context)
+              //                   .bodyMedium
+              //                   .override(
+              //                     fontFamily: 'Lato',
+              //                     color: const Color(0xFF6A7185),
+              //                     fontSize: 12,
+              //                   ),
+              //             );
+              //           },
+              //         ),
+              //         const SizedBox(width: 20),
+              //         ValueListenableBuilder(
+              //           valueListenable: widget.sharedPointNotifier,
+              //           builder: (context, currentPoint, _) {
+              //             if (currentPoint == null) {
+              //               return const Text(
+              //                 "Current: --",
+              //                 style: TextStyle(
+              //                   fontSize: 12,
+              //                   color: Color(0xFF6A7185),
+              //                 ),
+              //               );
+              //             }
+              //             return Row(
+              //               children: [
+              //                 Text(
+              //                   "I1: ${currentPoint['C1']?.toStringAsFixed(2) ?? '--'}A",
+              //                   style: const TextStyle(
+              //                     fontSize: 12,
+              //                     color: Color(0xFF6A7185),
+              //                     fontWeight: FontWeight.w500,
+              //                   ),
+              //                 ),
+              //                 const SizedBox(width: 8),
+              //                 Text(
+              //                   "I2: ${currentPoint['C2']?.toStringAsFixed(2) ?? '--'}A",
+              //                   style: const TextStyle(
+              //                     fontSize: 12,
+              //                     color: Color(0xFF6A7185),
+              //                     fontWeight: FontWeight.w500,
+              //                   ),
+              //                 ),
+              //                 const SizedBox(width: 8),
+              //                 Text(
+              //                   "I3: ${currentPoint['C3']?.toStringAsFixed(2) ?? '--'}A",
+              //                   style: const TextStyle(
+              //                     fontSize: 12,
+              //                     color: Color(0xFF6A7185),
+              //                     fontWeight: FontWeight.w500,
+              //                   ),
+              //                 ),
+              //               ],
+              //             );
+              //           },
+              //         ),
+              //       ],
+              //     ),
+              //   ),
+              // ),
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(8, 12, 8, 0),
                 child: Container(
@@ -252,37 +329,57 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
                     color: Color(0xFFF2F2F2),
                     borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  padding: const EdgeInsets.all(6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       ValueListenableBuilder(
                         valueListenable: widget.sharedTimeNotifier,
                         builder: (context, currentTime, _) {
+                          // Convert UTC to IST
+                          final istTime = currentTime?.toLocal();
+                          final isSingleDate =
+                              widget.selectedDateRange.first?.day ==
+                                      widget.selectedDateRange.last?.day &&
+                                  widget.selectedDateRange.first?.month ==
+                                      widget.selectedDateRange.last?.month &&
+                                  widget.selectedDateRange.first?.year ==
+                                      widget.selectedDateRange.last?.year;
                           return Text(
-                            currentTime != null
-                                ? DateFormat('dd/MM HH:mm').format(currentTime)
-                                : '--',
+                            istTime != null
+                                ? isSingleDate
+                                    ? DateFormat('hh:mm a').format(
+                                        istTime) // Only time for single date
+                                    : DateFormat('dd/MM hh:mm a').format(
+                                        istTime) // Date and time for range
+                                : isSingleDate
+                                    ? '--:--'
+                                    : '--/-- --:--',
+                            // ? DateFormat('dd/MM hh:mm').format(istTime)
+                            // : '--/-- --:--',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
                                   fontFamily: 'Lato',
                                   color: const Color(0xFF6A7185),
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                           );
                         },
                       ),
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 12),
                       ValueListenableBuilder(
                         valueListenable: widget.sharedPointNotifier,
                         builder: (context, currentPoint, _) {
                           if (currentPoint == null) {
                             return const Text(
-                              "Current: --",
+                              "I1: -- | I2: -- | I3: --",
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF6A7185),
+                                fontWeight: FontWeight.w500,
                               ),
                             );
                           }
@@ -292,26 +389,47 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
                                 "I1: ${currentPoint['C1']?.toStringAsFixed(2) ?? '--'}A",
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF6A7185),
-                                  fontWeight: FontWeight.w500,
+                                  color: Color(
+                                      0xFFE53935), // Red to match line color
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                child: Text(
+                                  "|",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF6A7185),
+                                  ),
+                                ),
+                              ),
                               Text(
                                 "I2: ${currentPoint['C2']?.toStringAsFixed(2) ?? '--'}A",
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF6A7185),
-                                  fontWeight: FontWeight.w500,
+                                  color: Color(
+                                      0xFFFBC02D), // Yellow to match line color
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                child: Text(
+                                  "|",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF6A7185),
+                                  ),
+                                ),
+                              ),
                               Text(
                                 "I3: ${currentPoint['C3']?.toStringAsFixed(2) ?? '--'}A",
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF6A7185),
-                                  fontWeight: FontWeight.w500,
+                                  color: Color(
+                                      0xFF1E88E5), // Blue to match line color
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -348,20 +466,36 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
                                     controller.current.length == 1 ? 1 : null,
                                 enableAutoIntervalOnZooming: true,
                                 intervalType: DateTimeIntervalType.minutes,
-                                dateFormat: DateFormat('dd:MM:yyyy HH:mm'),
+                                dateFormat: DateFormat('dd:MM:yyyy hh:mm'),
                                 majorGridLines: const MajorGridLines(width: 0),
                                 axisLabelFormatter:
                                     (AxisLabelRenderDetails args) {
-                                  final DateTime date =
+                                  // Convert UTC timestamp to local IST time
+                                  final DateTime utcDate =
                                       DateTime.fromMillisecondsSinceEpoch(
                                     args.value.toInt(),
                                     isUtc: true,
                                   );
+                                  final DateTime localDate = utcDate.toLocal();
                                   final String formattedLabel =
-                                      DateFormat('HH:mm').format(date);
-                                  return ChartAxisLabel(formattedLabel,
-                                      const TextStyle(fontSize: 12));
+                                      DateFormat('hh:mm a').format(localDate);
+                                  return ChartAxisLabel(
+                                    formattedLabel,
+                                    const TextStyle(fontSize: 12),
+                                  );
                                 },
+                                // axisLabelFormatter:
+                                //     (AxisLabelRenderDetails args) {
+                                //   final DateTime date =
+                                //       DateTime.fromMillisecondsSinceEpoch(
+                                //     args.value.toInt(),
+                                //     isUtc: true,
+                                //   );
+                                //   final String formattedLabel =
+                                //       DateFormat('HH:mm').format(date);
+                                //   return ChartAxisLabel(formattedLabel,
+                                //       const TextStyle(fontSize: 12));
+                                // },
                               ),
                               primaryYAxis: NumericAxis(
                                 numberFormat: NumberFormat('#.#'),
@@ -410,7 +544,7 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
         name: 'C1',
         dataSource: controller.current,
         xValueMapper: (data, _) => data.timeStamp,
-        yValueMapper: (data, _) => data.currentY ?? 0,
+        yValueMapper: (data, _) => data.currentR ?? 0,
         color: Colors.red,
         width: 2,
         markerSettings: const MarkerSettings(
@@ -429,7 +563,7 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
         name: 'C2',
         dataSource: controller.current,
         xValueMapper: (data, _) => data.timeStamp,
-        yValueMapper: (data, _) => data.currentB ?? 0,
+        yValueMapper: (data, _) => data.currentY ?? 0,
         color: Colors.yellow,
         width: 2,
         markerSettings: const MarkerSettings(
@@ -448,7 +582,7 @@ class _CurrentGraphWidgetState extends State<CurrentGraphWidget> {
         name: 'C3',
         dataSource: controller.current,
         xValueMapper: (data, _) => data.timeStamp,
-        yValueMapper: (data, _) => data.currentR ?? 0,
+        yValueMapper: (data, _) => data.currentB ?? 0,
         color: Colors.blue,
         width: 2,
         markerSettings: const MarkerSettings(

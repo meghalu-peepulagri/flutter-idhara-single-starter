@@ -1,5 +1,7 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
@@ -17,12 +19,15 @@ class DevicesController extends GetxController {
   Map<String, dynamic> errorInstance =
       {}; // Changed to dynamic to match LocationpopupModel
   String message = '';
+  final connectivity = Connectivity();
+  var hasInternet = true.obs;
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
   @override
   void onInit() {
     super.onInit();
+    _initConnectivity();
     fetchDevices();
     debounce<String>(
       searchQuery,
@@ -41,6 +46,18 @@ class DevicesController extends GetxController {
   void dispose() {
     controller1.dispose();
     super.dispose();
+  }
+
+  void _initConnectivity() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    _updateConnectionStatus(connectivityResult.first);
+    connectivity.onConnectivityChanged.listen((results) {
+      _updateConnectionStatus(results.first);
+    });
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    hasInternet.value = result != ConnectivityResult.none;
   }
 
   @override
@@ -85,6 +102,7 @@ class DevicesController extends GetxController {
     if (response != null && response.errors == null) {
       await fetchDevices();
       Get.back();
+      getsuccessSnackBar(response.message ?? 'Device renamed successfully');
     } else if (response!.errors != null) {
       errorInstance = response.errors!.toJson();
     }
@@ -94,6 +112,8 @@ class DevicesController extends GetxController {
     final response = await _repository.deletestarter(starterId);
     if (response != null) {
       await fetchDevices();
+      getsuccessSnackBar(response.message ?? 'Device deleted successfully');
+      print("line 268 -----------> ${response.message}");
     }
   }
 

@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
@@ -15,6 +16,7 @@ class DashboardController extends GetxController {
   var isRefreshing = false.obs;
   final isFiltering = false.obs;
   final isPageLoading = true.obs;
+  final isLoadingLocations = false.obs;
 
   final selectedLocationId = Rxn<int>();
   final errorMessage = RxnString();
@@ -23,13 +25,28 @@ class DashboardController extends GetxController {
   bool mqttInitialized = false;
 
   final Map<int, String> _motorIdToGroupId = {};
+  final connectivity = Connectivity();
+  var hasInternet = true.obs;
 
   @override
   void onInit() {
     super.onInit();
+    _initConnectivity();
     _loadAllData();
     // fetchMotors();
     // fetchLocationDropDown();
+  }
+
+  void _initConnectivity() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    _updateConnectionStatus(connectivityResult.first);
+    connectivity.onConnectivityChanged.listen((results) {
+      _updateConnectionStatus(results.first);
+    });
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    hasInternet.value = result != ConnectivityResult.none;
   }
 
   Future<void> _loadAllData() async {
@@ -288,11 +305,29 @@ class DashboardController extends GetxController {
     allMotors.refresh();
   }
 
+  // Future<void> fetchLocationDropDown() async {
+  //   final response = await LocationRepoImpl().getLocations();
+  //   if (response != null) {
+  //     locations.value = response.data ?? [];
+  //     locations.insert(0, LocationDropDown(id: null, name: 'All'));
+  //   }
+  // }
   Future<void> fetchLocationDropDown() async {
-    final response = await LocationRepoImpl().getLocations();
-    if (response != null) {
-      locations.value = response.data ?? [];
-      locations.insert(0, LocationDropDown(id: null, name: 'All'));
+    try {
+      isLoadingLocations.value = true; // Start loading
+
+      final response = await LocationRepoImpl().getLocations();
+
+      if (response != null) {
+        locations.value = response.data ?? [];
+        locations.insert(0, LocationDropDown(id: null, name: 'All'));
+      }
+    } catch (e) {
+      debugPrint('Error fetching locations: $e');
+      // Optionally show error message
+      errorMessage.value = 'Failed to load locations';
+    } finally {
+      isLoadingLocations.value = false; // Stop loading
     }
   }
 

@@ -5,6 +5,18 @@ allprojects {
     }
 }
 
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.gms:google-services:4.4.4'
+        classpath 'com.google.firebase:firebase-crashlytics-gradle:2.9.8'
+    }
+}
+
 rootProject.buildDir = '../build'
 
 subprojects {

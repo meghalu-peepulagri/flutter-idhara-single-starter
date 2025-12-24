@@ -185,9 +185,9 @@ class DevicesCard extends StatelessWidget {
                                                                 EditDevicePage(
                                                               motorId:
                                                                   motor!.id!,
-                                                              motorName:
-                                                                  motor.name ??
-                                                                      '',
+                                                              motorName: motor
+                                                                      .aliasName ??
+                                                                  '',
                                                               hp: double.tryParse(
                                                                       motor.hp?.toString() ??
                                                                           '0') ??

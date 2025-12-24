@@ -263,7 +263,15 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
       height: 140.0,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF3686AF), // main blue
+            Color(0xFF004E7E), // lighter gradient blue
+          ],
+        ),
+        // color: Colors.white,
         borderRadius: BorderRadius.circular(10.0),
       ),
       child: _isInitializing
@@ -305,21 +313,21 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                         font: GoogleFonts.dmSans(
                           fontWeight: FontWeight.w600,
                         ),
-                        color: const Color(0xFF121212),
+                        color: const Color(0XFFFFFFFF),
                         fontSize: 13.0,
                       ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _getPermissionMessage(),
-                  style: FlutterFlowTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.dmSans(),
-                        color: const Color(0xFF8C8C8C),
-                        fontSize: 11.0,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                // const SizedBox(height: 4),
+                // Text(
+                //   _getPermissionMessage(),
+                //   style: FlutterFlowTheme.of(context).bodyMedium.override(
+                //         font: GoogleFonts.dmSans(),
+                //         color: const Color(0XFF121212),
+                //         fontSize: 11.0,
+                //       ),
+                //   maxLines: 2,
+                //   overflow: TextOverflow.ellipsis,
+                // ),
               ],
             ),
           ),
@@ -366,7 +374,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                           font: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w500,
                           ),
-                          color: const Color(0xFF121212),
+                          color: const Color(0xFFFFFFFF),
                           fontSize: 12.0,
                           letterSpacing: 0.0,
                         ),
@@ -402,7 +410,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w600,
                               ),
-                              color: const Color(0xFF1976D2),
+                              color: const Color(0xFFFFFFFF),
                               fontSize: 14.0,
                               letterSpacing: 0.0,
                             ),
@@ -428,7 +436,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                       height: 50.0,
                       child: VerticalDivider(
                         thickness: 1.0,
-                        color: Color(0x1A000000),
+                        color: Color(0xFFFFFF99),
                       ),
                     ),
                   ],
@@ -460,7 +468,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                                 ),
                                 color: isNow
                                     ? const Color(0xFF1976D2)
-                                    : const Color(0xFF8C8C8C),
+                                    : const Color(0xFFFFFFFF),
                                 fontSize: 12.0,
                                 letterSpacing: 0.0,
                               ),
@@ -496,7 +504,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                                 ),
                                 color: isNow
                                     ? const Color(0xFF1976D2)
-                                    : const Color(0xFF2B2B2B),
+                                    : const Color(0xFFFFFFFF),
                                 fontSize: 12.0,
                                 letterSpacing: 0.0,
                               ),

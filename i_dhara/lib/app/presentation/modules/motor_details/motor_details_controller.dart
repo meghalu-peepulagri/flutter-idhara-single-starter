@@ -808,6 +808,7 @@ class AnalyticsController extends GetxController {
   var locationName = ''.obs;
   RxString faultMessage = ''.obs;
   dynamic motorData;
+  final motortotalRuntime = ''.obs;
 
   @override
   void onInit() {
@@ -870,11 +871,24 @@ class AnalyticsController extends GetxController {
     }
   }
 
-  clearAllData() {
-    motorRuntimeData.clear();
-    chartData.clear();
-    voltage.clear();
-    current.clear();
+  // clearAllData() {
+  //   motorRuntimeData.clear();
+  //   chartData.clear();
+  //   voltage.clear();
+  //   current.clear();
+  //   sharedPointNotifier.value = null;
+  //   sharedTimeNotifier.value = null;
+  //   valueNotifier.value = null;
+  // }
+  clearAllData({bool isHardClear = true}) {
+    if (isHardClear) {
+      motorRuntimeData.clear();
+      chartData.clear();
+      voltage.clear();
+      current.clear();
+      motortotalRuntime.value = '';
+    }
+
     sharedPointNotifier.value = null;
     sharedTimeNotifier.value = null;
     valueNotifier.value = null;
@@ -1041,9 +1055,10 @@ class AnalyticsController extends GetxController {
           state: 'on');
 
       if (response != null && response.data != null) {
-        motorRuntimeData.value = response.data!;
+        motorRuntimeData.value = response.data!.records ?? [];
+        motortotalRuntime.value = response.data!.totalRunOnTime ?? '';
         // Convert Runtime data to TimeSegment for chart
-        chartData.value = convertRuntimeToTimeSegments(response.data!);
+        chartData.value = convertRuntimeToTimeSegments(response.data!.records!);
       } else {
         motorRuntimeData.clear();
         chartData.clear();
@@ -1110,15 +1125,22 @@ class AnalyticsController extends GetxController {
       if (response != null && response.data != null) {
         motorDetails.value = response.data;
 
-        motorName.value = response.data!.aliasName ?? 'Motor';
+        motorName.value = (response.data!.aliasName != null &&
+                response.data!.aliasName!.isNotEmpty)
+            ? response.data!.aliasName!
+            : response.data!.name!;
         deviceId.value = response.data!.starter?.macAddress ?? 'N/A';
         motorState.value = response.data!.state ?? 0;
         motorMode.value = response.data!.mode ?? 'N/A';
-        locationName.value = response.data!.location?.name ?? 'N/A';
+        locationName.value =
+            response.data?.location?.name?.trim().isNotEmpty == true
+                ? response.data!.location!.name!
+                : 'No Location';
         faultMessage.value =
             response.data!.starter!.starterParameters!.first.faultDescription ??
                 'N/A';
       }
+      print("line 268 -----------> ${response!.data}");
     } catch (e) {
       debugPrint('Motor details error: $e');
     } finally {

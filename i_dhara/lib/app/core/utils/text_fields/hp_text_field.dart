@@ -13,7 +13,7 @@ class AddHpFieldWidget extends StatelessWidget {
     required this.controller,
     required this.errors,
     required this.errorKey,
-    this.hintText = 'Enter HP',
+    required this.hintText,
     this.onChanged,
   });
 
@@ -70,7 +70,7 @@ class AddHpFieldWidget extends StatelessWidget {
             filled: true,
             fillColor: Colors.white,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
         ),
         if (errorText != null) ...[

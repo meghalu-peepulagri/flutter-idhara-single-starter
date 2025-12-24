@@ -78,7 +78,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Rename Motor',
+                        'Rename Pump',
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               fontFamily: 'Manrope',
                               color: Colors.black,
@@ -114,7 +114,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                           style: TextStyle(
                               color: Colors.black), // Default text style
                           children: [
-                            TextSpan(text: 'Motor Name'),
+                            TextSpan(text: 'Pump Name'),
                             TextSpan(
                               text: '*',
                               style: TextStyle(color: Colors.red),
@@ -127,7 +127,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                         controller: _model.textController!,
                         errors: _model.errorInstance,
                         errorKey: 'name',
-                        hintText: 'Enter Motor name',
+                        hintText: 'Enter Pump name',
                         readOnly: false,
                         onChanged: (value) {
                           if (value.isNotEmpty) {
@@ -181,14 +181,14 @@ class _EditDevicePageState extends State<EditDevicePage> {
 
                         final newName = _model.textController!.text.trim();
 
-                        if (newName.isEmpty) {
-                          setState(() {
-                            _model.errorInstance = {
-                              'title': ['Motor name is required']
-                            };
-                          });
-                          return;
-                        }
+                        // if (newName.isEmpty) {
+                        //   setState(() {
+                        //     _model.errorInstance = {
+                        //       'title': ['Motor name is required']
+                        //     };
+                        //   });
+                        //   return;
+                        // }
 
                         await devicesController.renamedevice(
                           motorId: widget.motorId,

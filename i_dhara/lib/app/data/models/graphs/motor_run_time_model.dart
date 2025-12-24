@@ -14,7 +14,7 @@ class MotorRunTimeResponse {
   int? status;
   bool? success;
   String? message;
-  List<Runtime>? data;
+  Data? data;
 
   MotorRunTimeResponse({
     this.status,
@@ -28,18 +28,39 @@ class MotorRunTimeResponse {
         status: json["status"],
         success: json["success"],
         message: json["message"],
-        data: json["data"] == null
-            ? []
-            : List<Runtime>.from(json["data"]!.map((x) => Runtime.fromJson(x))),
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
       );
 
   Map<String, dynamic> toJson() => {
         "status": status,
         "success": success,
         "message": message,
-        "data": data == null
+        "data": data?.toJson(),
+      };
+}
+
+class Data {
+  String? totalRunOnTime;
+  List<Runtime>? records;
+
+  Data({
+    this.totalRunOnTime,
+    this.records,
+  });
+
+  factory Data.fromJson(Map<String, dynamic> json) => Data(
+        totalRunOnTime: json["total_run_on_time"],
+        records: json["records"] == null
             ? []
-            : List<dynamic>.from(data!.map((x) => x.toJson())),
+            : List<Runtime>.from(
+                json["records"]!.map((x) => Runtime.fromJson(x))),
+      );
+
+  Map<String, dynamic> toJson() => {
+        "total_run_on_time": totalRunOnTime,
+        "records": records == null
+            ? []
+            : List<dynamic>.from(records!.map((x) => x.toJson())),
       };
 }
 
@@ -50,6 +71,10 @@ class Runtime {
   String? duration;
   DateTime? timeStamp;
   int? motorState;
+  DateTime? powerStart;
+  DateTime? powerEnd;
+  String? powerDuration;
+  int? powerState;
 
   Runtime({
     this.id,
@@ -58,6 +83,10 @@ class Runtime {
     this.duration,
     this.timeStamp,
     this.motorState,
+    this.powerStart,
+    this.powerEnd,
+    this.powerDuration,
+    this.powerState,
   });
 
   factory Runtime.fromJson(Map<String, dynamic> json) => Runtime(
@@ -72,6 +101,14 @@ class Runtime {
             ? null
             : DateTime.parse(json["time_stamp"]),
         motorState: json["motor_state"],
+        powerStart: json["power_start"] == null
+            ? null
+            : DateTime.parse(json["power_start"]),
+        powerEnd: json["power_end"] == null
+            ? null
+            : DateTime.parse(json["power_end"]),
+        powerDuration: json["power_duration"],
+        powerState: json["power_state"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -81,5 +118,9 @@ class Runtime {
         "duration": duration,
         "time_stamp": timeStamp?.toIso8601String(),
         "motor_state": motorState,
+        "power_start": powerStart?.toIso8601String(),
+        "power_end": powerEnd?.toIso8601String(),
+        "power_duration": powerDuration,
+        "power_state": powerState,
       };
 }

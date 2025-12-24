@@ -59,9 +59,9 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
         if (sharedIndex != -1) {
           final data = controller.voltage[sharedIndex];
           widget.sharedPointNotifier.value = {
-            'vry': data.lineVoltageY,
-            'vyb': data.lineVoltageB,
-            'vbr': data.lineVoltageR,
+            'vry': data.lineVoltageR,
+            'vyb': data.lineVoltageY,
+            'vbr': data.lineVoltageB,
           };
           // Show only if enabled
           _showTrackballAtIndex(sharedIndex);
@@ -150,18 +150,18 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
       int lastNonZeroIndex = controller.voltage.length - 1;
       for (int i = controller.voltage.length - 1; i >= 0; i--) {
         final point = controller.voltage[i];
-        if ((point.lineVoltageY ?? 0) > 0 ||
-            (point.lineVoltageB ?? 0) > 0 ||
-            (point.lineVoltageR ?? 0) > 0) {
+        if ((point.lineVoltageR ?? 0) > 0 ||
+            (point.lineVoltageY ?? 0) > 0 ||
+            (point.lineVoltageB ?? 0) > 0) {
           lastNonZeroIndex = i;
           break;
         }
       }
       final lastPoint = controller.voltage[lastNonZeroIndex];
       widget.sharedPointNotifier.value = {
-        'vry': lastPoint.lineVoltageY,
-        'vyb': lastPoint.lineVoltageB,
-        'vbr': lastPoint.lineVoltageR,
+        'vry': lastPoint.lineVoltageR,
+        'vyb': lastPoint.lineVoltageY,
+        'vbr': lastPoint.lineVoltageB,
       };
       widget.sharedTimeNotifier.value = lastPoint.timeStamp;
 
@@ -179,9 +179,9 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
     for (var e in controller.voltage) {
       maxValue = [
         maxValue,
+        e.lineVoltageR ?? 0,
         e.lineVoltageY ?? 0,
-        e.lineVoltageB ?? 0,
-        e.lineVoltageR ?? 0
+        e.lineVoltageB ?? 0
       ].reduce((a, b) => a > b ? a : b);
     }
     maxValue += 40;
@@ -194,9 +194,9 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
     for (var e in controller.voltage) {
       minValue = [
         minValue,
+        e.lineVoltageR ?? 0,
         e.lineVoltageY ?? 0,
-        e.lineVoltageB ?? 0,
-        e.lineVoltageR ?? 0
+        e.lineVoltageB ?? 0
       ].reduce((a, b) => a < b ? a : b);
     }
     return minValue < 0 ? minValue - 10 : 0;
@@ -256,6 +256,94 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
                   ),
                 ),
               ),
+              // Flexible(
+              //   child: Padding(
+              //     padding: const EdgeInsetsDirectional.fromSTEB(8, 12, 8, 0),
+              //     child: Container(
+              //       width: double.infinity,
+              //       decoration: const BoxDecoration(
+              //         color: Color(0xFFF2F2F2),
+              //         borderRadius: BorderRadius.all(Radius.circular(10)),
+              //       ),
+              //       child: Padding(
+              //         padding: const EdgeInsetsDirectional.fromSTEB(0, 6, 0, 6),
+              //         child: Row(
+              //           mainAxisSize: MainAxisSize.min,
+              //           mainAxisAlignment: MainAxisAlignment.center,
+              //           children: [
+              //             ValueListenableBuilder(
+              //               valueListenable: widget.sharedTimeNotifier,
+              //               builder: (context, currentTime, _) {
+              //                 return Row(children: [
+              //                   Text(
+              //                     currentTime != null
+              //                         ? DateFormat('dd/MM HH:mm')
+              //                             .format(currentTime)
+              //                         : '--',
+              //                     style: FlutterFlowTheme.of(context)
+              //                         .bodyMedium
+              //                         .override(
+              //                           fontFamily: 'Lato',
+              //                           color: const Color(0xFF6A7185),
+              //                           fontSize: 12,
+              //                           letterSpacing: 0,
+              //                         ),
+              //                   ),
+              //                 ]);
+              //               },
+              //             ),
+              //             ValueListenableBuilder(
+              //               valueListenable: widget.sharedPointNotifier,
+              //               builder: (context, currentPoints, child) {
+              //                 if (currentPoints == null) {
+              //                   return const Text(
+              //                     "voltage: --",
+              //                     style: TextStyle(
+              //                       fontSize: 12,
+              //                       color: Color(0xFF6A7185),
+              //                     ),
+              //                   );
+              //                 }
+              //                 return Row(
+              //                   crossAxisAlignment: CrossAxisAlignment.start,
+              //                   mainAxisSize: MainAxisSize.min,
+              //                   children: [
+              //                     Text(
+              //                       "V1: ${currentPoints['vry']?.toStringAsFixed(2) ?? '--'}",
+              //                       style: const TextStyle(
+              //                         fontSize: 12,
+              //                         color: Color(0xFF6A7185),
+              //                         fontWeight: FontWeight.w500,
+              //                       ),
+              //                     ),
+              //                     const SizedBox(width: 8),
+              //                     Text(
+              //                       "V2: ${currentPoints['vyb']?.toStringAsFixed(2) ?? '--'}",
+              //                       style: const TextStyle(
+              //                         fontSize: 12,
+              //                         color: Color(0xFF6A7185),
+              //                         fontWeight: FontWeight.w500,
+              //                       ),
+              //                     ),
+              //                     const SizedBox(width: 8),
+              //                     Text(
+              //                       "V3: ${currentPoints['vbr']?.toStringAsFixed(2) ?? '--'}",
+              //                       style: const TextStyle(
+              //                         fontSize: 12,
+              //                         color: Color(0xFF6A7185),
+              //                         fontWeight: FontWeight.w500,
+              //                       ),
+              //                     ),
+              //                   ],
+              //                 );
+              //               },
+              //             ),
+              //           ],
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
               Flexible(
                 child: Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(8, 12, 8, 0),
@@ -266,7 +354,7 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
                       borderRadius: BorderRadius.all(Radius.circular(10)),
                     ),
                     child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(0, 6, 0, 6),
+                      padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 8, 6),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -274,64 +362,104 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
                           ValueListenableBuilder(
                             valueListenable: widget.sharedTimeNotifier,
                             builder: (context, currentTime, _) {
-                              return Row(children: [
-                                Text(
-                                  currentTime != null
-                                      ? DateFormat('dd/MM HH:mm')
-                                          .format(currentTime)
-                                      : '--',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        fontFamily: 'Lato',
-                                        color: const Color(0xFF6A7185),
-                                        fontSize: 12,
-                                        letterSpacing: 0,
-                                      ),
-                                ),
-                              ]);
+                              // Convert UTC to IST
+                              final istTime = currentTime?.toLocal();
+                              final isSingleDate = widget
+                                          .selectedDateRange.first?.day ==
+                                      widget.selectedDateRange.last?.day &&
+                                  widget.selectedDateRange.first?.month ==
+                                      widget.selectedDateRange.last?.month &&
+                                  widget.selectedDateRange.first?.year ==
+                                      widget.selectedDateRange.last?.year;
+                              return Text(
+                                istTime != null
+                                    ? isSingleDate
+                                        ? DateFormat('hh:mm a').format(istTime)
+                                        : DateFormat('dd/MM hh:mm')
+                                            .format(istTime)
+                                    : isSingleDate
+                                        ? '--:--'
+                                        : '--/-- --:--',
+                                // ? DateFormat('dd/MM hh:mm').format(istTime)
+                                // : '--/-- --:--',
+                                style: FlutterFlowTheme.of(context)
+                                    .bodyMedium
+                                    .override(
+                                      fontFamily: 'Lato',
+                                      color: const Color(0xFF6A7185),
+                                      fontSize: 12,
+                                      letterSpacing: 0,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              );
                             },
                           ),
+                          const SizedBox(
+                              width: 12), // Add spacing between time and values
                           ValueListenableBuilder(
                             valueListenable: widget.sharedPointNotifier,
                             builder: (context, currentPoints, child) {
                               if (currentPoints == null) {
                                 return const Text(
-                                  "voltage: --",
+                                  "V1: -- | V2: -- | V3: --",
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF6A7185),
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 );
                               }
                               return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     "V1: ${currentPoints['vry']?.toStringAsFixed(2) ?? '--'}",
                                     style: const TextStyle(
                                       fontSize: 12,
-                                      color: Color(0xFF6A7185),
-                                      fontWeight: FontWeight.w500,
+                                      color: Color(
+                                          0xFFE53935), // Red color to match line
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 6),
+                                    child: Text(
+                                      "|",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF6A7185),
+                                      ),
+                                    ),
+                                  ),
                                   Text(
                                     "V2: ${currentPoints['vyb']?.toStringAsFixed(2) ?? '--'}",
                                     style: const TextStyle(
                                       fontSize: 12,
-                                      color: Color(0xFF6A7185),
-                                      fontWeight: FontWeight.w500,
+                                      color: Color(
+                                          0xFFFBC02D), // Yellow color to match line
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 6),
+                                    child: Text(
+                                      "|",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF6A7185),
+                                      ),
+                                    ),
+                                  ),
                                   Text(
                                     "V3: ${currentPoints['vbr']?.toStringAsFixed(2) ?? '--'}",
                                     style: const TextStyle(
                                       fontSize: 12,
-                                      color: Color(0xFF6A7185),
-                                      fontWeight: FontWeight.w500,
+                                      color: Color(
+                                          0xFF1E88E5), // Blue color to match line
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -363,20 +491,36 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
                               primaryXAxis: DateTimeAxis(
                                 enableAutoIntervalOnZooming: true,
                                 intervalType: DateTimeIntervalType.minutes,
-                                dateFormat: DateFormat('dd:MM:yyyy HH:mm'),
+                                dateFormat: DateFormat('dd:MM:yyyy hh:mm'),
                                 majorGridLines: const MajorGridLines(width: 0),
                                 axisLabelFormatter:
                                     (AxisLabelRenderDetails args) {
-                                  final DateTime date =
+                                  // Convert UTC timestamp to local IST time
+                                  final DateTime utcDate =
                                       DateTime.fromMillisecondsSinceEpoch(
                                     args.value.toInt(),
                                     isUtc: true,
                                   );
+                                  final DateTime localDate = utcDate.toLocal();
                                   final String formattedLabel =
-                                      DateFormat('HH:mm').format(date);
-                                  return ChartAxisLabel(formattedLabel,
-                                      const TextStyle(fontSize: 12));
+                                      DateFormat('hh:mm a').format(localDate);
+                                  return ChartAxisLabel(
+                                    formattedLabel,
+                                    const TextStyle(fontSize: 12),
+                                  );
                                 },
+                                // axisLabelFormatter:
+                                //     (AxisLabelRenderDetails args) {
+                                //   final DateTime date =
+                                //       DateTime.fromMillisecondsSinceEpoch(
+                                //     args.value.toInt(),
+                                //     isUtc: true,
+                                //   );
+                                //   final String formattedLabel =
+                                //       DateFormat('HH:mm').format(date);
+                                //   return ChartAxisLabel(formattedLabel,
+                                //       const TextStyle(fontSize: 12));
+                                // },
                                 minimum: controller.voltage.length == 1
                                     ? controller.voltage.first.timeStamp
                                         ?.subtract(const Duration(minutes: 10))
@@ -436,7 +580,7 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
           name: 'V1',
           dataSource: controller.voltage,
           xValueMapper: (data, _) => data.timeStamp,
-          yValueMapper: (data, _) => data.lineVoltageY,
+          yValueMapper: (data, _) => data.lineVoltageR,
           color: Colors.red,
           width: 2,
           markerSettings: const MarkerSettings(
@@ -457,7 +601,7 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
           name: 'V2',
           dataSource: controller.voltage,
           xValueMapper: (data, _) => data.timeStamp,
-          yValueMapper: (data, _) => data.lineVoltageB,
+          yValueMapper: (data, _) => data.lineVoltageY,
           color: Colors.yellow,
           width: 2,
           markerSettings: const MarkerSettings(
@@ -478,7 +622,7 @@ class _VoltageGraphWidgetState extends State<VoltageGraphWidget> {
           name: 'V3',
           dataSource: controller.voltage,
           xValueMapper: (data, _) => data.timeStamp,
-          yValueMapper: (data, _) => data.lineVoltageR,
+          yValueMapper: (data, _) => data.lineVoltageB,
           color: Colors.blue,
           width: 2,
           markerSettings: const MarkerSettings(

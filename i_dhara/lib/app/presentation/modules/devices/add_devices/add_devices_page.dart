@@ -155,7 +155,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                         ),
                       ),
                       Text(
-                        'Add Devices',
+                        'Add Device',
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -377,6 +377,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   child: AddHpFieldWidget(
                                     controller: _model.textController3!,
                                     errors: _model.errorInstance,
+                                    hintText: 'Enter HP',
                                     errorKey: 'hp',
                                     onChanged: (value) {
                                       if (_model.errorInstance
@@ -495,7 +496,15 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   errorKey: 'location_id',
                                   hintText: 'Select Location',
                                   readOnly: false,
-                                  onChanged: (value) {},
+                                  onChanged: (value) {
+                                    if (_model.errorInstance
+                                        .containsKey('location_id')) {
+                                      setState(() {
+                                        _model.errorInstance
+                                            .remove('location_id');
+                                      });
+                                    }
+                                  },
                                   suffixIcon: const Icon(
                                     Icons.keyboard_arrow_down,
                                     color: Color(0xFF757575),
@@ -515,40 +524,20 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                         FFButtonWidget(
                           onPressed: () async {
                             FocusScope.of(context).unfocus();
-                            if (_model.textController1!.text.trim().isEmpty) {
-                              _model.errorInstance['pcb_number'] =
-                                  'PCB number is required';
-                            }
 
-                            if (_model.textController2!.text.trim().isEmpty) {
-                              _model.errorInstance['motor_name'] =
-                                  'Pump name is required';
-                            }
-
-                            if (_model.textController3!.text.trim().isEmpty) {
-                              _model.errorInstance['hp'] = 'HP required';
-                            } else if (double.tryParse(
-                                    _model.textController3!.text.trim()) ==
-                                null) {
-                              _model.errorInstance['hp'] =
-                                  'Enter a valid number';
-                            }
-
-                            if (selectedLocationId == null) {
-                              _model.errorInstance['location_id'] =
-                                  'Location is required';
-                            }
-                            if (_model.errorInstance.isNotEmpty) {
-                              setState(() {});
-                              return;
-                            }
                             await _model.assignDevice(
                               pcbNumber: _model.textController1!.text.trim(),
                               pumpName: _model.textController2!.text.trim(),
-                              hp: double.parse(
-                                  _model.textController3!.text.trim()),
-                              locationId: int.parse(selectedLocationId!.trim()),
+                              hp: double.tryParse(
+                                      _model.textController3!.text.trim()) ??
+                                  0,
+                              locationId:
+                                  int.tryParse(selectedLocationId ?? '') ?? 0,
+                              // hp: double.parse(
+                              //     _model.textController3!.text.trim()),
+                              // locationId: int.parse(selectedLocationId!.trim()),
                             );
+                            setState(() {});
                             print("line 260 -----------> $selectedLocationId");
                           },
                           text: 'Add Device',

@@ -96,81 +96,97 @@ class ProfileWidget extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: Padding(
-                      padding:
-                          const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: FlutterFlowTheme.of(context)
-                                  .secondaryBackground,
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Column(
-                                    mainAxisSize: MainAxisSize.max,
-                                    children: [
-                                      Stack(
-                                        alignment:
-                                            AlignmentDirectional.bottomEnd,
-                                        children: [
-                                          Container(
-                                            width: 150,
-                                            height: 150,
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .secondaryBackground,
-                                              shape: BoxShape.circle,
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  blurRadius: 8,
-                                                  color: Colors.black
-                                                      .withOpacity(0.1),
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(4),
-                                              child: Container(
-                                                clipBehavior: Clip.antiAlias,
-                                                decoration: const BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(
-                                                  Icons.person,
-                                                  color: Colors.black45,
-                                                  size: 120,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                        padding:
+                            const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: FlutterFlowTheme.of(context)
+                                    .secondaryBackground,
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.max,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Column(
+                                      mainAxisSize: MainAxisSize.max,
+                                      children: [
+                                        Stack(
+                                          alignment:
+                                              AlignmentDirectional.bottomEnd,
+                                          children: [
+                                            Container(
+                                              width: 150,
+                                              height: 150,
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .secondaryBackground,
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    blurRadius: 8,
+                                                    color: Colors.black
+                                                        .withOpacity(0.1),
+                                                    offset: const Offset(0, 4),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(4),
+                                                child: Container(
+                                                  clipBehavior: Clip.antiAlias,
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.person,
+                                                    color: Colors.black45,
+                                                    size: 120,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: FlutterFlowTheme.of(context)
-                                              .secondaryBackground,
+                                          ],
                                         ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          children: [
-                                            Text(
-                                              profile?.fullName ?? 'Unknown',
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    font: GoogleFonts.dmSans(
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: FlutterFlowTheme.of(context)
+                                                .secondaryBackground,
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.max,
+                                            children: [
+                                              Text(
+                                                profile?.fullName ?? 'Unknown',
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .bodyMedium
+                                                    .override(
+                                                      font: GoogleFonts.dmSans(
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontStyle,
+                                                      ),
+                                                      color: const Color(
+                                                          0xFF101010),
+                                                      fontSize: 18,
+                                                      letterSpacing: 0.0,
                                                       fontWeight:
                                                           FontWeight.w500,
                                                       fontStyle:
@@ -179,25 +195,29 @@ class ProfileWidget extends StatelessWidget {
                                                               .bodyMedium
                                                               .fontStyle,
                                                     ),
-                                                    color:
-                                                        const Color(0xFF101010),
-                                                    fontSize: 18,
-                                                    letterSpacing: 0.0,
-                                                    fontWeight: FontWeight.w500,
-                                                    fontStyle:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .bodyMedium
-                                                            .fontStyle,
-                                                  ),
-                                            ),
-                                            Text(
-                                              profile?.userType ?? 'Unknown',
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    font: GoogleFonts.dmSans(
+                                              ),
+                                              Text(
+                                                profile?.userType ?? 'Unknown',
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .bodyMedium
+                                                    .override(
+                                                      font: GoogleFonts.dmSans(
+                                                        fontWeight:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontWeight,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontStyle,
+                                                      ),
+                                                      color: const Color(
+                                                          0xFF6A7282),
+                                                      fontSize: 16,
+                                                      letterSpacing: 0.0,
                                                       fontWeight:
                                                           FlutterFlowTheme.of(
                                                                   context)
@@ -209,82 +229,69 @@ class ProfileWidget extends StatelessWidget {
                                                               .bodyMedium
                                                               .fontStyle,
                                                     ),
-                                                    color:
-                                                        const Color(0xFF6A7282),
-                                                    fontSize: 16,
-                                                    letterSpacing: 0.0,
-                                                    fontWeight:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .bodyMedium
-                                                            .fontWeight,
-                                                    fontStyle:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .bodyMedium
-                                                            .fontStyle,
-                                                  ),
-                                            ),
-                                          ].divide(const SizedBox(height: 8)),
+                                              ),
+                                            ].divide(const SizedBox(height: 8)),
+                                          ),
                                         ),
-                                      ),
-                                    ].divide(const SizedBox(height: 8)),
-                                  ),
-                                ],
+                                      ].divide(const SizedBox(height: 8)),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          UserProfileCard(),
-                          // const SettingsButtonCard(),
-                          FFButtonWidget(
-                            onPressed: () {
-                              if (Get.isRegistered<DashboardController>()) {
-                                Get.delete<DashboardController>(force: true);
-                              }
-                              Get.delete<LocationsController>(force: true);
-                              Get.delete<DevicesController>(force: true);
-                              Get.offAllNamed(Routes.loginwithmobile);
-                              SharedPreference.clear();
-                              print(
-                                  "line 260 -----------> ${Get.isRegistered<DashboardController>}");
-                            },
-                            text: 'Logout',
-                            icon: const Icon(
-                              Icons.logout,
-                              size: 18,
-                            ),
-                            options: FFButtonOptions(
-                              width: double.infinity,
-                              height: 40,
-                              padding: const EdgeInsetsDirectional.fromSTEB(
-                                  16, 0, 16, 0),
-                              iconPadding: const EdgeInsetsDirectional.fromSTEB(
-                                  0, 0, 0, 0),
-                              color: const Color(0xFFFB2C36),
-                              textStyle: FlutterFlowTheme.of(context)
-                                  .titleSmall
-                                  .override(
-                                    font: GoogleFonts.dmSans(
+                            UserProfileCard(),
+                            // const SettingsButtonCard(),
+                            FFButtonWidget(
+                              onPressed: () {
+                                if (Get.isRegistered<DashboardController>()) {
+                                  Get.delete<DashboardController>(force: true);
+                                }
+                                Get.delete<LocationsController>(force: true);
+                                Get.delete<DevicesController>(force: true);
+                                Get.offAllNamed(Routes.loginwithmobile);
+                                SharedPreference.clear();
+                                print(
+                                    "line 260 -----------> ${Get.isRegistered<DashboardController>}");
+                              },
+                              text: 'Logout',
+                              icon: const Icon(
+                                Icons.logout,
+                                size: 18,
+                              ),
+                              options: FFButtonOptions(
+                                width: double.infinity,
+                                height: 40,
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    16, 0, 16, 0),
+                                iconPadding:
+                                    const EdgeInsetsDirectional.fromSTEB(
+                                        0, 0, 0, 0),
+                                color: const Color(0xFFFB2C36),
+                                textStyle: FlutterFlowTheme.of(context)
+                                    .titleSmall
+                                    .override(
+                                      font: GoogleFonts.dmSans(
+                                        fontWeight: FontWeight.normal,
+                                        fontStyle: FlutterFlowTheme.of(context)
+                                            .titleSmall
+                                            .fontStyle,
+                                      ),
+                                      color: Colors.white,
+                                      letterSpacing: 0.0,
                                       fontWeight: FontWeight.normal,
                                       fontStyle: FlutterFlowTheme.of(context)
                                           .titleSmall
                                           .fontStyle,
                                     ),
-                                    color: Colors.white,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.normal,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .titleSmall
-                                        .fontStyle,
-                                  ),
-                              elevation: 0,
-                              borderRadius: BorderRadius.circular(16),
+                                elevation: 0,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
-                          ),
-                        ]
-                            .divide(const SizedBox(height: 16))
-                            .addToStart(const SizedBox(height: 24)),
-                      )),
+                          ]
+                              .divide(const SizedBox(height: 16))
+                              .addToStart(const SizedBox(height: 24)),
+                        )),
+                  ),
                 ),
               ]),
             );
