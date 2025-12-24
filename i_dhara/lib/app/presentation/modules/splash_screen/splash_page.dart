@@ -104,7 +104,7 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
                     Get.toNamed(Routes.loginwithmobile);
                   },
                   child: const Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: EdgeInsets.all(20),
                     child: FaIcon(
                       FontAwesomeIcons.arrowRight,
                       color: Colors.white,

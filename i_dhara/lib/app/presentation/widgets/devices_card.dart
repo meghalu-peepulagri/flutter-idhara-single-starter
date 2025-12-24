@@ -92,12 +92,18 @@ class DevicesCard extends StatelessWidget {
                                 children: [
                                   Text(
                                     (() {
-                                      final name =
-                                          motor?.aliasName?.capitalizeFirst ??
-                                              'No Motor';
-                                      return name.length > 10
-                                          ? '${name.substring(0, 10)}...'
-                                          : name;
+                                      final alias = motor?.aliasName;
+                                      final name = (alias != null &&
+                                              alias.trim().isNotEmpty)
+                                          ? alias
+                                          : (motor?.name ?? 'No Motor');
+
+                                      final displayName =
+                                          name.capitalizeFirst ?? name;
+
+                                      return displayName.length > 10
+                                          ? '${displayName.substring(0, 10)}...'
+                                          : displayName;
                                     })(),
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium

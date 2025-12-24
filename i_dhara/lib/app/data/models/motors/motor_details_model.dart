@@ -162,11 +162,11 @@ class Starter {
 class StarterParameter {
   int? id;
   int? lineVoltageR;
-  double? lineVoltageY;
-  double? lineVoltageB;
-  double? currentR;
-  int? currentY;
-  double? currentB;
+  num? lineVoltageY;
+  num? lineVoltageB;
+  num? currentR;
+  num? currentY;
+  num? currentB;
   DateTime? timeStamp;
   int? fault;
   String? faultDescription;
