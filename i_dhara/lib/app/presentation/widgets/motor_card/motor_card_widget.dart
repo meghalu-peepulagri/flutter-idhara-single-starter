@@ -938,7 +938,14 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                             ),
                           ),
                           Text(
-                            widget.motor.aliasName?.capitalizeFirst ?? '',
+                            (widget.motor.aliasName != null &&
+                                            widget.motor.aliasName!
+                                                .trim()
+                                                .isNotEmpty
+                                        ? widget.motor.aliasName!
+                                        : widget.motor.name ?? '')
+                                    .capitalizeFirst ??
+                                '',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(

@@ -30,8 +30,9 @@ class DevicesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () {
-        return Future.value(false);
+      onWillPop: () async {
+        Get.offAllNamed(Routes.dashboard);
+        return false;
       },
       child: GestureDetector(
         onTap: () {
@@ -176,7 +177,7 @@ class DevicesPage extends StatelessWidget {
                       ),
                       Expanded(
                         child: Obx(() {
-                          if (controller.isLoading.value) {
+                          if (controller.isInitialLoading.value) {
                             return const AppLottieLoading();
                           } else if (!controller.hasInternet.value) {
                             return const Center(
@@ -187,27 +188,44 @@ class DevicesPage extends StatelessWidget {
                             return const NoStartersFound();
                           }
 
-                          return Skeletonizer(
-                            enabled: controller.isRefreshing.value,
-                            child: RefreshIndicator(
-                              onRefresh: () => controller.refreshDevices(),
-                              child: GridView.builder(
-                                padding: EdgeInsets.zero,
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 10.0,
-                                  mainAxisSpacing: 10.0,
-                                  childAspectRatio: 0.85,
+                          return Column(
+                            children: [
+                              Expanded(
+                                child: Skeletonizer(
+                                  enabled: controller.isRefreshing.value,
+                                  child: RefreshIndicator(
+                                    onRefresh: controller.refreshDevices,
+                                    child: GridView.builder(
+                                      controller: controller.scrollController,
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: EdgeInsets.zero,
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        crossAxisSpacing: 10.0,
+                                        mainAxisSpacing: 10.0,
+                                        childAspectRatio: 0.85,
+                                      ),
+                                      scrollDirection: Axis.vertical,
+                                      itemCount: controller.devicesList.length,
+                                      itemBuilder: (context, index) {
+                                        final device =
+                                            controller.devicesList[index];
+                                        return DevicesCard(device: device);
+                                      },
+                                    ),
+                                  ),
                                 ),
-                                scrollDirection: Axis.vertical,
-                                itemCount: controller.devicesList.length,
-                                itemBuilder: (context, index) {
-                                  final device = controller.devicesList[index];
-                                  return DevicesCard(device: device);
-                                },
                               ),
-                            ),
+                              if (controller.isHasMoreLoading.value)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.green,
+                                  ),
+                                ),
+                            ],
                           );
                         }),
                       ),

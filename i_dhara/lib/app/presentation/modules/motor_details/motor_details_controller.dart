@@ -288,42 +288,57 @@ class AnalyticsController extends GetxController {
   }
 
   List<TimeSegment> convertRuntimeToPowerSegments(List<Runtime> runtimes) {
-    List<TimeSegment> segments = [];
+    final List<TimeSegment> segments = [];
 
-    for (var runtime in runtimes) {
-      // Only create power segment if powerStart exists
-      if (runtime.powerStart != null) {
-        DateTime powerStart = runtime.powerStart!;
-        DateTime powerEnd;
+    DateTime? lastPowerTime;
+    int? lastPowerState;
 
-        // If powerEnd is null, use current time (ongoing power state)
-        if (runtime.powerEnd != null) {
-          powerEnd = runtime.powerEnd!;
-        } else {
-          // Power is still ongoing, use current time
-          powerEnd = DateTime.now();
-        }
+    // Sort by timestamp to ensure correct order
+    runtimes.sort((a, b) =>
+        (a.timeStamp ?? DateTime(0)).compareTo(b.timeStamp ?? DateTime(0)));
 
-        Duration duration = powerEnd.difference(powerStart);
+    for (final runtime in runtimes) {
+      // Ignore records without any power info
+      if (runtime.powerState == null) continue;
 
-        // Determine state based on powerState
-        String state = 'POWER_OFFLINE';
-        if (runtime.powerState == 1) {
-          state = 'POWER_ON';
-        } else if (runtime.powerState == 0) {
-          state = 'POWER_OFF';
-        }
+      // Determine start time
+      DateTime? startTime = runtime.powerStart ?? lastPowerTime;
+      if (startTime == null) continue;
 
-        segments.add(TimeSegment(
-          powerStart,
-          powerEnd,
-          state,
-          duration,
-        ));
+      // Determine end time
+      DateTime endTime = runtime.powerEnd ??
+          (runtime.powerState == lastPowerState ? DateTime.now() : startTime);
 
-        print(
-            "Created power segment: $state from $powerStart to $powerEnd (${runtime.powerEnd == null ? 'ONGOING' : 'COMPLETED'})");
+      // Determine state
+      String state = runtime.powerState == 1
+          ? 'POWER_ON'
+          : runtime.powerState == 0
+              ? 'POWER_OFF'
+              : 'POWER_OFFLINE';
+
+      // Determine duration
+      Duration duration;
+      if (runtime.powerDuration != null) {
+        duration = durationconvert(runtime.powerDuration!);
+      } else {
+        duration = endTime.difference(startTime);
       }
+
+      // Add segment only if duration > 0
+      if (duration.inSeconds > 0) {
+        segments.add(
+          TimeSegment(
+            startTime,
+            endTime,
+            state,
+            duration,
+          ),
+        );
+      }
+
+      // Update last known values
+      lastPowerTime = endTime;
+      lastPowerState = runtime.powerState;
     }
 
     return segments;
@@ -430,7 +445,7 @@ class AnalyticsController extends GetxController {
             ? response.data!.aliasName!
             : response.data!.name!;
         hp.value = response.data!.hp.toString();
-        deviceId.value = response.data!.starter?.macAddress ?? 'N/A';
+        deviceId.value = response.data!.starter?.pcbNumber ?? 'N/A';
         motorState.value = response.data!.state ?? 0;
         motorMode.value = response.data!.mode ?? 'N/A';
         locationName.value =

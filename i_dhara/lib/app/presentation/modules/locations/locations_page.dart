@@ -49,8 +49,9 @@ class LocationsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () {
-        return Future.value(false);
+      onWillPop: () async {
+        Get.offAllNamed(Routes.dashboard);
+        return false;
       },
       child: GestureDetector(
         onTap: () {
@@ -227,30 +228,32 @@ class LocationsWidget extends StatelessWidget {
                                     color: const Color(0xFFEFEFEF),
                                   ),
                                 ),
-                                // child: Padding(
-                                //   padding: const EdgeInsetsDirectional.fromSTEB(
-                                //       8.0, 6.0, 8.0, 6.0),
-                                //   child: Text(
-                                //     '${controller.locationsList.length}',
-                                //     style: FlutterFlowTheme.of(context)
-                                //         .bodyMedium
-                                //         .override(
-                                //           fontSize: 14,
-                                //           font: GoogleFonts.dmSans(
-                                //             fontWeight:
-                                //                 FlutterFlowTheme.of(context)
-                                //                     .bodyMedium
-                                //                     .fontWeight,
-                                //             fontStyle:
-                                //                 FlutterFlowTheme.of(context)
-                                //                     .bodyMedium
-                                //                     .fontStyle,
-                                //           ),
-                                //           color: const Color(0xFF087D40),
-                                //           letterSpacing: 0.0,
-                                //         ),
-                                //   ),
-                                // ),
+                                child: Padding(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
+                                      8.0, 6.0, 8.0, 6.0),
+                                  child: Obx(() {
+                                    return Text(
+                                      controller.locationscount.toString(),
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            fontSize: 14,
+                                            font: GoogleFonts.dmSans(
+                                              fontWeight:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontWeight,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontStyle,
+                                            ),
+                                            color: const Color(0xFF087D40),
+                                            letterSpacing: 0.0,
+                                          ),
+                                    );
+                                  }),
+                                ),
                               ),
                             ],
                           ),

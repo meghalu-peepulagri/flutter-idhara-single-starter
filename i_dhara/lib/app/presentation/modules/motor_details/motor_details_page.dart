@@ -26,8 +26,9 @@ class MotorControlWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     print("motor name ${controller1.motorName.value}");
     return WillPopScope(
-      onWillPop: () {
-        return Future.value(false);
+      onWillPop: () async {
+        Get.back();
+        return false;
       },
       child: GestureDetector(
         onTap: () {
@@ -210,7 +211,7 @@ class MotorControlWidget extends StatelessWidget {
                                                   ? '${deviceId.substring(0, 10)}...'
                                                   : deviceId;
                                               return Text(
-                                                'Device ID: $displayId',
+                                                'PCB: $displayId',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: FlutterFlowTheme.of(

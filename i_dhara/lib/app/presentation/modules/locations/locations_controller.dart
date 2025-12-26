@@ -13,6 +13,7 @@ class LocationsController extends GetxController {
   var isRefreshing = false.obs;
   var locationsList = <Location>[].obs;
   var expandedLocationIds = <int>{}.obs;
+  var locationscount = 0.obs;
 
   var page = 1.obs;
   var limit = 10.obs;
@@ -72,7 +73,8 @@ class LocationsController extends GetxController {
       if (response != null &&
           response.success == true &&
           response.data != null) {
-        locationsList.value = response.data!;
+        locationsList.value = response.data!.records ?? [];
+        locationscount.value = response.data!.locationsCount ?? 0;
       }
     } catch (e) {
       print('Error fetching locations: $e');

@@ -14,7 +14,7 @@ class LocationResponse {
   int? status;
   bool? success;
   String? message;
-  List<Location>? data;
+  Data? data;
 
   LocationResponse({
     this.status,
@@ -28,19 +28,39 @@ class LocationResponse {
         status: json["status"],
         success: json["success"],
         message: json["message"],
-        data: json["data"] == null
-            ? []
-            : List<Location>.from(
-                json["data"]!.map((x) => Location.fromJson(x))),
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
       );
 
   Map<String, dynamic> toJson() => {
         "status": status,
         "success": success,
         "message": message,
-        "data": data == null
+        "data": data?.toJson(),
+      };
+}
+
+class Data {
+  int? locationsCount;
+  List<Location>? records;
+
+  Data({
+    this.locationsCount,
+    this.records,
+  });
+
+  factory Data.fromJson(Map<String, dynamic> json) => Data(
+        locationsCount: json["locations_count"],
+        records: json["records"] == null
             ? []
-            : List<dynamic>.from(data!.map((x) => x.toJson())),
+            : List<Location>.from(
+                json["records"]!.map((x) => Location.fromJson(x))),
+      );
+
+  Map<String, dynamic> toJson() => {
+        "locations_count": locationsCount,
+        "records": records == null
+            ? []
+            : List<dynamic>.from(records!.map((x) => x.toJson())),
       };
 }
 
@@ -48,7 +68,6 @@ class Location {
   int? id;
   String? name;
   String? status;
-  int? locationsCount;
   int? totalMotors;
   int? onStateCount;
   int? autoModeCount;
@@ -59,7 +78,6 @@ class Location {
     this.id,
     this.name,
     this.status,
-    this.locationsCount,
     this.totalMotors,
     this.onStateCount,
     this.autoModeCount,
@@ -71,7 +89,6 @@ class Location {
         id: json["id"],
         name: json["name"],
         status: json["status"],
-        locationsCount: json["locations_count"],
         totalMotors: json["total_motors"],
         onStateCount: json["on_state_count"],
         autoModeCount: json["auto_mode_count"],
@@ -85,7 +102,6 @@ class Location {
         "id": id,
         "name": name,
         "status": status,
-        "locations_count": locationsCount,
         "total_motors": totalMotors,
         "on_state_count": onStateCount,
         "auto_mode_count": autoModeCount,

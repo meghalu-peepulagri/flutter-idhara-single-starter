@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
@@ -33,8 +34,9 @@ class DashboardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () {
-        return Future.value(false);
+      onWillPop: () async {
+        SystemNavigator.pop();
+        return false;
       },
       child: GestureDetector(
         onTap: () {

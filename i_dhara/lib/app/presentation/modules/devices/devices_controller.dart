@@ -11,10 +11,15 @@ class DevicesController extends GetxController {
 
   final RxBool isLoading = false.obs;
   var isRefreshing = false.obs;
-
-  final RxString errorMessage = ''.obs;
+  var isInitialLoading = true.obs;
+  var isHasMoreLoading = false.obs;
+  var totalPages = 1.obs;
+  var currentPage = 0.obs;
   var page = 1.obs;
   var limit = 10.obs;
+
+  final RxString errorMessage = ''.obs;
+
   var searchQuery = ''.obs;
   Map<String, dynamic> errorInstance =
       {}; // Changed to dynamic to match LocationpopupModel
@@ -24,14 +29,20 @@ class DevicesController extends GetxController {
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
+  final ScrollController scrollController = ScrollController();
+
   @override
   void onInit() {
     super.onInit();
     _initConnectivity();
-    fetchDevices();
+    fetchDevices(isInitial: true);
+    _addScrollListener();
     debounce<String>(
       searchQuery,
-      (_) => fetchDevices(),
+      (_) {
+        page.value = 1;
+        fetchDevices(isInitial: true);
+      },
       time: const Duration(milliseconds: 400),
     );
 
@@ -39,6 +50,17 @@ class DevicesController extends GetxController {
       final value = controller1.text.trim();
       if (value == searchQuery.value) return;
       searchQuery.value = value;
+    });
+  }
+
+  void _addScrollListener() {
+    scrollController.addListener(() {
+      if (scrollController.position.pixels >=
+              scrollController.position.maxScrollExtent - 200 &&
+          !isHasMoreLoading.value &&
+          page.value < totalPages.value) {
+        loadMoreDevices();
+      }
     });
   }
 
@@ -66,10 +88,19 @@ class DevicesController extends GetxController {
     super.onClose();
   }
 
-  /// Fetch devices from API
-  Future<void> fetchDevices({String? search}) async {
+  Future<void> loadMoreDevices() async {
+    isHasMoreLoading.value = true;
+    page.value += 1;
+    await fetchDevices();
+  }
+
+  Future<void> fetchDevices({bool isInitial = false}) async {
     try {
-      if (!isRefreshing.value) isLoading.value = true;
+      if (isInitial) {
+        isInitialLoading.value = true;
+        devicesList.clear();
+        page.value = 1;
+      }
 
       final response = await _repository.getDevices(
         page.value,
@@ -78,21 +109,31 @@ class DevicesController extends GetxController {
       );
 
       if (response != null && response.data != null) {
-        devicesList.value = response.data!.records ?? [];
-      } else {
-        errorMessage.value = 'No data found';
+        final newList = response.data!.records ?? [];
+
+        if (page.value == 1) {
+          devicesList.assignAll(newList);
+        } else {
+          devicesList.addAll(newList);
+        }
+
+        currentPage.value =
+            response.data!.paginationInfo!.currentPage ?? page.value;
+        totalPages.value = response.data!.paginationInfo!.totalPages ?? 1;
       }
     } catch (e) {
-      errorMessage.value = 'Error fetching devices: $e';
-      print('Error in fetchDevices: $e');
+      errorMessage.value = 'Error fetching devices';
     } finally {
       isLoading.value = false;
       isRefreshing.value = false;
+      isInitialLoading.value = false;
+      isHasMoreLoading.value = false;
     }
   }
 
   Future<void> refreshDevices() async {
     isRefreshing.value = true;
+    page.value = 1;
     await fetchDevices();
   }
 

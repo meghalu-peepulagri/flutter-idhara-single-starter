@@ -114,6 +114,7 @@ class Starter {
   int? id;
   String? name;
   String? status;
+  String? pcbNumber;
   String? macAddress;
   int? signalQuality;
   int? power;
@@ -124,6 +125,7 @@ class Starter {
     this.id,
     this.name,
     this.status,
+    this.pcbNumber,
     this.macAddress,
     this.signalQuality,
     this.power,
@@ -135,6 +137,7 @@ class Starter {
         id: json["id"],
         name: json["name"],
         status: json["status"],
+        pcbNumber: json["pcb_number"],
         macAddress: json["mac_address"],
         signalQuality: json["signal_quality"],
         power: json["power"],
@@ -149,6 +152,7 @@ class Starter {
         "id": id,
         "name": name,
         "status": status,
+        "pcb_number": pcbNumber,
         "mac_address": macAddress,
         "signal_quality": signalQuality,
         "power": power,
@@ -161,7 +165,7 @@ class Starter {
 
 class StarterParameter {
   int? id;
-  int? lineVoltageR;
+  num? lineVoltageR;
   num? lineVoltageY;
   num? lineVoltageB;
   num? currentR;

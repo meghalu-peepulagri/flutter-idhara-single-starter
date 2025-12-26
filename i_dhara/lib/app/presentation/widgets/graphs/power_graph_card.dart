@@ -59,13 +59,20 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
         String state = 'Unknown';
         String dur = '';
 
+        String formatDuration(Duration d) {
+          final h = d.inHours.toString().padLeft(2, '0');
+          final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+          final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+          return '$h:$m:$s';
+        }
+
         if (xTime != null && _currentChartData.isNotEmpty) {
           for (final e in _currentChartData) {
             if (xTime.isAfter(
                     e.start.subtract(const Duration(microseconds: 1))) &&
                 xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
               state = e.type;
-              dur = e.duration.toString().split('.').first;
+              dur = formatDuration(e.duration);
               break;
             }
           }

@@ -116,6 +116,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+        Get.offAllNamed(Routes.devices);
         return false;
       },
       child: GestureDetector(
@@ -279,10 +280,9 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                         },
                                         inputFormatters: [
                                           FilteringTextInputFormatter.allow(
-                                            RegExp(
-                                                r'[A-Za-z0-9]'), // allow letters & numbers
+                                            RegExp(r'[A-Za-z0-9]'),
                                           ),
-                                          UpperCaseTextFormatter(), // 👈 auto convert to CAPITAL
+                                          UpperCaseTextFormatter(), //  auto convert to CAPITAL
                                         ],
                                       ),
                                     ),
