@@ -14,6 +14,8 @@ class AnalyticsController extends GetxController {
   var voltage = <Voltage>[].obs;
   var current = <Current>[].obs;
   var isMotorDetailsLoading = false.obs;
+  var isLoadingPowerRuntime = false.obs;
+  final powerTotalRuntime = ''.obs;
 
   var motorDetails = Rxn<MotorDetails>();
   var isLoadingVoltage = true.obs;
@@ -45,6 +47,7 @@ class AnalyticsController extends GetxController {
   var motorState = 0.obs;
   var motorMode = ''.obs;
   var locationName = ''.obs;
+  var hp = ''.obs;
   RxString faultMessage = ''.obs;
   dynamic motorData;
   final motortotalRuntime = ''.obs;
@@ -426,6 +429,7 @@ class AnalyticsController extends GetxController {
                 response.data!.aliasName!.isNotEmpty)
             ? response.data!.aliasName!
             : response.data!.name!;
+        hp.value = response.data!.hp.toString();
         deviceId.value = response.data!.starter?.macAddress ?? 'N/A';
         motorState.value = response.data!.state ?? 0;
         motorMode.value = response.data!.mode ?? 'N/A';

@@ -2,6 +2,7 @@ class Routes {
   static const String splash = '/splash';
   static const String loginwithmobile = '/login-with-mobile';
   static const String otp = '/otp';
+  static const String register = '/register';
   static const String dashboard = '/dashboard';
   static const String motorControl = '/motor-control';
   static const String devices = '/devices';

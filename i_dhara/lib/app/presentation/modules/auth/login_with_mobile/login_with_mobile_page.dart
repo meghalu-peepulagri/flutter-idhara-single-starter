@@ -111,21 +111,21 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
         child: Scaffold(
           key: scaffoldKey,
           backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-          body: Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                fit: BoxFit.cover,
-                image: Image.asset(
-                  'assets/images/login_bg.png',
-                ).image,
+          body: SafeArea(
+            top: true,
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  fit: BoxFit.cover,
+                  image: Image.asset(
+                    'assets/images/login_bg.png',
+                  ).image,
+                ),
               ),
-            ),
-            child: Padding(
-              padding:
-                  const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
+              child: Padding(
+                padding:
+                    const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                child: Column(mainAxisSize: MainAxisSize.max, children: [
                   Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -328,14 +328,78 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                             ),
+                            Column(
+                              children: [
+                                const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 100,
+                                      child: Divider(
+                                        color: Color(0xFFE0E0E0),
+                                        thickness: 0.5,
+                                        indent: 8,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 8.0),
+                                      child: Text(
+                                        'or',
+                                        style: TextStyle(
+                                            color: Color(0xFF6A7185),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w300),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Divider(
+                                        color: Color(0xFFE0E0E0),
+                                        thickness: 0.5,
+                                        endIndent: 8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                FFButtonWidget(
+                                  onPressed: () {
+                                    Get.toNamed(Routes.register);
+                                  },
+                                  text: 'Create an Account',
+                                  options: FFButtonOptions(
+                                    width: double.infinity,
+                                    height: 40,
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                            16, 0, 16, 0),
+                                    iconPadding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                            0, 0, 0, 0),
+                                    color: const Color(0XFFFFFFFF),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF3686AF), width: 1),
+                                    textStyle: FlutterFlowTheme.of(context)
+                                        .titleSmall
+                                        .override(
+                                          fontFamily: 'Lexend',
+                                          color: const Color(0xFF3686AF),
+                                        ),
+                                    elevation: 0,
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                ),
+                              ].divide(const SizedBox(height: 20)),
+                            ),
                           ].divide(const SizedBox(height: 44.0)),
                         ),
                       ),
                     ].divide(const SizedBox(height: 24.0)),
                   ),
                 ]
-                    .divide(const SizedBox(height: 24.0))
-                    .addToStart(const SizedBox(height: 56.0)),
+                    // .divide(const SizedBox(height: 24.0))
+                    // .addToStart(const SizedBox(height: 56.0)),
+                    ),
               ),
             ),
           ),

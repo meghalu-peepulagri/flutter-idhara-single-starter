@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/presentation/modules/auth/login_with_mobile/login_with_mobile_page.dart';
 import 'package:i_dhara/app/presentation/modules/auth/otp/otp_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/auth/otp/otp_page.dart';
+import 'package:i_dhara/app/presentation/modules/auth/register/register_page.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_page.dart';
 import 'package:i_dhara/app/presentation/modules/devices/add_devices/add_devices_page.dart';
@@ -75,6 +76,12 @@ class AppPages {
       name: Routes.userprofile,
       page: () => ProfileWidget(),
       transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.register,
+      page: () => const RegisterWidget(),
+      transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),
   ];

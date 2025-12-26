@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -38,6 +40,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   bool? _pendingSwitchValue;
   int? _pendingModeValue;
   bool _isUpdatingFromMqtt = false;
+  bool _isWaitingForSwitchAck = false;
+  bool _isWaitingForModeAck = false;
+
+  Timer? _switchAckTimer;
+  Timer? _modeAckTimer;
+  static const Duration _ackTimeout = Duration(seconds: 13);
 
   @override
   void initState() {
@@ -61,6 +69,42 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _isInitialized = true;
     widget.mqttService.commandStatusNotifier
         .addListener(_onCommandStatusChanged);
+  }
+
+  void _startSwitchAckTimer(bool previousValue) {
+    _switchAckTimer?.cancel();
+    _switchAckTimer = Timer(_ackTimeout, () {
+      if (mounted && _hasPendingSwitchCommand) {
+        debugPrint(
+            '⏱️ Switch ACK timeout - reverting to previous state: $previousValue');
+
+        _localSwitchController.value = previousValue;
+        _hasPendingSwitchCommand = false;
+        _pendingSwitchValue = null;
+
+        setState(() {
+          _isWaitingForSwitchAck = false;
+        });
+      }
+    });
+  }
+
+  void _startModeAckTimer(int previousValue) {
+    _modeAckTimer?.cancel();
+    _modeAckTimer = Timer(_ackTimeout, () {
+      if (mounted && _hasPendingModeCommand) {
+        debugPrint(
+            '⏱️ Mode ACK timeout - reverting to previous mode: $previousValue');
+
+        _localModeController.value = previousValue;
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+
+        setState(() {
+          _isWaitingForModeAck = false;
+        });
+      }
+    });
   }
 
   void _onCommandStatusChanged() {
@@ -126,6 +170,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   void dispose() {
     widget.mqttService.commandStatusNotifier
         .removeListener(_onCommandStatusChanged);
+    _switchAckTimer?.cancel();
+    _modeAckTimer?.cancel();
     _localSwitchController.dispose();
     _localModeController.dispose();
     super.dispose();
@@ -530,7 +576,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   Future<void> _handleToggle(bool newValue) async {
-    if (_isUpdatingFromMqtt) {
+    if (_isUpdatingFromMqtt || _isWaitingForSwitchAck) {
       debugPrint('Ignoring toggle - triggered by MQTT update');
       return;
     }
@@ -546,24 +592,36 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       return;
     }
 
+    final previousValue = _localSwitchController.value;
+
+    setState(() {
+      _isWaitingForSwitchAck = true;
+    });
+
     _localSwitchController.value = newValue;
     _hasPendingSwitchCommand = true;
     _pendingSwitchValue = newValue;
+
+    _startSwitchAckTimer(previousValue);
 
     try {
       final state = newValue ? 1 : 0;
       await widget.mqttService.publishMotorCommand(motorId, state);
       debugPrint('✓ Toggle command sent: $motorId -> $state');
     } catch (e) {
+      _switchAckTimer?.cancel();
       _localSwitchController.value = !newValue;
       _hasPendingSwitchCommand = false;
       _pendingSwitchValue = null;
+      setState(() {
+        _isWaitingForSwitchAck = false;
+      });
       debugPrint('✗ Failed to toggle motor: $e');
     }
   }
 
   Future<void> _handleModeToggle(int? index) async {
-    if (index == null || !_isMotorAvailable()) {
+    if (index == null || !_isMotorAvailable() || _isWaitingForModeAck) {
       return;
     }
 
@@ -572,19 +630,30 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       debugPrint('Cannot change mode: Invalid motor ID');
       return;
     }
+    final previousValue = _localModeController.value;
+
+    setState(() {
+      _isWaitingForModeAck = true;
+    });
 
     final oldIndex = _localModeController.value;
     _localModeController.value = index;
     _hasPendingModeCommand = true;
     _pendingModeValue = index;
 
+    _startModeAckTimer(previousValue);
+
     try {
       await widget.mqttService.publishModeCommand(motorId, index);
       debugPrint('✓ Mode command sent: $motorId -> $index');
     } catch (e) {
+      _modeAckTimer?.cancel();
       _localModeController.value = oldIndex;
       _hasPendingModeCommand = false;
       _pendingModeValue = null;
+      setState(() {
+        _isWaitingForModeAck = false;
+      });
       debugPrint('✗ Failed to change mode: $e');
     }
   }
@@ -687,6 +756,66 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
+  bool _canControlMotor(MotorData? motorData) {
+    // Check if motor is available
+    if (!_isMotorAvailable()) {
+      return false;
+    }
+
+    // Check power status
+    final bool isPowerOn;
+    if (motorData != null && motorData.hasReceivedData) {
+      isPowerOn = motorData.power == 1;
+    } else {
+      isPowerOn = (widget.motor.starter?.power ?? 0) == 1;
+    }
+
+    // Check network/signal status
+    int signalBars = _getSignalBars(motorData);
+
+    // Motor can be controlled only if power is ON AND there's network (signal bars > 0)
+    return isPowerOn && signalBars > 0;
+  }
+
+  bool _canChangeMode(MotorData? motorData) {
+    // Check if motor is available
+    if (!_isMotorAvailable()) {
+      return false;
+    }
+
+    // Check network/signal status only
+    int signalBars = _getSignalBars(motorData);
+
+    // Mode can be changed if there's network (signal bars > 0)
+    return signalBars > 0;
+  }
+
+// Helper method to get signal bars
+  int _getSignalBars(MotorData? motorData) {
+    int signalBars = 0;
+    if (motorData != null &&
+        motorData.hasReceivedData &&
+        !motorData.isSignalStale()) {
+      signalBars = motorData.signalBars;
+    } else {
+      final signalStrength = widget.motor.starter?.signalQuality;
+      if (signalStrength != null &&
+          signalStrength >= 2 &&
+          signalStrength <= 31) {
+        if (signalStrength >= 2 && signalStrength <= 9) {
+          signalBars = 1;
+        } else if (signalStrength >= 10 && signalStrength <= 14) {
+          signalBars = 2;
+        } else if (signalStrength >= 15 && signalStrength <= 19) {
+          signalBars = 3;
+        } else if (signalStrength >= 20 && signalStrength <= 30) {
+          signalBars = 4;
+        }
+      }
+    }
+    return signalBars;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
@@ -705,7 +834,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
               '${widget.motor.name} - Using API power: ${widget.motor.starter?.power ?? 0}');
         }
 
-        final isAvailable = _isMotorAvailable();
+        // final isAvailable = _isMotorAvailable();
+        final canControl = _canControlMotor(motorData);
+        final canChangeMode = _canChangeMode(motorData);
 
         if (motorData != null && motorData.hasReceivedData) {
           // Update switch state
@@ -714,8 +845,16 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             if (mqttState == _pendingSwitchValue) {
               debugPrint(
                   '✓ Switch ACK received: $mqttState matches pending $_pendingSwitchValue');
+              _switchAckTimer?.cancel();
               _hasPendingSwitchCommand = false;
               _pendingSwitchValue = null;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _isWaitingForSwitchAck = false;
+                  });
+                }
+              });
             }
           } else {
             final mqttState = motorData.state == 1;
@@ -735,8 +874,17 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             if (mqttMode == _pendingModeValue) {
               debugPrint(
                   '✓ Mode ACK received: $mqttMode matches pending $_pendingModeValue');
+              _modeAckTimer?.cancel();
               _hasPendingModeCommand = false;
               _pendingModeValue = null;
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _isWaitingForModeAck = false;
+                  });
+                }
+              });
             }
           } else {
             final mqttMode = motorData.modeIndex;
@@ -809,7 +957,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       Row(
                         mainAxisSize: MainAxisSize.max,
                         children: [
-                          _buildSignalIcon(motorData),
+                          // _buildSignalIcon(motorData),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(0.0),
                             child: SvgPicture.asset(
@@ -821,6 +969,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                               fit: BoxFit.cover,
                             ),
                           ),
+                          _buildSignalIcon(motorData),
                           if (faultValue > 0)
                             Container(
                               decoration: BoxDecoration(
@@ -881,6 +1030,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                         valueListenable: _localModeController,
                         builder: (context, currentModeIndex, child) {
                           final uiIndex = currentModeIndex == 1 ? 0 : 1;
+                          final isDisabled =
+                              _isWaitingForModeAck || !canChangeMode;
                           debugPrint('🎨 Mode UI rendering: $currentModeIndex');
                           return ToggleSwitch(
                             changeOnTap: false,
@@ -890,7 +1041,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                             minHeight: 30.0,
                             initialLabelIndex: uiIndex,
                             cornerRadius: 8.0,
-                            activeBgColors: isAvailable
+                            activeBgColors: !isDisabled
                                 ? [
                                     [const Color(0xFFFFA500)],
                                     [const Color(0xFF2F80ED)]
@@ -900,7 +1051,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                     [const Color(0xFF2F80ED).withOpacity(0.3)],
                                   ],
                             activeFgColor:
-                                isAvailable ? Colors.white : Colors.black,
+                                !isDisabled ? Colors.white : Colors.black,
                             inactiveBgColor: Colors.white,
                             inactiveFgColor: Colors.black,
                             fontSize: 12,
@@ -908,7 +1059,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                             labels: const ['Auto', 'Manual'],
                             borderWidth: 1,
                             borderColor: [Colors.grey.shade300],
-                            onToggle: isAvailable
+                            onToggle: !isDisabled
                                 ? (index) {
                                     if (index == null) return;
 
@@ -937,52 +1088,112 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                           );
                         },
                       ),
+                      // ValueListenableBuilder(
+                      //   valueListenable: _localSwitchController,
+                      //   builder: (context, isOn, child) {
+                      //     return GestureDetector(
+                      //       onTap: isAvailable
+                      //           ? () {
+                      //               _showSwitchCommandDialog(!isOn);
+                      //             }
+                      //           : null,
+                      //       behavior: HitTestBehavior.opaque,
+                      //       child: AbsorbPointer(
+                      //         absorbing: true,
+                      //         child: Opacity(
+                      //           opacity: isAvailable ? 1.0 : 0.5,
+                      //           child: AdvancedSwitch(
+                      //             key: ValueKey(
+                      //                 'switch_${widget.motor.id}_$isOn'),
+                      //             controller: _localSwitchController,
+                      //             initialValue: isOn,
+                      //             activeColor: Colors.green,
+                      //             inactiveColor: Colors.red.shade500,
+                      //             activeChild: const Text(
+                      //               'ON',
+                      //               style: TextStyle(
+                      //                 color: Colors.white,
+                      //                 fontSize: 11,
+                      //                 fontWeight: FontWeight.bold,
+                      //               ),
+                      //             ),
+                      //             inactiveChild: const Text(
+                      //               'OFF',
+                      //               style: TextStyle(
+                      //                 color: Colors.white,
+                      //                 fontSize: 10,
+                      //                 fontWeight: FontWeight.bold,
+                      //               ),
+                      //             ),
+                      //             borderRadius: const BorderRadius.all(
+                      //                 Radius.circular(15)),
+                      //             width: 55,
+                      //             height: 25,
+                      //             enabled: true,
+                      //             disabledOpacity: 0.5,
+                      //           ),
+                      //         ),
+                      //       ),
+                      //     );
+                      //   },
+                      // ),
                       ValueListenableBuilder(
-                        valueListenable: _localSwitchController,
-                        builder: (context, isOn, child) {
-                          return GestureDetector(
-                            onTap: isAvailable
-                                ? () {
-                                    _showSwitchCommandDialog(!isOn);
-                                  }
-                                : null,
-                            behavior: HitTestBehavior.opaque,
-                            child: AbsorbPointer(
-                              absorbing: true,
-                              child: Opacity(
-                                opacity: isAvailable ? 1.0 : 0.5,
-                                child: AdvancedSwitch(
-                                  key: ValueKey(
-                                      'switch_${widget.motor.id}_$isOn'),
-                                  controller: _localSwitchController,
-                                  initialValue: isOn,
-                                  activeColor: Colors.green,
-                                  inactiveColor: Colors.red.shade500,
-                                  activeChild: const Text(
-                                    'ON',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                        valueListenable: _localModeController,
+                        builder: (context, modeIndex, _) {
+                          final bool isManualMode =
+                              modeIndex == 0; // 0 = MANUAL, 1 = AUTO
+                          final bool isSwitchDisabled =
+                              _isWaitingForSwitchAck ||
+                                  !(canControl && isManualMode);
+
+                          return ValueListenableBuilder(
+                            valueListenable: _localSwitchController,
+                            builder: (context, isOn, child) {
+                              return GestureDetector(
+                                onTap: !isSwitchDisabled
+                                    ? () {
+                                        _showSwitchCommandDialog(!isOn);
+                                      }
+                                    : null,
+                                behavior: HitTestBehavior.opaque,
+                                child: AbsorbPointer(
+                                  absorbing: true,
+                                  child: Opacity(
+                                    opacity: !isSwitchDisabled ? 1.0 : 0.4,
+                                    child: AdvancedSwitch(
+                                      key: ValueKey(
+                                          'switch_${widget.motor.id}_$isOn'),
+                                      controller: _localSwitchController,
+                                      initialValue: isOn,
+                                      activeColor: Colors.green,
+                                      inactiveColor: Colors.red.shade500,
+                                      activeChild: const Text(
+                                        'ON',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      inactiveChild: const Text(
+                                        'OFF',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      borderRadius: const BorderRadius.all(
+                                          Radius.circular(15)),
+                                      width: 55,
+                                      height: 25,
+                                      enabled: !isSwitchDisabled,
+                                      disabledOpacity: 0.9,
                                     ),
                                   ),
-                                  inactiveChild: const Text(
-                                    'OFF',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  borderRadius: const BorderRadius.all(
-                                      Radius.circular(15)),
-                                  width: 55,
-                                  height: 25,
-                                  enabled: true,
-                                  disabledOpacity: 0.5,
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           );
                         },
                       ),

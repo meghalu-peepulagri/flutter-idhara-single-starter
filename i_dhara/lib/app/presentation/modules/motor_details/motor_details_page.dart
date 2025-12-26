@@ -1,18 +1,14 @@
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
-import 'package:i_dhara/app/presentation/widgets/graphs/current_graph_card.dart';
 import 'package:i_dhara/app/presentation/widgets/graphs/motor_run_time_graph_card.dart';
-import 'package:i_dhara/app/presentation/widgets/graphs/voltage_graph_card.dart';
+import 'package:i_dhara/app/presentation/widgets/graphs/power_graph_card.dart';
 import 'package:lottie/lottie.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
@@ -171,6 +167,40 @@ class MotorControlWidget extends StatelessWidget {
                                                     ),
                                               );
                                             }),
+                                            const SizedBox(width: 2),
+                                            Obx(() {
+                                              return Text(
+                                                'HP : ${controller1.hp.value}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .bodyMedium
+                                                    .override(
+                                                      font: GoogleFonts.dmSans(
+                                                        fontWeight:
+                                                            FontWeight.normal,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodyMedium
+                                                                .fontStyle,
+                                                      ),
+                                                      color: const Color(
+                                                          0xFF6A7282),
+                                                      fontSize: 14.0,
+                                                      letterSpacing: 0.0,
+                                                      fontWeight:
+                                                          FontWeight.normal,
+                                                      fontStyle:
+                                                          FlutterFlowTheme.of(
+                                                                  context)
+                                                              .bodyMedium
+                                                              .fontStyle,
+                                                    ),
+                                              );
+                                            }),
+                                            const SizedBox(width: 2),
                                             Obx(() {
                                               final deviceId =
                                                   controller1.deviceId.value;
@@ -210,53 +240,53 @@ class MotorControlWidget extends StatelessWidget {
                                                     ),
                                               );
                                             }),
-                                            const SizedBox(height: 8.0),
+                                            // const SizedBox(height: 8.0),
                                             // Toggle Switch - separate row
-                                            Obx(() {
-                                              final mode = controller1
-                                                  .motorMode.value
-                                                  .toLowerCase();
-                                              final isAuto = mode == 'auto';
-                                              final int selectedIndex =
-                                                  isAuto ? 0 : 1;
+                                            // Obx(() {
+                                            //   final mode = controller1
+                                            //       .motorMode.value
+                                            //       .toLowerCase();
+                                            //   final isAuto = mode == 'auto';
+                                            //   final int selectedIndex =
+                                            //       isAuto ? 0 : 1;
 
-                                              return ToggleSwitch(
-                                                key: ValueKey(mode),
-                                                changeOnTap: false,
-                                                customWidths: const [90, 90],
-                                                radiusStyle: true,
-                                                minWidth: 80.0,
-                                                minHeight: 30.0,
-                                                initialLabelIndex:
-                                                    selectedIndex,
-                                                cornerRadius: 8.0,
-                                                activeBgColor: [
-                                                  isAuto
-                                                      ? const Color(0xFFFFA500)
-                                                          .withOpacity(0.5)
-                                                      : !isAuto
-                                                          ? const Color(
-                                                                  0xFF2F80ED)
-                                                              .withOpacity(0.5)
-                                                          : const Color(
-                                                              0xFF2F80ED)
-                                                ],
-                                                activeFgColor: Colors.white,
-                                                inactiveBgColor: Colors.white,
-                                                inactiveFgColor: Colors.black,
-                                                fontSize: 12,
-                                                totalSwitches: 2,
-                                                labels: const [
-                                                  'Auto',
-                                                  'Manual'
-                                                ],
-                                                borderWidth: 1,
-                                                borderColor: [
-                                                  Colors.grey.shade300
-                                                ],
-                                                onToggle: null,
-                                              );
-                                            }),
+                                            //   return ToggleSwitch(
+                                            //     key: ValueKey(mode),
+                                            //     changeOnTap: false,
+                                            //     customWidths: const [90, 90],
+                                            //     radiusStyle: true,
+                                            //     minWidth: 80.0,
+                                            //     minHeight: 30.0,
+                                            //     initialLabelIndex:
+                                            //         selectedIndex,
+                                            //     cornerRadius: 8.0,
+                                            //     activeBgColor: [
+                                            //       isAuto
+                                            //           ? const Color(0xFFFFA500)
+                                            //               .withOpacity(0.5)
+                                            //           : !isAuto
+                                            //               ? const Color(
+                                            //                       0xFF2F80ED)
+                                            //                   .withOpacity(0.5)
+                                            //               : const Color(
+                                            //                   0xFF2F80ED)
+                                            //     ],
+                                            //     activeFgColor: Colors.white,
+                                            //     inactiveBgColor: Colors.white,
+                                            //     inactiveFgColor: Colors.black,
+                                            //     fontSize: 12,
+                                            //     totalSwitches: 2,
+                                            //     labels: const [
+                                            //       'Auto',
+                                            //       'Manual'
+                                            //     ],
+                                            //     borderWidth: 1,
+                                            //     borderColor: [
+                                            //       Colors.grey.shade300
+                                            //     ],
+                                            //     onToggle: null,
+                                            //   );
+                                            // }),
                                           ],
                                         ),
                                       ),
@@ -264,26 +294,26 @@ class MotorControlWidget extends StatelessWidget {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.end,
                                         children: [
-                                          Obx(() {
-                                            return AdvancedSwitch(
-                                              activeColor: Colors.green,
-                                              inactiveColor:
-                                                  Colors.red.shade500,
-                                              activeChild: const Text('ON'),
-                                              inactiveChild: const Text('OFF'),
-                                              initialValue: controller1
-                                                      .motorState.value ==
-                                                  1,
-                                              borderRadius:
-                                                  const BorderRadius.all(
-                                                      Radius.circular(15)),
-                                              width: 55,
-                                              height: 25,
-                                              enabled: false,
-                                              disabledOpacity: 0.5,
-                                              onChanged: null,
-                                            );
-                                          }),
+                                          // Obx(() {
+                                          //   return AdvancedSwitch(
+                                          //     activeColor: Colors.green,
+                                          //     inactiveColor:
+                                          //         Colors.red.shade500,
+                                          //     activeChild: const Text('ON'),
+                                          //     inactiveChild: const Text('OFF'),
+                                          //     initialValue: controller1
+                                          //             .motorState.value ==
+                                          //         1,
+                                          //     borderRadius:
+                                          //         const BorderRadius.all(
+                                          //             Radius.circular(15)),
+                                          //     width: 55,
+                                          //     height: 25,
+                                          //     enabled: false,
+                                          //     disabledOpacity: 0.5,
+                                          //     onChanged: null,
+                                          //   );
+                                          // }),
                                           const SizedBox(height: 30.0),
                                           Obx(() {
                                             final locationName =
@@ -414,26 +444,30 @@ class MotorControlWidget extends StatelessWidget {
                                             selectedDateRange:
                                                 controller1.daterange,
                                           ),
-                                          VoltageGraphWidget(
+                                          PowerGraphWidget(
                                             selectedDateRange:
                                                 controller1.daterange,
-                                            motorName:
-                                                controller1.selectedTitle.value,
-                                            sharedPointNotifier:
-                                                controller1.sharedPointNotifier,
-                                            sharedTimeNotifier:
-                                                controller1.sharedTimeNotifier,
                                           ),
-                                          CurrentGraphWidget(
-                                            sharedPointNotifier:
-                                                controller1.valueNotifier,
-                                            sharedTimeNotifier:
-                                                controller1.sharedTimeNotifier,
-                                            selectedDateRange:
-                                                controller1.daterange,
-                                            motorName:
-                                                controller1.selectedTitle.value,
-                                          ),
+                                          // VoltageGraphWidget(
+                                          //   selectedDateRange:
+                                          //       controller1.daterange,
+                                          //   motorName:
+                                          //       controller1.selectedTitle.value,
+                                          //   sharedPointNotifier:
+                                          //       controller1.sharedPointNotifier,
+                                          //   sharedTimeNotifier:
+                                          //       controller1.sharedTimeNotifier,
+                                          // ),
+                                          // CurrentGraphWidget(
+                                          //   sharedPointNotifier:
+                                          //       controller1.valueNotifier,
+                                          //   sharedTimeNotifier:
+                                          //       controller1.sharedTimeNotifier,
+                                          //   selectedDateRange:
+                                          //       controller1.daterange,
+                                          //   motorName:
+                                          //       controller1.selectedTitle.value,
+                                          // ),
                                         ].divide(const SizedBox(height: 16)),
                                       ),
                                     ].divide(const SizedBox(height: 12.0)),
@@ -470,218 +504,234 @@ class MotorControlWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Date Header with Calendar Icon
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Obx(() {
-                    final today = DateTime.now();
-                    final firstDate = controller.daterange.first ?? today;
-                    final lastDate = controller.daterange.last ?? today;
-                    final isRange = firstDate != lastDate;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Always show today's date
-                        Text(
-                          DateFormat('dd MMM yyyy').format(firstDate),
-                          style: GoogleFonts.dmSans(
-                            color: const Color(0xFF004E7E),
-                            fontSize: 15.0,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        // Show range info if range is selected
-                        if (isRange) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Range: ${DateFormat('dd MMM').format(firstDate)} - ${DateFormat('dd MMM yyyy').format(lastDate)}',
-                            style: GoogleFonts.dmSans(
-                              color: const Color(0xFF6B7280),
-                              fontSize: 12.0,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ],
-                    );
-                  }),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Left Arrow Button
+            GestureDetector(
+              onTap: () => controller.leftClick(),
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(8.0),
                 ),
-                GestureDetector(
-                  onTap: () async {
-                    controller.isModalOpen.value = true;
-                    var results = await showCalendarDatePicker2Dialog(
-                      context: context,
-                      config: CalendarDatePicker2WithActionButtonsConfig(
-                        calendarType: CalendarDatePicker2Type.range,
-                        lastDate: DateTime.now(),
-                        firstDate: DateTime(2000),
-                        disableModePicker: true,
-                        calendarViewScrollPhysics:
-                            const NeverScrollableScrollPhysics(),
-                      ),
-                      dialogSize: const Size(325, 400),
-                      value: controller.daterange,
-                      borderRadius: BorderRadius.circular(15),
-                    );
+                child: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Color(0xFF004E7E),
+                  size: 18.0,
+                ),
+              ),
+            ),
 
-                    try {
-                      if (results != null && results.isNotEmpty) {
-                        if (!listEquals(results, controller.daterange)) {
-                          controller.daterange.assignAll(results);
-                          controller.onDateRangeSelected();
-                        }
-                      }
-                    } catch (e) {
-                      // Handle error
-                    } finally {
-                      controller.isModalOpen.value = false;
+            // Date Display
+            Expanded(
+              child: GestureDetector(
+                onTap: () async {
+                  controller.isModalOpen.value = true;
+                  var results = await showCalendarDatePicker2Dialog(
+                    context: context,
+                    config: CalendarDatePicker2WithActionButtonsConfig(
+                      calendarType: CalendarDatePicker2Type.single,
+                      lastDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      disableModePicker: true,
+                      calendarViewScrollPhysics:
+                          const NeverScrollableScrollPhysics(),
+                    ),
+                    dialogSize: const Size(325, 400),
+                    value: [controller.daterange.first],
+                    borderRadius: BorderRadius.circular(15),
+                  );
+
+                  try {
+                    if (results != null &&
+                        results.isNotEmpty &&
+                        results.first != null) {
+                      controller.selectSingleDate(results.first!);
                     }
-                  },
-                  child: const Icon(
-                    Icons.calendar_today_outlined,
-                    color: Color(0xFF004E7E),
+                  } catch (e) {
+                    print('Error selecting date: $e');
+                  } finally {
+                    controller.isModalOpen.value = false;
+                  }
+                },
+                child: Obx(() {
+                  final selectedDate =
+                      controller.daterange.first ?? DateTime.now();
+                  return Column(
+                    children: [
+                      Text(
+                        DateFormat('EEEE').format(selectedDate),
+                        style: GoogleFonts.dmSans(
+                          color: const Color(0xFF6B7280),
+                          fontSize: 13.0,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('dd MMM yyyy').format(selectedDate),
+                        style: GoogleFonts.dmSans(
+                          color: const Color(0xFF004E7E),
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+
+            // Right Arrow Button
+            Obx(() {
+              final selectedDate = controller.daterange.first ?? DateTime.now();
+              final today = DateTime.now();
+              final isToday = selectedDate.year == today.year &&
+                  selectedDate.month == today.month &&
+                  selectedDate.day == today.day;
+
+              return GestureDetector(
+                onTap: isToday ? null : () => controller.rightClick(),
+                child: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    color: isToday
+                        ? const Color(0xFFE5E7EB)
+                        : const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    color: isToday
+                        ? const Color(0xFF9CA3AF)
+                        : const Color(0xFF004E7E),
                     size: 18.0,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-          // Horizontal month view
-
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0),
-            child: Obx(() {
-              final today = DateTime.now();
-              final firstDate = controller.daterange.first ?? today;
-              final lastDate = controller.daterange.last ?? today;
-              return _buildMonthView(context, controller, firstDate, lastDate);
+              );
             }),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMonthView(BuildContext context, AnalyticsController controller,
-      DateTime rangeStart, DateTime rangeEnd) {
-    final today = DateTime.now();
+  // Widget _buildMonthView(BuildContext context, AnalyticsController controller,
+  //     DateTime rangeStart, DateTime rangeEnd) {
+  //   final today = DateTime.now();
 
-    // Get first and last day of current month
-    final firstDayOfMonth = DateTime(today.year, today.month, 1);
-    final lastDayOfMonth = DateTime(today.year, today.month + 1, 0);
-    final daysInMonth = lastDayOfMonth.day;
+  //   // Get first and last day of current month
+  //   final firstDayOfMonth = DateTime(today.year, today.month, 1);
+  //   final lastDayOfMonth = DateTime(today.year, today.month + 1, 0);
+  //   final daysInMonth = lastDayOfMonth.day;
 
-    // Check if it's a single date selection or range
-    final isSingleDateSelection = rangeStart.year == rangeEnd.year &&
-        rangeStart.month == rangeEnd.month &&
-        rangeStart.day == rangeEnd.day;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.monthScrollController.hasClients) {
-        final todayIndex = today.day - 1; // Index starts from 0
-        const itemWidth = 45.0 + 8.0; // width + margin (4.0 * 2)
-        final screenWidth = MediaQuery.of(context).size.width;
-        final scrollPosition =
-            (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
+  //   // Check if it's a single date selection or range
+  //   final isSingleDateSelection = rangeStart.year == rangeEnd.year &&
+  //       rangeStart.month == rangeEnd.month &&
+  //       rangeStart.day == rangeEnd.day;
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     if (controller.monthScrollController.hasClients) {
+  //       final todayIndex = today.day - 1; // Index starts from 0
+  //       const itemWidth = 45.0 + 8.0; // width + margin (4.0 * 2)
+  //       final screenWidth = MediaQuery.of(context).size.width;
+  //       final scrollPosition =
+  //           (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
 
-        controller.monthScrollController.animateTo(
-          scrollPosition.clamp(
-              0.0, controller.monthScrollController.position.maxScrollExtent),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
+  //       controller.monthScrollController.animateTo(
+  //         scrollPosition.clamp(
+  //             0.0, controller.monthScrollController.position.maxScrollExtent),
+  //         duration: const Duration(milliseconds: 300),
+  //         curve: Curves.easeInOut,
+  //       );
+  //     }
+  //   });
 
-    return SizedBox(
-      height: 70,
-      child: ListView.builder(
-        controller: controller.monthScrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12.0),
-        itemCount: daysInMonth,
-        itemBuilder: (context, index) {
-          final date = DateTime(today.year, today.month, index + 1);
-          final isToday = date.day == today.day;
+  //   return SizedBox(
+  //     height: 70,
+  //     child: ListView.builder(
+  //       controller: controller.monthScrollController,
+  //       scrollDirection: Axis.horizontal,
+  //       padding: const EdgeInsets.symmetric(horizontal: 12.0),
+  //       itemCount: daysInMonth,
+  //       itemBuilder: (context, index) {
+  //         final date = DateTime(today.year, today.month, index + 1);
+  //         final isToday = date.day == today.day;
 
-          // Check if this date is the selected single date
-          final isSelectedDate = isSingleDateSelection &&
-              date.day == rangeStart.day &&
-              date.month == rangeStart.month &&
-              date.year == rangeStart.year;
+  //         // Check if this date is the selected single date
+  //         final isSelectedDate = isSingleDateSelection &&
+  //             date.day == rangeStart.day &&
+  //             date.month == rangeStart.month &&
+  //             date.year == rangeStart.year;
 
-          // Check if date is in range (only for range selection)
-          final isInRange = !isSingleDateSelection &&
-              (date.isAtSameMomentAs(rangeStart) ||
-                  date.isAtSameMomentAs(rangeEnd) ||
-                  (date.isAfter(rangeStart) && date.isBefore(rangeEnd)));
+  //         // Check if date is in range (only for range selection)
+  //         final isInRange = !isSingleDateSelection &&
+  //             (date.isAtSameMomentAs(rangeStart) ||
+  //                 date.isAtSameMomentAs(rangeEnd) ||
+  //                 (date.isAfter(rangeStart) && date.isBefore(rangeEnd)));
 
-          final isFuture = date.isAfter(today);
+  //         final isFuture = date.isAfter(today);
 
-          return GestureDetector(
-            onTap: isFuture
-                ? null
-                : () {
-                    controller.selectSingleDate(date);
-                  },
-            child: Container(
-              width: 45,
-              margin: const EdgeInsets.symmetric(horizontal: 4.0),
-              decoration: BoxDecoration(
-                color: isSelectedDate || isInRange
-                    ? const Color(0xFF004E7E)
-                    : isToday
-                        ? const Color(0xFFE0F2FE)
-                        : Colors.transparent,
-                borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(
-                  color: isToday && !isSelectedDate && !isInRange
-                      ? const Color(0xFF004E7E)
-                      : Colors.transparent,
-                  width: 1.5,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('EEE').format(date).substring(0, 3),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11.0,
-                      color: isFuture
-                          ? const Color(0xFFD1D5DB)
-                          : (isSelectedDate || isInRange)
-                              ? Colors.white
-                              : const Color(0xFF6B7280),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${date.day}',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16.0,
-                      color: isFuture
-                          ? const Color(0xFFD1D5DB)
-                          : (isSelectedDate || isInRange)
-                              ? Colors.white
-                              : const Color(0xFF111827),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  //         return GestureDetector(
+  //           onTap: isFuture
+  //               ? null
+  //               : () {
+  //                   controller.selectSingleDate(date);
+  //                 },
+  //           child: Container(
+  //             width: 45,
+  //             margin: const EdgeInsets.symmetric(horizontal: 4.0),
+  //             decoration: BoxDecoration(
+  //               color: isSelectedDate || isInRange
+  //                   ? const Color(0xFF004E7E)
+  //                   : isToday
+  //                       ? const Color(0xFFE0F2FE)
+  //                       : Colors.transparent,
+  //               borderRadius: BorderRadius.circular(8.0),
+  //               border: Border.all(
+  //                 color: isToday && !isSelectedDate && !isInRange
+  //                     ? const Color(0xFF004E7E)
+  //                     : Colors.transparent,
+  //                 width: 1.5,
+  //               ),
+  //             ),
+  //             child: Column(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Text(
+  //                   DateFormat('EEE').format(date).substring(0, 3),
+  //                   style: GoogleFonts.dmSans(
+  //                     fontSize: 11.0,
+  //                     color: isFuture
+  //                         ? const Color(0xFFD1D5DB)
+  //                         : (isSelectedDate || isInRange)
+  //                             ? Colors.white
+  //                             : const Color(0xFF6B7280),
+  //                     fontWeight: FontWeight.w500,
+  //                   ),
+  //                 ),
+  //                 const SizedBox(height: 4),
+  //                 Text(
+  //                   '${date.day}',
+  //                   style: GoogleFonts.dmSans(
+  //                     fontSize: 16.0,
+  //                     color: isFuture
+  //                         ? const Color(0xFFD1D5DB)
+  //                         : (isSelectedDate || isInRange)
+  //                             ? Colors.white
+  //                             : const Color(0xFF111827),
+  //                     fontWeight: FontWeight.w600,
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         );
+  //       },
+  //     ),
+  //   );
+  // }
 }

@@ -30,21 +30,21 @@ class OtpWidget extends StatelessWidget {
         child: Scaffold(
           key: scaffoldKey,
           backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-          body: Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                fit: BoxFit.cover,
-                image: Image.asset(
-                  'assets/images/login_bg.png',
-                ).image,
+          body: SafeArea(
+            top: true,
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  fit: BoxFit.cover,
+                  image: Image.asset(
+                    'assets/images/login_bg.png',
+                  ).image,
+                ),
               ),
-            ),
-            child: Padding(
-              padding:
-                  const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
+              child: Padding(
+                padding:
+                    const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                child: Column(mainAxisSize: MainAxisSize.max, children: [
                   Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -436,8 +436,9 @@ class OtpWidget extends StatelessWidget {
                     ].divide(const SizedBox(height: 24.0)),
                   ),
                 ]
-                    .divide(const SizedBox(height: 8.0))
-                    .addToStart(const SizedBox(height: 56.0)),
+                    // .divide(const SizedBox(height: 8.0))
+                    // .addToStart(const SizedBox(height: 56.0)),
+                    ),
               ),
             ),
           ),
