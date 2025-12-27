@@ -1070,80 +1070,16 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                 ? (index) {
                                     if (index == null) return;
 
-                                    debugPrint(
-                                        '🔄 Toggle clicked: UI index=$index');
-
-                                    // Map UI index back to mode index
-                                    // UI index 0 (Auto) -> Mode 1
-                                    // UI index 1 (Manual) -> Mode 0
                                     final newMode = index == 0 ? 1 : 0;
 
-                                    debugPrint(
-                                        '🔄 Mapped mode: $newMode (current=$currentModeIndex)');
-
-                                    // Only show dialog if mode is actually changing
                                     if (newMode != currentModeIndex) {
-                                      debugPrint(
-                                          '✓ Mode changed, showing dialog');
                                       _showModeCommandDialog(newMode);
-                                    } else {
-                                      debugPrint(
-                                          '⊗ Same mode clicked, ignoring');
-                                    }
+                                    } else {}
                                   }
                                 : null,
                           );
                         },
                       ),
-                      // ValueListenableBuilder(
-                      //   valueListenable: _localSwitchController,
-                      //   builder: (context, isOn, child) {
-                      //     return GestureDetector(
-                      //       onTap: isAvailable
-                      //           ? () {
-                      //               _showSwitchCommandDialog(!isOn);
-                      //             }
-                      //           : null,
-                      //       behavior: HitTestBehavior.opaque,
-                      //       child: AbsorbPointer(
-                      //         absorbing: true,
-                      //         child: Opacity(
-                      //           opacity: isAvailable ? 1.0 : 0.5,
-                      //           child: AdvancedSwitch(
-                      //             key: ValueKey(
-                      //                 'switch_${widget.motor.id}_$isOn'),
-                      //             controller: _localSwitchController,
-                      //             initialValue: isOn,
-                      //             activeColor: Colors.green,
-                      //             inactiveColor: Colors.red.shade500,
-                      //             activeChild: const Text(
-                      //               'ON',
-                      //               style: TextStyle(
-                      //                 color: Colors.white,
-                      //                 fontSize: 11,
-                      //                 fontWeight: FontWeight.bold,
-                      //               ),
-                      //             ),
-                      //             inactiveChild: const Text(
-                      //               'OFF',
-                      //               style: TextStyle(
-                      //                 color: Colors.white,
-                      //                 fontSize: 10,
-                      //                 fontWeight: FontWeight.bold,
-                      //               ),
-                      //             ),
-                      //             borderRadius: const BorderRadius.all(
-                      //                 Radius.circular(15)),
-                      //             width: 55,
-                      //             height: 25,
-                      //             enabled: true,
-                      //             disabledOpacity: 0.5,
-                      //           ),
-                      //         ),
-                      //       ),
-                      //     );
-                      //   },
-                      // ),
                       ValueListenableBuilder(
                         valueListenable: _localModeController,
                         builder: (context, modeIndex, _) {

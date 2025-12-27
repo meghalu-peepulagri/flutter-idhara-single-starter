@@ -80,163 +80,185 @@ class DevicesPage extends StatelessWidget {
             ),
           ),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-          body: SafeArea(
-            top: true,
-            child: Column(mainAxisSize: MainAxisSize.max, children: [
-              Padding(
-                padding:
-                    const EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 0.0),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            Get.offAllNamed(Routes.dashboard);
-                          },
-                          child: const Icon(
-                            Icons.arrow_back,
-                            color: Color(0xFF004E7E),
-                            size: 20.0,
+          body: Stack(children: [
+            SafeArea(
+              top: true,
+              child: Column(mainAxisSize: MainAxisSize.max, children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                      16.0, 8.0, 16.0, 0.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Get.offAllNamed(Routes.dashboard);
+                            },
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Color(0xFF004E7E),
+                              size: 20.0,
+                            ),
                           ),
-                        ),
-                        Expanded(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Devices ',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
+                          Expanded(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.max,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Devices ',
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .override(
+                                        font: GoogleFonts.dmSans(
+                                          fontWeight: FontWeight.w500,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontStyle,
+                                        ),
+                                        color: const Color(0xFF004E7E),
+                                        fontSize: 16.0,
+                                        letterSpacing: 0.0,
                                         fontWeight: FontWeight.w500,
                                         fontStyle: FlutterFlowTheme.of(context)
                                             .bodyMedium
                                             .fontStyle,
                                       ),
-                                      color: const Color(0xFF004E7E),
-                                      fontSize: 16.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  onTapMenu();
-                                },
-                                child: Container(
-                                  decoration: const BoxDecoration(),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.menu_sharp,
-                                      color: Color(0xFF121212),
-                                      size: 30.0,
-                                    ),
-                                  ),
                                 ),
-                              ),
-                            ].divide(const SizedBox(width: 8.0)),
-                          ),
-                        ),
-                      ].divide(const SizedBox(width: 100.0)),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                      16.0, 0.0, 16.0, 0.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Container(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 40,
-                                child: SearchFieldComponent(
-                                  controller: controller.controller1,
-                                  hintText: 'Search devices',
-                                ),
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 10)),
-                        ),
-                      ),
-                      Expanded(
-                        child: Obx(() {
-                          if (controller.isInitialLoading.value) {
-                            return const AppLottieLoading();
-                          } else if (!controller.hasInternet.value) {
-                            return const Center(
-                              child: NoInternetWidget(),
-                            );
-                          }
-                          if (controller.devicesList.isEmpty) {
-                            return const NoStartersFound();
-                          }
-
-                          return Column(
-                            children: [
-                              Expanded(
-                                child: Skeletonizer(
-                                  enabled: controller.isRefreshing.value,
-                                  child: RefreshIndicator(
-                                    onRefresh: controller.refreshDevices,
-                                    child: GridView.builder(
-                                      controller: controller.scrollController,
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      padding: EdgeInsets.zero,
-                                      gridDelegate:
-                                          const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        crossAxisSpacing: 10.0,
-                                        mainAxisSpacing: 10.0,
-                                        childAspectRatio: 0.85,
+                                GestureDetector(
+                                  onTap: () {
+                                    onTapMenu();
+                                  },
+                                  child: Container(
+                                    decoration: const BoxDecoration(),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.menu_sharp,
+                                        color: Color(0xFF121212),
+                                        size: 30.0,
                                       ),
-                                      scrollDirection: Axis.vertical,
-                                      itemCount: controller.devicesList.length,
-                                      itemBuilder: (context, index) {
-                                        final device =
-                                            controller.devicesList[index];
-                                        return DevicesCard(device: device);
-                                      },
                                     ),
                                   ),
                                 ),
-                              ),
-                              if (controller.isHasMoreLoading.value)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                                  child: CircularProgressIndicator(
-                                    color: Colors.green,
-                                  ),
-                                ),
-                            ],
-                          );
-                        }),
+                              ].divide(const SizedBox(width: 8.0)),
+                            ),
+                          ),
+                        ].divide(const SizedBox(width: 100.0)),
                       ),
-                    ]
-                        .divide(const SizedBox(height: 16.0))
-                        .addToStart(const SizedBox(height: 24.0)),
+                    ],
                   ),
                 ),
-              ),
-            ]),
-          ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        16.0, 0.0, 16.0, 0.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        Container(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.max,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 40,
+                                  child: SearchFieldComponent(
+                                    controller: controller.controller1,
+                                    hintText: 'Search devices',
+                                  ),
+                                ),
+                              ),
+                            ].divide(const SizedBox(width: 10)),
+                          ),
+                        ),
+                        Expanded(
+                          child: Obx(() {
+                            if (controller.isInitialLoading.value) {
+                              return const AppLottieLoading();
+                            } else if (!controller.hasInternet.value) {
+                              return const Center(
+                                child: NoInternetWidget(),
+                              );
+                            }
+                            if (controller.isLocationReplacing.value) {
+                              return const Center(
+                                child: AppLottieLoading(),
+                              );
+                            }
+                            if (controller.devicesList.isEmpty) {
+                              return const NoStartersFound();
+                            }
+
+                            return Column(
+                              children: [
+                                Expanded(
+                                  child: Skeletonizer(
+                                    enabled: controller.isRefreshing.value,
+                                    child: RefreshIndicator(
+                                      onRefresh: controller.refreshDevices,
+                                      child: GridView.builder(
+                                        controller: controller.scrollController,
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: EdgeInsets.zero,
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          crossAxisSpacing: 10.0,
+                                          mainAxisSpacing: 10.0,
+                                          childAspectRatio: 0.85,
+                                        ),
+                                        scrollDirection: Axis.vertical,
+                                        itemCount:
+                                            controller.devicesList.length,
+                                        itemBuilder: (context, index) {
+                                          final device =
+                                              controller.devicesList[index];
+                                          return DevicesCard(device: device);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (controller.isHasMoreLoading.value)
+                                  const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(vertical: 16.0),
+                                    child: CircularProgressIndicator(
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }),
+                        ),
+                      ]
+                          .divide(const SizedBox(height: 16.0))
+                          .addToStart(const SizedBox(height: 24.0)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+            // Obx(() {
+            //   if (!controller.isLocationReplacing.value) {
+            //     return const SizedBox.shrink();
+            //   }
+
+            //   return Container(
+            //     color: Colors.black.withOpacity(0.3), // dim background
+            //     child: const Center(
+            //       child: AppLottieLoading(),
+            //     ),
+            //   );
+            // }),
+          ]),
         ),
       ),
     );

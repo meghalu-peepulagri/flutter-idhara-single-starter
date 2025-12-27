@@ -13,6 +13,7 @@ class DevicesController extends GetxController {
   var isRefreshing = false.obs;
   var isInitialLoading = true.obs;
   var isHasMoreLoading = false.obs;
+  var isLocationReplacing = false.obs;
   var totalPages = 1.obs;
   var currentPage = 0.obs;
   var page = 1.obs;
@@ -21,8 +22,7 @@ class DevicesController extends GetxController {
   final RxString errorMessage = ''.obs;
 
   var searchQuery = ''.obs;
-  Map<String, dynamic> errorInstance =
-      {}; // Changed to dynamic to match LocationpopupModel
+  Map<String, dynamic> errorInstance = {};
   String message = '';
   final connectivity = Connectivity();
   var hasInternet = true.obs;
@@ -158,14 +158,25 @@ class DevicesController extends GetxController {
     }
   }
 
-  Future<void> locationreplace(
-      {required int starterId,
-      required int locationId,
-      required int motorId}) async {
-    final response =
-        await _repository.locationreplace(starterId, locationId, motorId);
-    if (response != null) {
-      await fetchDevices();
+  Future<void> locationreplace({
+    required int starterId,
+    required int locationId,
+    required int motorId,
+  }) async {
+    try {
+      isLocationReplacing.value = true;
+      final response =
+          await _repository.locationreplace(starterId, locationId, motorId);
+      if (response != null) {
+        await fetchDevices();
+        getsuccessSnackBar(
+            response.message ?? 'Location replaced successfully');
+      }
+    } catch (e) {
+      // Handle error if needed
+      print("Error replacing location: $e");
+    } finally {
+      isLocationReplacing.value = false; // Stop loading
     }
   }
 

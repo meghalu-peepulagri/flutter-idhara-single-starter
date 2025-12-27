@@ -328,7 +328,7 @@ class OtpWidget extends StatelessWidget {
                                                 ),
                                               )
                                             : InkWell(
-                                                // onTap: controller.resendOtp,
+                                                onTap: controller.resendOtp,
                                                 child: Text(
                                                   'Resend OTP ',
                                                   style: FlutterFlowTheme.of(
@@ -337,7 +337,7 @@ class OtpWidget extends StatelessWidget {
                                                       .override(
                                                         fontFamily: 'Lato',
                                                         color: const Color(
-                                                            0xFF05A155),
+                                                            0xFF3686AF),
                                                         fontSize: 16,
                                                         letterSpacing: 0.0,
                                                         fontWeight:

@@ -59,4 +59,17 @@ class AuthRepositoryImpl extends AuthRepository {
       return null;
     }
   }
+
+  @override
+  Future<PhoneResponse?> resendOtp(String phone, String sid) async {
+    final body = {"phone": phone, "signature_id": sid};
+    final response =
+        await NetworkManager().post('/auth/signin-phone', data: body, {});
+    if (response.statusCode == 200 || response.statusCode == 422) {
+      final res = PhoneResponse.fromJson(response.data);
+      return res;
+    } else {
+      return null;
+    }
+  }
 }

@@ -222,7 +222,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   Row(
                                     children: [
                                       Text(
-                                        'Pcb / Serial Number',
+                                        'PCB / Serial Number',
                                         style: FlutterFlowTheme.of(context)
                                             .bodyMedium
                                             .override(
@@ -267,7 +267,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                         controller: _model.textController1!,
                                         errors: _model.errorInstance,
                                         errorKey: 'pcb_number',
-                                        hintText: 'Enter Pcb/Serial number',
+                                        hintText: 'Enter PCB/Serial number',
                                         readOnly: false,
                                         onChanged: (value) {
                                           if (_model.errorInstance

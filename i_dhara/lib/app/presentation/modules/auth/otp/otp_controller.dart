@@ -145,6 +145,23 @@ class OtpController extends GetxController with CodeAutoFill {
     }
   }
 
+  Future<void> fetchResendOtp({required String phone, String sid = ''}) async {
+    errorInstance.value = '';
+    final response = await AuthRepositoryImpl().resendOtp(phone, sid);
+
+    if (response != null && response.errors == null) {
+    } else if (response?.errors != null) {
+      errorInstance.value = response!.errors!.toJson().toString();
+    }
+  }
+
+  void resendOtp() async {
+    isTimerRunning.value = true;
+    _startTimer();
+    String id = await SmsAutoFill().getAppSignature;
+    await fetchResendOtp(phone: SharedPreference.getPhone(), sid: id);
+  }
+
   Future<void> _listenSmsCode() async {
     await SmsAutoFill().listenForCode();
   }

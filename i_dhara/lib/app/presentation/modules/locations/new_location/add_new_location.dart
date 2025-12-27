@@ -176,7 +176,7 @@ class _NewLocationState extends State<NewLocation> {
                     options: FFButtonOptions(
                       height: 45.0,
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      color: const Color(0xFF45A845),
+                      color: const Color(0xFF3686AF),
                       textStyle:
                           FlutterFlowTheme.of(context).titleSmall.override(
                                 fontFamily: 'Manrope',

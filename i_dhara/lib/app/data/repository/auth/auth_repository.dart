@@ -7,4 +7,5 @@ abstract class AuthRepository {
   Future<OtpResponse?> verifyOtp(String phone, String otp);
   Future<RegisterResponse?> register(
       String fullName, String email, String phone);
+  Future<PhoneResponse?> resendOtp(String phone, String sid);
 }

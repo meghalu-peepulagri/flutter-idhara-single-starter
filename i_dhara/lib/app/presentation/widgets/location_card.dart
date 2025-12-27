@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
@@ -57,7 +58,11 @@ class LocationCard extends StatelessWidget {
                       size: 20.0,
                     ),
                     Text(
-                      location.name ?? 'Unknown Location',
+                      (location.name != null && location.name!.length > 16)
+                          ? '${location.name!.capitalizeFirst!.substring(0, 16)}...'
+                          : (location.name ?? 'Unknown Location'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
                             font: GoogleFonts.dmSans(
                               fontWeight: FlutterFlowTheme.of(context)

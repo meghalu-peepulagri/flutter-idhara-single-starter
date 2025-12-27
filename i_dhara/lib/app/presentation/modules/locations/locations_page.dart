@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
+import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/new_location/add_new_location.dart';
@@ -265,6 +266,8 @@ class LocationsWidget extends StatelessWidget {
                             return const Center(
                               child: AppLottieLoading(),
                             );
+                          } else if (!controller.hasInternet.value) {
+                            return const NoInternetWidget();
                           }
 
                           if (controller.locationsList.isEmpty) {
@@ -280,129 +283,6 @@ class LocationsWidget extends StatelessWidget {
                                 shrinkWrap: true,
                                 scrollDirection: Axis.vertical,
                                 children: [
-                                  // Row(
-                                  //   mainAxisSize: MainAxisSize.max,
-                                  //   mainAxisAlignment:
-                                  //       MainAxisAlignment.spaceBetween,
-                                  //   children: [
-                                  //     Text(
-                                  //       'Locations',
-                                  //       style: FlutterFlowTheme.of(context)
-                                  //           .bodyMedium
-                                  //           .override(
-                                  //             font: GoogleFonts.dmSans(
-                                  //               fontWeight: FontWeight.w500,
-                                  //               fontStyle:
-                                  //                   FlutterFlowTheme.of(context)
-                                  //                       .bodyMedium
-                                  //                       .fontStyle,
-                                  //             ),
-                                  //             color: const Color(0xFF0A0A0A),
-                                  //             fontSize: 18.0,
-                                  //             letterSpacing: 0.0,
-                                  //             fontWeight: FontWeight.w500,
-                                  //             fontStyle:
-                                  //                 FlutterFlowTheme.of(context)
-                                  //                     .bodyMedium
-                                  //                     .fontStyle,
-                                  //           ),
-                                  //     ),
-                                  //     Row(
-                                  //       children: [
-                                  //         InkWell(
-                                  //           onTap: () {
-                                  //             ontaplocation(context);
-                                  //           },
-                                  //           child: Container(
-                                  //             decoration: BoxDecoration(
-                                  //               gradient: const LinearGradient(
-                                  //                 begin: Alignment.topLeft,
-                                  //                 end: Alignment.bottomRight,
-                                  //                 colors: [
-                                  //                   Color(0xFF3686AF),
-                                  //                   Color(0xFF004E7E),
-                                  //                 ],
-                                  //               ),
-                                  //               borderRadius:
-                                  //                   BorderRadius.circular(6),
-                                  //             ),
-                                  //             padding:
-                                  //                 const EdgeInsetsDirectional
-                                  //                     .fromSTEB(
-                                  //                     10.0, 6.0, 10.0, 6.0),
-                                  //             child: Row(
-                                  //               children: [
-                                  //                 const Icon(
-                                  //                   Icons.add,
-                                  //                   size: 16,
-                                  //                   color: Colors.white,
-                                  //                 ),
-                                  //                 const SizedBox(width: 4),
-                                  //                 Text(
-                                  //                   'Add',
-                                  //                   style: FlutterFlowTheme.of(
-                                  //                           context)
-                                  //                       .bodySmall
-                                  //                       .override(
-                                  //                         fontSize: 14,
-                                  //                         font: GoogleFonts
-                                  //                             .dmSans(
-                                  //                           fontWeight:
-                                  //                               FontWeight.w500,
-                                  //                         ),
-                                  //                         color: Colors.white,
-                                  //                       ),
-                                  //                 ),
-                                  //               ],
-                                  //             ),
-                                  //           ),
-                                  //         ),
-                                  //         const SizedBox(width: 8),
-                                  //         Container(
-                                  //           decoration: BoxDecoration(
-                                  //             color:
-                                  //                 FlutterFlowTheme.of(context)
-                                  //                     .secondaryBackground,
-                                  //             border: Border.all(
-                                  //               color: const Color(0xFFEFEFEF),
-                                  //             ),
-                                  //           ),
-                                  //           child: Padding(
-                                  //             padding:
-                                  //                 const EdgeInsetsDirectional
-                                  //                     .fromSTEB(
-                                  //                     8.0, 6.0, 8.0, 6.0),
-                                  //             child: Text(
-                                  //               '${controller.locationsList.length}',
-                                  //               style: FlutterFlowTheme.of(
-                                  //                       context)
-                                  //                   .bodyMedium
-                                  //                   .override(
-                                  //                     fontSize: 14,
-                                  //                     font: GoogleFonts.dmSans(
-                                  //                       fontWeight:
-                                  //                           FlutterFlowTheme.of(
-                                  //                                   context)
-                                  //                               .bodyMedium
-                                  //                               .fontWeight,
-                                  //                       fontStyle:
-                                  //                           FlutterFlowTheme.of(
-                                  //                                   context)
-                                  //                               .bodyMedium
-                                  //                               .fontStyle,
-                                  //                     ),
-                                  //                     color: const Color(
-                                  //                         0xFF087D40),
-                                  //                     letterSpacing: 0.0,
-                                  //                   ),
-                                  //             ),
-                                  //           ),
-                                  //         ),
-                                  //       ],
-                                  //     ),
-                                  //   ],
-                                  // ),
-                                  // const SizedBox(height: 8.0),
                                   ...controller.locationsList.map((location) {
                                     return Container(
                                       margin:
