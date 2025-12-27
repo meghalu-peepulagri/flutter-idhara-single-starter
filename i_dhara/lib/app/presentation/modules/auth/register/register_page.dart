@@ -296,9 +296,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                       TextFieldComponent(
                                         readOnly: false,
                                         controller: controller2,
-                                        errors: _model.errorInstance,
+                                        // errors: _model.errorInstance,
                                         hintText: 'Enter Email',
-                                        errorKey: 'email',
+                                        // errorKey: 'email',
                                         // maxlength: 10,
                                         onChanged: (value) {
                                           if (_model.errorInstance
