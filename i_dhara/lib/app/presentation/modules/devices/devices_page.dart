@@ -89,66 +89,63 @@ class DevicesPage extends StatelessWidget {
                       16.0, 8.0, 16.0, 0.0),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Stack(
+                        alignment: Alignment.center,
                         children: [
-                          InkWell(
-                            onTap: () {
-                              Get.offAllNamed(Routes.dashboard);
-                            },
-                            child: const Icon(
-                              Icons.arrow_back,
-                              color: Color(0xFF004E7E),
-                              size: 20.0,
+                          Center(
+                            child: Text(
+                              'Devices',
+                              style: FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .fontStyle,
+                                    ),
+                                    color: const Color(0xFF004E7E),
+                                    fontSize: 16.0,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FontWeight.w500,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .fontStyle,
+                                  ),
                             ),
                           ),
-                          Expanded(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Devices ',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.dmSans(
-                                          fontWeight: FontWeight.w500,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: const Color(0xFF004E7E),
-                                        fontSize: 16.0,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.w500,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  Get.offAllNamed(Routes.dashboard);
+                                },
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  color: Color(0xFF004E7E),
+                                  size: 20.0,
                                 ),
-                                GestureDetector(
-                                  onTap: () {
-                                    onTapMenu();
-                                  },
-                                  child: Container(
-                                    decoration: const BoxDecoration(),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(6.0),
-                                      child: Icon(
-                                        Icons.menu_sharp,
-                                        color: Color(0xFF121212),
-                                        size: 30.0,
-                                      ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  onTapMenu();
+                                },
+                                child: Container(
+                                  decoration: const BoxDecoration(),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6.0),
+                                    child: Icon(
+                                      Icons.menu_sharp,
+                                      color: Color(0xFF121212),
+                                      size: 30.0,
                                     ),
                                   ),
                                 ),
-                              ].divide(const SizedBox(width: 8.0)),
-                            ),
+                              ),
+                            ],
                           ),
-                        ].divide(const SizedBox(width: 100.0)),
+                        ],
                       ),
                     ],
                   ),

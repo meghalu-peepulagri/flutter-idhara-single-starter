@@ -127,58 +127,57 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
         child: Scaffold(
           key: scaffoldKey,
           backgroundColor: const Color(0xFFEBF3FE),
-          body: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(1.0, 0.0, 0.0, 0.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              children: [
+          body: SafeArea(
+            child: Padding(
+              padding:
+                  const EdgeInsetsDirectional.fromSTEB(1.0, 16.0, 0.0, 0.0),
+              child: Column(mainAxisSize: MainAxisSize.max, children: [
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(
                       16.0, 0.0, 16.0, 0.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      Container(
-                        decoration: const BoxDecoration(),
-                        child: GestureDetector(
-                          onTap: () {
-                            Get.offAllNamed(Routes.devices);
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.all(6.0),
-                            child: Icon(
-                              Icons.arrow_back,
-                              color: Color(0xFF004E7E),
-                              size: 20.0,
-                            ),
-                          ),
+                      // Centered title
+                      Center(
+                        child: Text(
+                          'Add Device',
+                          style:
+                              FlutterFlowTheme.of(context).bodyMedium.override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .fontStyle,
+                                    ),
+                                    color: const Color(0xFF004E7E),
+                                    fontSize: 16.0,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FontWeight.w500,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .fontStyle,
+                                  ),
                         ),
                       ),
-                      Text(
-                        'Add Device',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              font: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w500,
-                                fontStyle: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .fontStyle,
+                      // Back button positioned on the left
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          decoration: const BoxDecoration(),
+                          child: GestureDetector(
+                            onTap: () {
+                              Get.offAllNamed(Routes.devices);
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(2.0),
+                              child: Icon(
+                                Icons.arrow_back,
+                                color: Color(0xFF004E7E),
+                                size: 20.0,
                               ),
-                              color: const Color(0xFF004E7E),
-                              fontSize: 16.0,
-                              letterSpacing: 0.0,
-                              fontWeight: FontWeight.w500,
-                              fontStyle: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .fontStyle,
                             ),
-                      ),
-                      Opacity(
-                        opacity: 0.0,
-                        child: Icon(
-                          Icons.arrow_back,
-                          color: FlutterFlowTheme.of(context).primaryText,
-                          size: 24.0,
+                          ),
                         ),
                       ),
                     ],
@@ -575,7 +574,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                     ),
                   ),
                 ),
-              ].addToStart(const SizedBox(height: 56.0)),
+              ]),
             ),
           ),
         ),

@@ -54,52 +54,53 @@ class MotorControlWidget extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsetsDirectional.fromSTEB(
                         16.0, 0.0, 16.0, 0.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Container(
-                          decoration: const BoxDecoration(),
-                          child: InkWell(
-                            onTap: () {
-                              Get.back();
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.all(6.0),
-                              child: Icon(
-                                Icons.arrow_back,
-                                color: Color(0xFF004E7E),
-                                size: 20.0,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          controller1.motorName.value.capitalizeFirst!,
-                          // controller1.motorName.value.capitalizeFirst!,
-                          style:
-                              FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: const Color(0xFF004E7E),
-                                    fontSize: 16.0,
-                                    letterSpacing: 0.0,
+                        // Centered title
+                        Center(
+                          child: Text(
+                            controller1.motorName.value.capitalizeFirst!,
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w500,
                                     fontStyle: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .fontStyle,
                                   ),
+                                  color: const Color(0xFF004E7E),
+                                  fontSize: 16.0,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FontWeight.w500,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .fontStyle,
+                                ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        Opacity(
-                          opacity: 0.0,
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24.0,
+                        // Back button positioned on the left
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            decoration: const BoxDecoration(),
+                            child: InkWell(
+                              onTap: () {
+                                Get.back();
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(6.0),
+                                child: Icon(
+                                  Icons.arrow_back,
+                                  color: Color(0xFF004E7E),
+                                  size: 20.0,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],

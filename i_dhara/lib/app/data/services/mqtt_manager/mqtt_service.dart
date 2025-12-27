@@ -238,6 +238,39 @@ class MqttService {
     }
   }
 
+  Future<void> resubscribeToTopics() async {
+    if (mqttClient == null || !isConnected) {
+      debugPrint('⚠️ Cannot resubscribe: MQTT not connected');
+      return;
+    }
+
+    debugPrint('🔄 Resubscribing to motor topics...');
+
+    // Get unique MAC addresses from current motors
+    final Set<String> macAddresses = {};
+    for (var motor in motors.values) {
+      if (motor.starter?.macAddress != null) {
+        macAddresses.add(motor.starter!.macAddress!);
+      }
+    }
+
+    debugPrint('📡 Found ${macAddresses.length} unique MAC addresses');
+
+    // Subscribe to topics for each MAC address
+    for (var mac in macAddresses) {
+      try {
+        mqttClient!.subscribe('peepul/$mac/cmd', MqttQos.atMostOnce);
+        mqttClient!.subscribe('peepul/$mac/status', MqttQos.atMostOnce);
+        debugPrint('✓ Subscribed to topics for MAC: $mac');
+      } catch (e) {
+        debugPrint('✗ Failed to subscribe to MAC $mac: $e');
+      }
+    }
+
+    debugPrint('✅ Resubscription complete');
+    _dataUpdateNotifier.value++;
+  }
+
   Future<void> initializeMqttClient() async {
     if (mqttClient != null && isConnected) {
       debugPrint('Disconnecting existing MQTT client');
@@ -786,13 +819,14 @@ class MqttService {
       if (groupData.containsKey('p_v')) {
         debugPrint('Processing $groupId with full data');
 
-        final newState = groupData['m_s'] ?? 0;
+        final newState = (groupData['m_s'] ?? groupData['mtr_sts']) ?? 0;
         motorData.state = newState;
         if (motorData.controller.value != (newState == 1)) {
           motorData.controller.value = (newState == 1);
         }
 
-        final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+        final llv = (groupData['llv'] ?? groupData['ll_v']) as List<dynamic>? ??
+            [0, 0, 0];
         motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
         motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
         motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
@@ -828,8 +862,10 @@ class MqttService {
           }
         }
 
-        if (groupData.containsKey('llv')) {
-          final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+        if (groupData.containsKey('llv') || groupData.containsKey('ll_v')) {
+          final llv =
+              (groupData['llv'] ?? groupData['ll_v']) as List<dynamic>? ??
+                  [0, 0, 0];
           motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
           motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
@@ -850,8 +886,8 @@ class MqttService {
               'No amp data in payload - reset currents to 0 for $groupId');
         }
 
-        if (groupData.containsKey('m_s')) {
-          motorData.state = groupData['m_s'] ?? 0;
+        if (groupData.containsKey('m_s') || groupData.containsKey('mtr_sts')) {
+          motorData.state = (groupData['m_s'] ?? groupData['mtr_sts']) ?? 0;
           motorData.controller.value = motorData.state == 1;
           debugPrint('Updated motor state: ${motorData.state}');
         }
@@ -868,8 +904,10 @@ class MqttService {
           motorData.motorMode = modeValue == 1 ? 'AUTO' : 'MANUAL';
         }
 
-        if (groupData.containsKey('llv')) {
-          final llv = groupData['llv'] as List<dynamic>? ?? [0, 0, 0];
+        if (groupData.containsKey('llv') || groupData.containsKey('ll_v')) {
+          final llv =
+              (groupData['llv'] ?? groupData['ll_v']) as List<dynamic>? ??
+                  [0, 0, 0];
           motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
           motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';

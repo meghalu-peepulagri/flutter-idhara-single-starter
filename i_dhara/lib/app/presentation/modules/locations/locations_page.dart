@@ -68,45 +68,48 @@ class LocationsWidget extends StatelessWidget {
             child: Column(mainAxisSize: MainAxisSize.max, children: [
               Padding(
                 padding:
-                    const EdgeInsetsDirectional.fromSTEB(16.0, 16.0, 16.0, 0.0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    const EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 0.0),
+                child: Column(
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        Get.offAllNamed(Routes.dashboard);
-                      },
-                      child: const Icon(
-                        Icons.arrow_back,
-                        color: Color(0xFF004E7E),
-                        size: 20.0,
-                      ),
-                    ),
-                    Expanded(
-                      child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Locations ',
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: const Color(0xFF004E7E),
-                                    fontSize: 16.0,
-                                    letterSpacing: 0.0,
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Centered title
+                        Center(
+                          child: Text(
+                            'Locations',
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w500,
                                     fontStyle: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .fontStyle,
                                   ),
+                                  color: const Color(0xFF004E7E),
+                                  fontSize: 16.0,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FontWeight.w500,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .fontStyle,
+                                ),
+                          ),
+                        ),
+                        // Back button and menu on the sides
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                Get.offAllNamed(Routes.dashboard);
+                              },
+                              child: const Icon(
+                                Icons.arrow_back,
+                                color: Color(0xFF004E7E),
+                                size: 20.0,
+                              ),
                             ),
                             GestureDetector(
                               onTap: () {
@@ -124,9 +127,11 @@ class LocationsWidget extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          ]),
+                          ],
+                        ),
+                      ],
                     ),
-                  ].divide(const SizedBox(width: 100.0)),
+                  ],
                 ),
               ),
               Expanded(
