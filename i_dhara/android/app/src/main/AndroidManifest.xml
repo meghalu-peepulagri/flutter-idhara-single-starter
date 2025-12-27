@@ -10,7 +10,7 @@
 
 
     <application
-        android:label="I Dhara"
+        android:label="iDhara"
         tools:replace="android:label"
         android:icon="@mipmap/launcher_icon"
         android:requestLegacyExternalStorage="true">

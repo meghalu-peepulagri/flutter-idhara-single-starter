@@ -215,56 +215,7 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                               RegExp(r'^\s')),
                                         ],
                                       ),
-                                      const SizedBox(
-                                        height: 10,
-                                      ),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: 'Email',
-                                          style: FlutterFlowTheme.of(context)
-                                              .bodyMedium
-                                              .override(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                                fontFamily: 'Manrope',
-                                                color: const Color(0xFF000000),
-                                              ),
-                                          children: const [
-                                            TextSpan(
-                                              text: '*',
-                                              style: TextStyle(
-                                                  color: Colors.red,
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        height: 8,
-                                      ),
-                                      TextFieldComponent(
-                                        readOnly: false,
-                                        controller: controller2,
-                                        errors: _model.errorInstance,
-                                        hintText: 'Enter Email',
-                                        errorKey: 'email',
-                                        // maxlength: 10,
-                                        onChanged: (value) {
-                                          if (_model.errorInstance
-                                              .containsKey('email')) {
-                                            setState(() {
-                                              _model.errorInstance
-                                                  .remove('email');
-                                            });
-                                          }
-                                        },
 
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.allow(
-                                              RegExp(
-                                                  r'[a-zA-Z0-9$#%^&*!@()/|.]')),
-                                        ],
-                                      ),
                                       const SizedBox(
                                         height: 10,
                                       ),
@@ -313,6 +264,55 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           FilteringTextInputFormatter
                                               .digitsOnly,
                                           LengthLimitingTextInputFormatter(10),
+                                        ],
+                                      ),
+                                      const SizedBox(
+                                        height: 10,
+                                      ),
+                                      Text.rich(
+                                        TextSpan(
+                                          text: 'Email',
+                                          style: FlutterFlowTheme.of(context)
+                                              .bodyMedium
+                                              .override(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400,
+                                                fontFamily: 'Manrope',
+                                                color: const Color(0xFF000000),
+                                              ),
+                                          children: const [
+                                            TextSpan(
+                                              text: '',
+                                              style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                        height: 8,
+                                      ),
+                                      TextFieldComponent(
+                                        readOnly: false,
+                                        controller: controller2,
+                                        errors: _model.errorInstance,
+                                        hintText: 'Enter Email',
+                                        errorKey: 'email',
+                                        // maxlength: 10,
+                                        onChanged: (value) {
+                                          if (_model.errorInstance
+                                              .containsKey('email')) {
+                                            setState(() {
+                                              _model.errorInstance
+                                                  .remove('email');
+                                            });
+                                          }
+                                        },
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                              RegExp(
+                                                  r'[a-zA-Z0-9$#%^&*!@()/|.]')),
                                         ],
                                       ),
                                       const SizedBox(

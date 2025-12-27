@@ -30,17 +30,16 @@ class LoginwithmobileModel extends FlutterFlowModel {
     textFieldFocusNode?.dispose();
     textController?.dispose();
   }
-    Future<void> fetchMobiel({required String phone}) async {
 
-    final response = await AuthRepositoryImpl().login(phone);
+  Future<void> fetchMobile({required String phone,required String sid}) async {
+    final response = await AuthRepositoryImpl().login(phone, sid);
     print("line 268 -----------> ${response}");
 
-    if (response != null && response.errors == null){
-        Get.offNamed(Routes.otp);
-        print("line 260 -----------> ${response.data?.accessToken}");
+    if (response != null && response.errors == null) {
+      Get.offNamed(Routes.otp);
+      print("line 260 -----------> ${response.data?.accessToken}");
       SharedPreference.setPhone(phone);
-      
-    }else if (response?.errors != null){
+    } else if (response?.errors != null) {
       errorInstance = response?.errors!.toJson();
     }
   }

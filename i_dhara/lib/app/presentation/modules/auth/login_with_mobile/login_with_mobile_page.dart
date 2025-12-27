@@ -280,8 +280,8 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                 //   errorSnackBar(context, 'No internet connection. Please check your network.');
                                 //   return;
                                 // }
-                                await _model.fetchMobiel(
-                                    phone: controller1.text.trim());
+                                await _model.fetchMobile(
+                                    sid: id, phone: controller1.text.trim());
                                 setState(() {
                                   showVerifyButton =
                                       _model.message == "User not verified";

@@ -87,6 +87,8 @@ dependencies:
   permission_handler: ^12.0.1
   lottie: ^3.3.1
   calendar_date_picker2: ^2.0.1
+  pinput: ^6.0.1
+  flutter_launcher_icons: ^0.14.4
 
 dependency_overrides:
   http: 1.4.0
@@ -95,9 +97,9 @@ dependency_overrides:
   flutter_launcher_icons: "^0.14.3"
 
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
-  image_path: "assets/images/idhara.png"
+  image_path: "assets/images/app_logo_idhara.png"
 
 dev_dependencies:
   flutter_lints: 4.0.0

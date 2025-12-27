@@ -6,8 +6,9 @@ import 'package:i_dhara/app/data/repository/auth/auth_repository.dart';
 
 class AuthRepositoryImpl extends AuthRepository {
   @override
-  Future<PhoneResponse?> login(String phone) async {
-    final body = {"phone": phone};
+  Future<PhoneResponse?> login(String phone, String signId) async {
+    final body = {"phone": phone, "signature_id": signId};
+    print("line 11 --> $body");
     final response =
         await NetworkManager().post('/auth/signin-phone', data: body, {});
     if (response.statusCode == 200 ||
