@@ -60,7 +60,7 @@ class MotorControlWidget extends StatelessWidget {
                         // Centered title
                         Center(
                           child: Text(
-                            controller1.motorName.value.capitalizeFirst!,
+                            controller1.motorName.value,
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
@@ -83,7 +83,6 @@ class MotorControlWidget extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Back button positioned on the left
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Container(
@@ -107,380 +106,620 @@ class MotorControlWidget extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          16.0, 0.0, 16.0, 0.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: FlutterFlowTheme.of(context)
-                                  .secondaryBackground,
-                              borderRadius: BorderRadius.circular(10.0),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.max,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Row(
+                    child: RefreshIndicator(
+                      onRefresh: controller1.onrefresh,
+                      child: Skeletonizer(
+                        enabled: controller1.isRefreshing.value,
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                              16.0, 0.0, 16.0, 0.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(
                                     mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Obx(() {
-                                              return Text(
-                                                controller1.motorName.value
-                                                    .capitalizeFirst!,
-                                                style: FlutterFlowTheme.of(
-                                                        context)
-                                                    .bodyMedium
-                                                    .override(
-                                                      font: GoogleFonts.dmSans(
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color: const Color(
-                                                          0xFF0A0A0A),
-                                                      fontSize: 20.0,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .bodyMedium
-                                                              .fontStyle,
-                                                    ),
-                                              );
-                                            }),
-                                            const SizedBox(width: 2),
-                                            Obx(() {
-                                              return Text(
-                                                'HP : ${controller1.hp.value}',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: FlutterFlowTheme.of(
-                                                        context)
-                                                    .bodyMedium
-                                                    .override(
-                                                      font: GoogleFonts.dmSans(
-                                                        fontWeight:
-                                                            FontWeight.normal,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color: const Color(
-                                                          0xFF6A7282),
-                                                      fontSize: 14.0,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FontWeight.normal,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .bodyMedium
-                                                              .fontStyle,
-                                                    ),
-                                              );
-                                            }),
-                                            const SizedBox(width: 2),
-                                            Obx(() {
-                                              final deviceId =
-                                                  controller1.deviceId.value;
-                                              final displayId = deviceId
-                                                          .length >
-                                                      10
-                                                  ? '${deviceId.substring(0, 10)}...'
-                                                  : deviceId;
-                                              return Text(
-                                                'PCB: $displayId',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: FlutterFlowTheme.of(
-                                                        context)
-                                                    .bodyMedium
-                                                    .override(
-                                                      font: GoogleFonts.dmSans(
-                                                        fontWeight:
-                                                            FontWeight.normal,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color: const Color(
-                                                          0xFF6A7282),
-                                                      fontSize: 14.0,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FontWeight.normal,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .bodyMedium
-                                                              .fontStyle,
-                                                    ),
-                                              );
-                                            }),
-                                            // const SizedBox(height: 8.0),
-                                            // Toggle Switch - separate row
-                                            // Obx(() {
-                                            //   final mode = controller1
-                                            //       .motorMode.value
-                                            //       .toLowerCase();
-                                            //   final isAuto = mode == 'auto';
-                                            //   final int selectedIndex =
-                                            //       isAuto ? 0 : 1;
-
-                                            //   return ToggleSwitch(
-                                            //     key: ValueKey(mode),
-                                            //     changeOnTap: false,
-                                            //     customWidths: const [90, 90],
-                                            //     radiusStyle: true,
-                                            //     minWidth: 80.0,
-                                            //     minHeight: 30.0,
-                                            //     initialLabelIndex:
-                                            //         selectedIndex,
-                                            //     cornerRadius: 8.0,
-                                            //     activeBgColor: [
-                                            //       isAuto
-                                            //           ? const Color(0xFFFFA500)
-                                            //               .withOpacity(0.5)
-                                            //           : !isAuto
-                                            //               ? const Color(
-                                            //                       0xFF2F80ED)
-                                            //                   .withOpacity(0.5)
-                                            //               : const Color(
-                                            //                   0xFF2F80ED)
-                                            //     ],
-                                            //     activeFgColor: Colors.white,
-                                            //     inactiveBgColor: Colors.white,
-                                            //     inactiveFgColor: Colors.black,
-                                            //     fontSize: 12,
-                                            //     totalSwitches: 2,
-                                            //     labels: const [
-                                            //       'Auto',
-                                            //       'Manual'
-                                            //     ],
-                                            //     borderWidth: 1,
-                                            //     borderColor: [
-                                            //       Colors.grey.shade300
-                                            //     ],
-                                            //     onToggle: null,
-                                            //   );
-                                            // }),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.max,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.end,
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          // Obx(() {
-                                          //   return AdvancedSwitch(
-                                          //     activeColor: Colors.green,
-                                          //     inactiveColor:
-                                          //         Colors.red.shade500,
-                                          //     activeChild: const Text('ON'),
-                                          //     inactiveChild: const Text('OFF'),
-                                          //     initialValue: controller1
-                                          //             .motorState.value ==
-                                          //         1,
-                                          //     borderRadius:
-                                          //         const BorderRadius.all(
-                                          //             Radius.circular(15)),
-                                          //     width: 55,
-                                          //     height: 25,
-                                          //     enabled: false,
-                                          //     disabledOpacity: 0.5,
-                                          //     onChanged: null,
-                                          //   );
-                                          // }),
-                                          const SizedBox(height: 30.0),
-                                          Obx(() {
-                                            final locationName =
-                                                controller1.locationName.value;
-                                            final displayName = locationName
-                                                        .length >
-                                                    15
-                                                ? '${locationName.substring(0, 15)}...'
-                                                : locationName;
-                                            return Row(
-                                              mainAxisSize: MainAxisSize.min,
+                                          Expanded(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.max,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                SvgPicture.asset(
-                                                  'assets/images/location.svg',
-                                                  fit: BoxFit.cover,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  displayName,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.dmSans(
+                                                Obx(() {
+                                                  return Text(
+                                                    controller1.motorName.value,
+                                                    style: FlutterFlowTheme.of(
+                                                            context)
+                                                        .bodyMedium
+                                                        .override(
+                                                          font: GoogleFonts
+                                                              .dmSans(
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                            fontStyle:
+                                                                FlutterFlowTheme.of(
+                                                                        context)
+                                                                    .bodyMedium
+                                                                    .fontStyle,
+                                                          ),
+                                                          color: const Color(
+                                                              0xFF0A0A0A),
+                                                          fontSize: 20.0,
+                                                          letterSpacing: 0.0,
                                                           fontWeight:
-                                                              FontWeight.normal,
+                                                              FontWeight.w500,
                                                           fontStyle:
                                                               FlutterFlowTheme.of(
                                                                       context)
                                                                   .bodyMedium
                                                                   .fontStyle,
                                                         ),
-                                                        color: const Color(
-                                                            0xFF6A7282),
-                                                        fontSize: 16.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.normal,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
+                                                  );
+                                                }),
+                                                const SizedBox(height: 2),
+                                                Obx(() {
+                                                  return Row(
+                                                    children: [
+                                                      // Text(
+                                                      //   'HP :  ',
+                                                      //   style: FlutterFlowTheme.of(
+                                                      //           context)
+                                                      //       .bodyMedium
+                                                      //       .override(
+                                                      //           font:
+                                                      //               GoogleFonts
+                                                      //                   .dmSans(
+                                                      //             fontWeight:
+                                                      //                 FontWeight
+                                                      //                     .normal,
+                                                      //           ),
+                                                      //           color: const Color(
+                                                      //               0xFF6A7282),
+                                                      //           fontSize: 14.0,
+                                                      //           letterSpacing:
+                                                      //               0.0,
+                                                      //           fontWeight:
+                                                      //               FontWeight
+                                                      //                   .w600),
+                                                      // ),
+                                                      Text(
+                                                        '${controller1.hp.value} HP',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: FlutterFlowTheme
+                                                                .of(context)
+                                                            .bodyMedium
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .normal,
+                                                                fontStyle: FlutterFlowTheme.of(
+                                                                        context)
+                                                                    .bodyMedium
+                                                                    .fontStyle,
+                                                              ),
+                                                              color: const Color(
+                                                                  0xFF6A7282),
+                                                              fontSize: 14.0,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                              fontStyle:
+                                                                  FlutterFlowTheme.of(
+                                                                          context)
+                                                                      .bodyMedium
+                                                                      .fontStyle,
+                                                            ),
                                                       ),
-                                                ),
+                                                    ],
+                                                  );
+                                                }),
+                                                const SizedBox(height: 4),
+
+                                                Obx(() {
+                                                  final deviceId = controller1
+                                                      .deviceId.value;
+                                                  final displayId = deviceId
+                                                              .length >
+                                                          10
+                                                      ? '${deviceId.substring(0, 10)}...'
+                                                      : deviceId;
+                                                  return Row(
+                                                    children: [
+                                                      Text(
+                                                        'Box Id : ',
+                                                        style: FlutterFlowTheme
+                                                                .of(context)
+                                                            .bodyMedium
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .normal,
+                                                              ),
+                                                              color: const Color(
+                                                                  0xFF6A7282),
+                                                              fontSize: 14.0,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                            ),
+                                                      ),
+                                                      Text(
+                                                        displayId,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: FlutterFlowTheme
+                                                                .of(context)
+                                                            .bodyMedium
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .normal,
+                                                                fontStyle: FlutterFlowTheme.of(
+                                                                        context)
+                                                                    .bodyMedium
+                                                                    .fontStyle,
+                                                              ),
+                                                              color: const Color(
+                                                                  0xFF6A7282),
+                                                              fontSize: 14.0,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                              fontStyle:
+                                                                  FlutterFlowTheme.of(
+                                                                          context)
+                                                                      .bodyMedium
+                                                                      .fontStyle,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }),
+                                                const SizedBox(height: 4),
+                                                Obx(() {
+                                                  final dateText = controller1
+                                                      .timeStamp.value
+                                                      .trim();
+                                                  return Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.sync,
+                                                        color:
+                                                            Color(0xFF166491),
+                                                        size: 16,
+                                                      ),
+                                                      Text(
+                                                        ' ${dateText.isEmpty || dateText == 'N/A' ? ' N/A' : dateText}',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: FlutterFlowTheme
+                                                                .of(context)
+                                                            .bodyMedium
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .normal,
+                                                                fontStyle: FlutterFlowTheme.of(
+                                                                        context)
+                                                                    .bodyMedium
+                                                                    .fontStyle,
+                                                              ),
+                                                              color: const Color(
+                                                                  0xFF166491),
+                                                              fontSize: 14.0,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                              fontStyle:
+                                                                  FlutterFlowTheme.of(
+                                                                          context)
+                                                                      .bodyMedium
+                                                                      .fontStyle,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }),
+                                                // const SizedBox(height: 8.0),
+                                                // Toggle Switch - separate row
+                                                // Obx(() {
+                                                //   final mode = controller1
+                                                //       .motorMode.value
+                                                //       .toLowerCase();
+                                                //   final isAuto = mode == 'auto';
+                                                //   final int selectedIndex =
+                                                //       isAuto ? 0 : 1;
+
+                                                //   return ToggleSwitch(
+                                                //     key: ValueKey(mode),
+                                                //     changeOnTap: false,
+                                                //     customWidths: const [90, 90],
+                                                //     radiusStyle: true,
+                                                //     minWidth: 80.0,
+                                                //     minHeight: 30.0,
+                                                //     initialLabelIndex:
+                                                //         selectedIndex,
+                                                //     cornerRadius: 8.0,
+                                                //     activeBgColor: [
+                                                //       isAuto
+                                                //           ? const Color(0xFFFFA500)
+                                                //               .withOpacity(0.5)
+                                                //           : !isAuto
+                                                //               ? const Color(
+                                                //                       0xFF2F80ED)
+                                                //                   .withOpacity(0.5)
+                                                //               : const Color(
+                                                //                   0xFF2F80ED)
+                                                //     ],
+                                                //     activeFgColor: Colors.white,
+                                                //     inactiveBgColor: Colors.white,
+                                                //     inactiveFgColor: Colors.black,
+                                                //     fontSize: 12,
+                                                //     totalSwitches: 2,
+                                                //     labels: const [
+                                                //       'Auto',
+                                                //       'Manual'
+                                                //     ],
+                                                //     borderWidth: 1,
+                                                //     borderColor: [
+                                                //       Colors.grey.shade300
+                                                //     ],
+                                                //     onToggle: null,
+                                                //   );
+                                                // }),
                                               ],
-                                            );
-                                          }),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  Obx(() {
-                                    final fault =
-                                        controller1.faultMessage.value.trim();
-
-                                    if (fault.isEmpty)
-                                      return const SizedBox.shrink();
-
-                                    return Container(
-                                      margin: const EdgeInsets.only(top: 0),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFCF4D9),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Lottie.asset(
-                                            'assets/lottie_animations/warning 1.json',
-                                            width: 20,
-                                            height: 20,
-                                            fit: BoxFit.contain,
-                                            repeat: true,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              fault,
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    font: GoogleFonts.dmSans(
-                                                        fontWeight:
-                                                            FontWeight.w300),
-                                                    fontSize: 12,
-                                                    color:
-                                                        const Color(0xFFFF8A00),
-                                                  ),
                                             ),
                                           ),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Obx(() {
+                                                final state = controller1
+                                                    .motorState.value;
+                                                final isOn = state == 1;
+
+                                                return Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'State :  ',
+                                                      style: FlutterFlowTheme
+                                                              .of(context)
+                                                          .bodyMedium
+                                                          .override(
+                                                            font: GoogleFonts
+                                                                .dmSans(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                            ),
+                                                            color: const Color(
+                                                                0xFF000000),
+                                                            fontSize: 14.0,
+                                                            letterSpacing: 0.0,
+                                                          ),
+                                                    ),
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        color: isOn
+                                                            ? const Color(
+                                                                0XFFDCFCE7)
+                                                            : const Color(
+                                                                0XFFDCFCE7),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(4.0),
+                                                      ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8.0,
+                                                          vertical: 0.0),
+                                                      child: Text(
+                                                        isOn ? 'ON' : 'OFF',
+                                                        style: FlutterFlowTheme
+                                                                .of(context)
+                                                            .bodyMedium
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w400,
+                                                              ),
+                                                              color: const Color(
+                                                                  0XFF008236),
+                                                              fontSize: 14.0,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              }),
+                                              const SizedBox(height: 6),
+                                              Obx(() {
+                                                final mode =
+                                                    controller1.motorMode.value;
+                                                final isManual = mode == 'M' ||
+                                                    mode
+                                                        .toLowerCase()
+                                                        .contains('manual');
+                                                final isAuto = mode == 'A' ||
+                                                    mode
+                                                        .toLowerCase()
+                                                        .contains('auto');
+
+                                                String modeText = 'Manual';
+                                                Color modeColor =
+                                                    const Color(0xFFFFEDD4);
+
+                                                if (isAuto) {
+                                                  modeText = 'Auto';
+                                                  modeColor =
+                                                      const Color(0xFFFFEDD4);
+                                                }
+
+                                                return Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'Mode: ',
+                                                      style: FlutterFlowTheme
+                                                              .of(context)
+                                                          .bodyMedium
+                                                          .override(
+                                                            font: GoogleFonts
+                                                                .dmSans(),
+                                                            color: const Color(
+                                                                0xFF000000),
+                                                            fontSize: 14.0,
+                                                            letterSpacing: 0.0,
+                                                          ),
+                                                    ),
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        color: modeColor,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(4.0),
+                                                      ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8.0,
+                                                          vertical: 2.0),
+                                                      child: Text(
+                                                        modeText,
+                                                        style: FlutterFlowTheme
+                                                                .of(context)
+                                                            .bodyMedium
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w400,
+                                                              ),
+                                                              color: const Color(
+                                                                  0XFFCA3500),
+                                                              fontSize: 14.0,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              }),
+                                              const SizedBox(height: 12.0),
+                                              Obx(() {
+                                                final locationName = controller1
+                                                    .locationName.value;
+                                                final displayName = locationName
+                                                            .length >
+                                                        15
+                                                    ? '${locationName.substring(0, 15)}...'
+                                                    : locationName;
+                                                return Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    SvgPicture.asset(
+                                                      'assets/images/location.svg',
+                                                      fit: BoxFit.cover,
+                                                      // color: const Color(
+                                                      //     0XFF06A32D),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      displayName,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: FlutterFlowTheme
+                                                              .of(context)
+                                                          .bodyMedium
+                                                          .override(
+                                                            font: GoogleFonts
+                                                                .dmSans(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                              fontStyle:
+                                                                  FlutterFlowTheme.of(
+                                                                          context)
+                                                                      .bodyMedium
+                                                                      .fontStyle,
+                                                            ),
+                                                            color: const Color(
+                                                                0xFF5E5E5E),
+                                                            fontSize: 16.0,
+                                                            letterSpacing: 0.0,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .normal,
+                                                            fontStyle:
+                                                                FlutterFlowTheme.of(
+                                                                        context)
+                                                                    .bodyMedium
+                                                                    .fontStyle,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                );
+                                              }),
+                                            ],
+                                          ),
                                         ],
                                       ),
-                                    );
-                                  }),
-                                ].divide(const SizedBox(height: 12.0)),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Obx(() {
-                              return RefreshIndicator(
-                                onRefresh: controller1.onrefresh,
-                                child: Skeletonizer(
-                                  enabled: controller1.isRefreshing.value,
-                                  child: ListView(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      0,
-                                      0,
-                                      0,
-                                      24.0,
-                                    ),
-                                    shrinkWrap: true,
-                                    scrollDirection: Axis.vertical,
-                                    children: [
-                                      // Date Card - Always shows current date with month view
-                                      _buildDateCard(context, controller1),
-                                      Column(
-                                        mainAxisSize: MainAxisSize.max,
-                                        children: [
-                                          MotorRuntimeGraphWidget(
-                                            selectedDateRange:
-                                                controller1.daterange,
+                                      Obx(() {
+                                        final fault = controller1
+                                            .faultMessage.value
+                                            .trim();
+
+                                        if (fault.isEmpty ||
+                                            fault == '0' ||
+                                            fault == 'N/A' ||
+                                            fault.toLowerCase() == 'no fault') {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        return Container(
+                                          margin: const EdgeInsets.only(top: 0),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFCF4D9),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                           ),
-                                          PowerGraphWidget(
-                                            selectedDateRange:
-                                                controller1.daterange,
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Lottie.asset(
+                                                'assets/lottie_animations/warning 1.json',
+                                                width: 20,
+                                                height: 20,
+                                                fit: BoxFit.contain,
+                                                repeat: true,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  fault,
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .bodyMedium
+                                                      .override(
+                                                        font:
+                                                            GoogleFonts.dmSans(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w300),
+                                                        fontSize: 12,
+                                                        color: const Color(
+                                                            0xFFFF8A00),
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          // VoltageGraphWidget(
-                                          //   selectedDateRange:
-                                          //       controller1.daterange,
-                                          //   motorName:
-                                          //       controller1.selectedTitle.value,
-                                          //   sharedPointNotifier:
-                                          //       controller1.sharedPointNotifier,
-                                          //   sharedTimeNotifier:
-                                          //       controller1.sharedTimeNotifier,
-                                          // ),
-                                          // CurrentGraphWidget(
-                                          //   sharedPointNotifier:
-                                          //       controller1.valueNotifier,
-                                          //   sharedTimeNotifier:
-                                          //       controller1.sharedTimeNotifier,
-                                          //   selectedDateRange:
-                                          //       controller1.daterange,
-                                          //   motorName:
-                                          //       controller1.selectedTitle.value,
-                                          // ),
-                                        ].divide(const SizedBox(height: 16)),
-                                      ),
+                                        );
+                                      }),
                                     ].divide(const SizedBox(height: 12.0)),
                                   ),
                                 ),
-                              );
-                            }),
+                              ),
+                              Expanded(
+                                  child: ListView(
+                                padding: const EdgeInsets.fromLTRB(
+                                  0,
+                                  0,
+                                  0,
+                                  24.0,
+                                ),
+                                shrinkWrap: true,
+                                scrollDirection: Axis.vertical,
+                                children: [
+                                  _buildDateCard(context, controller1),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.max,
+                                    children: [
+                                      MotorRuntimeGraphWidget(
+                                        selectedDateRange:
+                                            controller1.daterange,
+                                      ),
+                                      PowerGraphWidget(
+                                        selectedDateRange:
+                                            controller1.daterange,
+                                      ),
+                                      // VoltageGraphWidget(
+                                      //   selectedDateRange:
+                                      //       controller1.daterange,
+                                      //   motorName:
+                                      //       controller1.selectedTitle.value,
+                                      //   sharedPointNotifier:
+                                      //       controller1.sharedPointNotifier,
+                                      //   sharedTimeNotifier:
+                                      //       controller1.sharedTimeNotifier,
+                                      // ),
+                                      // CurrentGraphWidget(
+                                      //   sharedPointNotifier:
+                                      //       controller1.valueNotifier,
+                                      //   sharedTimeNotifier:
+                                      //       controller1.sharedTimeNotifier,
+                                      //   selectedDateRange:
+                                      //       controller1.daterange,
+                                      //   motorName:
+                                      //       controller1.selectedTitle.value,
+                                      // ),
+                                    ].divide(const SizedBox(height: 16)),
+                                  ),
+                                ].divide(const SizedBox(height: 12.0)),
+                              )),
+                            ]
+                                .divide(const SizedBox(height: 12.0))
+                                .addToStart(const SizedBox(height: 10.0)),
                           ),
-                        ]
-                            .divide(const SizedBox(height: 12.0))
-                            .addToStart(const SizedBox(height: 10.0)),
+                        ),
                       ),
                     ),
                   ),

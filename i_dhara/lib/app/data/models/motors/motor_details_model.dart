@@ -116,6 +116,7 @@ class Starter {
   String? status;
   String? pcbNumber;
   String? macAddress;
+  String? starterNumber;
   int? signalQuality;
   int? power;
   String? networkType;
@@ -127,6 +128,7 @@ class Starter {
     this.status,
     this.pcbNumber,
     this.macAddress,
+    this.starterNumber,
     this.signalQuality,
     this.power,
     this.networkType,
@@ -139,6 +141,7 @@ class Starter {
         status: json["status"],
         pcbNumber: json["pcb_number"],
         macAddress: json["mac_address"],
+        starterNumber: json["starter_number"],
         signalQuality: json["signal_quality"],
         power: json["power"],
         networkType: json["network_type"],
@@ -154,6 +157,7 @@ class Starter {
         "status": status,
         "pcb_number": pcbNumber,
         "mac_address": macAddress,
+        "starter_number": starterNumber,
         "signal_quality": signalQuality,
         "power": power,
         "network_type": networkType,

@@ -320,7 +320,7 @@ class LocationsWidget extends StatelessWidget {
                       ),
                     ]
                         .divide(const SizedBox(height: 16.0))
-                        .addToStart(const SizedBox(height: 24.0)),
+                        .addToStart(const SizedBox(height: 8.0)),
                   ),
                 ),
               ),

@@ -48,6 +48,7 @@ class AnalyticsController extends GetxController {
   var motorMode = ''.obs;
   var locationName = ''.obs;
   var hp = ''.obs;
+  var timeStamp = ''.obs;
   RxString faultMessage = ''.obs;
   dynamic motorData;
   final motortotalRuntime = ''.obs;
@@ -445,7 +446,7 @@ class AnalyticsController extends GetxController {
             ? response.data!.aliasName!
             : response.data!.name!;
         hp.value = response.data!.hp.toString();
-        deviceId.value = response.data!.starter?.pcbNumber ?? 'N/A';
+        deviceId.value = response.data!.starter?.starterNumber ?? 'N/A';
         motorState.value = response.data!.state ?? 0;
         motorMode.value = response.data!.mode ?? 'N/A';
         locationName.value =
@@ -455,6 +456,18 @@ class AnalyticsController extends GetxController {
         faultMessage.value =
             response.data!.starter!.starterParameters!.first.faultDescription ??
                 'N/A';
+        if (response.data!.starter?.starterParameters?.first.timeStamp !=
+            null) {
+          DateTime timestamp =
+              response.data!.starter!.starterParameters!.first.timeStamp!;
+
+          DateTime istTime =
+              timestamp.toUtc().add(const Duration(hours: 5, minutes: 30));
+
+          timeStamp.value = DateFormat('dd MMM yyyy, hh:mm a').format(istTime);
+        } else {
+          timeStamp.value = 'N/A';
+        }
       }
       print("line 268 -----------> ${response!.data}");
     } catch (e) {

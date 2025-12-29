@@ -6,9 +6,7 @@ import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -192,18 +190,18 @@ class DashboardWidget extends StatelessWidget {
                                       padding:
                                           const EdgeInsets.only(bottom: 10),
                                       child: GestureDetector(
-                                        onTap: () {
-                                          SharedPreference.setMotorId(
-                                              motor.id ?? 0);
-                                          SharedPreference.setStarterId(
-                                              motor.starter?.id ?? 0);
-                                          Get.toNamed(
-                                            Routes.motorDetails,
-                                            arguments: {
-                                              'motorId': motor.id,
-                                            },
-                                          );
-                                        },
+                                        // onTap: () {
+                                        //   SharedPreference.setMotorId(
+                                        //       motor.id ?? 0);
+                                        //   SharedPreference.setStarterId(
+                                        //       motor.starter?.id ?? 0);
+                                        //   Get.toNamed(
+                                        //     Routes.motorDetails,
+                                        //     arguments: {
+                                        //       'motorId': motor.id,
+                                        //     },
+                                        //   );
+                                        // },
                                         child: MotorCardWidget(
                                           motor: motor,
                                           mqttService: controller.mqttService,

@@ -37,7 +37,7 @@ class OtpWidget extends StatelessWidget {
                 image: DecorationImage(
                   fit: BoxFit.cover,
                   image: Image.asset(
-                    'assets/images/login_bg.png',
+                    'assets/images/Verify OTP.png',
                   ).image,
                 ),
               ),

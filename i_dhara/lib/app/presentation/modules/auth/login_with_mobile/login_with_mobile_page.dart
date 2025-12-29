@@ -169,7 +169,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                       mainAxisSize: MainAxisSize.max,
                                       children: [
                                         Text(
-                                          'Verify Your Phone Number',
+                                          'Verify Your Mobile Number',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -199,7 +199,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                               ),
                                         ),
                                         Text(
-                                          'Enter Phone Number to Access Your Account',
+                                          'Enter Mobile Number to Access Your Account',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -243,7 +243,8 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                             readOnly: false,
                                             controller: controller1,
                                             errors: _model.errorInstance,
-                                            hintText: 'Enter Your Phone Number',
+                                            hintText:
+                                                'Enter Your Mobile Number',
                                             errorKey: 'phone',
                                             // maxlength: 10,
                                             keyboardType: TextInputType.phone,

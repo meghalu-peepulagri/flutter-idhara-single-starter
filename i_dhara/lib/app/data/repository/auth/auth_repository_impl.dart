@@ -41,13 +41,14 @@ class AuthRepositoryImpl extends AuthRepository {
 
   @override
   Future<RegisterResponse?> register(
-      String fullName, String email, String phone) async {
+      String fullName, String? email, String phone, String signId) async {
     final queryparams = {"is_public": "true"};
     final body = {
       "full_name": fullName,
       "email": email,
       "phone": phone,
-      "user_type": "USER"
+      "user_type": "USER",
+      "signature_id": signId
     };
     final response =
         await NetworkManager().post('/auth/register', data: body, queryparams);

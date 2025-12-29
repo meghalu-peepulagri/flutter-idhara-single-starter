@@ -167,7 +167,7 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Power Runtime',
+                            'Power Availability',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
@@ -265,30 +265,46 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
     final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
 
     for (final segment in data) {
-      final color = _colorForDescription(segment.type);
-
       final points = <PowerTimePoint>[
-        PowerTimePoint(segment.start, 1, segment.duration.toString(),
-            segment.type, segment.start, segment.end, true),
-        PowerTimePoint(segment.end, 1, segment.duration.toString(),
-            segment.type, segment.start, segment.end, false),
+        PowerTimePoint(
+          segment.start,
+          1,
+          segment.duration.toString(),
+          segment.type,
+          segment.start,
+          segment.end,
+          true,
+        ),
+        PowerTimePoint(
+          segment.end,
+          1,
+          segment.duration.toString(),
+          segment.type,
+          segment.start,
+          segment.end,
+          false,
+        ),
       ];
 
-      seriesList.add(LineSeries<PowerTimePoint, DateTime>(
-        dataSource: points,
-        xValueMapper: (p, _) => p.time,
-        yValueMapper: (p, _) => p.value,
-        color: color,
-        width: 4,
-        markerSettings: MarkerSettings(
-          isVisible: true,
-          height: 5,
-          width: 5,
-          shape: DataMarkerType.circle,
-          color: color,
+      seriesList.add(
+        LineSeries<PowerTimePoint, DateTime>(
+          dataSource: points,
+          xValueMapper: (p, _) => p.time,
+          yValueMapper: (p, _) => p.value,
+          color: Colors.blue,
+          width: 3,
+          markerSettings: const MarkerSettings(
+            isVisible: true,
+            height: 6,
+            width: 6,
+            shape: DataMarkerType.circle,
+          ),
+          pointColorMapper: (PowerTimePoint point, _) {
+            return point.isStartPoint ? Colors.blue : Colors.orange;
+          },
+          isVisibleInLegend: false,
         ),
-        isVisibleInLegend: false,
-      ));
+      );
     }
 
     return seriesList;

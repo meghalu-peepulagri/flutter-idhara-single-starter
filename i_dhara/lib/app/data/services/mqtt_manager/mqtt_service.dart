@@ -885,6 +885,21 @@ class MqttService {
           debugPrint(
               'No amp data in payload - reset currents to 0 for $groupId');
         }
+        // if (groupData.containsKey('flt')) {
+        //   motorData.fault = groupData['flt'] ?? 0;
+        // } else {
+        //   motorData.fault = 0;
+        //   debugPrint(
+        //       'No fault data in payload - reset fault to 0 for $groupId');
+        // }
+
+        // if (groupData.containsKey('alt')) {
+        //   motorData.alert = groupData['alt'] ?? 0;
+        // } else {
+        //   motorData.alert = 0;
+        //   debugPrint(
+        //       'No alert data in payload - reset alert to 0 for $groupId');
+        // }
 
         if (groupData.containsKey('m_s') || groupData.containsKey('mtr_sts')) {
           motorData.state = (groupData['m_s'] ?? groupData['mtr_sts']) ?? 0;
@@ -927,6 +942,22 @@ class MqttService {
           debugPrint(
               'No amp data in payload - reset currents to 0 for $groupId');
         }
+        //clear fault code
+        // if (groupData.containsKey('flt')) {
+        //   motorData.fault = groupData['flt'] ?? 0;
+        // } else {
+        //   motorData.fault = 0;
+        //   debugPrint(
+        //       'No fault data in payload - reset fault to 0 for $groupId');
+        // }
+
+        // if (groupData.containsKey('alt')) {
+        //   motorData.alert = groupData['alt'] ?? 0;
+        // } else {
+        //   motorData.alert = 0;
+        //   debugPrint(
+        //       'No alert data in payload - reset alert to 0 for $groupId');
+        // }
       } else {
         debugPrint('Unknown payload structure for $groupId: ${groupData.keys}');
       }

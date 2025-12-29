@@ -316,18 +316,15 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     if (d == 'ON') return Colors.green;
     if (d == 'OFF') return Colors.red;
     if (d == 'OFFLINE') return Colors.grey;
-    return Colors.red; // fallback
+    return Colors.red;
   }
 
-  /// Build one short series per segment to allow exact per-segment coloring.
-  /// This prevents connecting segments of the same description across gaps.
   List<LineSeries<TimePoint, DateTime>> _buildSeries(List<TimeSegment> data) {
     final List<LineSeries<TimePoint, DateTime>> seriesList = [];
 
     for (final segment in data) {
       final color = _colorForDescription(segment.type);
 
-      // Two points: start and end of the segment
       final points = <TimePoint>[
         TimePoint(segment.start, 1, segment.duration.toString(), segment.type,
             segment.start, segment.end, true),
@@ -341,79 +338,24 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
         yValueMapper: (p, _) => p.value,
         color: color,
         width: 4,
-        // Hide markers (set true if you want visible markers)
         markerSettings: MarkerSettings(
             isVisible: true,
             height: 5,
             width: 5,
             shape: DataMarkerType.circle,
             color: color
-            // optionally set shape/border:
             // height: 4, width: 4, shape: DataMarkerType.circle,
             ),
         pointColorMapper: (TimePoint point, _) {
           return point.isStartPoint ? Colors.green : Colors.red;
         },
-        // don't show the lots-of-segment series in the legend
         isVisibleInLegend: false,
-        // if you want small segment visual smoothing off:
         // enableTooltip: true,
       ));
     }
 
     return seriesList;
   }
-
-//   List<LineSeries<TimePoint, DateTime>> _buildSeries(List<MotorTimeData> data) {
-//     final grouped = <String, List<MotorTimeData>>{};
-//     for (final e in data) {
-//       grouped.putIfAbsent(e.motorDescription, () => []).add(e);
-//     }
-
-//     final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-//     grouped.forEach((desc, list) {
-//       Color color;
-//       switch (desc) {
-//         case "ON":
-//           color = Colors.green;
-//           break;
-//         case "OFF":
-//           color = Colors.red;
-//           break;
-//         case "OFFLINE":
-//           color = Colors.grey;
-//           break;
-//         default:
-//           color = Colors.grey;
-//       }
-
-//       final points = <TimePoint>[];
-//       for (var e in list) {
-//         points.add(TimePoint(e.start, e.value, e.duration, e.motorDescription,
-//             e.start, e.end, true));
-//         points.add(TimePoint(e.end, e.value, e.duration, e.motorDescription,
-//             e.start, e.end, false));
-//       }
-
-//       seriesList.add(LineSeries<TimePoint, DateTime>(
-//         name: desc,
-//         color: color,
-//         dataSource: points,
-//         xValueMapper: (p, _) => p.time,
-//         yValueMapper: (p, _) => p.value,
-//         width: 4,
-//         markerSettings: MarkerSettings(
-//           isVisible: true,
-//           height: 5,
-//           width: 5,
-//           shape: DataMarkerType.circle,
-//           color: color,
-//         ),
-//       ));
-//     });
-
-//     return seriesList;
-//   }
 }
 
 class MotorTimeData {

@@ -176,16 +176,14 @@ class DevicesPage extends StatelessWidget {
                         ),
                         Expanded(
                           child: Obx(() {
-                            if (controller.isInitialLoading.value) {
+                            if (controller.isInitialLoading.value ||
+                                controller.isRenameLoading.value ||
+                                controller.isDeleteLoading.value ||
+                                controller.isLocationReplacing.value) {
                               return const AppLottieLoading();
                             } else if (!controller.hasInternet.value) {
                               return const Center(
                                 child: NoInternetWidget(),
-                              );
-                            }
-                            if (controller.isLocationReplacing.value) {
-                              return const Center(
-                                child: AppLottieLoading(),
                               );
                             }
                             if (controller.devicesList.isEmpty) {
@@ -237,24 +235,12 @@ class DevicesPage extends StatelessWidget {
                         ),
                       ]
                           .divide(const SizedBox(height: 16.0))
-                          .addToStart(const SizedBox(height: 24.0)),
+                          .addToStart(const SizedBox(height: 8.0)),
                     ),
                   ),
                 ),
               ]),
             ),
-            // Obx(() {
-            //   if (!controller.isLocationReplacing.value) {
-            //     return const SizedBox.shrink();
-            //   }
-
-            //   return Container(
-            //     color: Colors.black.withOpacity(0.3), // dim background
-            //     child: const Center(
-            //       child: AppLottieLoading(),
-            //     ),
-            //   );
-            // }),
           ]),
         ),
       ),

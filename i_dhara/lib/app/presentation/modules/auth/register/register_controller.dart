@@ -35,15 +35,15 @@ class RegisterModel extends FlutterFlowModel {
 
   Future<void> fetchregister({
     required String fullName,
-    required String email,
+    String? email,
     required String phone,
+    required String sid,
   }) async {
     final response =
-        await AuthRepositoryImpl().register(fullName, email, phone);
+        await AuthRepositoryImpl().register(fullName, email, phone, sid);
 
     if (response != null && response.errors == null) {
       Get.offNamed(Routes.otp);
-      print("line 268 -----------> ${Get.offNamed(Routes.otp)}");
       SharedPreference.setPhone(phone);
     } else if (response?.errors != null) {
       errorInstance = response?.errors!.toJson();

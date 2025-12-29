@@ -14,6 +14,8 @@ class DevicesController extends GetxController {
   var isInitialLoading = true.obs;
   var isHasMoreLoading = false.obs;
   var isLocationReplacing = false.obs;
+  final RxBool isRenameLoading = false.obs;
+  final RxBool isDeleteLoading = false.obs;
   var totalPages = 1.obs;
   var currentPage = 0.obs;
   var page = 1.obs;
@@ -139,22 +141,39 @@ class DevicesController extends GetxController {
 
   Future<void> renamedevice(
       {required int motorId, required double hp, required String name}) async {
-    final response = await _repository.renameDevice(motorId, name, hp);
-    if (response != null && response.errors == null) {
-      await fetchDevices();
-      Get.back();
-      getsuccessSnackBar(response.message ?? 'Device renamed successfully');
-    } else if (response!.errors != null) {
-      errorInstance = response.errors!.toJson();
+    try {
+      isRenameLoading.value = true;
+
+      final response = await _repository.renameDevice(motorId, name, hp);
+
+      if (response != null && response.errors == null) {
+        await fetchDevices(isInitial: true);
+        Get.back();
+        getsuccessSnackBar(response.message ?? 'Device renamed successfully');
+      } else if (response?.errors != null) {
+        errorInstance = response!.errors!.toJson();
+      }
+    } catch (e) {
+      errorMessage.value = 'Rename failed';
+    } finally {
+      isRenameLoading.value = false;
     }
   }
 
   Future<void> deleteDevice(int starterId) async {
-    final response = await _repository.deletestarter(starterId);
-    if (response != null) {
-      await fetchDevices();
-      getsuccessSnackBar(response.message ?? 'Device deleted successfully');
-      print("line 268 -----------> ${response.message}");
+    try {
+      isDeleteLoading.value = true;
+
+      final response = await _repository.deletestarter(starterId);
+
+      if (response != null) {
+        await fetchDevices(isInitial: true);
+        getsuccessSnackBar(response.message ?? 'Device deleted successfully');
+      }
+    } catch (e) {
+      errorMessage.value = 'Delete failed';
+    } finally {
+      isDeleteLoading.value = false;
     }
   }
 
@@ -176,7 +195,7 @@ class DevicesController extends GetxController {
       // Handle error if needed
       print("Error replacing location: $e");
     } finally {
-      isLocationReplacing.value = false; // Stop loading
+      isLocationReplacing.value = false;
     }
   }
 

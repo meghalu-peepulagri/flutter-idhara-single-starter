@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/motor_card/voltage_current_values_card.dart';
 import 'package:lottie/lottie.dart';
 import 'package:toggle_switch/toggle_switch.dart';
@@ -918,94 +920,110 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
               mainAxisSize: MainAxisSize.max,
               children: [
                 // Header Row
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                      12.0, 0.0, 12.0, 0.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    SharedPreference.setMotorId(widget.motor.id ?? 0);
+                    SharedPreference.setStarterId(
+                        widget.motor.starter?.id ?? 0);
+                    Get.toNamed(
+                      Routes.motorDetails,
+                      arguments: {
+                        'motorId': widget.motor.id,
+                      },
+                    );
+                  },
+                  child: AbsorbPointer(
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                          12.0, 0.0, 12.0, 0.0),
+                      child: Row(
                         mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(0.0),
-                            child: SvgPicture.asset(
-                              'assets/images/motor.svg',
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Text(
-                            (widget.motor.aliasName != null &&
+                          Row(
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(0.0),
+                                child: SvgPicture.asset(
+                                  'assets/images/motor.svg',
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Text(
+                                (widget.motor.aliasName != null &&
                                             widget.motor.aliasName!
                                                 .trim()
                                                 .isNotEmpty
                                         ? widget.motor.aliasName!
-                                        : widget.motor.name ?? '')
-                                    .capitalizeFirst ??
-                                '',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.dmSans(
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontWeight,
+                                        : widget.motor.name ?? '') ??
+                                    '',
+                                style: FlutterFlowTheme.of(context)
+                                    .bodyMedium
+                                    .override(
+                                      font: GoogleFonts.dmSans(
+                                        fontWeight: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .fontWeight,
+                                      ),
+                                      color: const Color(0xFF1E1E1E),
+                                      fontSize: 16.0,
+                                      letterSpacing: 0.0,
+                                    ),
+                              ),
+                            ].divide(const SizedBox(width: 8.0)),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              // _buildSignalIcon(motorData),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(0.0),
+                                child: SvgPicture.asset(
+                                  isPowerOn
+                                      ? 'assets/images/power.svg'
+                                      : 'assets/images/Power_red.svg',
+                                  width: 17,
+                                  height: 17,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              _buildSignalIcon(motorData),
+                              if (faultValue > 0)
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(24.0),
+                                    border: Border.all(
+                                      color: const Color(0xFFDCDCDC),
+                                    ),
                                   ),
-                                  color: const Color(0xFF1E1E1E),
-                                  fontSize: 16.0,
-                                  letterSpacing: 0.0,
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                            8.0, 4.0, 8.0, 4.0),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.max,
+                                      children: [
+                                        Lottie.asset(
+                                          'assets/lottie_animations/warning 1.json',
+                                          width: 20,
+                                          height: 20,
+                                          fit: BoxFit.contain,
+                                          repeat: true,
+                                        )
+                                      ].divide(const SizedBox(width: 6.0)),
+                                    ),
+                                  ),
                                 ),
+                            ].divide(const SizedBox(width: 8.0)),
                           ),
-                        ].divide(const SizedBox(width: 8.0)),
+                        ],
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          // _buildSignalIcon(motorData),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(0.0),
-                            child: SvgPicture.asset(
-                              isPowerOn
-                                  ? 'assets/images/power.svg'
-                                  : 'assets/images/Power_red.svg',
-                              width: 17,
-                              height: 17,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          _buildSignalIcon(motorData),
-                          if (faultValue > 0)
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24.0),
-                                border: Border.all(
-                                  color: const Color(0xFFDCDCDC),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    8.0, 4.0, 8.0, 4.0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    Lottie.asset(
-                                      'assets/lottie_animations/warning 1.json',
-                                      width: 20,
-                                      height: 20,
-                                      fit: BoxFit.contain,
-                                      repeat: true,
-                                    )
-                                  ].divide(const SizedBox(width: 6.0)),
-                                ),
-                              ),
-                            ),
-                        ].divide(const SizedBox(width: 8.0)),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const Divider(
@@ -1013,12 +1031,28 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   thickness: 1.0,
                   color: Color(0xFFECECEC),
                 ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                      12.0, 0.0, 12.0, 0.0),
-                  child: VoltageCurrentValuesCard(
-                    motor: widget.motor,
-                    mqttService: widget.mqttService,
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    SharedPreference.setMotorId(widget.motor.id ?? 0);
+                    SharedPreference.setStarterId(
+                        widget.motor.starter?.id ?? 0);
+                    Get.toNamed(
+                      Routes.motorDetails,
+                      arguments: {
+                        'motorId': widget.motor.id,
+                      },
+                    );
+                  },
+                  child: AbsorbPointer(
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                          12.0, 0.0, 12.0, 0.0),
+                      child: VoltageCurrentValuesCard(
+                        motor: widget.motor,
+                        mqttService: widget.mqttService,
+                      ),
+                    ),
                   ),
                 ),
                 const Divider(
