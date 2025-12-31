@@ -91,6 +91,7 @@ class AnalyticsController extends GetxController {
     selectedMotorId.value = null;
 
     await Future.wait([
+      // fetchMotorDetails(),
       fetchRuntime(daterange),
       fetchavgcurrent(daterange),
       fetchtotalkvar(daterange),
@@ -105,6 +106,7 @@ class AnalyticsController extends GetxController {
 
     try {
       await Future.wait([
+        fetchMotorDetails(),
         fetchRuntime(daterange),
         fetchavgcurrent(daterange),
         fetchtotalkvar(daterange),
@@ -433,8 +435,11 @@ class AnalyticsController extends GetxController {
   }
 
   Future<void> fetchMotorDetails() async {
-    try {
+    if (!isRefreshing.value) {
       isMotorDetailsLoading.value = true;
+    }
+    try {
+      // isMotorDetailsLoading.value = true;
 
       final response = await MotorsRepositoryImpl().getMotorDetails();
 
