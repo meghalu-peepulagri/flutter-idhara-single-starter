@@ -226,6 +226,7 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                                         dateFormat: DateFormat('hh:mm a'),
                                         minimum: minTime,
                                         maximum: maxTime,
+                                        interval: 1,
                                         intervalType:
                                             DateTimeIntervalType.minutes,
                                         labelRotation: -20,

@@ -1,4 +1,3 @@
-import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -770,35 +769,35 @@ class MotorControlWidget extends StatelessWidget {
             // Date Display
             Expanded(
               child: GestureDetector(
-                onTap: () async {
-                  controller.isModalOpen.value = true;
-                  var results = await showCalendarDatePicker2Dialog(
-                    context: context,
-                    config: CalendarDatePicker2WithActionButtonsConfig(
-                      calendarType: CalendarDatePicker2Type.single,
-                      lastDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      disableModePicker: true,
-                      calendarViewScrollPhysics:
-                          const NeverScrollableScrollPhysics(),
-                    ),
-                    dialogSize: const Size(325, 400),
-                    value: [controller.daterange.first],
-                    borderRadius: BorderRadius.circular(15),
-                  );
+                // onTap: () async {
+                //   controller.isModalOpen.value = true;
+                //   var results = await showCalendarDatePicker2Dialog(
+                //     context: context,
+                //     config: CalendarDatePicker2WithActionButtonsConfig(
+                //       calendarType: CalendarDatePicker2Type.single,
+                //       lastDate: DateTime.now(),
+                //       firstDate: DateTime(2000),
+                //       disableModePicker: true,
+                //       calendarViewScrollPhysics:
+                //           const NeverScrollableScrollPhysics(),
+                //     ),
+                //     dialogSize: const Size(325, 400),
+                //     value: [controller.daterange.first],
+                //     borderRadius: BorderRadius.circular(15),
+                //   );
 
-                  try {
-                    if (results != null &&
-                        results.isNotEmpty &&
-                        results.first != null) {
-                      controller.selectSingleDate(results.first!);
-                    }
-                  } catch (e) {
-                    print('Error selecting date: $e');
-                  } finally {
-                    controller.isModalOpen.value = false;
-                  }
-                },
+                //   try {
+                //     if (results != null &&
+                //         results.isNotEmpty &&
+                //         results.first != null) {
+                //       controller.selectSingleDate(results.first!);
+                //     }
+                //   } catch (e) {
+                //     print('Error selecting date: $e');
+                //   } finally {
+                //     controller.isModalOpen.value = false;
+                //   }
+                // },
                 child: Obx(() {
                   final selectedDate =
                       controller.daterange.first ?? DateTime.now();

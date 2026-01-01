@@ -280,6 +280,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         dateFormat: DateFormat('hh:mm a'),
                                         minimum: minTime,
                                         maximum: maxTime,
+                                        interval: 1,
                                         intervalType:
                                             DateTimeIntervalType.minutes,
                                         // interval: 1,

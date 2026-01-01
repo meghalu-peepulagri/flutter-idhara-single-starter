@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
@@ -103,6 +104,9 @@ class LocationsController extends GetxController {
       Get.back();
       getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
       print("line 26 -----------> ${response.message}");
+    } else if (response!.errors != null) {
+      errorInstance = response.errors!.toJson();
+      geterrorSnackBar(response.message ?? 'Error deleting location');
     }
   }
 
