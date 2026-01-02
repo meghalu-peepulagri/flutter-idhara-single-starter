@@ -227,8 +227,11 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                                         minimum: minTime,
                                         maximum: maxTime,
                                         interval: 1,
-                                        intervalType:
+                                        intervalType: DateTimeIntervalType.auto,
+                                        autoScrollingDeltaType:
                                             DateTimeIntervalType.minutes,
+                                        // intervalType:
+                                        //     DateTimeIntervalType.minutes,
                                         labelRotation: -20,
                                         majorGridLines:
                                             const MajorGridLines(width: 0),
