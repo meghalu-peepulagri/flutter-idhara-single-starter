@@ -203,8 +203,6 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                         return;
 
                         // widget.onLocationAdded(newName);
-
-                        // Get.back();
                       },
                       text: 'Save',
                       options: FFButtonOptions(

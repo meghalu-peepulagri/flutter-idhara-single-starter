@@ -24,12 +24,4 @@ class EditDeleteLocationController extends GetxController {
     //   await controller.fetchlocation();
     // }
   }
-
-  // Future<void> fetcheditapi() async {
-  //   CustomResponse<Editapiresponse> response = await EditApi().call(title: '');
-  //   if (response.statusCode == 200) {
-  //     // editRespons=response.data!.record;
-  //     editResponse = response.data!;
-  //   }
-  // }
 }

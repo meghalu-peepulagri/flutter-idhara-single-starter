@@ -77,8 +77,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _switchAckTimer?.cancel();
     _switchAckTimer = Timer(_ackTimeout, () {
       if (mounted && _hasPendingSwitchCommand) {
-        debugPrint(
-            '⏱️ Switch ACK timeout - reverting to previous state: $previousValue');
+        print(
+            ' Switch ACK timeout - reverting to previous state: $previousValue');
 
         _localSwitchController.value = previousValue;
         _hasPendingSwitchCommand = false;
@@ -95,8 +95,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _modeAckTimer?.cancel();
     _modeAckTimer = Timer(_ackTimeout, () {
       if (mounted && _hasPendingModeCommand) {
-        debugPrint(
-            '⏱️ Mode ACK timeout - reverting to previous mode: $previousValue');
+        print(' Mode ACK timeout - reverting to previous mode: $previousValue');
 
         _localModeController.value = previousValue;
         _hasPendingModeCommand = false;
@@ -203,7 +202,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     dataTimestamp.isAfter(latestTimestamp)))) {
           latestData = data;
           latestTimestamp = dataTimestamp;
-          debugPrint(
+          print(
               '${widget.motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
         }
       }
@@ -229,150 +228,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       return false;
     }
     return true;
-  }
-
-  void _showSwitchConfirmationBottomSheet(bool newValue) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showSwitchCommandDialog(newValue);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: newValue ? Colors.green : Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Continue',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showModeConfirmationBottomSheet(int newMode) {
-    final modeName = newMode == 1 ? 'Auto' : 'Manual';
-    final modeColor =
-        newMode == 1 ? const Color(0xFFFFA500) : const Color(0xFF2F80ED);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showModeCommandDialog(newMode);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: modeColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Continue',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   void _showSwitchCommandDialog(bool newValue) {
@@ -579,18 +434,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   Future<void> _handleToggle(bool newValue) async {
     if (_isUpdatingFromMqtt || _isWaitingForSwitchAck) {
-      debugPrint('Ignoring toggle - triggered by MQTT update');
+      print('Ignoring toggle - triggered by MQTT update');
       return;
     }
 
     if (!_isMotorAvailable()) {
-      debugPrint('Cannot toggle: Motor not available');
+      print('Cannot toggle: Motor not available');
       return;
     }
 
     final motorId = _getMotorId();
     if (motorId.isEmpty) {
-      debugPrint('Cannot toggle: Invalid motor ID');
+      print('Cannot toggle: Invalid motor ID');
       return;
     }
 
@@ -609,7 +464,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     try {
       final state = newValue ? 1 : 0;
       await widget.mqttService.publishMotorCommand(motorId, state);
-      debugPrint('✓ Toggle command sent: $motorId -> $state');
     } catch (e) {
       _switchAckTimer?.cancel();
       _localSwitchController.value = !newValue;
@@ -618,7 +472,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       setState(() {
         _isWaitingForSwitchAck = false;
       });
-      debugPrint('✗ Failed to toggle motor: $e');
     }
   }
 
@@ -629,7 +482,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     final motorId = _getMotorId();
     if (motorId.isEmpty) {
-      debugPrint('Cannot change mode: Invalid motor ID');
+      print('Cannot change mode: Invalid motor ID');
       return;
     }
     final previousValue = _localModeController.value;
@@ -647,7 +500,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     try {
       await widget.mqttService.publishModeCommand(motorId, index);
-      debugPrint('✓ Mode command sent: $motorId -> $index');
     } catch (e) {
       _modeAckTimer?.cancel();
       _localModeController.value = oldIndex;
@@ -656,7 +508,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       setState(() {
         _isWaitingForModeAck = false;
       });
-      debugPrint('✗ Failed to change mode: $e');
     }
   }
 
@@ -681,7 +532,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   void _updateModeFromMqtt(int newMode) {
     if (_localModeController.value != newMode) {
-      debugPrint('🔄 Updating mode from MQTT: $newMode');
       _localModeController.value = newMode;
     }
   }
@@ -695,12 +545,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         !motorData.isSignalStale()) {
       bars = motorData.signalBars;
       signalStrength = motorData.signalStrength;
-      debugPrint(
-          '${widget.motor.name} - Using MQTT signal: strength=$signalStrength, bars=$bars');
     } else {
       signalStrength = widget.motor.starter?.signalQuality;
-      debugPrint(
-          '${widget.motor.name} - Using API signal quality: $signalStrength');
 
       if (signalStrength == null || signalStrength < 2 || signalStrength > 31) {
         bars = 0;
@@ -715,9 +561,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       } else {
         bars = 0;
       }
-
-      debugPrint(
-          '${widget.motor.name} - Calculated bars from API signal: $bars');
     }
 
     String assetPath;
@@ -759,7 +602,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   bool _canControlMotor(MotorData? motorData) {
-    // Check if motor is available
     if (!_isMotorAvailable()) {
       return false;
     }
@@ -772,27 +614,21 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       isPowerOn = (widget.motor.starter?.power ?? 0) == 1;
     }
 
-    // Check network/signal status
     int signalBars = _getSignalBars(motorData);
 
-    // Motor can be controlled only if power is ON AND there's network (signal bars > 0)
     return isPowerOn && signalBars > 0;
   }
 
   bool _canChangeMode(MotorData? motorData) {
-    // Check if motor is available
     if (!_isMotorAvailable()) {
       return false;
     }
 
-    // Check network/signal status only
     int signalBars = _getSignalBars(motorData);
 
-    // Mode can be changed if there's network (signal bars > 0)
     return signalBars > 0;
   }
 
-// Helper method to get signal bars
   int _getSignalBars(MotorData? motorData) {
     int signalBars = 0;
     if (motorData != null &&
@@ -828,12 +664,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         final bool isPowerOn;
         if (motorData != null && motorData.hasReceivedData) {
           isPowerOn = motorData.power == 1;
-          debugPrint(
-              '${widget.motor.name} - Using MQTT power: ${motorData.power}');
         } else {
           isPowerOn = (widget.motor.starter?.power ?? 0) == 1;
-          debugPrint(
-              '${widget.motor.name} - Using API power: ${widget.motor.starter?.power ?? 0}');
         }
 
         // final isAvailable = _isMotorAvailable();
@@ -845,8 +677,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           if (_hasPendingSwitchCommand) {
             final mqttState = motorData.state == 1;
             if (mqttState == _pendingSwitchValue) {
-              debugPrint(
-                  '✓ Switch ACK received: $mqttState matches pending $_pendingSwitchValue');
               _switchAckTimer?.cancel();
               _hasPendingSwitchCommand = false;
               _pendingSwitchValue = null;
@@ -863,7 +693,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             if (_localSwitchController.value != mqttState) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_hasPendingSwitchCommand) {
-                  debugPrint('🔄 Updating switch from MQTT: $mqttState');
                   _updateSwitchFromMqtt(mqttState);
                 }
               });
@@ -874,8 +703,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           if (_hasPendingModeCommand) {
             final mqttMode = motorData.modeIndex;
             if (mqttMode == _pendingModeValue) {
-              debugPrint(
-                  '✓ Mode ACK received: $mqttMode matches pending $_pendingModeValue');
               _modeAckTimer?.cancel();
               _hasPendingModeCommand = false;
               _pendingModeValue = null;
@@ -893,7 +720,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             if (mqttMode != null && _localModeController.value != mqttMode) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_hasPendingModeCommand) {
-                  debugPrint('🔄 Updating mode from MQTT: $mqttMode');
                   _updateModeFromMqtt(mqttMode);
                 }
               });
@@ -919,7 +745,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
-                // Header Row
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
@@ -1073,7 +898,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                           final uiIndex = currentModeIndex == 1 ? 0 : 1;
                           final isDisabled =
                               _isWaitingForModeAck || !canChangeMode;
-                          debugPrint('🎨 Mode UI rendering: $currentModeIndex');
                           return ToggleSwitch(
                             changeOnTap: false,
                             customWidths: const [90, 90],
@@ -1117,8 +941,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       ValueListenableBuilder(
                         valueListenable: _localModeController,
                         builder: (context, modeIndex, _) {
-                          final bool isManualMode =
-                              modeIndex == 0; // 0 = MANUAL, 1 = AUTO
+                          final bool isManualMode = modeIndex == 0;
                           final bool isSwitchDisabled =
                               _isWaitingForSwitchAck ||
                                   !(canControl && isManualMode);

@@ -103,6 +103,8 @@ class LocationsController extends GetxController {
       Get.back();
       getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
       print("line 26 -----------> ${response.message}");
+    } else if (response!.errors != null) {
+      errorInstance = response.errors!.toJson();
     }
   }
 

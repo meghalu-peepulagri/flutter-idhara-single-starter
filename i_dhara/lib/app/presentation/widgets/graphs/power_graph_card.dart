@@ -199,7 +199,10 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                         child: Center(child: CircularProgressIndicator()),
                       )
                     : chartData.isEmpty
-                        ? const NoGraphsFound()
+                        ? const Padding(
+                            padding: EdgeInsets.only(top: 30),
+                            child: NoGraphsFound(),
+                          )
                         : Padding(
                             padding: const EdgeInsets.only(
                                 left: 5, top: 10, right: 0, bottom: 0),
@@ -226,11 +229,15 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                                         dateFormat: DateFormat('hh:mm a'),
                                         minimum: minTime,
                                         maximum: maxTime,
-                                        intervalType:
-                                            DateTimeIntervalType.minutes,
+                                        // intervalType:
+                                        //     DateTimeIntervalType.minutes,
+                                        interval: 1,
                                         labelRotation: -20,
                                         majorGridLines:
                                             const MajorGridLines(width: 0),
+                                        intervalType: DateTimeIntervalType.auto,
+                                        autoScrollingDeltaType:
+                                            DateTimeIntervalType.minutes,
                                       ),
                                       primaryYAxis: const NumericAxis(
                                         isVisible: false,

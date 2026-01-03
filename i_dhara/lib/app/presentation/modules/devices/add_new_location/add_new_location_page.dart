@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/add_new_location/add_new_locaton_controller.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -148,6 +149,8 @@ class _AddNewLocationState extends State<AddNewLocation> {
                       await _model.fetchnewlocation(
                         name: _model.textController!.text.trim(),
                       );
+                      SharedPreference.setLocationId(
+                          _model.locationId.toString());
                       final locationName = _model.textController!.text.trim();
 
                       Get.back();

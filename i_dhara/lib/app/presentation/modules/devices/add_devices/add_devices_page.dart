@@ -6,6 +6,7 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/hp_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/add_new_location/add_new_location_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -101,10 +102,16 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: AddNewLocation(
-            onLocationAdded: (String newLocation) {
+            onLocationAdded: (String newLocation) async {
+              final locName = SharedPreference.getLocationName();
+              final locId = SharedPreference.getLocationId();
+
               setState(() {
-                _model.textController4!.text = newLocation;
+                _model.textController4!.text = locName ?? newLocation;
+                selectedLocationId = locId;
               });
+
+              print("Selected Location---> $locName | ID -----> $locId");
             },
           ),
         );
@@ -138,7 +145,6 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Centered title
                       Center(
                         child: Text(
                           'Add Device',
@@ -160,7 +166,6 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   ),
                         ),
                       ),
-                      // Back button positioned on the left
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
@@ -440,48 +445,48 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                     ),
                                   ],
                                 ),
-                                // GestureDetector(
-                                //   onTap: () {
-                                //     ontaplocation(context);
-                                //   },
-                                //   child: Row(
-                                //     mainAxisSize: MainAxisSize.max,
-                                //     children: [
-                                //       const Icon(
-                                //         Icons.add,
-                                //         color: Color(0xFF087D40),
-                                //         size: 18.0,
-                                //       ),
-                                //       Text(
-                                //         'Location',
-                                //         style: FlutterFlowTheme.of(context)
-                                //             .bodyMedium
-                                //             .override(
-                                //               font: GoogleFonts.dmSans(
-                                //                 fontWeight:
-                                //                     FlutterFlowTheme.of(context)
-                                //                         .bodyMedium
-                                //                         .fontWeight,
-                                //                 fontStyle:
-                                //                     FlutterFlowTheme.of(context)
-                                //                         .bodyMedium
-                                //                         .fontStyle,
-                                //               ),
-                                //               color: const Color(0xFF087D40),
-                                //               letterSpacing: 0.0,
-                                //               fontWeight:
-                                //                   FlutterFlowTheme.of(context)
-                                //                       .bodyMedium
-                                //                       .fontWeight,
-                                //               fontStyle:
-                                //                   FlutterFlowTheme.of(context)
-                                //                       .bodyMedium
-                                //                       .fontStyle,
-                                //             ),
-                                //       ),
-                                //     ].divide(const SizedBox(width: 4.0)),
-                                //   ),
-                                // ),
+                                GestureDetector(
+                                  onTap: () {
+                                    ontaplocation(context);
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.max,
+                                    children: [
+                                      const Icon(
+                                        Icons.add,
+                                        color: Color(0xFF087D40),
+                                        size: 18.0,
+                                      ),
+                                      Text(
+                                        'Add Location',
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              font: GoogleFonts.dmSans(
+                                                fontWeight:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontWeight,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .fontStyle,
+                                              ),
+                                              color: const Color(0xFF087D40),
+                                              letterSpacing: 0.0,
+                                              fontWeight:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontWeight,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontStyle,
+                                            ),
+                                      ),
+                                    ].divide(const SizedBox(width: 4.0)),
+                                  ),
+                                ),
                               ],
                             ),
                             GestureDetector(
@@ -532,12 +537,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   0,
                               locationId:
                                   int.tryParse(selectedLocationId ?? '') ?? 0,
-                              // hp: double.parse(
-                              //     _model.textController3!.text.trim()),
-                              // locationId: int.parse(selectedLocationId!.trim()),
                             );
                             setState(() {});
-                            print("line 260 -----------> $selectedLocationId");
                           },
                           text: 'Add Device',
                           options: FFButtonOptions(

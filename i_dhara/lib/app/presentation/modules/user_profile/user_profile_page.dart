@@ -38,10 +38,13 @@ class ProfileWidget extends StatelessWidget {
           body: SafeArea(
             child: Obx(() {
               if (controller.isLoading.value) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [AppLottieLoading()],
+                return const Padding(
+                  padding: EdgeInsets.only(right: 50),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [AppLottieLoading()],
+                    ),
                   ),
                 );
               }

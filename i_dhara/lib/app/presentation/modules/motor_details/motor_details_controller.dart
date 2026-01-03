@@ -67,8 +67,6 @@ class AnalyticsController extends GetxController {
     if (motorId.value != null) {
       fetchMotorDetails();
     }
-
-    // Fetch initial data
     fetchallApis();
   }
 
@@ -91,10 +89,7 @@ class AnalyticsController extends GetxController {
     selectedMotorId.value = null;
 
     await Future.wait([
-      // fetchMotorDetails(),
       fetchRuntime(daterange),
-      fetchavgcurrent(daterange),
-      fetchtotalkvar(daterange),
     ]);
   }
 
@@ -108,8 +103,6 @@ class AnalyticsController extends GetxController {
       await Future.wait([
         fetchMotorDetails(),
         fetchRuntime(daterange),
-        fetchavgcurrent(daterange),
-        fetchtotalkvar(daterange),
       ]);
     } catch (e) {
       isRefreshing.value = false;
@@ -118,15 +111,6 @@ class AnalyticsController extends GetxController {
     }
   }
 
-  // clearAllData() {
-  //   motorRuntimeData.clear();
-  //   chartData.clear();
-  //   voltage.clear();
-  //   current.clear();
-  //   sharedPointNotifier.value = null;
-  //   sharedTimeNotifier.value = null;
-  //   valueNotifier.value = null;
-  // }
   clearAllData({bool isHardClear = true}) {
     if (isHardClear) {
       motorRuntimeData.clear();
@@ -148,18 +132,13 @@ class AnalyticsController extends GetxController {
     try {
       await Future.wait([
         fetchRuntime(daterange),
-        fetchavgcurrent(daterange),
-        fetchtotalkvar(daterange),
       ]);
     } catch (e) {
-      // Handle error
       print('Error fetching data: $e');
     }
   }
 
-  // Single date selection from week view
   Future<void> selectSingleDate(DateTime date) async {
-    // Normalize date to remove time component
     final normalizedDate = DateTime(date.year, date.month, date.day);
 
     // Set both start and end to same date for single date selection
@@ -169,22 +148,18 @@ class AnalyticsController extends GetxController {
     try {
       await Future.wait([
         fetchRuntime(daterange),
-        fetchavgcurrent(daterange),
-        fetchtotalkvar(daterange),
       ]);
     } catch (e) {
       print('Error fetching data: $e');
     }
   }
 
-  // Check if current selection is a date range
   bool isDateRange() {
     if (daterange.first == null || daterange.last == null) return false;
     return daterange.first != daterange.last;
   }
 
   leftClick() async {
-    // Move the date range backward by one day
     if (daterange.first != null && daterange.last != null) {
       daterange.value = [
         daterange.first!.subtract(const Duration(days: 1)),
@@ -196,38 +171,22 @@ class AnalyticsController extends GetxController {
     try {
       await Future.wait([
         fetchRuntime(daterange),
-        fetchavgcurrent(daterange),
-        fetchtotalkvar(daterange),
       ]);
-    } catch (e) {
-      // Handle error
-    }
+    } catch (e) {}
   }
 
-  // Right arrow click - move forward (only if not going into future)
   rightClick() async {
-    // Normalize today's date to midnight for comparison
     final today =
         DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
-    // Calculate what the next end date would be
     final nextEndDate = daterange.last!.add(const Duration(days: 1));
     final nextEndDateNormalized =
         DateTime(nextEndDate.year, nextEndDate.month, nextEndDate.day);
 
-    // Check if next date would be after today
     if (nextEndDateNormalized.isAfter(today)) {
-      Get.snackbar(
-        'Invalid Date',
-        'Cannot select future dates',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.7),
-        colorText: Colors.white,
-      );
       return;
     }
 
-    // Move the date range forward by one day
     if (daterange.first != null && daterange.last != null) {
       daterange.value = [
         daterange.first!.add(const Duration(days: 1)),
@@ -239,12 +198,8 @@ class AnalyticsController extends GetxController {
     try {
       await Future.wait([
         fetchRuntime(daterange),
-        fetchavgcurrent(daterange),
-        fetchtotalkvar(daterange),
       ]);
-    } catch (e) {
-      // Handle error
-    }
+    } catch (e) {}
   }
 
   Duration durationconvert(String str) {
@@ -262,7 +217,6 @@ class AnalyticsController extends GetxController {
     }
   }
 
-  // Convert Runtime data to TimeSegment for chart display
   List<TimeSegment> convertRuntimeToTimeSegments(List<Runtime> runtimes) {
     List<TimeSegment> segments = [];
 
@@ -270,7 +224,6 @@ class AnalyticsController extends GetxController {
       if (runtime.startTime != null && runtime.endTime != null) {
         Duration duration = runtime.endTime!.difference(runtime.startTime!);
 
-        // Determine state based on motorState
         String state = 'OFFLINE';
         if (runtime.motorState == 1) {
           state = 'ON';
@@ -296,30 +249,24 @@ class AnalyticsController extends GetxController {
     DateTime? lastPowerTime;
     int? lastPowerState;
 
-    // Sort by timestamp to ensure correct order
     runtimes.sort((a, b) =>
         (a.timeStamp ?? DateTime(0)).compareTo(b.timeStamp ?? DateTime(0)));
 
     for (final runtime in runtimes) {
-      // Ignore records without any power info
       if (runtime.powerState == null) continue;
 
-      // Determine start time
       DateTime? startTime = runtime.powerStart ?? lastPowerTime;
       if (startTime == null) continue;
 
-      // Determine end time
       DateTime endTime = runtime.powerEnd ??
           (runtime.powerState == lastPowerState ? DateTime.now() : startTime);
 
-      // Determine state
       String state = runtime.powerState == 1
           ? 'POWER_ON'
           : runtime.powerState == 0
               ? 'POWER_OFF'
               : 'POWER_OFFLINE';
 
-      // Determine duration
       Duration duration;
       if (runtime.powerDuration != null) {
         duration = durationconvert(runtime.powerDuration!);
@@ -327,7 +274,6 @@ class AnalyticsController extends GetxController {
         duration = endTime.difference(startTime);
       }
 
-      // Add segment only if duration > 0
       if (duration.inSeconds > 0) {
         segments.add(
           TimeSegment(
@@ -339,7 +285,6 @@ class AnalyticsController extends GetxController {
         );
       }
 
-      // Update last known values
       lastPowerTime = endTime;
       lastPowerState = runtime.powerState;
     }
@@ -361,20 +306,15 @@ class AnalyticsController extends GetxController {
       if (response != null && response.data != null) {
         motorRuntimeData.value = response.data!.records ?? [];
         motortotalRuntime.value = response.data!.totalRunOnTime ?? '';
-        print("DEBUG: Total records: ${motorRuntimeData.length}");
         for (var record in motorRuntimeData) {
           print(
               "Motor: ${record.startTime} -> ${record.endTime}, State: ${record.motorState}");
           print(
               "Power: ${record.powerStart} -> ${record.powerEnd}, State: ${record.powerState}");
         }
-        // Convert Runtime data to TimeSegment for chart
         chartData.value = convertRuntimeToTimeSegments(response.data!.records!);
         powerChartData.value =
             convertRuntimeToPowerSegments(response.data!.records!);
-
-        print("DEBUG: Motor segments: ${chartData.length}");
-        print("DEBUG: Power segments: ${powerChartData.length}");
       } else {
         motorRuntimeData.clear();
         chartData.clear();
@@ -387,50 +327,6 @@ class AnalyticsController extends GetxController {
       print('Error fetching runtime: $e');
     } finally {
       isLoadingruntime.value = false;
-    }
-  }
-
-  Future<void> fetchtotalkvar(List<DateTime?> dateRange) async {
-    if (!isRefreshing.value) {
-      isLoadingVoltage.value = true;
-    }
-    try {
-      final response = await AnalyticsRepositoryImpl().getVoltage(
-          DateFormat('yyyy-MM-dd').format(dateRange.first!),
-          DateFormat('yyyy-MM-dd').format(dateRange.last!));
-      if (response != null && response.data != null) {
-        voltage.value = response.data!;
-        isLoadingVoltage.value = false;
-      } else {
-        voltage.clear();
-      }
-    } catch (e) {
-      voltage.clear();
-      isLoadingVoltage.value = false;
-    } finally {
-      isLoadingVoltage.value = false;
-    }
-  }
-
-  Future<void> fetchavgcurrent(List<DateTime?> dateRange) async {
-    if (!isRefreshing.value) {
-      isLoadingCurrent.value = true;
-    }
-    try {
-      final response = await AnalyticsRepositoryImpl().getCurrent(
-          DateFormat('yyyy-MM-dd').format(dateRange.first!),
-          DateFormat('yyyy-MM-dd').format(dateRange.last!));
-      if (response != null && response.data != null) {
-        current.value = response.data!;
-        isLoadingCurrent.value = false;
-      } else {
-        current.clear();
-      }
-    } catch (e) {
-      current.clear();
-      isLoadingCurrent.value = false;
-    } finally {
-      isLoadingCurrent.value = false;
     }
   }
 
@@ -474,9 +370,8 @@ class AnalyticsController extends GetxController {
           timeStamp.value = 'N/A';
         }
       }
-      print("line 268 -----------> ${response!.data}");
     } catch (e) {
-      debugPrint('Motor details error: $e');
+      print('Motor details error: $e');
     } finally {
       isMotorDetailsLoading.value = false;
     }
@@ -492,7 +387,7 @@ class AnalyticsController extends GetxController {
 class TimeSegment {
   final DateTime start;
   final DateTime end;
-  final String type; // "ON", "OFF", or "OFFLINE"
+  final String type; // "ON", "OFF"
   final Duration duration;
 
   TimeSegment(

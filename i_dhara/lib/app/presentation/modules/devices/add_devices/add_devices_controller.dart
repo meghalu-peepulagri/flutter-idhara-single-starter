@@ -16,6 +16,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
   String message = '';
   Map<String, dynamic> errorInstance = {};
   List<Location>? locations;
+  String locationId = '';
 
   // State field(s) for TextField widget.
   FocusNode? textFieldFocusNode1;
@@ -89,6 +90,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
       if (Get.isRegistered<DashboardController>()) {
         Get.find<DashboardController>().refreshMotors();
       }
+      print("line---> ${Get.offAllNamed(Routes.dashboard)}");
 
       Get.offAllNamed(Routes.dashboard);
     } else if (response?.errors != null) {

@@ -414,26 +414,92 @@ class DevicesCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(0.0),
                     child: SvgPicture.asset(
-                      'assets/images/kdkr.svg',
-                      fit: BoxFit.cover,
+                      (motor?.location?.name == null ||
+                              motor!.location!.name!.trim().isEmpty)
+                          ? 'assets/images/add_location.svg'
+                          : 'assets/images/kdkr.svg',
+                      fit: BoxFit.contain,
                     ),
                   ),
                   Expanded(
-                    child: Text(
-                      motor?.location?.name ?? 'Unknown Location',
-                      style: FlutterFlowTheme.of(context).bodyMedium.override(
-                            font: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w500,
-                            ),
-                            color: const Color(0xFF5E5E5E),
-                            fontSize: 14.0,
-                            letterSpacing: 0.0,
-                            fontWeight: FontWeight.w500,
+                    child: (() {
+                      final locationName = motor?.location?.name;
+
+                      if (locationName == null || locationName.trim().isEmpty) {
+                        return GestureDetector(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => LocationSelectionBottomSheet(
+                                selectedLocationId: null,
+                                onLocationSelected:
+                                    (locationName, locationId) async {
+                                  Navigator.pop(context);
+                                  await controller.locationreplace(
+                                    starterId: device.id!,
+                                    motorId: motor!.id!,
+                                    locationId: int.parse(locationId),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.add_location_alt_outlined,
+                                size: 18,
+                                color: Color(0xFF3686AF),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Add Location',
+                                style: FlutterFlowTheme.of(context)
+                                    .bodyMedium
+                                    .override(
+                                      font: GoogleFonts.dmSans(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      color: const Color(0xFF2F80ED),
+                                      fontSize: 14.0,
+                                    ),
+                              ),
+                            ],
                           ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                        );
+                      }
+
+                      return Text(
+                        locationName,
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              font: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              color: const Color(0xFF5E5E5E),
+                              fontSize: 14.0,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    })(),
                   ),
+                  // Expanded(
+                  //   child: Text(
+                  //     motor?.location?.name ?? 'Unknown Location',
+                  //     style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  //           font: GoogleFonts.dmSans(
+                  //             fontWeight: FontWeight.w500,
+                  //           ),
+                  //           color: const Color(0xFF5E5E5E),
+                  //           fontSize: 14.0,
+                  //           letterSpacing: 0.0,
+                  //           fontWeight: FontWeight.w500,
+                  //         ),
+                  //     maxLines: 1,
+                  //     overflow: TextOverflow.ellipsis,
+                  //   ),
+                  // ),
                 ].divide(const SizedBox(width: 8.0)),
               ),
             ),

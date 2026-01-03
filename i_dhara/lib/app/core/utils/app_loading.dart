@@ -9,8 +9,8 @@ class AppLottieLoading extends StatelessWidget {
     return Center(
       child: Lottie.asset(
         'assets/lottie_animations/i Dhara loading.json',
-        width: 50,
-        height: 50,
+        width: 80,
+        height: 80,
         fit: BoxFit.cover,
       ),
     );

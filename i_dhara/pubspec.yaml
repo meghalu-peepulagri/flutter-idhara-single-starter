@@ -131,6 +131,7 @@ flutter:
     - assets/lottie_animations/warning 1.json
     - assets/lottie_animations/loading.json
     - assets/lottie_animations/i Dhara loading.json
+    - assets/lottie_animations/No internet connection.json
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -268,11 +268,17 @@ class LocationsWidget extends StatelessWidget {
                       Expanded(
                         child: Obx(() {
                           if (controller.isLoading.value) {
-                            return const Center(
-                              child: AppLottieLoading(),
+                            return const Padding(
+                              padding: EdgeInsets.only(bottom: 50, right: 50),
+                              child: Center(
+                                child: AppLottieLoading(),
+                              ),
                             );
                           } else if (!controller.hasInternet.value) {
-                            return const NoInternetWidget();
+                            return const Padding(
+                              padding: EdgeInsets.only(bottom: 70),
+                              child: Center(child: NoInternetWidget()),
+                            );
                           }
 
                           if (controller.locationsList.isEmpty) {

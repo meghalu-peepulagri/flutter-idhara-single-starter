@@ -7,7 +7,6 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
-import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -154,8 +153,11 @@ class DashboardWidget extends StatelessWidget {
                         16.0, 0.0, 16.0, 0.0),
                     child: Obx(() {
                       if (controller.isLoading.value) {
-                        return const Center(
-                          child: AppLottieLoading(),
+                        return const Padding(
+                          padding: EdgeInsets.only(right: 50),
+                          child: Center(
+                            child: AppLottieLoading(),
+                          ),
                         );
                       } else if (!controller.hasInternet.value) {
                         return const Center(
@@ -165,11 +167,14 @@ class DashboardWidget extends StatelessWidget {
                       return Column(
                         // mainAxisSize: MainAxisSize.max,
                         children: [
-                          const WeatherCard(),
+                          // const WeatherCard(),
                           Expanded(child: Obx(() {
                             if (controller.isFiltering.value) {
-                              return const Center(
-                                child: AppLottieLoading(),
+                              return const Padding(
+                                padding: EdgeInsets.only(right: 50),
+                                child: Center(
+                                  child: AppLottieLoading(),
+                                ),
                               );
                             } else if (controller.motors.isEmpty &&
                                 !controller.isLoading.value) {
@@ -189,24 +194,10 @@ class DashboardWidget extends StatelessWidget {
                                     return Padding(
                                       padding:
                                           const EdgeInsets.only(bottom: 10),
-                                      child: GestureDetector(
-                                        // onTap: () {
-                                        //   SharedPreference.setMotorId(
-                                        //       motor.id ?? 0);
-                                        //   SharedPreference.setStarterId(
-                                        //       motor.starter?.id ?? 0);
-                                        //   Get.toNamed(
-                                        //     Routes.motorDetails,
-                                        //     arguments: {
-                                        //       'motorId': motor.id,
-                                        //     },
-                                        //   );
-                                        // },
-                                        child: MotorCardWidget(
-                                          motor: motor,
-                                          mqttService: controller.mqttService,
-                                          onToggleMotor: controller.toggleMotor,
-                                        ),
+                                      child: MotorCardWidget(
+                                        motor: motor,
+                                        mqttService: controller.mqttService,
+                                        onToggleMotor: controller.toggleMotor,
                                       ),
                                     );
                                   },
@@ -216,7 +207,7 @@ class DashboardWidget extends StatelessWidget {
                           })),
                         ]
                             .divide(const SizedBox(height: 10.0))
-                            .addToStart(const SizedBox(height: 20.0)),
+                            .addToStart(const SizedBox(height: 10.0)),
                       );
                     }),
                   ),

@@ -180,10 +180,16 @@ class DevicesPage extends StatelessWidget {
                                 controller.isRenameLoading.value ||
                                 controller.isDeleteLoading.value ||
                                 controller.isLocationReplacing.value) {
-                              return const AppLottieLoading();
+                              return const Padding(
+                                padding: EdgeInsets.only(bottom: 50, right: 50),
+                                child: Center(child: AppLottieLoading()),
+                              );
                             } else if (!controller.hasInternet.value) {
-                              return const Center(
-                                child: NoInternetWidget(),
+                              return const Padding(
+                                padding: EdgeInsets.only(bottom: 70),
+                                child: Center(
+                                  child: NoInternetWidget(),
+                                ),
                               );
                             }
                             if (controller.devicesList.isEmpty) {

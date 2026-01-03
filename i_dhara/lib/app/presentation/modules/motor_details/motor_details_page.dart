@@ -1,4 +1,3 @@
-import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -41,7 +40,10 @@ class MotorControlWidget extends StatelessWidget {
           body: SafeArea(
             child: Obx(() {
               if (controller1.isMotorDetailsLoading.value) {
-                return const AppLottieLoading();
+                return const Padding(
+                  padding: EdgeInsets.only(right: 50),
+                  child: Center(child: AppLottieLoading()),
+                );
               } else if (!controller1.hasInternet.value) {
                 return const Center(
                   child: NoInternetWidget(),
@@ -177,28 +179,6 @@ class MotorControlWidget extends StatelessWidget {
                                                 Obx(() {
                                                   return Row(
                                                     children: [
-                                                      // Text(
-                                                      //   'HP :  ',
-                                                      //   style: FlutterFlowTheme.of(
-                                                      //           context)
-                                                      //       .bodyMedium
-                                                      //       .override(
-                                                      //           font:
-                                                      //               GoogleFonts
-                                                      //                   .dmSans(
-                                                      //             fontWeight:
-                                                      //                 FontWeight
-                                                      //                     .normal,
-                                                      //           ),
-                                                      //           color: const Color(
-                                                      //               0xFF6A7282),
-                                                      //           fontSize: 14.0,
-                                                      //           letterSpacing:
-                                                      //               0.0,
-                                                      //           fontWeight:
-                                                      //               FontWeight
-                                                      //                   .w600),
-                                                      // ),
                                                       Text(
                                                         '${controller1.hp.value} HP',
                                                         maxLines: 1,
@@ -237,7 +217,6 @@ class MotorControlWidget extends StatelessWidget {
                                                   );
                                                 }),
                                                 const SizedBox(height: 4),
-
                                                 Obx(() {
                                                   final deviceId = controller1
                                                       .deviceId.value;
@@ -354,53 +333,6 @@ class MotorControlWidget extends StatelessWidget {
                                                     ],
                                                   );
                                                 }),
-                                                // const SizedBox(height: 8.0),
-                                                // Toggle Switch - separate row
-                                                // Obx(() {
-                                                //   final mode = controller1
-                                                //       .motorMode.value
-                                                //       .toLowerCase();
-                                                //   final isAuto = mode == 'auto';
-                                                //   final int selectedIndex =
-                                                //       isAuto ? 0 : 1;
-
-                                                //   return ToggleSwitch(
-                                                //     key: ValueKey(mode),
-                                                //     changeOnTap: false,
-                                                //     customWidths: const [90, 90],
-                                                //     radiusStyle: true,
-                                                //     minWidth: 80.0,
-                                                //     minHeight: 30.0,
-                                                //     initialLabelIndex:
-                                                //         selectedIndex,
-                                                //     cornerRadius: 8.0,
-                                                //     activeBgColor: [
-                                                //       isAuto
-                                                //           ? const Color(0xFFFFA500)
-                                                //               .withOpacity(0.5)
-                                                //           : !isAuto
-                                                //               ? const Color(
-                                                //                       0xFF2F80ED)
-                                                //                   .withOpacity(0.5)
-                                                //               : const Color(
-                                                //                   0xFF2F80ED)
-                                                //     ],
-                                                //     activeFgColor: Colors.white,
-                                                //     inactiveBgColor: Colors.white,
-                                                //     inactiveFgColor: Colors.black,
-                                                //     fontSize: 12,
-                                                //     totalSwitches: 2,
-                                                //     labels: const [
-                                                //       'Auto',
-                                                //       'Manual'
-                                                //     ],
-                                                //     borderWidth: 1,
-                                                //     borderColor: [
-                                                //       Colors.grey.shade300
-                                                //     ],
-                                                //     onToggle: null,
-                                                //   );
-                                                // }),
                                               ],
                                             ),
                                           ),
@@ -477,10 +409,6 @@ class MotorControlWidget extends StatelessWidget {
                                               Obx(() {
                                                 final mode =
                                                     controller1.motorMode.value;
-                                                final isManual = mode == 'M' ||
-                                                    mode
-                                                        .toLowerCase()
-                                                        .contains('manual');
                                                 final isAuto = mode == 'A' ||
                                                     mode
                                                         .toLowerCase()
@@ -691,26 +619,6 @@ class MotorControlWidget extends StatelessWidget {
                                         selectedDateRange:
                                             controller1.daterange,
                                       ),
-                                      // VoltageGraphWidget(
-                                      //   selectedDateRange:
-                                      //       controller1.daterange,
-                                      //   motorName:
-                                      //       controller1.selectedTitle.value,
-                                      //   sharedPointNotifier:
-                                      //       controller1.sharedPointNotifier,
-                                      //   sharedTimeNotifier:
-                                      //       controller1.sharedTimeNotifier,
-                                      // ),
-                                      // CurrentGraphWidget(
-                                      //   sharedPointNotifier:
-                                      //       controller1.valueNotifier,
-                                      //   sharedTimeNotifier:
-                                      //       controller1.sharedTimeNotifier,
-                                      //   selectedDateRange:
-                                      //       controller1.daterange,
-                                      //   motorName:
-                                      //       controller1.selectedTitle.value,
-                                      // ),
                                     ].divide(const SizedBox(height: 16)),
                                   ),
                                 ].divide(const SizedBox(height: 12.0)),
@@ -767,64 +675,32 @@ class MotorControlWidget extends StatelessWidget {
               ),
             ),
 
-            // Date Display
             Expanded(
-              child: GestureDetector(
-                onTap: () async {
-                  controller.isModalOpen.value = true;
-                  var results = await showCalendarDatePicker2Dialog(
-                    context: context,
-                    config: CalendarDatePicker2WithActionButtonsConfig(
-                      calendarType: CalendarDatePicker2Type.single,
-                      lastDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      disableModePicker: true,
-                      calendarViewScrollPhysics:
-                          const NeverScrollableScrollPhysics(),
+              child: Obx(() {
+                final selectedDate =
+                    controller.daterange.first ?? DateTime.now();
+                return Column(
+                  children: [
+                    Text(
+                      DateFormat('EEEE').format(selectedDate),
+                      style: GoogleFonts.dmSans(
+                        color: const Color(0xFF6B7280),
+                        fontSize: 13.0,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                    dialogSize: const Size(325, 400),
-                    value: [controller.daterange.first],
-                    borderRadius: BorderRadius.circular(15),
-                  );
-
-                  try {
-                    if (results != null &&
-                        results.isNotEmpty &&
-                        results.first != null) {
-                      controller.selectSingleDate(results.first!);
-                    }
-                  } catch (e) {
-                    print('Error selecting date: $e');
-                  } finally {
-                    controller.isModalOpen.value = false;
-                  }
-                },
-                child: Obx(() {
-                  final selectedDate =
-                      controller.daterange.first ?? DateTime.now();
-                  return Column(
-                    children: [
-                      Text(
-                        DateFormat('EEEE').format(selectedDate),
-                        style: GoogleFonts.dmSans(
-                          color: const Color(0xFF6B7280),
-                          fontSize: 13.0,
-                          fontWeight: FontWeight.w400,
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('dd MMM yyyy').format(selectedDate),
+                      style: GoogleFonts.dmSans(
+                        color: const Color(0xFF004E7E),
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat('dd MMM yyyy').format(selectedDate),
-                        style: GoogleFonts.dmSans(
-                          color: const Color(0xFF004E7E),
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
+                    ),
+                  ],
+                );
+              }),
             ),
 
             // Right Arrow Button
@@ -860,119 +736,4 @@ class MotorControlWidget extends StatelessWidget {
       ),
     );
   }
-
-  // Widget _buildMonthView(BuildContext context, AnalyticsController controller,
-  //     DateTime rangeStart, DateTime rangeEnd) {
-  //   final today = DateTime.now();
-
-  //   // Get first and last day of current month
-  //   final firstDayOfMonth = DateTime(today.year, today.month, 1);
-  //   final lastDayOfMonth = DateTime(today.year, today.month + 1, 0);
-  //   final daysInMonth = lastDayOfMonth.day;
-
-  //   // Check if it's a single date selection or range
-  //   final isSingleDateSelection = rangeStart.year == rangeEnd.year &&
-  //       rangeStart.month == rangeEnd.month &&
-  //       rangeStart.day == rangeEnd.day;
-  //   WidgetsBinding.instance.addPostFrameCallback((_) {
-  //     if (controller.monthScrollController.hasClients) {
-  //       final todayIndex = today.day - 1; // Index starts from 0
-  //       const itemWidth = 45.0 + 8.0; // width + margin (4.0 * 2)
-  //       final screenWidth = MediaQuery.of(context).size.width;
-  //       final scrollPosition =
-  //           (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
-
-  //       controller.monthScrollController.animateTo(
-  //         scrollPosition.clamp(
-  //             0.0, controller.monthScrollController.position.maxScrollExtent),
-  //         duration: const Duration(milliseconds: 300),
-  //         curve: Curves.easeInOut,
-  //       );
-  //     }
-  //   });
-
-  //   return SizedBox(
-  //     height: 70,
-  //     child: ListView.builder(
-  //       controller: controller.monthScrollController,
-  //       scrollDirection: Axis.horizontal,
-  //       padding: const EdgeInsets.symmetric(horizontal: 12.0),
-  //       itemCount: daysInMonth,
-  //       itemBuilder: (context, index) {
-  //         final date = DateTime(today.year, today.month, index + 1);
-  //         final isToday = date.day == today.day;
-
-  //         // Check if this date is the selected single date
-  //         final isSelectedDate = isSingleDateSelection &&
-  //             date.day == rangeStart.day &&
-  //             date.month == rangeStart.month &&
-  //             date.year == rangeStart.year;
-
-  //         // Check if date is in range (only for range selection)
-  //         final isInRange = !isSingleDateSelection &&
-  //             (date.isAtSameMomentAs(rangeStart) ||
-  //                 date.isAtSameMomentAs(rangeEnd) ||
-  //                 (date.isAfter(rangeStart) && date.isBefore(rangeEnd)));
-
-  //         final isFuture = date.isAfter(today);
-
-  //         return GestureDetector(
-  //           onTap: isFuture
-  //               ? null
-  //               : () {
-  //                   controller.selectSingleDate(date);
-  //                 },
-  //           child: Container(
-  //             width: 45,
-  //             margin: const EdgeInsets.symmetric(horizontal: 4.0),
-  //             decoration: BoxDecoration(
-  //               color: isSelectedDate || isInRange
-  //                   ? const Color(0xFF004E7E)
-  //                   : isToday
-  //                       ? const Color(0xFFE0F2FE)
-  //                       : Colors.transparent,
-  //               borderRadius: BorderRadius.circular(8.0),
-  //               border: Border.all(
-  //                 color: isToday && !isSelectedDate && !isInRange
-  //                     ? const Color(0xFF004E7E)
-  //                     : Colors.transparent,
-  //                 width: 1.5,
-  //               ),
-  //             ),
-  //             child: Column(
-  //               mainAxisAlignment: MainAxisAlignment.center,
-  //               children: [
-  //                 Text(
-  //                   DateFormat('EEE').format(date).substring(0, 3),
-  //                   style: GoogleFonts.dmSans(
-  //                     fontSize: 11.0,
-  //                     color: isFuture
-  //                         ? const Color(0xFFD1D5DB)
-  //                         : (isSelectedDate || isInRange)
-  //                             ? Colors.white
-  //                             : const Color(0xFF6B7280),
-  //                     fontWeight: FontWeight.w500,
-  //                   ),
-  //                 ),
-  //                 const SizedBox(height: 4),
-  //                 Text(
-  //                   '${date.day}',
-  //                   style: GoogleFonts.dmSans(
-  //                     fontSize: 16.0,
-  //                     color: isFuture
-  //                         ? const Color(0xFFD1D5DB)
-  //                         : (isSelectedDate || isInRange)
-  //                             ? Colors.white
-  //                             : const Color(0xFF111827),
-  //                     fontWeight: FontWeight.w600,
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         );
-  //       },
-  //     ),
-  //   );
-  // }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 class AddNewLocatonController extends GetxController {
   FocusNode? textFieldFocusNode;
@@ -24,9 +25,31 @@ class AddNewLocatonController extends GetxController {
     textController?.dispose();
   }
 
+  Future<void> fetchLocationDropDown2(String name) async {
+    print("line 1888 -----------> $name");
+    final response = await LocationRepoImpl().getLocations();
+    if (response != null) {
+      final data = response.data;
+
+      if (data != null) {
+        for (var element in data) {
+          if (element.name == name) {
+            final id = element.id;
+            locationId = id.toString();
+            await SharedPreference.setLocationId(locationId);
+            await SharedPreference.setLocationName(name);
+            print("line 33 loc id-----------> $locationId");
+          }
+        }
+      }
+    }
+  }
+
   Future<void> fetchnewlocation({required String name}) async {
     final response = await LocationRepoImpl().addLocation(name);
     if (response != null && response.errors == null) {
+      print("line 33 sdbs-----------> ${response.data}");
+      await fetchLocationDropDown2(name);
       // return response.data;
       // Get.offAllNamed(Routes.addDevices);
     } else if (response!.errors != null) {

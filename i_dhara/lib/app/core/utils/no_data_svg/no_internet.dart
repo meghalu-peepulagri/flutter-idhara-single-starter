@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:i_dhara/app/core/utils/app_text/app_text.dart';
+import 'package:lottie/lottie.dart';
 
 class NoInternetWidget extends StatelessWidget {
   const NoInternetWidget({super.key});
@@ -11,10 +11,10 @@ class NoInternetWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SvgPicture.asset(
-            'assets/images/No internet.svg',
-            width: 100,
-            height: 100,
+          Lottie.asset(
+            'assets/lottie_animations/No internet connection.json',
+            width: 120,
+            height: 120,
             fit: BoxFit.cover,
           ),
           const SizedBox(height: 10),
