@@ -102,56 +102,12 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     final dayEnd = DateTime(rawData.first.start.year, rawData.first.start.month,
         rawData.first.start.day, 23, 59, 59);
 
-    // Fill gap before first record
-    // if (rawData.first.start.isAfter(dayStart)) {
-    //   result.add(MotorTimeData(
-    //     dayStart,
-    //     rawData.first.start,
-    //     1,
-    //     _durationStr(dayStart, rawData.first.start),
-    //     "OFFLINE",
-    //   ));
-    // }
-
-    // Add records + fill gaps between
     for (int i = 0; i < rawData.length; i++) {
       final current = rawData[i];
       result.add(current);
-
-      // if (i < rawData.length - 1) {
-      //   final next = rawData[i + 1];
-      //   if (next.start.isAfter(current.end)) {
-      //     result.add(MotorTimeData(
-      //       current.end,
-      //       next.start,
-      //       1,
-      //       _durationStr(current.end, next.start),
-      //       "OFFLINE",
-      //     ));
-      //   }
-      // }
     }
 
-    // Fill gap after last record
-    // if (rawData.last.end.isBefore(dayEnd)) {
-    //   result.add(MotorTimeData(
-    //     rawData.last.end,
-    //     dayEnd,
-    //     1,
-    //     _durationStr(rawData.last.end, dayEnd),
-    //     "OFFLINE",
-    //   ));
-    // }
-
     return result;
-  }
-
-  String _durationStr(DateTime start, DateTime end) {
-    final diff = end.difference(start);
-    final h = diff.inHours;
-    final m = diff.inMinutes.remainder(60);
-    final s = diff.inSeconds.remainder(60);
-    return '${h}h ${m}m ${s}s';
   }
 
   void updateMinMax(List<TimeSegment> chartData) {
@@ -233,15 +189,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                             ),
                           );
                         }),
-                        // if (analyticsController.motortotalRuntimeData.value
-                        //         ?.totalRuntimeHours !=
-                        //     null)
-                        //   Text(
-                        //     analyticsController.motortotalRuntimeData.value
-                        //             ?.totalRuntimeHours ??
-                        //         '',
-                        //     style: const TextStyle(fontSize: 14),
-                        //   ),
                       ],
                     ),
                   ),
@@ -283,8 +230,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         dateFormat: DateFormat('hh:mm a'),
                                         minimum: minTime,
                                         maximum: maxTime,
-                                        // intervalType:
-                                        //     DateTimeIntervalType.minutes,
                                         interval: 1,
                                         labelRotation: -20,
                                         majorGridLines:
@@ -325,43 +270,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     return Colors.red;
   }
 
-  // List<LineSeries<TimePoint, DateTime>> _buildSeries(List<TimeSegment> data) {
-  //   final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-
-  //   for (final segment in data) {
-  //     final color = _colorForDescription(segment.type);
-
-  //     final points = <TimePoint>[
-  //       TimePoint(segment.start, 1, segment.duration.toString(), segment.type,
-  //           segment.start, segment.end, true),
-  //       TimePoint(segment.end, 1, segment.duration.toString(), segment.type,
-  //           segment.start, segment.end, false),
-  //     ];
-
-  //     seriesList.add(LineSeries<TimePoint, DateTime>(
-  //       dataSource: points,
-  //       xValueMapper: (p, _) => p.time,
-  //       yValueMapper: (p, _) => p.value,
-  //       color: color,
-  //       width: 4,
-  //       markerSettings: MarkerSettings(
-  //           isVisible: true,
-  //           height: 5,
-  //           width: 5,
-  //           shape: DataMarkerType.circle,
-  //           color: color
-  //           // height: 4, width: 4, shape: DataMarkerType.circle,
-  //           ),
-  //       pointColorMapper: (TimePoint point, _) {
-  //         return point.isStartPoint ? Colors.green : Colors.red;
-  //       },
-  //       isVisibleInLegend: false,
-  //       // enableTooltip: true,
-  //     ));
-  //   }
-
-  //   return seriesList;
-  // }
   List<LineSeries<TimePoint, DateTime>> _buildSeries(List<TimeSegment> data) {
     final List<LineSeries<TimePoint, DateTime>> seriesList = [];
 

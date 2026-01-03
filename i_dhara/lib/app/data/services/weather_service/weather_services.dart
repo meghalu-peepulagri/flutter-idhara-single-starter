@@ -7,12 +7,10 @@ class WeatherService {
   static const String _baseUrl = 'https://api.weatherapi.com/v1/forecast.json';
   static const String _apiKey = '28ac09e8dcd4486889c83425251311';
 
-  // Check and request location permissions
   Future<LocationPermissionStatus> handleLocationPermission() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Check if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       return LocationPermissionStatus.serviceDisabled;
@@ -33,17 +31,14 @@ class WeatherService {
     return LocationPermissionStatus.granted;
   }
 
-  // Open location settings
   Future<void> openLocationSettings() async {
     await Geolocator.openLocationSettings();
   }
 
-  // Open app settings for permission
   Future<void> openAppSettings() async {
     await Geolocator.openAppSettings();
   }
 
-  // Get current position
   Future<Position?> getCurrentPosition() async {
     try {
       return await Geolocator.getCurrentPosition(
@@ -71,21 +66,16 @@ class WeatherService {
         '$_baseUrl?key=$_apiKey&q=${position.latitude},${position.longitude}&days=1&aqi=no&alerts=no',
       );
 
-      print('Fetching weather from: $url');
-
       // Add timeout to the HTTP request
       final response = await http.get(url).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 20),
         onTimeout: () {
           print('Weather API request timeout');
           throw Exception('Request timeout');
         },
       );
 
-      print('Weather API response status: ${response.statusCode}');
-
       if (response.statusCode == 200) {
-        print('Response body length: ${response.body.length}');
         final data = json.decode(response.body);
         print('Weather data parsed successfully');
         return WeatherData.fromJson(data);
@@ -94,9 +84,9 @@ class WeatherService {
       }
 
       return null;
-    } catch (e, stackTrace) {
+    } catch (e) {
       print('Error fetching weather data: $e');
-      print('Stack trace: $stackTrace');
+
       return null;
     }
   }
@@ -121,17 +111,14 @@ class WeatherData {
   });
 
   factory WeatherData.fromJson(Map<String, dynamic> json) {
-    // Get current hour
     final now = DateTime.now();
     final currentHour = now.hour;
 
-    // Extract all hours from today's forecast
     final forecastDay = json['forecast']['forecastday'][0];
     final allHours = (forecastDay['hour'] as List)
         .map((hour) => HourlyForecast.fromJson(hour))
         .toList();
 
-    // Filter to get next 24 hours starting from current hour
     final List<HourlyForecast> next24Hours = [];
 
     for (var hour in allHours) {
@@ -139,9 +126,6 @@ class WeatherData {
         next24Hours.add(hour);
       }
     }
-
-    // If we don't have 24 hours, it means we need to handle it differently
-    // For now, we'll just take what we have
 
     return WeatherData(
       location: json['location']['name'] ?? '',

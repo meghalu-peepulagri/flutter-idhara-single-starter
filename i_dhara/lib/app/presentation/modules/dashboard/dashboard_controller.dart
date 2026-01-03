@@ -1,5 +1,4 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
@@ -121,10 +120,10 @@ class DashboardController extends GetxController {
           // Update MQTT service motors
           mqttService.updateMotors(motorMap);
 
-          // FIXED: Resubscribe to new motor topics
+          // Resubscribe to new motor topics
           await mqttService.resubscribeToTopics();
 
-          // Force UI update with fresh API data
+          // UI update with fresh API data
           _onMqttUpdate();
         }
 
@@ -133,12 +132,10 @@ class DashboardController extends GetxController {
       } else {
         errorMessage.value = 'Failed to refresh motors';
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       errorMessage.value = 'Error: $e';
-      debugPrint('Refresh error: $e\n$stackTrace');
     } finally {
       isRefreshing.value = false;
-      debugPrint('🔄 ===== REFRESH COMPLETED =====');
     }
   }
 
@@ -176,11 +173,11 @@ class DashboardController extends GetxController {
           }
         }
 
-        // FIXED: Always initialize MQTT service, even with empty motors
+        //  Always initialize MQTT service, even with empty motors
         mqttService = MqttService(initialMotors: motorMap);
         mqttInitialized = true;
 
-        // FIXED: Initialize MQTT connection regardless of motor count
+        //  Initialize MQTT connection regardless of motor count
         await mqttService.initializeMqttClient();
 
         mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
@@ -189,33 +186,26 @@ class DashboardController extends GetxController {
         if (motorMap.isNotEmpty) {
           _onMqttUpdate();
         }
-
-        debugPrint('✅ MQTT initialized with ${motorMap.length} motors');
       } else {
         errorMessage.value = 'Failed to load motors';
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       errorMessage.value = 'Error: $e';
-      debugPrint('Fetch motors error: $e\n$stackTrace');
     } finally {
       isRefreshing.value = false;
     }
   }
 
   void _onMqttUpdate() {
-    debugPrint('🔄 _onMqttUpdate called');
-
     int mqttDataCount = 0;
     for (var key in mqttService.motorDataMap.keys) {
       final data = mqttService.motorDataMap[key];
       if (data?.hasReceivedData == true) {
-        debugPrint(
-            '  ✓ $key: state=${data?.state}, mode=${data?.motorMode}, power=${data?.power}');
         mqttDataCount++;
       }
     }
 
-    debugPrint('📊 Total MQTT data entries: $mqttDataCount');
+    print(' Total MQTT data entries: $mqttDataCount');
 
     for (var motor in allMotors) {
       if (motor.starter?.macAddress == null) continue;
@@ -225,22 +215,14 @@ class DashboardController extends GetxController {
       final currentKey = '$mac-$currentGroupId';
       final currentMotorData = mqttService.motorDataMap[currentKey];
 
-      debugPrint('🔍 Processing motor ${motor.name} (${motor.id})');
-      debugPrint('   Current group: $currentGroupId');
-      debugPrint(
-          '   Has MQTT data: ${currentMotorData?.hasReceivedData ?? false}');
-
       // Update state and mode from current group
       if (currentMotorData != null && currentMotorData.hasReceivedData) {
         motor.state = currentMotorData.state;
         motor.mode = currentMotorData.motorMode;
 
-        debugPrint('   ✓ Updated state: ${motor.state}, mode: ${motor.mode}');
-
         // Update power from current group
         if (currentMotorData.power != 0 && motor.starter != null) {
           motor.starter!.power = currentMotorData.power;
-          debugPrint('   ✓ Updated power: ${currentMotorData.power}');
         }
 
         // Update voltage and current from current group
@@ -260,21 +242,18 @@ class DashboardController extends GetxController {
             final newValue = double.tryParse(currentMotorData.voltageRed);
             if (newValue != null && newValue > 0) {
               params.lineVoltageR = newValue;
-              debugPrint('   ✓ Updated voltageR: $newValue');
             }
           }
           if (currentMotorData.voltageYellow != '0') {
             final newValue = double.tryParse(currentMotorData.voltageYellow);
             if (newValue != null && newValue > 0) {
               params.lineVoltageY = newValue;
-              debugPrint('   ✓ Updated voltageY: $newValue');
             }
           }
           if (currentMotorData.voltageBlue != '0') {
             final newValue = double.tryParse(currentMotorData.voltageBlue);
             if (newValue != null && newValue > 0) {
               params.lineVoltageB = newValue;
-              debugPrint('   ✓ Updated voltageB: $newValue');
             }
           }
 
@@ -283,38 +262,33 @@ class DashboardController extends GetxController {
             final newValue = double.tryParse(currentMotorData.currentRed);
             if (newValue != null && newValue > 0) {
               params.currentR = newValue;
-              debugPrint('   ✓ Updated currentR: $newValue');
             }
           }
           if (currentMotorData.currentYellow != '0') {
             final newValue = double.tryParse(currentMotorData.currentYellow);
             if (newValue != null && newValue > 0) {
               params.currentY = newValue;
-              debugPrint('   ✓ Updated currentY: $newValue');
             }
           }
           if (currentMotorData.currentBlue != '0') {
             final newValue = double.tryParse(currentMotorData.currentBlue);
             if (newValue != null && newValue > 0) {
               params.currentB = newValue;
-              debugPrint('   ✓ Updated currentB: $newValue');
             }
           }
 
           // Update fault
           if (currentMotorData.fault != 0) {
             params.fault = currentMotorData.fault;
-            debugPrint('   ✓ Updated fault: ${currentMotorData.fault}');
           }
 
           params.timeStamp = DateTime.now();
         }
       } else {
-        debugPrint('   ⚠️ No MQTT data for current group, keeping API data');
+        print(' No MQTT data for current group, keeping API data');
       }
     }
 
-    debugPrint('✅ Update complete, refreshing UI');
     motors.refresh();
     allMotors.refresh();
   }
@@ -330,8 +304,7 @@ class DashboardController extends GetxController {
         locations.insert(0, LocationDropDown(id: null, name: 'All'));
       }
     } catch (e) {
-      debugPrint('Error fetching locations: $e');
-      errorMessage.value = 'Failed to load locations';
+      print('Error fetching locations: $e');
     } finally {
       isLoadingLocations.value = false;
     }

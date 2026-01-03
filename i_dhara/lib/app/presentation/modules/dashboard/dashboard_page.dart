@@ -7,6 +7,7 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
+import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -165,9 +166,8 @@ class DashboardWidget extends StatelessWidget {
                         );
                       }
                       return Column(
-                        // mainAxisSize: MainAxisSize.max,
                         children: [
-                          // const WeatherCard(),
+                          const WeatherCard(),
                           Expanded(child: Obx(() {
                             if (controller.isFiltering.value) {
                               return const Padding(
