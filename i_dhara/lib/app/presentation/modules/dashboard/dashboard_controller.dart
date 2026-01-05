@@ -35,6 +35,10 @@ class DashboardController extends GetxController {
     _initConnectivity();
     _loadAllData();
     _requestPermissionAndLoad();
+    final args = Get.arguments;
+    if (args?['refresh'] == true) {
+      fetchMotors();
+    }
   }
 
   Future<void> _requestPermissionAndLoad() async {
@@ -122,6 +126,8 @@ class DashboardController extends GetxController {
 
           // Resubscribe to new motor topics
           await mqttService.resubscribeToTopics();
+
+          await Future.delayed(const Duration(milliseconds: 500));
 
           // UI update with fresh API data
           _onMqttUpdate();

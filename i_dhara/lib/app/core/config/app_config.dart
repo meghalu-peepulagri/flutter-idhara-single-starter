@@ -1,13 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:i_dhara/app/core/constants/app_constant.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class NetworkManager {
-  final _baseUrl = "https://dev-api-idhara.peepul.farm/v1.0";
+  String baseUrl = AppConstants.dev_url;
   final Dio _dio;
   NetworkManager() : _dio = Dio() {
-    _dio.options.baseUrl = _baseUrl;
+    _dio.options.baseUrl = baseUrl;
     _dio.interceptors.add(PrettyDioLogger());
     _dio.interceptors.add(InterceptorsWrapper(
         onRequest: _onRequest, onError: _onError, onResponse: _onResponse));

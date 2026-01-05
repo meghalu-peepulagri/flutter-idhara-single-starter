@@ -45,16 +45,43 @@ class AddNewLocatonController extends GetxController {
     }
   }
 
-  Future<void> fetchnewlocation({required String name}) async {
+  // Future<bool> fetchnewlocation({required String name}) async {
+  //   final response = await LocationRepoImpl().addLocation(name);
+  //   if (response != null && response.errors == null) {
+  //     print("line 33 sdbs-----------> ${response.data}");
+  //     await fetchLocationDropDown2(name);
+  //     // return response.data;
+  //     // Get.offAllNamed(Routes.addDevices);
+  //   } else if (response!.errors != null) {
+  //     errorInstance = response.errors!.toJson();
+  //     error = true;
+  //     isValidation = true;
+  //     return false;
+  //   }
+  //   return false;
+  // }
+  Future<bool> fetchnewlocation({required String name}) async {
     final response = await LocationRepoImpl().addLocation(name);
     if (response != null && response.errors == null) {
       print("line 33 sdbs-----------> ${response.data}");
+      error = false;
+      isValidation = false;
+      errorInstance = {};
+      message = '';
       await fetchLocationDropDown2(name);
-      // return response.data;
-      // Get.offAllNamed(Routes.addDevices);
-    } else if (response!.errors != null) {
-      errorInstance = response.errors!.toJson();
+      return true; // Success
+    } else if (response?.errors != null) {
+      error = true;
+      isValidation = true;
+      errorInstance = response!.errors!.toJson();
+      message = 'Please fix the validation errors';
+      print("line 35 sdbs-----------> $errorInstance");
+      return false;
+    } else {
+      error = true;
+      isValidation = false;
+      message = 'Something went wrong. Please try again.';
+      return false; // Other error
     }
-    return;
   }
 }

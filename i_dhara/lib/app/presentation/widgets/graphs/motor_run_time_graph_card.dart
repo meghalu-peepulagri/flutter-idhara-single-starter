@@ -237,7 +237,48 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         intervalType: DateTimeIntervalType.auto,
                                         autoScrollingDeltaType:
                                             DateTimeIntervalType.minutes,
+                                        labelIntersectAction:
+                                            AxisLabelIntersectAction.hide,
+                                        maximumLabels: 10,
+                                        labelAlignment: LabelAlignment.center,
+                                        axisLabelFormatter:
+                                            (AxisLabelRenderDetails args) {
+                                          final date = DateTime
+                                              .fromMillisecondsSinceEpoch(
+                                            args.value.toInt(),
+                                          );
+                                          return ChartAxisLabel(
+                                            DateFormat('hh:mm a').format(date),
+                                            const TextStyle(fontSize: 10),
+                                          );
+                                        },
                                       ),
+                                      // primaryXAxis: DateTimeAxis(
+                                      //   labelStyle:
+                                      //       const TextStyle(fontSize: 10),
+                                      //   dateFormat: DateFormat('hh:mm a'),
+                                      //   minimum: minTime,
+                                      //   maximum: maxTime,
+                                      //   interval: 1,
+                                      //   labelRotation: -20,
+                                      //   majorGridLines:
+                                      //       const MajorGridLines(width: 0),
+                                      //   intervalType:
+                                      //       DateTimeIntervalType.minutes,
+                                      //   autoScrollingDeltaType:
+                                      //       DateTimeIntervalType.minutes,
+                                      //   axisLabelFormatter:
+                                      //       (AxisLabelRenderDetails args) {
+                                      //     final date = DateTime
+                                      //         .fromMillisecondsSinceEpoch(
+                                      //             args.value.toInt());
+
+                                      //     return ChartAxisLabel(
+                                      //       DateFormat('hh:mm a').format(date),
+                                      //       const TextStyle(fontSize: 10),
+                                      //     );
+                                      //   },
+                                      // ),
                                       primaryYAxis: const NumericAxis(
                                         isVisible: false,
                                         minimum: 0,
@@ -260,14 +301,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
         ],
       );
     });
-  }
-
-  Color _colorForDescription(String? desc) {
-    final d = (desc ?? '').trim().toUpperCase();
-    if (d == 'ON') return Colors.green;
-    if (d == 'OFF') return Colors.red;
-    if (d == 'OFFLINE') return Colors.grey;
-    return Colors.red;
   }
 
   List<LineSeries<TimePoint, DateTime>> _buildSeries(List<TimeSegment> data) {

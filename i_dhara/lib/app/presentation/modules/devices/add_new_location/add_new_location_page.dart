@@ -102,8 +102,15 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     TextFieldComponent(
                         controller: _model.textController!,
                         errors: _model.errorInstance,
-                        errorKey: 'title',
+                        errorKey: 'name',
                         hintText: 'Enter location name',
+                        onChanged: (value) {
+                          if (_model.errorInstance.containsKey('name')) {
+                            setState(() {
+                              _model.errorInstance.remove('name');
+                            });
+                          }
+                        },
                         readOnly: false),
                   ],
                 ),
@@ -141,14 +148,28 @@ class _AddNewLocationState extends State<AddNewLocation> {
                   child: FFButtonWidget(
                     onPressed: () async {
                       // Validate that location name is not empty
-                      if (_model.textController!.text.trim().isEmpty) {
-                        // Show error
-                        return;
-                      }
+                      // if (_model.textController!.text.trim().isEmpty) {
+                      //   // Show error
+                      //   return;
+                      // }
+                      setState(() {
+                        _model.errorInstance = {};
+                        _model.error = false;
+                        _model.isValidation = false;
+                        _model.message = '';
+                      });
 
-                      await _model.fetchnewlocation(
+                      final isSuccess = await _model.fetchnewlocation(
                         name: _model.textController!.text.trim(),
                       );
+                      setState(() {});
+                      if (!isSuccess) {
+                        return;
+                      }
+                      print("line 36 loc id-----------> ${_model.error}");
+                      print(
+                          "line 37 loc id-----------> ${_model.errorInstance}");
+
                       SharedPreference.setLocationId(
                           _model.locationId.toString());
                       final locationName = _model.textController!.text.trim();
@@ -160,7 +181,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     options: FFButtonOptions(
                       height: 45.0,
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      color: const Color(0xFF45A845),
+                      color: const Color(0xFF3686AF),
                       textStyle:
                           FlutterFlowTheme.of(context).titleSmall.override(
                                 fontFamily: 'Manrope',

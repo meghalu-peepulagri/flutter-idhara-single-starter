@@ -91,6 +91,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+        Get.offAllNamed(Routes.devices);
         return false;
       },
       child: GestureDetector(

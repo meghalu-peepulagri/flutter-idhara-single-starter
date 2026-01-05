@@ -67,6 +67,7 @@ class AnalyticsController extends GetxController {
     if (motorId.value != null) {
       fetchMotorDetails();
     }
+    resetDateToToday();
     fetchallApis();
   }
 
@@ -82,6 +83,13 @@ class AnalyticsController extends GetxController {
     hasInternet.value = result != ConnectivityResult.none;
   }
 
+  void resetDateToToday() {
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+
+    daterange.value = [normalizedToday, normalizedToday];
+  }
+
   fetchallApis() async {
     clearAllData();
 
@@ -95,6 +103,7 @@ class AnalyticsController extends GetxController {
 
   Future<void> onrefresh() async {
     isRefreshing.value = true;
+    resetDateToToday();
     voltageTrackball.value?.hide();
     currentTrackball.value?.hide();
     clearAllData();

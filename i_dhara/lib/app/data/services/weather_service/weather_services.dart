@@ -2,10 +2,11 @@ import 'dart:convert';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:i_dhara/app/core/constants/app_constant.dart';
 
 class WeatherService {
-  static const String _baseUrl = 'https://api.weatherapi.com/v1/forecast.json';
-  static const String _apiKey = '28ac09e8dcd4486889c83425251311';
+  static const String _baseUrl = AppConstants.weather_url;
+  static const String _apiKey = AppConstants.weather_key;
 
   Future<LocationPermissionStatus> handleLocationPermission() async {
     bool serviceEnabled;

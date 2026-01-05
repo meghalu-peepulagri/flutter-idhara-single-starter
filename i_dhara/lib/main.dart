@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -11,21 +14,34 @@ import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  GoRouter.optionURLReflectsImperativeAPIs = true;
-  await SharedPreference.init();
-  usePathUrlStrategy();
+  if (kIsWeb) {
+    WidgetsFlutterBinding.ensureInitialized();
+    await SharedPreference.init();
+    usePathUrlStrategy();
+    await FlutterFlowTheme.initialize();
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+    };
+    runApp(const MyWebApp());
+  } else {
+    await dotenv.load(fileName: '.env');
+    AppEnvironment.setup();
+    WidgetsFlutterBinding.ensureInitialized();
+    GoRouter.optionURLReflectsImperativeAPIs = true;
+    await SharedPreference.init();
+    usePathUrlStrategy();
 
-  await FlutterFlowTheme.initialize();
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light, // iOS
-    ),
-  );
+    await FlutterFlowTheme.initialize();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light, // iOS
+      ),
+    );
 
-  runApp(const MyApp());
+    runApp(const MyApp());
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -91,6 +107,52 @@ class _MyAppState extends State<MyApp> {
       // ),
       // themeMode: _themeMode,
       // routerConfig: _router,
+      initialRoute: SharedPreference.getAccessToken().isNotEmpty
+          ? Routes.dashboard
+          : Routes.splash,
+      getPages: AppPages.getPages,
+    );
+  }
+}
+
+class MyWebApp extends StatefulWidget {
+  const MyWebApp({super.key});
+
+  @override
+  State<MyWebApp> createState() => _MyWebAppState();
+
+  static _MyWebAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyWebAppState>()!;
+}
+
+class _MyWebAppState extends State<MyWebApp> {
+  ThemeMode _themeMode = FlutterFlowTheme.themeMode;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void setThemeMode(ThemeMode mode) => safeSetState(() {
+        _themeMode = mode;
+        FlutterFlowTheme.saveThemeMode(mode);
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Peepul Agri',
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en', '')],
+      theme: ThemeData(
+        brightness: Brightness.light,
+        useMaterial3: false,
+      ),
       initialRoute: SharedPreference.getAccessToken().isNotEmpty
           ? Routes.dashboard
           : Routes.splash,

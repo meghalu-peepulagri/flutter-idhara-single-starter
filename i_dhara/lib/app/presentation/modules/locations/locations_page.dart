@@ -161,25 +161,63 @@ class LocationsWidget extends StatelessWidget {
                         mainAxisSize: MainAxisSize.max,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Locations',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.dmSans(
-                                    fontWeight: FontWeight.w500,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
+                          Row(
+                            children: [
+                              Text(
+                                'Locations',
+                                style: FlutterFlowTheme.of(context)
+                                    .bodyMedium
+                                    .override(
+                                      font: GoogleFonts.dmSans(
+                                        fontWeight: FontWeight.w500,
+                                        fontStyle: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .fontStyle,
+                                      ),
+                                      color: const Color(0xFF0A0A0A),
+                                      fontSize: 16.0,
+                                      letterSpacing: 0.0,
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .fontStyle,
+                                    ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                  border: Border.all(
+                                    color: const Color(0xFFEFEFEF),
                                   ),
-                                  color: const Color(0xFF0A0A0A),
-                                  fontSize: 18.0,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FontWeight.w500,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontStyle,
                                 ),
+                                child: Padding(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
+                                      6.0, 4.0, 6.0, 4.0),
+                                  child: Obx(() {
+                                    return Text(
+                                      controller.locationscount.toString(),
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            fontSize: 12,
+                                            font: GoogleFonts.dmSans(
+                                              fontWeight: FontWeight.w400,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontStyle,
+                                            ),
+                                            color: const Color(0xFF087D40),
+                                            letterSpacing: 0.0,
+                                          ),
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ],
                           ),
                           Row(
                             children: [
@@ -225,42 +263,42 @@ class LocationsWidget extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context)
-                                      .secondaryBackground,
-                                  border: Border.all(
-                                    color: const Color(0xFFEFEFEF),
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsetsDirectional.fromSTEB(
-                                      8.0, 6.0, 8.0, 6.0),
-                                  child: Obx(() {
-                                    return Text(
-                                      controller.locationscount.toString(),
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            fontSize: 14,
-                                            font: GoogleFonts.dmSans(
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            color: const Color(0xFF087D40),
-                                            letterSpacing: 0.0,
-                                          ),
-                                    );
-                                  }),
-                                ),
-                              ),
+                              // const SizedBox(width: 8),
+                              // Container(
+                              //   decoration: BoxDecoration(
+                              //     color: FlutterFlowTheme.of(context)
+                              //         .secondaryBackground,
+                              //     border: Border.all(
+                              //       color: const Color(0xFFEFEFEF),
+                              //     ),
+                              //   ),
+                              //   child: Padding(
+                              //     padding: const EdgeInsetsDirectional.fromSTEB(
+                              //         8.0, 6.0, 8.0, 6.0),
+                              //     child: Obx(() {
+                              //       return Text(
+                              //         controller.locationscount.toString(),
+                              //         style: FlutterFlowTheme.of(context)
+                              //             .bodyMedium
+                              //             .override(
+                              //               fontSize: 14,
+                              //               font: GoogleFonts.dmSans(
+                              //                 fontWeight:
+                              //                     FlutterFlowTheme.of(context)
+                              //                         .bodyMedium
+                              //                         .fontWeight,
+                              //                 fontStyle:
+                              //                     FlutterFlowTheme.of(context)
+                              //                         .bodyMedium
+                              //                         .fontStyle,
+                              //               ),
+                              //               color: const Color(0xFF087D40),
+                              //               letterSpacing: 0.0,
+                              //             ),
+                              //       );
+                              //     }),
+                              //   ),
+                              // ),
                             ],
                           ),
                         ],
@@ -282,7 +320,10 @@ class LocationsWidget extends StatelessWidget {
                           }
 
                           if (controller.locationsList.isEmpty) {
-                            return const NoLocationsFound();
+                            return const Padding(
+                              padding: EdgeInsets.only(bottom: 100),
+                              child: Center(child: NoLocationsFound()),
+                            );
                           }
 
                           return Skeletonizer(

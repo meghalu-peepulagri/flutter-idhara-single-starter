@@ -259,10 +259,9 @@ class DevicesCard extends StatelessWidget {
                                         ],
                                       );
                                     },
-                                    child: Icon(
+                                    child: const Icon(
                                       Icons.more_vert,
-                                      color: FlutterFlowTheme.of(context)
-                                          .secondaryText,
+                                      color: Color(0XFF464646),
                                       size: 20.0,
                                     ),
                                   )
@@ -306,7 +305,7 @@ class DevicesCard extends StatelessWidget {
                                           font: GoogleFonts.dmSans(
                                             fontWeight: FontWeight.w500,
                                           ),
-                                          color: const Color(0xFF13120D),
+                                          color: const Color(0xFF62697D),
                                           fontSize: 14.0,
                                           letterSpacing: 0.0,
                                           fontWeight: FontWeight.w500,

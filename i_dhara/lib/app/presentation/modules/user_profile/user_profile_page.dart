@@ -259,7 +259,9 @@ class ProfileWidget extends StatelessWidget {
                               UserProfileCard(),
                               // const SettingsButtonCard(),
                               FFButtonWidget(
-                                onPressed: () {
+                                onPressed: () async {
+                                  await SharedPreference.clear();
+                                  Get.deleteAll(force: true);
                                   if (Get.isRegistered<DashboardController>()) {
                                     Get.delete<DashboardController>(
                                         force: true);

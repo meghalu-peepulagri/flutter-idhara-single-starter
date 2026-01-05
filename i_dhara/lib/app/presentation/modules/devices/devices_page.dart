@@ -119,7 +119,10 @@ class DevicesPage extends StatelessWidget {
                             children: [
                               InkWell(
                                 onTap: () {
-                                  Get.offAllNamed(Routes.dashboard);
+                                  Get.offAllNamed(
+                                    Routes.dashboard,
+                                    arguments: {'refresh': true},
+                                  );
                                 },
                                 child: const Icon(
                                   Icons.arrow_back,

@@ -100,6 +100,10 @@ class DashboardWidget extends StatelessWidget {
                                         "Location";
                                   }
 
+                                  final displayName = locationName.length > 10
+                                      ? '${locationName.substring(0, 10)}…'
+                                      : locationName;
+
                                   return Row(
                                     children: [
                                       SvgPicture.asset(
@@ -109,7 +113,7 @@ class DashboardWidget extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        locationName,
+                                        displayName,
                                         style: FlutterFlowTheme.of(context)
                                             .bodyMedium
                                             .override(

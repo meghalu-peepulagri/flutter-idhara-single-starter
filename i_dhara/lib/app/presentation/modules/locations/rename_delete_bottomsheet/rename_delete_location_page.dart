@@ -155,8 +155,8 @@ class EditDeleteLocationPage extends StatelessWidget {
                           title: "Delete Location",
                           iconAssetPath: 'assets/images/location.svg',
                           onDelete: () async {
-                            Navigator.pop(context);
-                            Navigator.pop(context);
+                            // Navigator.pop(context);
+                            // Get.back();
                             await locationsController
                                 .deleteLocation(locationId);
                             Navigator.pop(context);

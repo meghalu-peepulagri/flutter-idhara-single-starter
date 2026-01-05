@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,7 +36,9 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _initializeWeatherCard();
     _startHourCheckTimer();
-    _listenToLocationServiceChanges();
+    if (!kIsWeb) {
+      _listenToLocationServiceChanges();
+    }
   }
 
   @override
@@ -62,6 +65,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   }
 
   void _listenToLocationServiceChanges() {
+    if (kIsWeb) return;
     _serviceStatusSubscription = Geolocator.getServiceStatusStream().listen(
       (ServiceStatus status) {
         if (status == ServiceStatus.enabled) {

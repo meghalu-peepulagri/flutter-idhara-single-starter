@@ -26,11 +26,13 @@ class DeviceOptionsMenu extends StatelessWidget {
             icon: Icons.edit,
             text: 'Rename',
             enabled: hasMotor,
+            iconColor: Colors.black,
             onTap: () => onSelected(DeviceMenuAction.rename),
           ),
           _menuItem(
-            icon: Icons.swap_horiz,
+            icon: Icons.location_on_outlined,
             text: 'Replace',
+            iconColor: Colors.blue,
             onTap: () => onSelected(DeviceMenuAction.replace),
           ),
 
@@ -44,6 +46,7 @@ class DeviceOptionsMenu extends StatelessWidget {
             icon: Icons.delete_outline,
             text: 'Delete',
             color: Colors.red,
+            iconColor: Colors.red,
             onTap: () => onSelected(DeviceMenuAction.delete),
           ),
         ],
@@ -56,8 +59,10 @@ class DeviceOptionsMenu extends StatelessWidget {
     required String text,
     required VoidCallback onTap,
     bool enabled = true,
+    Color iconColor = Colors.black,
     Color color = Colors.black,
   }) {
+    final effectiveIconColor = enabled ? iconColor : Colors.grey.shade400;
     final effectiveColor = enabled ? color : Colors.grey.shade400;
     return InkWell(
       onTap: enabled ? onTap : null,
@@ -65,7 +70,7 @@ class DeviceOptionsMenu extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: effectiveColor),
+            Icon(icon, size: 18, color: effectiveIconColor),
             const SizedBox(width: 8),
             Text(
               text,

@@ -229,8 +229,6 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                                         dateFormat: DateFormat('hh:mm a'),
                                         minimum: minTime,
                                         maximum: maxTime,
-                                        // intervalType:
-                                        //     DateTimeIntervalType.minutes,
                                         interval: 1,
                                         labelRotation: -20,
                                         majorGridLines:
@@ -238,7 +236,40 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                                         intervalType: DateTimeIntervalType.auto,
                                         autoScrollingDeltaType:
                                             DateTimeIntervalType.minutes,
+                                        // Add these properties to handle overlapping labels
+                                        labelIntersectAction:
+                                            AxisLabelIntersectAction.hide,
+                                        maximumLabels:
+                                            10, // Limit number of labels shown
+                                        labelAlignment: LabelAlignment.center,
+                                        axisLabelFormatter:
+                                            (AxisLabelRenderDetails args) {
+                                          final date = DateTime
+                                              .fromMillisecondsSinceEpoch(
+                                            args.value.toInt(),
+                                          );
+                                          return ChartAxisLabel(
+                                            DateFormat('hh:mm a').format(date),
+                                            const TextStyle(fontSize: 10),
+                                          );
+                                        },
                                       ),
+                                      // primaryXAxis: DateTimeAxis(
+                                      //   labelStyle:
+                                      //       const TextStyle(fontSize: 10),
+                                      //   dateFormat: DateFormat('hh:mm a'),
+                                      //   minimum: minTime,
+                                      //   maximum: maxTime,
+                                      //   // intervalType:
+                                      //   //     DateTimeIntervalType.minutes,
+                                      //   interval: 1,
+                                      //   labelRotation: -20,
+                                      //   majorGridLines:
+                                      //       const MajorGridLines(width: 0),
+                                      //   intervalType: DateTimeIntervalType.auto,
+                                      //   autoScrollingDeltaType:
+                                      //       DateTimeIntervalType.minutes,
+                                      // ),
                                       primaryYAxis: const NumericAxis(
                                         isVisible: false,
                                         minimum: 0,
