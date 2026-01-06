@@ -196,7 +196,10 @@ class DevicesPage extends StatelessWidget {
                               );
                             }
                             if (controller.devicesList.isEmpty) {
-                              return const NoStartersFound();
+                              return const Padding(
+                                padding: EdgeInsets.only(bottom: 100),
+                                child: Center(child: NoStartersFound()),
+                              );
                             }
 
                             return Column(

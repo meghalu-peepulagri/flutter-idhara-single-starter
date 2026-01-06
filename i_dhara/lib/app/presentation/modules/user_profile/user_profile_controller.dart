@@ -4,7 +4,8 @@ import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.
 
 class UserProfileController extends GetxController {
   final Rxn<UserProfile> userProfile = Rxn<UserProfile>();
-  final isLoading = false.obs;
+  final isLoading = true.obs;
+  final isRefreshing = false.obs;
 
   @override
   void onInit() {
@@ -12,15 +13,21 @@ class UserProfileController extends GetxController {
     super.onInit();
   }
 
-  Future<void> fetchUserProfile() async {
+  Future<void> onRefresh() async {
+    isRefreshing.value = true;
+    await fetchUserProfile(showLoader: false);
+    isRefreshing.value = false;
+  }
+
+  Future<void> fetchUserProfile({bool showLoader = true}) async {
     try {
-      isLoading.value = true;
+      if (showLoader) isLoading.value = true;
       final response = await UserProfileRepoImpl().getUserProfile();
       if (response != null) {
         userProfile.value = response.data;
       }
     } finally {
-      isLoading.value = false;
+      if (showLoader) isLoading.value = false;
     }
   }
 }

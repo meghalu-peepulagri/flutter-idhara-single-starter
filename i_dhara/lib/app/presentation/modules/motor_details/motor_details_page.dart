@@ -499,8 +499,8 @@ class MotorControlWidget extends StatelessWidget {
                                                     .locationName.value;
                                                 final displayName = locationName
                                                             .length >
-                                                        15
-                                                    ? '${locationName.substring(0, 15)}...'
+                                                        10
+                                                    ? '${locationName.substring(0, 10)}...'
                                                     : locationName;
                                                 return Row(
                                                   mainAxisSize:

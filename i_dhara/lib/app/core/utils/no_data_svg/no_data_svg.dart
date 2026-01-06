@@ -164,7 +164,7 @@ class NoStartersFound extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SvgPicture.asset(
-            'assets/images/devices.svg',
+            'assets/images/Device Icon.svg',
             height: 70,
             width: 70,
           ),

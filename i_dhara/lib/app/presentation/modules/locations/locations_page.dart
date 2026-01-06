@@ -263,42 +263,6 @@ class LocationsWidget extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // const SizedBox(width: 8),
-                              // Container(
-                              //   decoration: BoxDecoration(
-                              //     color: FlutterFlowTheme.of(context)
-                              //         .secondaryBackground,
-                              //     border: Border.all(
-                              //       color: const Color(0xFFEFEFEF),
-                              //     ),
-                              //   ),
-                              //   child: Padding(
-                              //     padding: const EdgeInsetsDirectional.fromSTEB(
-                              //         8.0, 6.0, 8.0, 6.0),
-                              //     child: Obx(() {
-                              //       return Text(
-                              //         controller.locationscount.toString(),
-                              //         style: FlutterFlowTheme.of(context)
-                              //             .bodyMedium
-                              //             .override(
-                              //               fontSize: 14,
-                              //               font: GoogleFonts.dmSans(
-                              //                 fontWeight:
-                              //                     FlutterFlowTheme.of(context)
-                              //                         .bodyMedium
-                              //                         .fontWeight,
-                              //                 fontStyle:
-                              //                     FlutterFlowTheme.of(context)
-                              //                         .bodyMedium
-                              //                         .fontStyle,
-                              //               ),
-                              //               color: const Color(0xFF087D40),
-                              //               letterSpacing: 0.0,
-                              //             ),
-                              //       );
-                              //     }),
-                              //   ),
-                              // ),
                             ],
                           ),
                         ],

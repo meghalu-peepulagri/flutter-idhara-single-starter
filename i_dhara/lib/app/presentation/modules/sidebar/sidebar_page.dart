@@ -47,12 +47,6 @@ class SidebarWidget extends StatelessWidget {
         },
         child: Container(
             padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-            // decoration: BoxDecoration(
-            //   color: isSelected
-            //       ? FlutterFlowTheme.of(context).primary.withOpacity(0.1)
-            //       : Colors.transparent,
-            //   borderRadius: BorderRadius.circular(8),
-            // ),
             decoration: BoxDecoration(
               gradient: isSelected
                   ? const LinearGradient(
@@ -81,35 +75,13 @@ class SidebarWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              dense: true, // makes tile vertically smaller
-              horizontalTitleGap: 15, // reduce space between icon and text
-              minLeadingWidth: 10, // tighten icon width
+              dense: true,
+              horizontalTitleGap: 15,
+              minLeadingWidth: 10,
               visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-            )
-
-            //  Row(
-            //   mainAxisSize: MainAxisSize.max,
-            //   children: [
-            //     icon,
-            //     const SizedBox(width: 16),
-            //     Text(
-            //       label,
-            //       style: GoogleFonts.lato(
-            //         fontSize: 17,
-            //         textStyle: TextStyle(
-            //             fontWeight:
-            //                 isSelected ? FontWeight.w600 : FontWeight.w500,
-            //             color: isSelected
-            //                 ? FlutterFlowTheme.of(context).primary
-            //                 : const Color(0xFF0F0F0F),
-            //             letterSpacing: .5),
-            //       ),
-            //     )
-            //   ],
-            // ),
-            ),
+            )),
       );
     });
   }
@@ -183,6 +155,26 @@ class SidebarWidget extends StatelessWidget {
                             },
                             // count: SharedPreference.getPondstats(),
                             context: context)),
+                    _buildMenuItem(
+                        route: Routes.devices,
+                        label: 'Devices',
+                        icon: SvgPicture.asset(
+                          'assets/images/Device Icon.svg',
+                          height: 22,
+                          width: 22,
+                          fit: BoxFit.cover,
+                          color:
+                              _controller.selectedRoute.value == Routes.devices
+                                  ? Colors.white
+                                  : null,
+                        ),
+                        onTap: () {
+                          // SharedPreference.setRouting('/starters');
+                          // SharedPreference.setlocationdropdownid(0);
+                          Get.offNamed(Routes.devices);
+                        },
+                        // count: SharedPreference.getstarterStats(),
+                        context: context),
                     Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
                       child: _buildMenuItem(
@@ -207,46 +199,6 @@ class SidebarWidget extends StatelessWidget {
                           // count: SharedPreference.getlocationstats(),
                           context: context),
                     ),
-                    // _buildMenuItem(
-                    //     route: Routes.gateway,
-                    //     label: 'Gateways',
-                    //     icon: SvgPicture.asset(
-                    //       'assets/images/wifi.svg',
-                    //       height: 24,
-                    //       width: 24,
-                    //       fit: BoxFit.cover,
-                    //       color:
-                    //           _controller.selectedRoute.value == Routes.gateway
-                    //               ? FlutterFlowTheme.of(context).primary
-                    //               : null,
-                    //     ),
-                    //     onTap: () {
-                    //       // SharedPreference.setRouting('/gateway');
-                    //       // SharedPreference.setlocationdropdownid(0);
-                    //       // Get.offNamed(Routes.gateway);
-                    //     },
-                    //     count: null,
-                    //     context: context),
-                    _buildMenuItem(
-                        route: Routes.devices,
-                        label: 'Devices',
-                        icon: SvgPicture.asset(
-                          'assets/images/devices.svg',
-                          height: 22,
-                          width: 22,
-                          fit: BoxFit.cover,
-                          color:
-                              _controller.selectedRoute.value == Routes.devices
-                                  ? Colors.white
-                                  : null,
-                        ),
-                        onTap: () {
-                          // SharedPreference.setRouting('/starters');
-                          // SharedPreference.setlocationdropdownid(0);
-                          Get.offNamed(Routes.devices);
-                        },
-                        // count: SharedPreference.getstarterStats(),
-                        context: context),
                     _buildMenuItem(
                         route: Routes.userprofile,
                         label: 'Profile',
