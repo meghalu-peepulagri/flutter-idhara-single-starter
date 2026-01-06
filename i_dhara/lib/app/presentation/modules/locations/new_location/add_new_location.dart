@@ -114,7 +114,7 @@ class _NewLocationState extends State<NewLocation> {
                         readOnly: false),
                   ],
                 ),
-                const SizedBox(height: 32.0),
+                const SizedBox(height: 20.0),
               ],
             ),
           ),
@@ -128,7 +128,7 @@ class _NewLocationState extends State<NewLocation> {
                     onPressed: () => Get.back(),
                     text: 'Cancel',
                     options: FFButtonOptions(
-                      height: 45.0,
+                      height: 40.0,
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       color: FlutterFlowTheme.of(context).secondaryBackground,
                       textStyle:
@@ -139,53 +139,68 @@ class _NewLocationState extends State<NewLocation> {
                               ),
                       elevation: 0.0,
                       borderSide: const BorderSide(color: Color(0x38000000)),
-                      borderRadius: BorderRadius.circular(60.0),
+                      borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
                 ),
                 const SizedBox(width: 24.0),
                 Expanded(
-                  child: FFButtonWidget(
-                    onPressed: () async {
-                      // if (!_model.validateLocationName()) {
-                      //   return; // Stop execution if invalid
-                      // }
+                  child: Container(
+                    width: double.infinity,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF004E7E),
+                          Color(0xFF3686AF),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: FFButtonWidget(
+                      onPressed: () async {
+                        // if (!_model.validateLocationName()) {
+                        //   return; // Stop execution if invalid
+                        // }
 
-                      await _model.fetchnewlocation(
-                        name: _model.textController!.text.trim(),
-                      );
-                      setState(() {});
+                        await _model.fetchnewlocation(
+                          name: _model.textController!.text.trim(),
+                        );
+                        setState(() {});
 
-                      if (_model.error &&
-                          _model.message.isNotEmpty &&
-                          !_model.isValidation) {
-                        errorSnackBar(context, _model.message);
-                      } else if (!_model.error && _model.message.isNotEmpty) {
-                        // successSnackBar(context, _model.message);
+                        if (_model.error &&
+                            _model.message.isNotEmpty &&
+                            !_model.isValidation) {
+                          errorSnackBar(context, _model.message);
+                        } else if (!_model.error && _model.message.isNotEmpty) {
+                          // successSnackBar(context, _model.message);
+                          // Get.back();
+                          // Get.offAllNamed(Routes.locations);
+                        }
+                        final locationName = _model.textController!.text.trim();
+
+                        return;
+
                         // Get.back();
                         // Get.offAllNamed(Routes.locations);
-                      }
-                      final locationName = _model.textController!.text.trim();
-
-                      return;
-
-                      // Get.back();
-                      // Get.offAllNamed(Routes.locations);
-                    },
-                    text: 'Save',
-                    options: FFButtonOptions(
-                      height: 45.0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      color: const Color(0xFF3686AF),
-                      textStyle:
-                          FlutterFlowTheme.of(context).titleSmall.override(
-                                fontFamily: 'Manrope',
-                                color: FlutterFlowTheme.of(context)
-                                    .secondaryBackground,
-                                fontWeight: FontWeight.w500,
-                              ),
-                      elevation: 0.0,
-                      borderRadius: BorderRadius.circular(60.0),
+                      },
+                      text: 'Save',
+                      options: FFButtonOptions(
+                        height: 45.0,
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        color: Colors.transparent,
+                        textStyle:
+                            FlutterFlowTheme.of(context).titleSmall.override(
+                                  fontFamily: 'Manrope',
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                        elevation: 0.0,
+                        borderRadius: BorderRadius.circular(60.0),
+                      ),
                     ),
                   ),
                 ),

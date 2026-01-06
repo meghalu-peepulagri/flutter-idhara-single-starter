@@ -112,26 +112,15 @@ class WeatherData {
   });
 
   factory WeatherData.fromJson(Map<String, dynamic> json) {
-    final now = DateTime.now();
-    final currentHour = now.hour;
-
     final forecastDay = json['forecast']['forecastday'][0];
     final allHours = (forecastDay['hour'] as List)
         .map((hour) => HourlyForecast.fromJson(hour))
         .toList();
 
-    final List<HourlyForecast> next24Hours = [];
-
-    for (var hour in allHours) {
-      if (hour.time.hour >= currentHour || hour.time.day > now.day) {
-        next24Hours.add(hour);
-      }
-    }
-
     return WeatherData(
       location: json['location']['name'] ?? '',
       current: CurrentWeather.fromJson(json['current']),
-      hourlyForecast: next24Hours,
+      hourlyForecast: allHours,
     );
   }
 }

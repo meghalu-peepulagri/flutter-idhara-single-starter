@@ -452,37 +452,53 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      const Icon(
-                                        Icons.add,
-                                        color: Color(0xFF087D40),
-                                        size: 18.0,
+                                      ShaderMask(
+                                        shaderCallback: (bounds) =>
+                                            const LinearGradient(
+                                          colors: [
+                                            Color(0xFF004E7E),
+                                            Color(0xFF3686AF),
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ).createShader(bounds),
+                                        child: const Icon(
+                                          Icons.add,
+                                          color: Colors.white,
+                                          size: 18.0,
+                                        ),
                                       ),
-                                      Text(
-                                        'Add Location',
-                                        style: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .override(
-                                              font: GoogleFonts.dmSans(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                      ShaderMask(
+                                        shaderCallback: (bounds) =>
+                                            const LinearGradient(
+                                          colors: [
+                                            Color(0xFF004E7E),
+                                            Color(0xFF3686AF),
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ).createShader(bounds),
+                                        child: Text(
+                                          'Add Location',
+                                          style: FlutterFlowTheme.of(context)
+                                              .bodyMedium
+                                              .override(
+                                                font: GoogleFonts.dmSans(
+                                                  fontWeight:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontWeight,
+                                                  fontStyle:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontStyle,
+                                                ),
+                                                color: Colors.white,
+                                                letterSpacing: 0.0,
                                               ),
-                                              color: const Color(0xFF087D40),
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
+                                        ),
                                       ),
                                     ].divide(const SizedBox(width: 4.0)),
                                   ),
@@ -525,48 +541,63 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                             ),
                           ].divide(const SizedBox(height: 8.0)),
                         ),
-                        FFButtonWidget(
-                          onPressed: () async {
-                            FocusScope.of(context).unfocus();
+                        Container(
+                          width: double.infinity,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF004E7E),
+                                Color(0xFF3686AF),
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: FFButtonWidget(
+                            onPressed: () async {
+                              FocusScope.of(context).unfocus();
 
-                            await _model.assignDevice(
-                              pcbNumber: _model.textController1!.text.trim(),
-                              pumpName: _model.textController2!.text.trim(),
-                              hp: double.tryParse(
-                                      _model.textController3!.text.trim()) ??
-                                  0,
-                              locationId:
-                                  int.tryParse(selectedLocationId ?? '') ?? 0,
-                            );
-                            setState(() {});
-                          },
-                          text: 'Add Device',
-                          options: FFButtonOptions(
-                            width: double.infinity,
-                            height: 40.0,
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                                16.0, 0.0, 16.0, 0.0),
-                            iconPadding: const EdgeInsetsDirectional.fromSTEB(
-                                0.0, 0.0, 0.0, 0.0),
-                            color: const Color(0xFF3686AF),
-                            textStyle: FlutterFlowTheme.of(context)
-                                .titleSmall
-                                .override(
-                                  font: GoogleFonts.dmSans(
+                              await _model.assignDevice(
+                                pcbNumber: _model.textController1!.text.trim(),
+                                pumpName: _model.textController2!.text.trim(),
+                                hp: double.tryParse(
+                                        _model.textController3!.text.trim()) ??
+                                    0,
+                                locationId:
+                                    int.tryParse(selectedLocationId ?? '') ?? 0,
+                              );
+                              setState(() {});
+                            },
+                            text: 'Add Device',
+                            options: FFButtonOptions(
+                              width: double.infinity,
+                              height: 40.0,
+                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                  16.0, 0.0, 16.0, 0.0),
+                              iconPadding: const EdgeInsetsDirectional.fromSTEB(
+                                  0.0, 0.0, 0.0, 0.0),
+                              color: Colors.transparent,
+                              textStyle: FlutterFlowTheme.of(context)
+                                  .titleSmall
+                                  .override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .titleSmall
+                                          .fontStyle,
+                                    ),
+                                    color: Colors.white,
+                                    letterSpacing: 0.0,
                                     fontWeight: FontWeight.w500,
                                     fontStyle: FlutterFlowTheme.of(context)
                                         .titleSmall
                                         .fontStyle,
                                   ),
-                                  color: Colors.white,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FontWeight.w500,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .titleSmall
-                                      .fontStyle,
-                                ),
-                            elevation: 0.0,
-                            borderRadius: BorderRadius.circular(8.0),
+                              elevation: 0.0,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
                           ),
                         ),
                       ]

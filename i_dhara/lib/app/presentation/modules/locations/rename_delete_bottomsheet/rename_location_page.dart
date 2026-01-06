@@ -140,7 +140,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32.0),
+                  const SizedBox(height: 20.0),
                 ],
               ),
             ),
@@ -157,7 +157,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                       },
                       text: 'Cancel',
                       options: FFButtonOptions(
-                        height: 45.0,
+                        height: 40.0,
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         color: FlutterFlowTheme.of(context).secondaryBackground,
                         textStyle:
@@ -168,56 +168,71 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                                 ),
                         elevation: 0.0,
                         borderSide: const BorderSide(color: Color(0x38000000)),
-                        borderRadius: BorderRadius.circular(60.0),
+                        borderRadius: BorderRadius.circular(12.0),
                       ),
                     ),
                   ),
                   const SizedBox(width: 24.0),
                   Expanded(
-                    child: FFButtonWidget(
-                      onPressed: () async {
-                        FocusScope.of(context).unfocus();
+                    child: Container(
+                      width: double.infinity,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF004E7E),
+                            Color(0xFF3686AF),
+                          ],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: FFButtonWidget(
+                        onPressed: () async {
+                          FocusScope.of(context).unfocus();
 
-                        final newName = _model.textController!.text.trim();
+                          final newName = _model.textController!.text.trim();
 
-                        // if (newName.isEmpty) {
-                        //   setState(() {
-                        //     _model.errorInstance = {
-                        //       'title': ['Location name is required']
-                        //     };
-                        //   });
-                        //   return;
-                        // }
+                          // if (newName.isEmpty) {
+                          //   setState(() {
+                          //     _model.errorInstance = {
+                          //       'title': ['Location name is required']
+                          //     };
+                          //   });
+                          //   return;
+                          // }
 
-                        await locationsController.renamelocation(
-                          locationId: widget.locationId,
-                          name: newName,
-                        );
-                        setState(() {
-                          _model.error = true;
-                          _model.message = locationsController.message ?? '';
-                          _model.errorInstance =
-                              locationsController.errorInstance;
-                        });
+                          await locationsController.renamelocation(
+                            locationId: widget.locationId,
+                            name: newName,
+                          );
+                          setState(() {
+                            _model.error = true;
+                            _model.message = locationsController.message ?? '';
+                            _model.errorInstance =
+                                locationsController.errorInstance;
+                          });
 
-                        return;
+                          return;
 
-                        // widget.onLocationAdded(newName);
-                      },
-                      text: 'Save',
-                      options: FFButtonOptions(
-                        height: 45.0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        color: const Color(0xFF3686AF),
-                        textStyle:
-                            FlutterFlowTheme.of(context).titleSmall.override(
-                                  fontFamily: 'Manrope',
-                                  color: FlutterFlowTheme.of(context)
-                                      .secondaryBackground,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                        elevation: 0.0,
-                        borderRadius: BorderRadius.circular(60.0),
+                          // widget.onLocationAdded(newName);
+                        },
+                        text: 'Save',
+                        options: FFButtonOptions(
+                          height: 40.0,
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          color: Colors.transparent,
+                          textStyle:
+                              FlutterFlowTheme.of(context).titleSmall.override(
+                                    fontFamily: 'Manrope',
+                                    color: FlutterFlowTheme.of(context)
+                                        .secondaryBackground,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                          elevation: 0.0,
+                          borderRadius: BorderRadius.circular(60.0),
+                        ),
                       ),
                     ),
                   ),

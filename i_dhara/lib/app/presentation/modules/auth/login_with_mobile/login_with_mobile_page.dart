@@ -262,71 +262,88 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                 ].divide(const SizedBox(height: 24.0)),
                               ),
                             ),
-                            FFButtonWidget(
-                              onPressed: () async {
-                                String id = '';
-                                if (!kIsWeb) {
-                                  await SmsAutoFill().unregisterListener();
-                                  id = await SmsAutoFill().getAppSignature;
-                                  bool isConnected = await _checkConnectivity();
-                                  if (!isConnected) {
-                                    errorSnackBar(context,
-                                        'No internet connection. Please check your network.');
-                                    return;
+                            Container(
+                              width: double.infinity,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF004E7E),
+                                    Color(0xFF3686AF),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: FFButtonWidget(
+                                onPressed: () async {
+                                  String id = '';
+                                  if (!kIsWeb) {
+                                    await SmsAutoFill().unregisterListener();
+                                    id = await SmsAutoFill().getAppSignature;
+                                    bool isConnected =
+                                        await _checkConnectivity();
+                                    if (!isConnected) {
+                                      errorSnackBar(context,
+                                          'No internet connection. Please check your network.');
+                                      return;
+                                    }
                                   }
-                                }
 
-                                // bool isConnected = await _checkConnectivity();
-                                // if (!isConnected) {
-                                //   errorSnackBar(context, 'No internet connection. Please check your network.');
-                                //   return;
-                                // }
-                                await _model.fetchMobile(
-                                    sid: id, phone: controller1.text.trim());
-                                setState(() {
-                                  showVerifyButton =
-                                      _model.message == "User not verified";
-                                });
-                                if (_model.error &&
-                                    _model.message.isNotEmpty &&
-                                    !_model.isValidation) {
-                                  errorSnackBar(context, _model.message);
-                                } else if (!_model.error &&
-                                    _model.message.isNotEmpty) {
-                                  Get.offNamed(Routes.otp);
+                                  // bool isConnected = await _checkConnectivity();
+                                  // if (!isConnected) {
+                                  //   errorSnackBar(context, 'No internet connection. Please check your network.');
+                                  //   return;
+                                  // }
+                                  await _model.fetchMobile(
+                                      sid: id, phone: controller1.text.trim());
+                                  setState(() {
+                                    showVerifyButton =
+                                        _model.message == "User not verified";
+                                  });
+                                  if (_model.error &&
+                                      _model.message.isNotEmpty &&
+                                      !_model.isValidation) {
+                                    errorSnackBar(context, _model.message);
+                                  } else if (!_model.error &&
+                                      _model.message.isNotEmpty) {
+                                    Get.offNamed(Routes.otp);
 
-                                  // successSnackBar(context, _model.message);
-                                  SharedPreference.setPhone(controller1.text);
-                                }
-                              },
-                              text: 'Generate OTP',
-                              options: FFButtonOptions(
-                                width: double.infinity,
-                                height: 40.0,
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    16.0, 0.0, 16.0, 0.0),
-                                iconPadding:
-                                    const EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 0.0, 0.0, 0.0),
-                                color: const Color(0xFF3686AF),
-                                textStyle: FlutterFlowTheme.of(context)
-                                    .titleSmall
-                                    .override(
-                                      font: GoogleFonts.dmSans(
+                                    // successSnackBar(context, _model.message);
+                                    SharedPreference.setPhone(controller1.text);
+                                  }
+                                },
+                                text: 'Generate OTP',
+                                options: FFButtonOptions(
+                                  width: double.infinity,
+                                  height: 40.0,
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
+                                      16.0, 0.0, 16.0, 0.0),
+                                  iconPadding:
+                                      const EdgeInsetsDirectional.fromSTEB(
+                                          0.0, 0.0, 0.0, 0.0),
+                                  color: Colors.transparent,
+                                  textStyle: FlutterFlowTheme.of(context)
+                                      .titleSmall
+                                      .override(
+                                        font: GoogleFonts.dmSans(
+                                          fontWeight: FontWeight.normal,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .titleSmall
+                                                  .fontStyle,
+                                        ),
+                                        color: Colors.white,
+                                        letterSpacing: 0.0,
                                         fontWeight: FontWeight.normal,
                                         fontStyle: FlutterFlowTheme.of(context)
                                             .titleSmall
                                             .fontStyle,
                                       ),
-                                      color: Colors.white,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.normal,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .titleSmall
-                                          .fontStyle,
-                                    ),
-                                elevation: 0.0,
-                                borderRadius: BorderRadius.circular(8.0),
+                                  elevation: 0.0,
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
                               ),
                             ),
                             Column(

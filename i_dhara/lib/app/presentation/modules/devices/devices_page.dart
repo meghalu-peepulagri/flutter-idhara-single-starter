@@ -53,8 +53,8 @@ class DevicesPage extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF3686AF),
                     Color(0xFF004E7E),
+                    Color(0xFF3686AF),
                   ],
                 ),
                 boxShadow: [

@@ -75,7 +75,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24.0),
+                const SizedBox(height: 20.0),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -114,7 +114,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                         readOnly: false),
                   ],
                 ),
-                const SizedBox(height: 32.0),
+                const SizedBox(height: 20.0),
               ],
             ),
           ),
@@ -128,7 +128,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     onPressed: () => Get.back(),
                     text: 'Cancel',
                     options: FFButtonOptions(
-                      height: 45.0,
+                      height: 40.0,
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       color: FlutterFlowTheme.of(context).secondaryBackground,
                       textStyle:
@@ -139,58 +139,73 @@ class _AddNewLocationState extends State<AddNewLocation> {
                               ),
                       elevation: 0.0,
                       borderSide: const BorderSide(color: Color(0x38000000)),
-                      borderRadius: BorderRadius.circular(60.0),
+                      borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
                 ),
                 const SizedBox(width: 24.0),
                 Expanded(
-                  child: FFButtonWidget(
-                    onPressed: () async {
-                      // Validate that location name is not empty
-                      // if (_model.textController!.text.trim().isEmpty) {
-                      //   // Show error
-                      //   return;
-                      // }
-                      setState(() {
-                        _model.errorInstance = {};
-                        _model.error = false;
-                        _model.isValidation = false;
-                        _model.message = '';
-                      });
+                  child: Container(
+                    width: double.infinity,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF004E7E),
+                          Color(0xFF3686AF),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: FFButtonWidget(
+                      onPressed: () async {
+                        // Validate that location name is not empty
+                        // if (_model.textController!.text.trim().isEmpty) {
+                        //   // Show error
+                        //   return;
+                        // }
+                        setState(() {
+                          _model.errorInstance = {};
+                          _model.error = false;
+                          _model.isValidation = false;
+                          _model.message = '';
+                        });
 
-                      final isSuccess = await _model.fetchnewlocation(
-                        name: _model.textController!.text.trim(),
-                      );
-                      setState(() {});
-                      if (!isSuccess) {
-                        return;
-                      }
-                      print("line 36 loc id-----------> ${_model.error}");
-                      print(
-                          "line 37 loc id-----------> ${_model.errorInstance}");
+                        final isSuccess = await _model.fetchnewlocation(
+                          name: _model.textController!.text.trim(),
+                        );
+                        setState(() {});
+                        if (!isSuccess) {
+                          return;
+                        }
+                        print("line 36 loc id-----------> ${_model.error}");
+                        print(
+                            "line 37 loc id-----------> ${_model.errorInstance}");
 
-                      SharedPreference.setLocationId(
-                          _model.locationId.toString());
-                      final locationName = _model.textController!.text.trim();
+                        SharedPreference.setLocationId(
+                            _model.locationId.toString());
+                        final locationName = _model.textController!.text.trim();
 
-                      Get.back();
-                      widget.onLocationAdded(locationName);
-                    },
-                    text: 'Save',
-                    options: FFButtonOptions(
-                      height: 45.0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      color: const Color(0xFF3686AF),
-                      textStyle:
-                          FlutterFlowTheme.of(context).titleSmall.override(
-                                fontFamily: 'Manrope',
-                                color: FlutterFlowTheme.of(context)
-                                    .secondaryBackground,
-                                fontWeight: FontWeight.w500,
-                              ),
-                      elevation: 0.0,
-                      borderRadius: BorderRadius.circular(60.0),
+                        Get.back();
+                        widget.onLocationAdded(locationName);
+                      },
+                      text: 'Save',
+                      options: FFButtonOptions(
+                        height: 45.0,
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        color: Colors.transparent,
+                        textStyle:
+                            FlutterFlowTheme.of(context).titleSmall.override(
+                                  fontFamily: 'Manrope',
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                        elevation: 0.0,
+                        borderRadius: BorderRadius.circular(60.0),
+                      ),
                     ),
                   ),
                 ),

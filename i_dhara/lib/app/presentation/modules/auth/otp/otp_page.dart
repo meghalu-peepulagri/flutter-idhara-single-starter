@@ -132,6 +132,8 @@ class OtpWidget extends StatelessWidget {
                                                       .override(
                                                         fontFamily: 'Lexend',
                                                         letterSpacing: 0.0,
+                                                        color: const Color(
+                                                            0xFF6A7185),
                                                       ),
                                                 ),
                                                 TextSpan(
@@ -174,7 +176,7 @@ class OtpWidget extends StatelessWidget {
                                                         fontWeight:
                                                             FontWeight.w400,
                                                         color: const Color(
-                                                            0xFF2F80ED),
+                                                            0xFF004E7E),
                                                         letterSpacing: 0.0,
                                                         decoration:
                                                             TextDecoration
@@ -385,48 +387,69 @@ class OtpWidget extends StatelessWidget {
                             //   ),
                             // ),
                             Obx(
-                              () => FFButtonWidget(
-                                onPressed: controller.isLoading.value
-                                    ? null
-                                    : () {
-                                        if (controller.pinCodeController.text
-                                                .length ==
-                                            4) {
-                                          controller.verifying(context);
-                                        } else {
-                                          controller.error.value = true;
-                                          controller.errorInstance.value =
-                                              'Please enter valid OTP';
-                                        }
-                                      },
-                                text: controller.isLoading.value
-                                    ? 'Verifying...'
-                                    : 'Verify',
-                                options: FFButtonOptions(
-                                  width: double.infinity,
-                                  height: 40,
-                                  color: controller.isLoading.value
-                                      ? Colors.grey
-                                      : const Color(0xFF3686AF),
-                                  textStyle: FlutterFlowTheme.of(context)
-                                      .titleSmall
-                                      .override(
-                                        font: GoogleFonts.dmSans(
+                              () => Container(
+                                width: double.infinity,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  gradient: controller.isLoading.value
+                                      ? const LinearGradient(
+                                          colors: [
+                                            Color(0xFF004E7E),
+                                            Color(0xFF3686AF),
+                                          ],
+                                        )
+                                      : const LinearGradient(
+                                          colors: [
+                                            Color(0xFF004E7E),
+                                            Color(0xFF3686AF),
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: FFButtonWidget(
+                                  onPressed: controller.isLoading.value
+                                      ? null
+                                      : () {
+                                          if (controller.pinCodeController.text
+                                                  .length ==
+                                              4) {
+                                            controller.verifying(context);
+                                          } else {
+                                            controller.error.value = true;
+                                            controller.errorInstance.value =
+                                                'Please enter valid OTP';
+                                          }
+                                        },
+                                  text: controller.isLoading.value
+                                      ? 'Verifying...'
+                                      : 'Verify',
+                                  options: FFButtonOptions(
+                                    width: double.infinity,
+                                    height: 40,
+                                    color: Colors.transparent,
+                                    textStyle: FlutterFlowTheme.of(context)
+                                        .titleSmall
+                                        .override(
+                                          font: GoogleFonts.dmSans(
+                                            fontWeight: FontWeight.normal,
+                                            fontStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .titleSmall
+                                                    .fontStyle,
+                                          ),
+                                          color: Colors.white,
+                                          letterSpacing: 0.0,
                                           fontWeight: FontWeight.normal,
                                           fontStyle:
                                               FlutterFlowTheme.of(context)
                                                   .titleSmall
                                                   .fontStyle,
                                         ),
-                                        color: Colors.white,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.normal,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .titleSmall
-                                            .fontStyle,
-                                      ),
-                                  elevation: 0.0,
-                                  borderRadius: BorderRadius.circular(8),
+                                    elevation: 0.0,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                               ),
                             ),

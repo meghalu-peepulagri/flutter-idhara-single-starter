@@ -365,62 +365,79 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           // ),
                                           const SizedBox(height: 30),
-                                          FFButtonWidget(
-                                            onPressed: () async {
-                                              String id = await SmsAutoFill()
-                                                  .getAppSignature;
-                                              await _model.fetchregister(
-                                                  fullName:
-                                                      controller1.text.trim(),
-                                                  email: controller2.text
-                                                          .trim()
-                                                          .isEmpty
-                                                      ? null
-                                                      : controller2.text.trim(),
-                                                  phone:
-                                                      controller3.text.trim(),
-                                                  sid: id);
-                                              setState(() {});
-                                              if (_model.error &&
-                                                  _model.message.isNotEmpty) {
-                                                errorSnackBar(
-                                                    context, _model.message);
-                                              } else if (!_model.error &&
-                                                  _model.message.isNotEmpty) {
-                                                Get.toNamed(Routes.otp);
-                                                print(
-                                                    "line 26 -----------> ${Get.toNamed(Routes.otp)}");
-                                                // await _otpModel.fetchOtp(
-                                                //     phone: controller3.text.trim(),
-                                                //     otp: '');
-                                                // successSnackBar(
-                                                //     context, _model.message);
-                                                SharedPreference.setPhone(
-                                                    controller3.text);
-                                              }
-                                            },
-                                            text: 'Register',
-                                            options: FFButtonOptions(
-                                              width: double.infinity,
-                                              height: 40,
-                                              padding:
-                                                  const EdgeInsetsDirectional
-                                                      .fromSTEB(16, 0, 16, 0),
-                                              iconPadding:
-                                                  const EdgeInsetsDirectional
-                                                      .fromSTEB(0, 0, 0, 0),
-                                              color: const Color(0xFF3686AF),
-                                              textStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleSmall
-                                                      .override(
-                                                        fontFamily: 'Lexend',
-                                                        color: Colors.white,
-                                                        letterSpacing: 0,
-                                                      ),
-                                              elevation: 0,
+                                          Container(
+                                            width: double.infinity,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF004E7E),
+                                                  Color(0xFF3686AF),
+                                                ],
+                                                begin: Alignment.centerLeft,
+                                                end: Alignment.centerRight,
+                                              ),
                                               borderRadius:
-                                                  BorderRadius.circular(24),
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: FFButtonWidget(
+                                              onPressed: () async {
+                                                String id = await SmsAutoFill()
+                                                    .getAppSignature;
+                                                await _model.fetchregister(
+                                                    fullName:
+                                                        controller1.text.trim(),
+                                                    email: controller2.text
+                                                            .trim()
+                                                            .isEmpty
+                                                        ? null
+                                                        : controller2.text
+                                                            .trim(),
+                                                    phone:
+                                                        controller3.text.trim(),
+                                                    sid: id);
+                                                setState(() {});
+                                                if (_model.error &&
+                                                    _model.message.isNotEmpty) {
+                                                  errorSnackBar(
+                                                      context, _model.message);
+                                                } else if (!_model.error &&
+                                                    _model.message.isNotEmpty) {
+                                                  Get.toNamed(Routes.otp);
+                                                  print(
+                                                      "line 26 -----------> ${Get.toNamed(Routes.otp)}");
+                                                  // await _otpModel.fetchOtp(
+                                                  //     phone: controller3.text.trim(),
+                                                  //     otp: '');
+                                                  // successSnackBar(
+                                                  //     context, _model.message);
+                                                  SharedPreference.setPhone(
+                                                      controller3.text);
+                                                }
+                                              },
+                                              text: 'Register',
+                                              options: FFButtonOptions(
+                                                width: double.infinity,
+                                                height: 40,
+                                                padding:
+                                                    const EdgeInsetsDirectional
+                                                        .fromSTEB(16, 0, 16, 0),
+                                                iconPadding:
+                                                    const EdgeInsetsDirectional
+                                                        .fromSTEB(0, 0, 0, 0),
+                                                color: Colors.transparent,
+                                                textStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .titleSmall
+                                                        .override(
+                                                          fontFamily: 'Lexend',
+                                                          color: Colors.white,
+                                                          letterSpacing: 0,
+                                                        ),
+                                                elevation: 0,
+                                                borderRadius:
+                                                    BorderRadius.circular(24),
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(height: 13),

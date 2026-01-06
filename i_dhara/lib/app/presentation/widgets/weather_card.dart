@@ -18,6 +18,8 @@ class WeatherCard extends StatefulWidget {
 
 class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   final WeatherService _weatherService = WeatherService();
+  final ScrollController _scrollController = ScrollController();
+
   WeatherData? _weatherData;
   LocationPermissionStatus? _permissionStatus;
   bool _hasRequestedPermission = false;
@@ -46,6 +48,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _hourCheckTimer?.cancel();
     _serviceStatusSubscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -66,6 +69,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
 
   void _listenToLocationServiceChanges() {
     if (kIsWeb) return;
+
     _serviceStatusSubscription = Geolocator.getServiceStatusStream().listen(
       (ServiceStatus status) {
         if (status == ServiceStatus.enabled) {
@@ -88,10 +92,8 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     if (_lastFetchTime == null || _cachedWeatherData == null) {
       return false;
     }
-
     final now = DateTime.now();
     final difference = now.difference(_lastFetchTime!);
-
     return difference < _cacheDuration;
   }
 
@@ -109,11 +111,9 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
 
   Future<void> _forceRefresh() async {
     setState(() => _isInitializing = true);
-
     _lastFetchTime = null;
     _cachedWeatherData = null;
     _cachedPermissionStatus = null;
-
     await _initializeWeatherCard();
   }
 
@@ -123,6 +123,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
         _weatherData = _cachedWeatherData;
         _permissionStatus = _cachedPermissionStatus;
       });
+      _scrollToCurrentHour();
       return;
     }
 
@@ -140,9 +141,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
       return;
     }
 
-    // Check current permission status
     LocationPermission permission = await Geolocator.checkPermission();
-
     if (permission == LocationPermission.denied) {
       setState(() {
         _permissionStatus = LocationPermissionStatus.denied;
@@ -161,14 +160,12 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
       return;
     }
 
-    // Permission granted - load weather data directly
     setState(() {
       _permissionStatus = LocationPermissionStatus.granted;
       _cachedPermissionStatus = LocationPermissionStatus.granted;
     });
 
     final weatherData = await _weatherService.getWeatherData();
-
     if (weatherData != null) {
       _lastFetchTime = DateTime.now();
       _cachedWeatherData = weatherData;
@@ -178,20 +175,55 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
       _weatherData = weatherData;
       _isInitializing = false;
     });
+
+    _scrollToCurrentHour();
+  }
+
+  void _scrollToCurrentHour() {
+    if (_weatherData == null || !_scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollToCurrentHourActual();
+        }
+      });
+      return;
+    }
+    _scrollToCurrentHourActual();
+  }
+
+  void _scrollToCurrentHourActual() {
+    if (_weatherData == null || !_scrollController.hasClients) return;
+
+    final now = DateTime.now();
+    int currentHourIndex = -1;
+
+    for (int i = 0; i < _weatherData!.hourlyForecast.length; i++) {
+      if (_isCurrentHour(_weatherData!.hourlyForecast[i].time)) {
+        currentHourIndex = i;
+        break;
+      }
+    }
+
+    if (currentHourIndex != -1) {
+      const itemWidth = 50.0;
+      final scrollPosition = currentHourIndex * itemWidth;
+
+      _scrollController.animateTo(
+        scrollPosition,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _handleEnableLocation() async {
     if (_permissionStatus == LocationPermissionStatus.deniedForever) {
-      // Open app settings if permission is permanently denied
       await Geolocator.openAppSettings();
     } else if (_permissionStatus == LocationPermissionStatus.serviceDisabled) {
-      // Open location settings if service is disabled
       await Geolocator.openLocationSettings();
     } else if (_permissionStatus == LocationPermissionStatus.denied) {
-      // Request permission
       _hasRequestedPermission = true;
       LocationPermission permission = await Geolocator.requestPermission();
-
       if (permission == LocationPermission.denied) {
         setState(() {
           _permissionStatus = LocationPermissionStatus.denied;
@@ -221,17 +253,20 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
 
   String _getTimeFormat(DateTime time) {
     final now = DateTime.now();
-
     if (time.hour == now.hour && time.day == now.day) {
       return 'Now';
     }
-
     return DateFormat('h a').format(time);
   }
 
   bool _isCurrentHour(DateTime time) {
     final now = DateTime.now();
     return time.hour == now.hour && time.day == now.day;
+  }
+
+  bool _isPastHour(DateTime time) {
+    final now = DateTime.now();
+    return time.isBefore(DateTime(now.year, now.month, now.day, now.hour));
   }
 
   HourlyForecast? _getCurrentHourForecast() {
@@ -243,7 +278,6 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
         return forecast;
       }
     }
-
     return _weatherData!.hourlyForecast.isNotEmpty
         ? _weatherData!.hourlyForecast.first
         : null;
@@ -259,8 +293,8 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF3686AF),
             Color(0xFF004E7E),
+            Color(0xFF3686AF),
           ],
         ),
         borderRadius: BorderRadius.circular(10.0),
@@ -391,7 +425,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                                 fontWeight: FontWeight.w600,
                               ),
                               color: const Color(0xFFFFFFFF),
-                              fontSize: 14.0,
+                              fontSize: 18.0,
                               letterSpacing: 0.0,
                             ),
                       ),
@@ -405,6 +439,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
               padding:
                   const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
               child: ListView.separated(
+                controller: _scrollController,
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 scrollDirection: Axis.horizontal,
@@ -424,6 +459,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                 itemBuilder: (context, index) {
                   final forecast = _weatherData!.hourlyForecast[index];
                   final isNow = _isCurrentHour(forecast.time);
+                  final isPast = _isPastHour(forecast.time);
 
                   return Container(
                     decoration: BoxDecoration(
@@ -433,63 +469,68 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                     ),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _getTimeFormat(forecast.time),
-                          style: FlutterFlowTheme.of(context)
-                              .bodyMedium
-                              .override(
-                                font: GoogleFonts.dmSans(
-                                  fontWeight:
-                                      isNow ? FontWeight.w700 : FontWeight.w500,
+                    child: Opacity(
+                      opacity: isPast ? 0.5 : 1.0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _getTimeFormat(forecast.time),
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(
+                                    fontWeight: isNow
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                  color: isNow
+                                      ? const Color(0xFF1976D2)
+                                      : const Color(0xFFFFFFFF),
+                                  fontSize: 12.0,
+                                  letterSpacing: 0.0,
                                 ),
-                                color: isNow
-                                    ? const Color(0xFF1976D2)
-                                    : const Color(0xFFFFFFFF),
-                                fontSize: 12.0,
-                                letterSpacing: 0.0,
-                              ),
-                        ),
-                        CachedNetworkImage(
-                          imageUrl: 'https:${forecast.icon}',
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const SizedBox(
+                          ),
+                          CachedNetworkImage(
+                            imageUrl: 'https:${forecast.icon}',
                             width: 32,
                             height: 32,
-                            child: Center(
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
                               ),
                             ),
+                            errorWidget: (context, url, error) =>
+                                const Icon(Icons.error, size: 32),
                           ),
-                          errorWidget: (context, url, error) =>
-                              const Icon(Icons.error, size: 32),
-                        ),
-                        Text(
-                          '${forecast.tempC.round()}°C',
-                          style: FlutterFlowTheme.of(context)
-                              .bodyMedium
-                              .override(
-                                font: GoogleFonts.dmSans(
-                                  fontWeight:
-                                      isNow ? FontWeight.w700 : FontWeight.w500,
+                          Text(
+                            '${forecast.tempC.round()}°C',
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(
+                                    fontWeight: isNow
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                  color: isNow
+                                      ? const Color(0xFF1976D2)
+                                      : const Color(0xFFFFFFFF),
+                                  fontSize: 12.0,
+                                  letterSpacing: 0.0,
                                 ),
-                                color: isNow
-                                    ? const Color(0xFF1976D2)
-                                    : const Color(0xFFFFFFFF),
-                                fontSize: 12.0,
-                                letterSpacing: 0.0,
-                              ),
-                        ),
-                      ].divide(const SizedBox(height: 2.0)),
+                          ),
+                        ].divide(const SizedBox(height: 2.0)),
+                      ),
                     ),
                   );
                 },

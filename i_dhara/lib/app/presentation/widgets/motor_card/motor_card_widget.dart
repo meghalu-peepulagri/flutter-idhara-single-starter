@@ -829,7 +829,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                                   child: Padding(
                                     padding:
                                         const EdgeInsetsDirectional.fromSTEB(
-                                            8.0, 4.0, 8.0, 4.0),
+                                            8.0, 2.0, 8.0, 2.0),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.max,
                                       children: [

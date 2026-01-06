@@ -99,9 +99,10 @@ class LocationsController extends GetxController {
   Future<void> deleteLocation(int locationId) async {
     final response = await _locationRepo.deleteLocation(locationId);
     if (response != null) {
+      getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
       await fetchLocations();
       Get.back();
-      getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
+
       print("line 26 -----------> ${response.message}");
     } else if (response!.errors != null) {
       errorInstance = response.errors!.toJson();

@@ -154,9 +154,10 @@ class EditDeleteLocationPage extends StatelessWidget {
                               "This  will be deleted permanently. Do you wish to go ahead?",
                           title: "Delete Location",
                           iconAssetPath: 'assets/images/location.svg',
+                          buttonlable: 'Delete',
                           onDelete: () async {
-                            // Navigator.pop(context);
-                            // Get.back();
+                            Navigator.pop(context);
+                            Get.back();
                             await locationsController
                                 .deleteLocation(locationId);
                             Navigator.pop(context);
@@ -170,7 +171,6 @@ class EditDeleteLocationPage extends StatelessWidget {
                             // Close bottom sheet
                             Get.back();
                           },
-                          buttonlable: 'Delete',
                         );
                       },
                     );

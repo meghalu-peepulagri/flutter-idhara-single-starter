@@ -228,7 +228,7 @@ class MotorControlWidget extends StatelessWidget {
                                                   return Row(
                                                     children: [
                                                       Text(
-                                                        'Box Id : ',
+                                                        'Starter No : ',
                                                         style: FlutterFlowTheme
                                                                 .of(context)
                                                             .bodyMedium
@@ -373,7 +373,7 @@ class MotorControlWidget extends StatelessWidget {
                                                             ? const Color(
                                                                 0XFFDCFCE7)
                                                             : const Color(
-                                                                0XFFDCFCE7),
+                                                                0xFFFEE2E2),
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(4.0),
@@ -382,24 +382,41 @@ class MotorControlWidget extends StatelessWidget {
                                                           .symmetric(
                                                           horizontal: 8.0,
                                                           vertical: 0.0),
-                                                      child: Text(
-                                                        isOn ? 'ON' : 'OFF',
-                                                        style: FlutterFlowTheme
-                                                                .of(context)
-                                                            .bodyMedium
-                                                            .override(
-                                                              font: GoogleFonts
-                                                                  .dmSans(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w400,
-                                                              ),
-                                                              color: const Color(
-                                                                  0XFF008236),
-                                                              fontSize: 14.0,
-                                                              letterSpacing:
-                                                                  0.0,
-                                                            ),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .circle_rounded,
+                                                            size: 10,
+                                                            color: isOn
+                                                                ? const Color(
+                                                                    0xFF45A845)
+                                                                : const Color(
+                                                                    0xFFF90707),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 6),
+                                                          Text(
+                                                            isOn ? 'ON' : 'OFF',
+                                                            style: FlutterFlowTheme
+                                                                    .of(context)
+                                                                .bodyMedium
+                                                                .override(
+                                                                  font: GoogleFonts
+                                                                      .dmSans(
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w400,
+                                                                  ),
+                                                                  color: const Color(
+                                                                      0XFF008236),
+                                                                  fontSize:
+                                                                      14.0,
+                                                                  letterSpacing:
+                                                                      0.0,
+                                                                ),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
                                                   ],
