@@ -89,6 +89,7 @@ dependencies:
   calendar_date_picker2: ^2.0.1
   pinput: ^6.0.1
   flutter_launcher_icons: ^0.14.4
+  video_player: ^2.10.0
 
 dependency_overrides:
   http: 1.4.0
@@ -132,6 +133,8 @@ flutter:
     - assets/lottie_animations/loading.json
     - assets/lottie_animations/i Dhara loading.json
     - assets/lottie_animations/No internet connection.json
+    - assets/lottie_animations/Graph.json
+    - assets/videos/splash.mp4
     - .env
 
 

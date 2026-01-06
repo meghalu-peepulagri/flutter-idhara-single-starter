@@ -16,3 +16,19 @@ class AppLottieLoading extends StatelessWidget {
     );
   }
 }
+
+class GraphLottieLoading extends StatelessWidget {
+  const GraphLottieLoading({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Lottie.asset(
+        'assets/lottie_animations/Graph.json',
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+}

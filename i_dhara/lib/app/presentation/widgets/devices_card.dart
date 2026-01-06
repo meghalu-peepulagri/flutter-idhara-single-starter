@@ -5,12 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
-import 'package:i_dhara/app/core/utils/dialogs/pop_up_menu.dart';
+import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -32,13 +31,12 @@ class DevicesCard extends StatelessWidget {
           title: "Delete Device",
           description:
               "This device will be deleted permanently. Do you wish to go ahead?",
-          iconAssetPath: 'assets/images/devices.svg',
+          iconAssetPath: 'assets/images/Device Icon.svg',
           buttonlable: 'Delete',
           onDelete: () async {
             if (device.id != null) {
               await controller.deleteDevice(device.id!);
             }
-
             Navigator.pop(context);
           },
         );
@@ -46,13 +44,103 @@ class DevicesCard extends StatelessWidget {
     );
   }
 
-  void _openAddMotorPage(BuildContext context) {
-    Get.toNamed(
-      Routes.addDevices,
-      arguments: {
-        'pcbNumber': device.pcbNumber,
-        'isFromDeviceCard': true,
+  void _showDeviceOptionsBottomSheet(BuildContext context, Motor? motor) {
+    final bool hasMotor = device.motors?.isNotEmpty == true;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DeviceOptionsBottomSheet(
+          hasMotor: hasMotor,
+          onRename: () {
+            Navigator.pop(context);
+            _showRenameBottomSheet(context, motor);
+          },
+          onReplace: () {
+            Navigator.pop(context);
+            _showReplaceLocationBottomSheet(context, motor);
+          },
+          onDelete: () {
+            Navigator.pop(context);
+            _showDeleteDialog(context);
+          },
+          onSettings: () {
+            Navigator.pop(context);
+            // _showDeviceSettingsBottomSheet(context, motor);
+          },
+        );
       },
+    );
+  }
+
+  void _showRenameBottomSheet(BuildContext context, Motor? motor) {
+    if (motor == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(16),
+        ),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: EditDevicePage(
+            motorId: motor.id!,
+            motorName: (motor.aliasName?.trim().isNotEmpty ?? false)
+                ? motor.aliasName!
+                : motor.name ?? '',
+            hp: double.tryParse(motor.hp?.toString() ?? '0') ?? 0.0,
+            onLocationAdded: (updatedName) {},
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReplaceLocationBottomSheet(BuildContext context, Motor? motor) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => LocationSelectionBottomSheet(
+        selectedLocationId: motor?.location?.id?.toString(),
+        onLocationSelected: (locationName, locationId) async {
+          Get.back();
+          if (motor == null || device.id == null) return;
+          {
+            await controller.locationreplace(
+              starterId: device.id!,
+              motorId: motor.id!,
+              locationId: int.parse(locationId),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _showAddLocationBottomSheet(BuildContext context, Motor? motor) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => LocationSelectionBottomSheet(
+        selectedLocationId: null,
+        onLocationSelected: (locationName, locationId) async {
+          Navigator.pop(context);
+          if (motor != null) {
+            await controller.locationreplace(
+              starterId: device.id!,
+              motorId: motor.id!,
+              locationId: int.parse(locationId),
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -120,145 +208,8 @@ class DevicesCard extends StatelessWidget {
                                   ),
                                   const Spacer(),
                                   GestureDetector(
-                                    onTap: () async {
-                                      final RenderBox button = context
-                                          .findRenderObject() as RenderBox;
-                                      final RenderBox overlay =
-                                          Overlay.of(context)
-                                              .context
-                                              .findRenderObject() as RenderBox;
-
-                                      final Offset buttonPosition =
-                                          button.localToGlobal(
-                                        Offset.zero,
-                                        ancestor: overlay,
-                                      );
-
-                                      final RelativeRect position =
-                                          RelativeRect.fromLTRB(
-                                        buttonPosition.dx +
-                                            button.size.width -
-                                            130,
-                                        buttonPosition.dy + 28,
-                                        buttonPosition.dx + button.size.width,
-                                        0,
-                                      );
-                                      final bool hasMotor =
-                                          device.motors?.isNotEmpty == true;
-                                      await showMenu(
-                                        context: context,
-                                        position: position,
-                                        color: Colors.transparent,
-                                        elevation: 0,
-                                        items: [
-                                          PopupMenuItem(
-                                            enabled: false,
-                                            padding: EdgeInsets.zero,
-                                            child: SizedBox(
-                                              width: 130,
-                                              child: DeviceOptionsMenu(
-                                                hasMotor: hasMotor,
-                                                onSelected: (action) {
-                                                  Navigator.pop(context);
-                                                  switch (action) {
-                                                    case DeviceMenuAction
-                                                          .rename:
-                                                      showModalBottomSheet(
-                                                        context: context,
-                                                        isScrollControlled:
-                                                            true,
-                                                        shape:
-                                                            const RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .vertical(
-                                                            top:
-                                                                Radius.circular(
-                                                                    16),
-                                                          ),
-                                                        ),
-                                                        builder: (context) {
-                                                          return Padding(
-                                                            padding:
-                                                                EdgeInsets.only(
-                                                              bottom: MediaQuery
-                                                                      .of(context)
-                                                                  .viewInsets
-                                                                  .bottom,
-                                                            ),
-                                                            child:
-                                                                EditDevicePage(
-                                                              motorId:
-                                                                  motor!.id!,
-                                                              motorName: (motor
-                                                                          .aliasName
-                                                                          ?.trim()
-                                                                          .isNotEmpty ??
-                                                                      false)
-                                                                  ? motor
-                                                                      .aliasName!
-                                                                  : motor.name ??
-                                                                      '',
-                                                              hp: double.tryParse(
-                                                                      motor.hp?.toString() ??
-                                                                          '0') ??
-                                                                  0.0,
-                                                              onLocationAdded:
-                                                                  (updatedName) {
-                                                                // TODO: refresh card if needed
-                                                              },
-                                                            ),
-                                                          );
-                                                        },
-                                                      );
-                                                      break;
-                                                    case DeviceMenuAction
-                                                          .replace:
-                                                      showModalBottomSheet(
-                                                        context: context,
-                                                        backgroundColor:
-                                                            Colors.transparent,
-                                                        builder: (_) =>
-                                                            LocationSelectionBottomSheet(
-                                                          selectedLocationId:
-                                                              motor
-                                                                  ?.location?.id
-                                                                  ?.toString(),
-                                                          onLocationSelected:
-                                                              (locationName,
-                                                                  locationId) async {
-                                                            Navigator.pop(
-                                                                context);
-                                                            await controller.locationreplace(
-                                                                starterId:
-                                                                    device.id!,
-                                                                motorId:
-                                                                    motor!.id!,
-                                                                locationId:
-                                                                    int.parse(
-                                                                        locationId));
-                                                          },
-                                                        ),
-                                                      );
-                                                      break;
-                                                    // case DeviceMenuAction
-                                                    //       .addMotor:
-                                                    //   _openAddMotorPage(
-                                                    //       context);
-                                                    //   break;
-                                                    case DeviceMenuAction
-                                                          .delete:
-                                                      _showDeleteDialog(
-                                                          context);
-                                                      break;
-                                                  }
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
+                                    onTap: () => _showDeviceOptionsBottomSheet(
+                                        context, motor),
                                     child: const Icon(
                                       Icons.more_vert,
                                       color: Color(0XFF464646),
@@ -415,7 +366,7 @@ class DevicesCard extends StatelessWidget {
                     child: SvgPicture.asset(
                       (motor?.location?.name == null ||
                               motor!.location!.name!.trim().isEmpty)
-                          ? 'assets/images/add_location.svg'
+                          ? 'assets/images/Add.svg'
                           : 'assets/images/kdkr.svg',
                       fit: BoxFit.contain,
                     ),
@@ -426,32 +377,10 @@ class DevicesCard extends StatelessWidget {
 
                       if (locationName == null || locationName.trim().isEmpty) {
                         return GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => LocationSelectionBottomSheet(
-                                selectedLocationId: null,
-                                onLocationSelected:
-                                    (locationName, locationId) async {
-                                  Navigator.pop(context);
-                                  await controller.locationreplace(
-                                    starterId: device.id!,
-                                    motorId: motor!.id!,
-                                    locationId: int.parse(locationId),
-                                  );
-                                },
-                              ),
-                            );
-                          },
+                          onTap: () =>
+                              _showAddLocationBottomSheet(context, motor),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.add_location_alt_outlined,
-                                size: 18,
-                                color: Color(0xFF3686AF),
-                              ),
-                              const SizedBox(width: 6),
                               Text(
                                 'Add Location',
                                 style: FlutterFlowTheme.of(context)
@@ -460,7 +389,7 @@ class DevicesCard extends StatelessWidget {
                                       font: GoogleFonts.dmSans(
                                         fontWeight: FontWeight.w600,
                                       ),
-                                      color: const Color(0xFF2F80ED),
+                                      color: const Color(0xFF6A7282),
                                       fontSize: 14.0,
                                     ),
                               ),
@@ -483,22 +412,6 @@ class DevicesCard extends StatelessWidget {
                       );
                     })(),
                   ),
-                  // Expanded(
-                  //   child: Text(
-                  //     motor?.location?.name ?? 'Unknown Location',
-                  //     style: FlutterFlowTheme.of(context).bodyMedium.override(
-                  //           font: GoogleFonts.dmSans(
-                  //             fontWeight: FontWeight.w500,
-                  //           ),
-                  //           color: const Color(0xFF5E5E5E),
-                  //           fontSize: 14.0,
-                  //           letterSpacing: 0.0,
-                  //           fontWeight: FontWeight.w500,
-                  //         ),
-                  //     maxLines: 1,
-                  //     overflow: TextOverflow.ellipsis,
-                  //   ),
-                  // ),
                 ].divide(const SizedBox(width: 8.0)),
               ),
             ),

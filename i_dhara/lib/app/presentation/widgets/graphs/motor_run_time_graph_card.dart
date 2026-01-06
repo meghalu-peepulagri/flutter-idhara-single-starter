@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:intl/intl.dart';
@@ -203,7 +204,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                 analyticsController.isLoadingruntime.value
                     ? const Padding(
                         padding: EdgeInsets.only(top: 50),
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: GraphLottieLoading()),
                       )
                     : chartData.isEmpty
                         // || analyticsController.motorRuntimeData.length ==0
