@@ -178,32 +178,91 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     super.dispose();
   }
 
+  // MotorData? _getMotorData() {
+  //   if (widget.motor.starter?.macAddress == null || widget.motor.id == null) {
+  //     return null;
+  //   }
+
+  //   final mac = widget.motor.starter!.macAddress!;
+
+  //   MotorData? latestData;
+  //   DateTime? latestTimestamp;
+
+  //   for (int i = 1; i <= 4; i++) {
+  //     final groupId = 'G0$i';
+  //     final motorId = '$mac-$groupId';
+  //     final data = widget.mqttService.motorDataMap[motorId];
+
+  //     if (data != null && data.hasReceivedData) {
+  //       final dataTimestamp = widget.mqttService.getLastAckTime(motorId);
+
+  //       if (latestData == null ||
+  //           (dataTimestamp != null &&
+  //               (latestTimestamp == null ||
+  //                   dataTimestamp.isAfter(latestTimestamp)))) {
+  //         latestData = data;
+  //         latestTimestamp = dataTimestamp;
+  //         print(
+  //             '${widget.motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
+  //       }
+  //     }
+  //   }
+
+  //   return latestData;
+  // }
   MotorData? _getMotorData() {
-    if (widget.motor.starter?.macAddress == null || widget.motor.id == null) {
+    if (widget.motor.starter == null || widget.motor.id == null) {
       return null;
     }
 
-    final mac = widget.motor.starter!.macAddress!;
+    final mac = widget.motor.starter!.macAddress;
+    final pcb = widget.motor.starter!.pcbNumber;
+
+    if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
+      return null;
+    }
 
     MotorData? latestData;
     DateTime? latestTimestamp;
 
     for (int i = 1; i <= 4; i++) {
       final groupId = 'G0$i';
-      final motorId = '$mac-$groupId';
-      final data = widget.mqttService.motorDataMap[motorId];
 
-      if (data != null && data.hasReceivedData) {
-        final dataTimestamp = widget.mqttService.getLastAckTime(motorId);
+      // Try both MAC and PCB identifiers
+      final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
+      final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
 
-        if (latestData == null ||
-            (dataTimestamp != null &&
-                (latestTimestamp == null ||
-                    dataTimestamp.isAfter(latestTimestamp)))) {
-          latestData = data;
-          latestTimestamp = dataTimestamp;
-          print(
-              '${widget.motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
+      // Check MAC address first
+      if (macMotorId != null) {
+        final data = widget.mqttService.motorDataMap[macMotorId];
+        if (data != null && data.hasReceivedData) {
+          final dataTimestamp = widget.mqttService.getLastAckTime(macMotorId);
+          if (latestData == null ||
+              (dataTimestamp != null &&
+                  (latestTimestamp == null ||
+                      dataTimestamp.isAfter(latestTimestamp)))) {
+            latestData = data;
+            latestTimestamp = dataTimestamp;
+            print(
+                '${widget.motor.name} - Found MQTT data in $groupId using MAC (timestamp: $dataTimestamp)');
+          }
+        }
+      }
+
+      // Check PCB number if no MAC data found
+      if (pcbMotorId != null && latestData == null) {
+        final data = widget.mqttService.motorDataMap[pcbMotorId];
+        if (data != null && data.hasReceivedData) {
+          final dataTimestamp = widget.mqttService.getLastAckTime(pcbMotorId);
+          if (latestData == null ||
+              (dataTimestamp != null &&
+                  (latestTimestamp == null ||
+                      dataTimestamp.isAfter(latestTimestamp)))) {
+            latestData = data;
+            latestTimestamp = dataTimestamp;
+            print(
+                '${widget.motor.name} - Found MQTT data in $groupId using PCB (timestamp: $dataTimestamp)');
+          }
         }
       }
     }
@@ -211,23 +270,64 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     return latestData;
   }
 
+  // String _getMotorId() {
+  //   if (widget.motor.starter?.macAddress == null) return '';
+
+  //   final motorData = _getMotorData();
+  //   if (motorData != null && motorData.groupId != null) {
+  //     return '${widget.motor.starter!.macAddress}-${motorData.groupId}';
+  //   }
+
+  //   return '${widget.motor.starter!.macAddress}-G01';
+  // }
   String _getMotorId() {
-    if (widget.motor.starter?.macAddress == null) return '';
+    if (widget.motor.starter == null) return '';
 
     final motorData = _getMotorData();
+
+    // Use the identifier from the motor data if available
     if (motorData != null && motorData.groupId != null) {
-      return '${widget.motor.starter!.macAddress}-${motorData.groupId}';
+      // Prefer the identifier that actually has data
+      if (motorData.macAddress != null && motorData.macAddress!.isNotEmpty) {
+        return '${motorData.macAddress}-${motorData.groupId}';
+      } else if (motorData.pcbNumber != null &&
+          motorData.pcbNumber!.isNotEmpty) {
+        return '${motorData.pcbNumber}-${motorData.groupId}';
+      }
     }
 
-    return '${widget.motor.starter!.macAddress}-G01';
+    // Fallback: try MAC first, then PCB
+    final mac = widget.motor.starter!.macAddress;
+    final pcb = widget.motor.starter!.pcbNumber;
+
+    if (mac != null && mac.isNotEmpty) {
+      return '$mac-G01';
+    } else if (pcb != null && pcb.isNotEmpty) {
+      return '$pcb-G01';
+    }
+
+    return '';
   }
 
+  // bool _isMotorAvailable() {
+  //   if (widget.motor.starter?.macAddress == null ||
+  //       widget.motor.starter!.macAddress!.isEmpty) {
+  //     return false;
+  //   }
+  //   return true;
+  // }
   bool _isMotorAvailable() {
-    if (widget.motor.starter?.macAddress == null ||
-        widget.motor.starter!.macAddress!.isEmpty) {
+    if (widget.motor.starter == null) {
       return false;
     }
-    return true;
+
+    final mac = widget.motor.starter!.macAddress;
+    final pcb = widget.motor.starter!.pcbNumber;
+
+    final hasMac = mac != null && mac.isNotEmpty;
+    final hasPcb = pcb != null && pcb.isNotEmpty;
+
+    return hasMac || hasPcb;
   }
 
   void _showSwitchCommandDialog(bool newValue) {

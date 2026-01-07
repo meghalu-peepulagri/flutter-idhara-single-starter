@@ -18,29 +18,56 @@ class VoltageCurrentValuesCard extends StatelessWidget {
   });
 
   MotorData? _getMotorData() {
-    if (motor.starter?.macAddress == null || motor.id == null) return null;
+    if (motor.starter == null || motor.id == null) return null;
 
-    final mac = motor.starter!.macAddress!;
+    final mac = motor.starter!.macAddress;
+    final pcb = motor.starter!.pcbNumber;
+
+    if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
+      return null;
+    }
 
     MotorData? latestData;
     DateTime? latestTimestamp;
 
     for (int i = 1; i <= 4; i++) {
       final groupId = 'G0$i';
-      final motorId = '$mac-$groupId';
-      final data = mqttService.motorDataMap[motorId];
 
-      if (data != null && data.hasReceivedData) {
-        final dataTimestamp = mqttService.getLastAckTime(motorId);
+      // Try both MAC and PCB identifiers
+      final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
+      final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
 
-        if (latestData == null ||
-            (dataTimestamp != null &&
-                (latestTimestamp == null ||
-                    dataTimestamp.isAfter(latestTimestamp)))) {
-          latestData = data;
-          latestTimestamp = dataTimestamp;
-          debugPrint(
-              'VoltageCurrentValuesCard - ${motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
+      // Check MAC address first
+      if (macMotorId != null) {
+        final data = mqttService.motorDataMap[macMotorId];
+        if (data != null && data.hasReceivedData) {
+          final dataTimestamp = mqttService.getLastAckTime(macMotorId);
+          if (latestData == null ||
+              (dataTimestamp != null &&
+                  (latestTimestamp == null ||
+                      dataTimestamp.isAfter(latestTimestamp)))) {
+            latestData = data;
+            latestTimestamp = dataTimestamp;
+            debugPrint(
+                'VoltageCurrentValuesCard - ${motor.name} - Found MQTT data in $groupId using MAC (timestamp: $dataTimestamp)');
+          }
+        }
+      }
+
+      // Check PCB number if no MAC data found
+      if (pcbMotorId != null && latestData == null) {
+        final data = mqttService.motorDataMap[pcbMotorId];
+        if (data != null && data.hasReceivedData) {
+          final dataTimestamp = mqttService.getLastAckTime(pcbMotorId);
+          if (latestData == null ||
+              (dataTimestamp != null &&
+                  (latestTimestamp == null ||
+                      dataTimestamp.isAfter(latestTimestamp)))) {
+            latestData = data;
+            latestTimestamp = dataTimestamp;
+            debugPrint(
+                'VoltageCurrentValuesCard - ${motor.name} - Found MQTT data in $groupId using PCB (timestamp: $dataTimestamp)');
+          }
         }
       }
     }

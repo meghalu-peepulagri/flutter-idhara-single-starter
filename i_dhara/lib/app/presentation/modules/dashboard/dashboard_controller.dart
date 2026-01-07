@@ -80,6 +80,70 @@ class DashboardController extends GetxController {
     super.onClose();
   }
 
+  // Future<void> refreshMotors() async {
+  //   isRefreshing.value = true;
+
+  //   try {
+  //     final response = await MotorsRepositoryImpl().getMotors();
+
+  //     if (response != null && response.data != null) {
+  //       final fetchedMotors = response.data!.records ?? [];
+  //       allMotors.value = fetchedMotors;
+
+  //       // Apply location filter
+  //       if (selectedLocationId.value != null) {
+  //         motors.value = allMotors
+  //             .where((m) => m.location?.id == selectedLocationId.value)
+  //             .toList();
+  //       } else {
+  //         motors.value = allMotors.toList();
+  //       }
+
+  //       // Update MQTT service with new motor data
+  //       if (mqttInitialized) {
+  //         final motorMap = <String, Motor>{};
+  //         _motorIdToGroupId.clear();
+
+  //         for (var motor in allMotors) {
+  //           if (motor.starter?.macAddress != null) {
+  //             final mac = motor.starter!.macAddress!;
+
+  //             for (int i = 1; i <= 4; i++) {
+  //               final groupId = 'G0$i';
+  //               final key = '$mac-$groupId';
+  //               motorMap[key] = motor;
+
+  //               // Set default group to G01
+  //               if (i == 1) {
+  //                 _motorIdToGroupId[motor.id!] = groupId;
+  //               }
+  //             }
+  //           }
+  //         }
+
+  //         // Update MQTT service motors
+  //         mqttService.updateMotors(motorMap);
+
+  //         // Resubscribe to new motor topics
+  //         await mqttService.resubscribeToTopics();
+
+  //         await Future.delayed(const Duration(milliseconds: 500));
+
+  //         // UI update with fresh API data
+  //         _onMqttUpdate();
+  //       }
+
+  //       motors.refresh();
+  //       allMotors.refresh();
+  //     } else {
+  //       errorMessage.value = 'Failed to refresh motors';
+  //     }
+  //   } catch (e) {
+  //     errorMessage.value = 'Error: $e';
+  //   } finally {
+  //     isRefreshing.value = false;
+  //   }
+  // }
   Future<void> refreshMotors() async {
     isRefreshing.value = true;
 
@@ -105,17 +169,31 @@ class DashboardController extends GetxController {
           _motorIdToGroupId.clear();
 
           for (var motor in allMotors) {
-            if (motor.starter?.macAddress != null) {
-              final mac = motor.starter!.macAddress!;
+            if (motor.starter != null) {
+              final mac = motor.starter!.macAddress;
+              final pcb = motor.starter!.pcbNumber;
 
               for (int i = 1; i <= 4; i++) {
                 final groupId = 'G0$i';
-                final key = '$mac-$groupId';
-                motorMap[key] = motor;
 
-                // Set default group to G01
-                if (i == 1) {
-                  _motorIdToGroupId[motor.id!] = groupId;
+                // Add entry with MAC address
+                if (mac != null && mac.isNotEmpty) {
+                  final macKey = '$mac-$groupId';
+                  motorMap[macKey] = motor;
+
+                  if (i == 1) {
+                    _motorIdToGroupId[motor.id!] = groupId;
+                  }
+                }
+
+                // Add entry with PCB number
+                if (pcb != null && pcb.isNotEmpty) {
+                  final pcbKey = '$pcb-$groupId';
+                  motorMap[pcbKey] = motor;
+
+                  if (i == 1 && (mac == null || mac.isEmpty)) {
+                    _motorIdToGroupId[motor.id!] = groupId;
+                  }
                 }
               }
             }
@@ -152,6 +230,55 @@ class DashboardController extends GetxController {
     return 'G01';
   }
 
+  // Future<void> fetchMotors() async {
+  //   try {
+  //     final response = await MotorsRepositoryImpl().getMotors();
+
+  //     if (response != null && response.data != null) {
+  //       allMotors.value = response.data!.records ?? [];
+  //       motors.value = allMotors;
+
+  //       final motorMap = <String, Motor>{};
+  //       _motorIdToGroupId.clear();
+
+  //       for (var motor in allMotors) {
+  //         if (motor.starter?.macAddress != null) {
+  //           final mac = motor.starter!.macAddress!;
+
+  //           for (int i = 1; i <= 4; i++) {
+  //             final groupId = 'G0$i';
+  //             final key = '$mac-$groupId';
+  //             motorMap[key] = motor;
+
+  //             if (i == 1) {
+  //               _motorIdToGroupId[motor.id!] = groupId;
+  //             }
+  //           }
+  //         }
+  //       }
+
+  //       //  Always initialize MQTT service, even with empty motors
+  //       mqttService = MqttService(initialMotors: motorMap);
+  //       mqttInitialized = true;
+
+  //       //  Initialize MQTT connection regardless of motor count
+  //       await mqttService.initializeMqttClient();
+
+  //       mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
+
+  //       // Only update if we have motors
+  //       if (motorMap.isNotEmpty) {
+  //         _onMqttUpdate();
+  //       }
+  //     } else {
+  //       errorMessage.value = 'Failed to load motors';
+  //     }
+  //   } catch (e) {
+  //     errorMessage.value = 'Error: $e';
+  //   } finally {
+  //     isRefreshing.value = false;
+  //   }
+  // }
   Future<void> fetchMotors() async {
     try {
       final response = await MotorsRepositoryImpl().getMotors();
@@ -164,16 +291,33 @@ class DashboardController extends GetxController {
         _motorIdToGroupId.clear();
 
         for (var motor in allMotors) {
-          if (motor.starter?.macAddress != null) {
-            final mac = motor.starter!.macAddress!;
+          if (motor.starter != null) {
+            final mac = motor.starter!.macAddress;
+            final pcb = motor.starter!.pcbNumber;
 
+            // Create entries for both MAC and PCB if available
             for (int i = 1; i <= 4; i++) {
               final groupId = 'G0$i';
-              final key = '$mac-$groupId';
-              motorMap[key] = motor;
 
-              if (i == 1) {
-                _motorIdToGroupId[motor.id!] = groupId;
+              // Add entry with MAC address
+              if (mac != null && mac.isNotEmpty) {
+                final macKey = '$mac-$groupId';
+                motorMap[macKey] = motor;
+
+                if (i == 1) {
+                  _motorIdToGroupId[motor.id!] = groupId;
+                }
+              }
+
+              // Add entry with PCB number
+              if (pcb != null && pcb.isNotEmpty) {
+                final pcbKey = '$pcb-$groupId';
+                motorMap[pcbKey] = motor;
+
+                // Only set default if MAC wasn't available
+                if (i == 1 && (mac == null || mac.isEmpty)) {
+                  _motorIdToGroupId[motor.id!] = groupId;
+                }
               }
             }
           }
@@ -202,6 +346,103 @@ class DashboardController extends GetxController {
     }
   }
 
+  // void _onMqttUpdate() {
+  //   int mqttDataCount = 0;
+  //   for (var key in mqttService.motorDataMap.keys) {
+  //     final data = mqttService.motorDataMap[key];
+  //     if (data?.hasReceivedData == true) {
+  //       mqttDataCount++;
+  //     }
+  //   }
+
+  //   print(' Total MQTT data entries: $mqttDataCount');
+
+  //   for (var motor in allMotors) {
+  //     if (motor.starter?.macAddress == null) continue;
+
+  //     final mac = motor.starter!.macAddress!;
+  //     final currentGroupId = _getGroupIdForMotor(motor);
+  //     final currentKey = '$mac-$currentGroupId';
+  //     final currentMotorData = mqttService.motorDataMap[currentKey];
+
+  //     // Update state and mode from current group
+  //     if (currentMotorData != null && currentMotorData.hasReceivedData) {
+  //       motor.state = currentMotorData.state;
+  //       motor.mode = currentMotorData.motorMode;
+
+  //       // Update power from current group
+  //       if (currentMotorData.power != 0 && motor.starter != null) {
+  //         motor.starter!.power = currentMotorData.power;
+  //       }
+
+  //       // Update voltage and current from current group
+  //       if (motor.starter != null) {
+  //         if (motor.starter!.starterParameters == null) {
+  //           motor.starter!.starterParameters = [];
+  //         }
+
+  //         if (motor.starter!.starterParameters!.isEmpty) {
+  //           motor.starter!.starterParameters!.add(StarterParameter());
+  //         }
+
+  //         final params = motor.starter!.starterParameters!.first;
+
+  //         // Update voltages
+  //         if (currentMotorData.voltageRed != '0') {
+  //           final newValue = double.tryParse(currentMotorData.voltageRed);
+  //           if (newValue != null && newValue > 0) {
+  //             params.lineVoltageR = newValue;
+  //           }
+  //         }
+  //         if (currentMotorData.voltageYellow != '0') {
+  //           final newValue = double.tryParse(currentMotorData.voltageYellow);
+  //           if (newValue != null && newValue > 0) {
+  //             params.lineVoltageY = newValue;
+  //           }
+  //         }
+  //         if (currentMotorData.voltageBlue != '0') {
+  //           final newValue = double.tryParse(currentMotorData.voltageBlue);
+  //           if (newValue != null && newValue > 0) {
+  //             params.lineVoltageB = newValue;
+  //           }
+  //         }
+
+  //         // Update currents
+  //         if (currentMotorData.currentRed != '0') {
+  //           final newValue = double.tryParse(currentMotorData.currentRed);
+  //           if (newValue != null && newValue > 0) {
+  //             params.currentR = newValue;
+  //           }
+  //         }
+  //         if (currentMotorData.currentYellow != '0') {
+  //           final newValue = double.tryParse(currentMotorData.currentYellow);
+  //           if (newValue != null && newValue > 0) {
+  //             params.currentY = newValue;
+  //           }
+  //         }
+  //         if (currentMotorData.currentBlue != '0') {
+  //           final newValue = double.tryParse(currentMotorData.currentBlue);
+  //           if (newValue != null && newValue > 0) {
+  //             params.currentB = newValue;
+  //           }
+  //         }
+
+  //         // Update fault
+  //         if (currentMotorData.fault != 0) {
+  //           params.fault = currentMotorData.fault;
+  //         }
+
+  //         params.timeStamp = DateTime.now();
+  //       }
+  //     } else {
+  //       print(' No MQTT data for current group, keeping API data');
+  //     }
+  //   }
+
+  //   motors.refresh();
+  //   allMotors.refresh();
+  // }
+
   void _onMqttUpdate() {
     int mqttDataCount = 0;
     for (var key in mqttService.motorDataMap.keys) {
@@ -214,12 +455,25 @@ class DashboardController extends GetxController {
     print(' Total MQTT data entries: $mqttDataCount');
 
     for (var motor in allMotors) {
-      if (motor.starter?.macAddress == null) continue;
+      if (motor.starter == null) continue;
 
-      final mac = motor.starter!.macAddress!;
+      final mac = motor.starter!.macAddress;
+      final pcb = motor.starter!.pcbNumber;
       final currentGroupId = _getGroupIdForMotor(motor);
-      final currentKey = '$mac-$currentGroupId';
-      final currentMotorData = mqttService.motorDataMap[currentKey];
+
+      // Try to find data with MAC first, then PCB
+      String? currentKey;
+      MotorData? currentMotorData;
+
+      if (mac != null && mac.isNotEmpty) {
+        currentKey = '$mac-$currentGroupId';
+        currentMotorData = mqttService.motorDataMap[currentKey];
+      }
+
+      if (currentMotorData == null && pcb != null && pcb.isNotEmpty) {
+        currentKey = '$pcb-$currentGroupId';
+        currentMotorData = mqttService.motorDataMap[currentKey];
+      }
 
       // Update state and mode from current group
       if (currentMotorData != null && currentMotorData.hasReceivedData) {
@@ -336,13 +590,43 @@ class DashboardController extends GetxController {
     }
   }
 
+  // Future<void> toggleMotor(Motor motor, bool newState) async {
+  //   if (motor.starter?.macAddress == null) {
+  //     return;
+  //   }
+
+  //   final groupId = _getGroupIdForMotor(motor);
+  //   final motorId = '${motor.starter!.macAddress}-$groupId';
+
+  //   try {
+  //     await mqttService.publishMotorCommand(motorId, newState ? 1 : 0);
+  //   } catch (e) {
+  //     errorMessage.value = 'Failed to toggle motor: $e';
+  //   }
+  // }
+
   Future<void> toggleMotor(Motor motor, bool newState) async {
-    if (motor.starter?.macAddress == null) {
+    if (motor.starter == null) {
       return;
     }
 
     final groupId = _getGroupIdForMotor(motor);
-    final motorId = '${motor.starter!.macAddress}-$groupId';
+
+    // Prefer MAC, fall back to PCB
+    String? identifier;
+    if (motor.starter!.macAddress != null &&
+        motor.starter!.macAddress!.isNotEmpty) {
+      identifier = motor.starter!.macAddress;
+    } else if (motor.starter!.pcbNumber != null &&
+        motor.starter!.pcbNumber!.isNotEmpty) {
+      identifier = motor.starter!.pcbNumber;
+    }
+
+    if (identifier == null) {
+      return;
+    }
+
+    final motorId = '$identifier-$groupId';
 
     try {
       await mqttService.publishMotorCommand(motorId, newState ? 1 : 0);
@@ -351,13 +635,43 @@ class DashboardController extends GetxController {
     }
   }
 
+  // Future<void> changeMotorMode(Motor motor, int modeIndex) async {
+  //   if (motor.starter?.macAddress == null) {
+  //     return;
+  //   }
+
+  //   final groupId = _getGroupIdForMotor(motor);
+  //   final motorId = '${motor.starter!.macAddress}-$groupId';
+
+  //   try {
+  //     await mqttService.publishModeCommand(motorId, modeIndex);
+  //   } catch (e) {
+  //     errorMessage.value = 'Failed to change mode: $e';
+  //   }
+  // }
+
   Future<void> changeMotorMode(Motor motor, int modeIndex) async {
-    if (motor.starter?.macAddress == null) {
+    if (motor.starter == null) {
       return;
     }
 
     final groupId = _getGroupIdForMotor(motor);
-    final motorId = '${motor.starter!.macAddress}-$groupId';
+
+    // Prefer MAC, fall back to PCB
+    String? identifier;
+    if (motor.starter!.macAddress != null &&
+        motor.starter!.macAddress!.isNotEmpty) {
+      identifier = motor.starter!.macAddress;
+    } else if (motor.starter!.pcbNumber != null &&
+        motor.starter!.pcbNumber!.isNotEmpty) {
+      identifier = motor.starter!.pcbNumber;
+    }
+
+    if (identifier == null) {
+      return;
+    }
+
+    final motorId = '$identifier-$groupId';
 
     try {
       await mqttService.publishModeCommand(motorId, modeIndex);
