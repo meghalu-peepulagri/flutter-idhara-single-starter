@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -101,120 +102,130 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
         },
         child: Scaffold(
           key: scaffoldKey,
-          backgroundColor: Colors.black.withOpacity(0.6),
-          body: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-                        },
-                        child: Container(
-                          decoration: const BoxDecoration(),
-                          child: const Padding(
-                            padding: EdgeInsets.all(6.0),
+          // backgroundColor: Colors.black.withOpacity(0.6),
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: SvgPicture.asset(
+                  'assets/images/QR Code.svg',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              decoration: const BoxDecoration(),
+                              child: const Padding(
+                                padding: EdgeInsets.all(6.0),
+                                child: Icon(
+                                  Icons.arrow_back,
+                                  color: Colors.black,
+                                  size: 20.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            'Scan QR',
+                            style: GoogleFonts.dmSans(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black,
+                              fontSize: 16.0,
+                              letterSpacing: 0.0,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: _toggleFlash,
                             child: Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 20.0,
+                              isTorchOn ? Icons.flash_on : Icons.flash_off,
+                              color: isTorchOn ? Colors.yellow : Colors.black,
+                              size: 24.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    // Instruction Text
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 30.0),
+                      child: Center(
+                        child: Text(
+                          'Please scan the QR code on the PCB to proceed.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0XFF101828),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    // QR Scanner View - Centered
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Container(
+                          height: 300,
+                          width: 300,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14.0),
+                            border: Border.all(
+                              color: const Color(0XFF004E7E),
+                              width: 2.0,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12.0),
+                            child: MobileScanner(
+                              controller: cameraController,
+                              onDetect: _handleBarcodeDetected,
                             ),
                           ),
                         ),
                       ),
-                      Text(
-                        'Scan QR',
-                        style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                          fontSize: 16.0,
-                          letterSpacing: 0.0,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: _toggleFlash,
-                        child: Icon(
-                          isTorchOn ? Icons.flash_on : Icons.flash_off,
-                          color: isTorchOn ? Colors.yellow : Colors.white,
-                          size: 24.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 30),
-                // Instruction Text
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 30.0),
-                  child: Center(
-                    child: Text(
-                      'Please scan the QR code on the PCB to proceed.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // QR Scanner View - Centered
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Container(
-                      height: 300,
-                      width: 300,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12.0),
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 2.0,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12.0),
-                        child: MobileScanner(
-                          controller: cameraController,
-                          onDetect: _handleBarcodeDetected,
+                    const SizedBox(height: 40),
+                    // Manual PCB entry text
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            print('Manual PCB entry tapped');
+                            cameraController.dispose();
+                            Get.offAllNamed(Routes.addDevices);
+                          },
+                          child: Text(
+                            'Or Enter PCB Number',
+                            style: GoogleFonts.dmSans(
+                              color: const Color(0XFF101828),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 40),
-                // Manual PCB entry text
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        print('Manual PCB entry tapped');
-                        cameraController.dispose();
-                        Get.offAllNamed(Routes.addDevices);
-                      },
-                      child: Text(
-                        'Or Enter PCB Number',
-                        style: GoogleFonts.dmSans(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

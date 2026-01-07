@@ -369,14 +369,18 @@ class MotorControlWidget extends StatelessWidget {
                                                     ),
                                                     Container(
                                                       decoration: BoxDecoration(
-                                                        color: isOn
-                                                            ? const Color(
-                                                                0XFFDCFCE7)
-                                                            : const Color(
-                                                                0xFFFEE2E2),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                              0xFFDCDCDC),
+                                                        ),
+                                                        // color: isOn
+                                                        //     ? const Color(
+                                                        //         0XFFDCFCE7)
+                                                        //     : const Color(
+                                                        //         0xFFFEE2E2),
                                                         borderRadius:
                                                             BorderRadius
-                                                                .circular(4.0),
+                                                                .circular(12.0),
                                                       ),
                                                       padding: const EdgeInsets
                                                           .symmetric(
@@ -408,8 +412,11 @@ class MotorControlWidget extends StatelessWidget {
                                                                         FontWeight
                                                                             .w400,
                                                                   ),
-                                                                  color: const Color(
-                                                                      0XFF008236),
+                                                                  color: isOn
+                                                                      ? const Color(
+                                                                          0xFF45A845)
+                                                                      : const Color(
+                                                                          0xFFF90707),
                                                                   fontSize:
                                                                       14.0,
                                                                   letterSpacing:

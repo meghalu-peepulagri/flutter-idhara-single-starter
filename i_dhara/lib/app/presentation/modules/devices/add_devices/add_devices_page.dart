@@ -50,6 +50,15 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
     _model.textController4 ??= TextEditingController();
     _model.textFieldFocusNode4 ??= FocusNode();
 
+    _model.textController4!.addListener(() {
+      if (_model.textController4!.text.isNotEmpty &&
+          _model.errorInstance.containsKey('location_id')) {
+        setState(() {
+          _model.errorInstance.remove('location_id');
+        });
+      }
+    });
+
     final args = Get.arguments;
     if (args != null && args['pcbNumber'] != null) {
       _model.textController1!.text = args['pcbNumber'];
@@ -109,6 +118,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
               setState(() {
                 _model.textController4!.text = locName ?? newLocation;
                 selectedLocationId = locId;
+
+                _model.errorInstance.remove('location_id');
               });
 
               print("Selected Location---> $locName | ID -----> $locId");
@@ -271,7 +282,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                         controller: _model.textController1!,
                                         errors: _model.errorInstance,
                                         errorKey: 'pcb_number',
-                                        hintText: 'Enter PCB/Serial number',
+                                        hintText: 'Enter PCB/Serial Number',
                                         readOnly: false,
                                         onChanged: (value) {
                                           if (_model.errorInstance
@@ -357,6 +368,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                             ),
                             const SizedBox(height: 6),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   child: TextFieldComponent(

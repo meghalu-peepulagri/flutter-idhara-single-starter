@@ -118,7 +118,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                 image: DecorationImage(
                   fit: BoxFit.cover,
                   image: Image.asset(
-                    'assets/images/login_bg.png',
+                    'assets/images/Generate OTP.png',
                   ).image,
                 ),
               ),
