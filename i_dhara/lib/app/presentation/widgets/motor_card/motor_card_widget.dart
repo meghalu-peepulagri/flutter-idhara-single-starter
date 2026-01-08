@@ -179,31 +179,58 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   // MotorData? _getMotorData() {
-  //   if (widget.motor.starter?.macAddress == null || widget.motor.id == null) {
+  //   if (widget.motor.starter == null || widget.motor.id == null) {
   //     return null;
   //   }
 
-  //   final mac = widget.motor.starter!.macAddress!;
+  //   final mac = widget.motor.starter!.macAddress;
+  //   final pcb = widget.motor.starter!.pcbNumber;
+
+  //   if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
+  //     return null;
+  //   }
 
   //   MotorData? latestData;
   //   DateTime? latestTimestamp;
 
   //   for (int i = 1; i <= 4; i++) {
   //     final groupId = 'G0$i';
-  //     final motorId = '$mac-$groupId';
-  //     final data = widget.mqttService.motorDataMap[motorId];
 
-  //     if (data != null && data.hasReceivedData) {
-  //       final dataTimestamp = widget.mqttService.getLastAckTime(motorId);
+  //     // Try both MAC and PCB identifiers
+  //     final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
+  //     final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
 
-  //       if (latestData == null ||
-  //           (dataTimestamp != null &&
-  //               (latestTimestamp == null ||
-  //                   dataTimestamp.isAfter(latestTimestamp)))) {
-  //         latestData = data;
-  //         latestTimestamp = dataTimestamp;
-  //         print(
-  //             '${widget.motor.name} - Found MQTT data in $groupId (timestamp: $dataTimestamp)');
+  //     // Check MAC address first
+  //     if (macMotorId != null) {
+  //       final data = widget.mqttService.motorDataMap[macMotorId];
+  //       if (data != null && data.hasReceivedData) {
+  //         final dataTimestamp = widget.mqttService.getLastAckTime(macMotorId);
+  //         if (latestData == null ||
+  //             (dataTimestamp != null &&
+  //                 (latestTimestamp == null ||
+  //                     dataTimestamp.isAfter(latestTimestamp)))) {
+  //           latestData = data;
+  //           latestTimestamp = dataTimestamp;
+  //           print(
+  //               '${widget.motor.name} - Found MQTT data in $groupId using MAC (timestamp: $dataTimestamp)');
+  //         }
+  //       }
+  //     }
+
+  //     // Check PCB number if no MAC data found
+  //     if (pcbMotorId != null && latestData == null) {
+  //       final data = widget.mqttService.motorDataMap[pcbMotorId];
+  //       if (data != null && data.hasReceivedData) {
+  //         final dataTimestamp = widget.mqttService.getLastAckTime(pcbMotorId);
+  //         if (latestData == null ||
+  //             (dataTimestamp != null &&
+  //                 (latestTimestamp == null ||
+  //                     dataTimestamp.isAfter(latestTimestamp)))) {
+  //           latestData = data;
+  //           latestTimestamp = dataTimestamp;
+  //           print(
+  //               '${widget.motor.name} - Found MQTT data in $groupId using PCB (timestamp: $dataTimestamp)');
+  //         }
   //       }
   //     }
   //   }
@@ -211,63 +238,41 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   //   return latestData;
   // }
   MotorData? _getMotorData() {
-    if (widget.motor.starter == null || widget.motor.id == null) {
-      return null;
-    }
+    if (widget.motor.starter == null) return null;
 
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
 
-    if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
-      return null;
+    // First, check if we have a known working identifier
+    final motorKey = '${mac ?? pcb}-';
+    final workingId = widget.mqttService.motorDataMap.keys.firstWhere(
+        (k) =>
+            k.startsWith(motorKey) &&
+            widget.mqttService.motorDataMap[k]?.hasReceivedData == true,
+        orElse: () => '');
+
+    if (workingId.isNotEmpty) {
+      return widget.mqttService.motorDataMap[workingId];
     }
 
-    MotorData? latestData;
-    DateTime? latestTimestamp;
-
+    // Fallback: check all groups for both MAC and PCB
     for (int i = 1; i <= 4; i++) {
       final groupId = 'G0$i';
 
-      // Try both MAC and PCB identifiers
-      final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
-      final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
-
-      // Check MAC address first
-      if (macMotorId != null) {
-        final data = widget.mqttService.motorDataMap[macMotorId];
-        if (data != null && data.hasReceivedData) {
-          final dataTimestamp = widget.mqttService.getLastAckTime(macMotorId);
-          if (latestData == null ||
-              (dataTimestamp != null &&
-                  (latestTimestamp == null ||
-                      dataTimestamp.isAfter(latestTimestamp)))) {
-            latestData = data;
-            latestTimestamp = dataTimestamp;
-            print(
-                '${widget.motor.name} - Found MQTT data in $groupId using MAC (timestamp: $dataTimestamp)');
-          }
-        }
+      if (mac != null && mac.isNotEmpty) {
+        final key = '$mac-$groupId';
+        final data = widget.mqttService.motorDataMap[key];
+        if (data?.hasReceivedData == true) return data;
       }
 
-      // Check PCB number if no MAC data found
-      if (pcbMotorId != null && latestData == null) {
-        final data = widget.mqttService.motorDataMap[pcbMotorId];
-        if (data != null && data.hasReceivedData) {
-          final dataTimestamp = widget.mqttService.getLastAckTime(pcbMotorId);
-          if (latestData == null ||
-              (dataTimestamp != null &&
-                  (latestTimestamp == null ||
-                      dataTimestamp.isAfter(latestTimestamp)))) {
-            latestData = data;
-            latestTimestamp = dataTimestamp;
-            print(
-                '${widget.motor.name} - Found MQTT data in $groupId using PCB (timestamp: $dataTimestamp)');
-          }
-        }
+      if (pcb != null && pcb.isNotEmpty) {
+        final key = '$pcb-$groupId';
+        final data = widget.mqttService.motorDataMap[key];
+        if (data?.hasReceivedData == true) return data;
       }
     }
 
-    return latestData;
+    return null;
   }
 
   // String _getMotorId() {
@@ -285,9 +290,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     final motorData = _getMotorData();
 
-    // Use the identifier from the motor data if available
+    // CRITICAL: Use the identifier from the motor data that actually has MQTT data
     if (motorData != null && motorData.groupId != null) {
-      // Prefer the identifier that actually has data
+      // Use the identifier that actually received data
       if (motorData.macAddress != null && motorData.macAddress!.isNotEmpty) {
         return '${motorData.macAddress}-${motorData.groupId}';
       } else if (motorData.pcbNumber != null &&
@@ -296,7 +301,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       }
     }
 
-    // Fallback: try MAC first, then PCB
+    // Fallback
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
 
