@@ -239,7 +239,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         minimum: minTime,
                                         maximum: maxTime,
                                         interval: 1,
-                                        labelRotation: -20,
+                                        labelRotation: -45,
                                         majorGridLines:
                                             const MajorGridLines(width: 0),
                                         intervalType: DateTimeIntervalType.auto,

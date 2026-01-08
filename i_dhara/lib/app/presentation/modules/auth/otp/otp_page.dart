@@ -389,7 +389,7 @@ class OtpWidget extends StatelessWidget {
                             Obx(
                               () => Container(
                                 width: double.infinity,
-                                height: 40,
+                                height: 45,
                                 decoration: BoxDecoration(
                                   gradient: controller.isLoading.value
                                       ? const LinearGradient(
@@ -427,7 +427,7 @@ class OtpWidget extends StatelessWidget {
                                       : 'Verify',
                                   options: FFButtonOptions(
                                     width: double.infinity,
-                                    height: 40,
+                                    height: 45,
                                     color: Colors.transparent,
                                     textStyle: FlutterFlowTheme.of(context)
                                         .titleSmall

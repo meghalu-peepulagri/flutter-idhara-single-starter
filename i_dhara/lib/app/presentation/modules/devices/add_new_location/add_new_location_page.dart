@@ -128,7 +128,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     onPressed: () => Get.back(),
                     text: 'Cancel',
                     options: FFButtonOptions(
-                      height: 40.0,
+                      height: 45.0,
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       color: FlutterFlowTheme.of(context).secondaryBackground,
                       textStyle:
@@ -147,7 +147,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    height: 40,
+                    height: 45,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [

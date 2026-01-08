@@ -367,7 +367,7 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           const SizedBox(height: 30),
                                           Container(
                                             width: double.infinity,
-                                            height: 40,
+                                            height: 45,
                                             decoration: BoxDecoration(
                                               gradient: const LinearGradient(
                                                 colors: [

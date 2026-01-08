@@ -469,20 +469,70 @@ class MqttService {
     }
 
     final signalQuality = payloadData['s_q'] as int?;
+    final networkType = payloadData['nwt'] as int?;
+
     if (signalQuality == null) {
       return;
     }
 
-    // Find all motors with this identifier
+    // Find the specific motor that sent heartbeat
+    String? targetMotorId;
+    DateTime? latestActivity;
+
+    // First check for motors with pending commands
     for (var entry in motorDataMap.entries) {
       final motorData = entry.value;
       final matchesMac = motorData.macAddress == identifier;
       final matchesPcb = motorData.pcbNumber == identifier;
 
       if (matchesMac || matchesPcb) {
-        motorData.updateSignalStrength(signalQuality);
-        debugPrint('✓ Heartbeat for ${entry.key}: signal=$signalQuality');
+        final hasPending = _pendingCommands.containsKey('${entry.key}_1') ||
+            _pendingCommands.containsKey('${entry.key}_2');
+        if (hasPending) {
+          targetMotorId = entry.key;
+          break;
+        }
       }
+    }
+
+    // If no pending command, find motor with most recent activity
+    if (targetMotorId == null) {
+      for (var entry in motorDataMap.entries) {
+        final motorData = entry.value;
+        final matchesMac = motorData.macAddress == identifier;
+        final matchesPcb = motorData.pcbNumber == identifier;
+
+        if (matchesMac || matchesPcb) {
+          final lastAck = _lastAckTimes[entry.key];
+          if (lastAck != null &&
+              (latestActivity == null || lastAck.isAfter(latestActivity))) {
+            latestActivity = lastAck;
+            targetMotorId = entry.key;
+          }
+        }
+      }
+    }
+
+    // If still no motor found, find any motor with this identifier and default to G01
+    if (targetMotorId == null) {
+      for (var entry in motorDataMap.entries) {
+        final motorData = entry.value;
+        if (motorData.macAddress == identifier ||
+            motorData.pcbNumber == identifier) {
+          targetMotorId = entry.key;
+          break;
+        }
+      }
+
+      // Last resort: construct G01 key
+      targetMotorId ??= '$identifier-G01';
+    }
+
+    // Update ONLY the target motor
+    final motorData = motorDataMap[targetMotorId];
+    if (motorData != null) {
+      motorData.updateSignalStrength(signalQuality);
+      motorData.hasReceivedData = true;
     }
 
     _dataUpdateNotifier.value++;
@@ -627,6 +677,7 @@ class MqttService {
       }
 
       final fullMotorId = '$identifier-$groupId';
+      final isG04 = groupId == 'G04'; // Check if this is G04
 
       var motorData = motorDataMap[fullMotorId];
       if (motorData == null) {
@@ -686,29 +737,34 @@ class MqttService {
           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
         }
 
-        // Reset current values to 0 if 'amp' is not present
+        // For G04: preserve existing values if 'amp' is not present
+        // For others: reset to 0 if 'amp' is not present
         if (groupData.containsKey('amp')) {
           final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
           motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
           motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
           motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
-        } else {
-          // No amp data in payload - set all currents to 0
+        } else if (!isG04) {
+          // Reset to 0 only for non-G04 groups
           motorData.currentRed = '0';
           motorData.currentYellow = '0';
           motorData.currentBlue = '0';
         }
+        // For G04: don't reset currents if 'amp' is not present - preserve existing values
+
         if (groupData.containsKey('flt')) {
           motorData.fault = groupData['flt'] ?? 0;
-        } else {
+        } else if (!isG04) {
           motorData.fault = 0;
         }
+        // For G04: don't reset fault if not present
 
         if (groupData.containsKey('alt')) {
           motorData.alert = groupData['alt'] ?? 0;
-        } else {
+        } else if (!isG04) {
           motorData.alert = 0;
         }
+        // For G04: don't reset alert if not present
 
         if (groupData.containsKey('m_s') || groupData.containsKey('mtr_sts')) {
           motorData.state = (groupData['m_s'] ?? groupData['mtr_sts']) ?? 0;
@@ -735,30 +791,34 @@ class MqttService {
           motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
         }
 
-        //Reset current values to 0 if 'amp' is not present
+        // For G04: preserve existing values if 'amp' is not present
+        // For others: reset to 0 if 'amp' is not present
         if (groupData.containsKey('amp')) {
           final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
           motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
           motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
           motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
-        } else {
-          // No amp data in payload - set all currents to 0
+        } else if (!isG04) {
+          // Reset to 0 only for non-G04 groups
           motorData.currentRed = '0';
           motorData.currentYellow = '0';
           motorData.currentBlue = '0';
         }
-        //clear fault code
+        // For G04: don't reset currents if 'amp' is not present - preserve existing values
+
         if (groupData.containsKey('flt')) {
           motorData.fault = groupData['flt'] ?? 0;
-        } else {
+        } else if (!isG04) {
           motorData.fault = 0;
         }
+        // For G04: don't reset fault if not present
 
         if (groupData.containsKey('alt')) {
           motorData.alert = groupData['alt'] ?? 0;
-        } else {
+        } else if (!isG04) {
           motorData.alert = 0;
         }
+        // For G04: don't reset alert if not present
       } else {}
 
       motorData.hasReceivedData = true;
@@ -768,6 +828,165 @@ class MqttService {
 
     _dataUpdateNotifier.value++;
   }
+
+  // void _handleLiveData(String identifier, dynamic payloadData) {
+  //   if (payloadData is! Map<String, dynamic>) {
+  //     return;
+  //   }
+
+  //   int updatedMotors = 0;
+
+  //   for (var entry in payloadData.entries) {
+  //     final groupId = entry.key;
+  //     if (groupId == 'ct') continue;
+
+  //     final groupData = entry.value as Map<String, dynamic>?;
+  //     if (groupData == null) {
+  //       continue;
+  //     }
+
+  //     final fullMotorId = '$identifier-$groupId';
+
+  //     var motorData = motorDataMap[fullMotorId];
+  //     if (motorData == null) {
+  //       motorData =
+  //           MotorData(macAddress: identifier, groupId: groupId, title: groupId);
+  //       motorDataMap[fullMotorId] = motorData;
+  //     }
+
+  //     if (groupData.containsKey('p_v')) {
+  //       final newState = (groupData['m_s'] ?? groupData['mtr_sts']) ?? 0;
+  //       motorData.state = newState;
+  //       if (motorData.controller.value != (newState == 1)) {
+  //         motorData.controller.value = (newState == 1);
+  //       }
+
+  //       final llv = (groupData['llv'] ?? groupData['ll_v']) as List<dynamic>? ??
+  //           [0, 0, 0];
+  //       motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+  //       motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+  //       motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+
+  //       final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+  //       motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+  //       motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+  //       motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+
+  //       motorData.power = groupData['pwr'] ?? 0;
+  //       motorData.fault = groupData['flt'] ?? 0;
+  //       motorData.alert = groupData['alt'] ?? 0;
+
+  //       if (groupData.containsKey('mode')) {
+  //         final modeValue = groupData['mode'] as int?;
+  //         if (modeValue != null) {
+  //           motorData.modeIndex = modeValue;
+  //           motorData.modeswitchcontroller.value = modeValue;
+  //           motorData.motorMode = modeValue == 1 ? 'AUTO' : 'MANUAL';
+  //         }
+  //       }
+  //     } else if (groupData.containsKey('pwr')) {
+  //       motorData.power = groupData['pwr'] ?? 0;
+
+  //       if (groupData.containsKey('mode')) {
+  //         final modeValue = groupData['mode'] as int?;
+  //         if (modeValue != null) {
+  //           motorData.modeIndex = modeValue;
+  //           motorData.modeswitchcontroller.value = modeValue;
+  //           motorData.motorMode = modeValue == 1 ? 'AUTO' : 'MANUAL';
+  //         }
+  //       }
+
+  //       if (groupData.containsKey('llv') || groupData.containsKey('ll_v')) {
+  //         final llv =
+  //             (groupData['llv'] ?? groupData['ll_v']) as List<dynamic>? ??
+  //                 [0, 0, 0];
+  //         motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+  //         motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+  //         motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+  //       }
+
+  //       // Reset current values to 0 if 'amp' is not present
+  //       if (groupData.containsKey('amp')) {
+  //         final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+  //         motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+  //         motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+  //         motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+  //       } else {
+  //         // No amp data in payload - set all currents to 0
+  //         motorData.currentRed = '0';
+  //         motorData.currentYellow = '0';
+  //         motorData.currentBlue = '0';
+  //       }
+  //       if (groupData.containsKey('flt')) {
+  //         motorData.fault = groupData['flt'] ?? 0;
+  //       } else {
+  //         motorData.fault = 0;
+  //       }
+
+  //       if (groupData.containsKey('alt')) {
+  //         motorData.alert = groupData['alt'] ?? 0;
+  //       } else {
+  //         motorData.alert = 0;
+  //       }
+
+  //       if (groupData.containsKey('m_s') || groupData.containsKey('mtr_sts')) {
+  //         motorData.state = (groupData['m_s'] ?? groupData['mtr_sts']) ?? 0;
+  //         motorData.controller.value = motorData.state == 1;
+  //       }
+  //     } else if (groupData.containsKey('mode')) {
+  //       if (groupData.containsKey('pwr')) {
+  //         motorData.power = groupData['pwr'] ?? 0;
+  //       }
+
+  //       final modeValue = groupData['mode'] as int?;
+  //       if (modeValue != null) {
+  //         motorData.modeIndex = modeValue;
+  //         motorData.modeswitchcontroller.value = modeValue;
+  //         motorData.motorMode = modeValue == 1 ? 'AUTO' : 'MANUAL';
+  //       }
+
+  //       if (groupData.containsKey('llv') || groupData.containsKey('ll_v')) {
+  //         final llv =
+  //             (groupData['llv'] ?? groupData['ll_v']) as List<dynamic>? ??
+  //                 [0, 0, 0];
+  //         motorData.voltageRed = llv.isNotEmpty ? llv[0].toString() : '0';
+  //         motorData.voltageYellow = llv.length > 1 ? llv[1].toString() : '0';
+  //         motorData.voltageBlue = llv.length > 2 ? llv[2].toString() : '0';
+  //       }
+
+  //       //Reset current values to 0 if 'amp' is not present
+  //       if (groupData.containsKey('amp')) {
+  //         final amp = groupData['amp'] as List<dynamic>? ?? [0, 0, 0];
+  //         motorData.currentRed = amp.isNotEmpty ? amp[0].toString() : '0';
+  //         motorData.currentYellow = amp.length > 1 ? amp[1].toString() : '0';
+  //         motorData.currentBlue = amp.length > 2 ? amp[2].toString() : '0';
+  //       } else {
+  //         // No amp data in payload - set all currents to 0
+  //         motorData.currentRed = '0';
+  //         motorData.currentYellow = '0';
+  //         motorData.currentBlue = '0';
+  //       }
+  //       //clear fault code
+  //       if (groupData.containsKey('flt')) {
+  //         motorData.fault = groupData['flt'] ?? 0;
+  //       } else {
+  //         motorData.fault = 0;
+  //       }
+
+  //       if (groupData.containsKey('alt')) {
+  //         motorData.alert = groupData['alt'] ?? 0;
+  //       } else {
+  //         motorData.alert = 0;
+  //       }
+  //     } else {}
+
+  //     motorData.hasReceivedData = true;
+  //     motorDataMap[fullMotorId] = motorData;
+  //     _lastAckTimes[fullMotorId] = DateTime.now();
+  //   }
+
+  //   _dataUpdateNotifier.value++;
+  // }
 
   Map<String, MotorData> getMotorDataForLocation(int? locationId) {
     if (locationId == null) {
@@ -897,8 +1116,8 @@ class MqttService {
       throw Exception('Invalid motorId format: $motorId');
     }
 
-    final mac = parts[0];
-    final topic = 'peepul/$mac/cmd';
+    final identifier = parts[0];
+    final topic = 'peepul/$identifier/cmd';
 
     final seq = sequenceNumber ?? _generateRandomSequence();
 

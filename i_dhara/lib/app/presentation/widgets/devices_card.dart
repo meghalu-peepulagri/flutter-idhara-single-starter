@@ -152,6 +152,7 @@ class DevicesCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: FlutterFlowTheme.of(context).secondaryBackground,
+        borderRadius: BorderRadius.circular(8.0),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -161,7 +162,7 @@ class DevicesCard extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F3F3),
-                borderRadius: BorderRadius.circular(4.0),
+                borderRadius: BorderRadius.circular(6.0),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),

@@ -118,7 +118,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                 image: DecorationImage(
                   fit: BoxFit.cover,
                   image: Image.asset(
-                    'assets/images/Login_background.png',
+                    'assets/images/Verify OTP.png',
                   ).image,
                 ),
               ),
@@ -264,7 +264,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                             ),
                             Container(
                               width: double.infinity,
-                              height: 40,
+                              height: 45,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [

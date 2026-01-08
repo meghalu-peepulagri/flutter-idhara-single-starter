@@ -231,7 +231,7 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
                                         minimum: minTime,
                                         maximum: maxTime,
                                         interval: 1,
-                                        labelRotation: -20,
+                                        labelRotation: -45,
                                         majorGridLines:
                                             const MajorGridLines(width: 0),
                                         intervalType: DateTimeIntervalType.auto,
