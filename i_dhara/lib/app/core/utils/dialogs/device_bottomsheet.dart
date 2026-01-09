@@ -87,7 +87,7 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
           _buildMenuItem(
             svgAsset: 'assets/images/kdkr.svg',
             text: 'Replace',
-            iconColor: Colors.blue,
+            iconColor: Colors.green,
             onTap: widget.onReplace,
           ),
           _buildMenuItem(

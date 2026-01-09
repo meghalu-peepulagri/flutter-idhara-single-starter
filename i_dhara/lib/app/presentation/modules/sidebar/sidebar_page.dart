@@ -53,8 +53,8 @@ class SidebarWidget extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Color(0xFF3686AF), // main blue
-                        Color(0xFF004E7E), // lighter gradient blue
+                        Color(0xFF004E7E), // main blue
+                        Color(0xFF3686AF), // lighter gradient blue
                       ],
                     )
                   : null,

@@ -86,7 +86,7 @@ class _PowerGraphWidgetState extends State<PowerGraphWidget> {
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
-            '$xLabel\nDuration: $dur',
+            '$xLabel\nDuration : $dur',
             style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         );

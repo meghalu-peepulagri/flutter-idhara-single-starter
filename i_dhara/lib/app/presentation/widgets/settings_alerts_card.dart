@@ -1,353 +1,385 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 
-class SettingsAlertsCard extends StatelessWidget {
+class SettingsAlertsCard extends StatefulWidget {
   const SettingsAlertsCard({super.key});
+
+  @override
+  State<SettingsAlertsCard> createState() => _SettingsAlertsCardState();
+}
+
+class _SettingsAlertsCardState extends State<SettingsAlertsCard> {
+  // Original values
+  double originalLowVoltageValue = 180.0;
+  double originalHighVoltageValue = 280.0;
+
+  // Current values
+  double lowVoltageValue = 180.0;
+  double highVoltageValue = 280.0;
+
+  // Check if there are any changes
+  bool get hasChanges {
+    return lowVoltageValue != originalLowVoltageValue ||
+        highVoltageValue != originalHighVoltageValue;
+  }
+
+  void _handleCancel() {
+    setState(() {
+      lowVoltageValue = originalLowVoltageValue;
+      highVoltageValue = originalHighVoltageValue;
+    });
+  }
+
+  void _handleSave() {
+    // Build success message
+    List<String> changes = [];
+    if (lowVoltageValue != originalLowVoltageValue) {
+      changes.add('Low: ${lowVoltageValue.toStringAsFixed(0)}C');
+    }
+    if (highVoltageValue != originalHighVoltageValue) {
+      changes.add('High: ${highVoltageValue.toStringAsFixed(0)}C');
+    }
+
+    // Update original values after saving
+    setState(() {
+      originalLowVoltageValue = lowVoltageValue;
+      originalHighVoltageValue = highVoltageValue;
+    });
+  }
+
+  Widget _buildVoltageRow({
+    required String label,
+    required double value,
+    required double minValue,
+    required double maxValue,
+    required Color accentColor,
+    required Color lightColor,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0A0A0A),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: lightColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${value.toStringAsFixed(0)}C',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Wider Slider
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 6,
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 16,
+                elevation: 4,
+              ),
+              overlayShape: const RoundSliderOverlayShape(
+                overlayRadius: 28,
+              ),
+              activeTrackColor: accentColor,
+              inactiveTrackColor: lightColor,
+              thumbColor: accentColor,
+              overlayColor: accentColor.withOpacity(0.2),
+            ),
+            child: Slider(
+              value: value,
+              min: minValue,
+              max: maxValue,
+              divisions: ((maxValue - minValue) / 1).toInt(),
+              onChanged: onChanged,
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Min and Max labels
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${minValue.toInt()}C',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '${maxValue.toInt()}C',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.max,
       children: [
-        Container(
-          decoration: const BoxDecoration(),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Text(
-                          'Pump_1',
-                          style:
-                              FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w500,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                        ),
-                        Text(
-                          'HP: 3',
-                          style:
-                              FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: const Color(0xFF101010),
-                                    fontSize: 14,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w500,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                        ),
-                      ].divide(const SizedBox(width: 24)),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'FLC: 5A',
-                      style: FlutterFlowTheme.of(context).bodyMedium.override(
-                            font: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w500,
-                              fontStyle: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .fontStyle,
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Pump 1',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0A0A0A),
                             ),
-                            color: const Color(0xFF101010),
-                            fontSize: 14,
-                            letterSpacing: 0.0,
-                            fontWeight: FontWeight.w500,
-                            fontStyle: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .fontStyle,
                           ),
-                    ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            child: Text(
+                              '3 HP',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF11608D),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).secondaryBackground,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(6),
-                      child: Icon(
-                        Icons.edit_sharp,
-                        color: Color(0xFF11608D),
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ].divide(const SizedBox(width: 8)),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  color: FlutterFlowTheme.of(context).secondaryBackground,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 3,
-                      color: Color(0x1A000000),
-                      offset: Offset(
-                        0,
-                        1,
-                      ),
-                    )
-                  ],
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD8EDD7),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(0),
-                          bottomRight: Radius.circular(0),
-                          topLeft: Radius.circular(8),
-                          topRight: Radius.circular(8),
-                        ),
-                        border: Border.all(
-                          color: const Color(0x1A000000),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                            16, 14, 16, 14),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Parameter',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: const Color(0xFF1A731A),
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Reading',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: const Color(0xFF1A731A),
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 24)),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(0),
-                          bottomRight: Radius.circular(0),
-                          topLeft: Radius.circular(0),
-                          topRight: Radius.circular(0),
-                        ),
-                        border: Border.all(
-                          color: const Color(0x19000000),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                            16, 14, 16, 14),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Locked Rotor Alert',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: const Color(0xFF0A0A0A),
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'FLC*300%',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: const Color(0xFF333333),
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 24)),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
-                          topLeft: Radius.circular(0),
-                          topRight: Radius.circular(0),
-                        ),
-                        border: Border.all(
-                          color: const Color(0x19000000),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                            16, 14, 16, 14),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Output Phase Alert',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: const Color(0xFF0A0A0A),
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                '0.5',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: const Color(0xFF333333),
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 24)),
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+
+                // Low Voltage Setting
+                _buildVoltageRow(
+                  label: 'Low Current Fault',
+                  value: lowVoltageValue,
+                  minValue: 150.0,
+                  maxValue: 220.0,
+                  accentColor: const Color(0xFFE53935),
+                  lightColor: const Color(0xFFFFEBEE),
+                  onChanged: (value) {
+                    setState(() {
+                      lowVoltageValue = value;
+                    });
+                  },
                 ),
-              ),
-            ].divide(const SizedBox(height: 8)),
+
+                const SizedBox(height: 16),
+
+                // High Voltage Setting
+                _buildVoltageRow(
+                  label: 'High Current Fault',
+                  value: highVoltageValue,
+                  minValue: 240.0,
+                  maxValue: 310.0,
+                  accentColor: const Color(0xFFFF6F00),
+                  lightColor: const Color(0xFFFFF3E0),
+                  onChanged: (value) {
+                    setState(() {
+                      highVoltageValue = value;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
         ),
-      ].addToStart(const SizedBox(height: 20)),
+
+        // Fixed Bottom Buttons
+        // Container(
+        //   padding: const EdgeInsets.all(20),
+        //   decoration: BoxDecoration(
+        //     color: Colors.white,
+        //     borderRadius: BorderRadius.circular(12),
+        //     boxShadow: [
+        //       BoxShadow(
+        //         color: Colors.black.withOpacity(0.08),
+        //         blurRadius: 12,
+        //         offset: const Offset(0, -2),
+        //       ),
+        //     ],
+        //   ),
+        //   child: Row(
+        //     children: [
+        //       Expanded(
+        //         child: OutlinedButton(
+        //           onPressed: hasChanges ? _handleCancel : null,
+        //           style: OutlinedButton.styleFrom(
+        //             padding: const EdgeInsets.symmetric(vertical: 16),
+        //             side: BorderSide(
+        //               color: hasChanges
+        //                   ? const Color(0xFF11608D)
+        //                   : Colors.grey[300]!,
+        //               width: 1.5,
+        //             ),
+        //             shape: RoundedRectangleBorder(
+        //               borderRadius: BorderRadius.circular(8),
+        //             ),
+        //             backgroundColor: Colors.white,
+        //           ),
+        //           child: Text(
+        //             'Cancel',
+        //             style: GoogleFonts.dmSans(
+        //               fontSize: 16,
+        //               fontWeight: FontWeight.w600,
+        //               color: hasChanges
+        //                   ? const Color(0xFF11608D)
+        //                   : Colors.grey[400],
+        //             ),
+        //           ),
+        //         ),
+        //       ),
+        //       const SizedBox(width: 16),
+        //       Expanded(
+        //         child: ElevatedButton(
+        //           onPressed: hasChanges ? _handleSave : null,
+        //           style: ElevatedButton.styleFrom(
+        //             padding: const EdgeInsets.symmetric(vertical: 16),
+        //             backgroundColor:
+        //                 hasChanges ? const Color(0xFF11608D) : Colors.grey[300],
+        //             disabledBackgroundColor: Colors.grey[300],
+        //             shape: RoundedRectangleBorder(
+        //               borderRadius: BorderRadius.circular(8),
+        //             ),
+        //             elevation: hasChanges ? 2 : 0,
+        //           ),
+        //           child: Text(
+        //             'Save',
+        //             style: GoogleFonts.dmSans(
+        //               fontSize: 16,
+        //               fontWeight: FontWeight.w600,
+        //               color: hasChanges ? Colors.white : Colors.grey[500],
+        //             ),
+        //           ),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: FFButtonWidget(
+                  onPressed: hasChanges ? _handleCancel : null,
+                  text: 'Cancel',
+                  options: FFButtonOptions(
+                    height: 45.0,
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    color: FlutterFlowTheme.of(context).secondaryBackground,
+                    textStyle: FlutterFlowTheme.of(context).titleSmall.override(
+                          fontFamily: 'Manrope',
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    elevation: 0.0,
+                    borderSide: const BorderSide(color: Color(0x38000000)),
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 24.0),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    gradient: hasChanges
+                        ? const LinearGradient(
+                            colors: [
+                              Color(0xFF004E7E),
+                              Color(0xFF3686AF),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          )
+                        : null,
+                    color: hasChanges ? null : Colors.grey,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: FFButtonWidget(
+                    onPressed: hasChanges ? _handleSave : null,
+                    text: 'Save',
+                    options: FFButtonOptions(
+                      height: 45.0,
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      color: Colors.transparent,
+                      textStyle:
+                          FlutterFlowTheme.of(context).titleSmall.override(
+                                fontFamily: 'Manrope',
+                                color: FlutterFlowTheme.of(context)
+                                    .secondaryBackground,
+                                fontWeight: FontWeight.w500,
+                              ),
+                      elevation: 0.0,
+                      borderRadius: BorderRadius.circular(60.0),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

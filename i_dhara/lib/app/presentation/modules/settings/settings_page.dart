@@ -9,7 +9,6 @@ import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/settings_alerts_card.dart';
 import 'package:i_dhara/app/presentation/widgets/settings_fault_card.dart';
-import 'package:i_dhara/app/presentation/widgets/settings_recovery_card.dart';
 
 class SettingsWidget extends StatefulWidget {
   const SettingsWidget({super.key});
@@ -31,7 +30,7 @@ class _SettingsWidgetState extends State<SettingsWidget>
 
     _model.tabBarController = TabController(
       vsync: this,
-      length: 3,
+      length: 2,
       initialIndex: 0,
     )..addListener(() => safeSetState(() {}));
   }
@@ -142,69 +141,81 @@ class _SettingsWidgetState extends State<SettingsWidget>
                             alignment: const Alignment(0, 0),
                             child: SizedBox(
                               height: 36,
-                              child: FlutterFlowButtonTabBar(
-                                useToggleButtonStyle: true,
-                                labelStyle: FlutterFlowTheme.of(context)
-                                    .titleMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.normal,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .titleMedium
-                                            .fontStyle,
-                                      ),
-                                      fontSize: 14,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.normal,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .titleMedium
-                                          .fontStyle,
-                                    ),
-                                unselectedLabelStyle:
-                                    FlutterFlowTheme.of(context)
-                                        .titleMedium
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.normal,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleMedium
-                                                    .fontStyle,
-                                          ),
-                                          fontSize: 14,
-                                          letterSpacing: 0.0,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E5EA),
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: FlutterFlowButtonTabBar(
+                                  useToggleButtonStyle: true,
+                                  labelStyle: FlutterFlowTheme.of(context)
+                                      .titleMedium
+                                      .override(
+                                        font: GoogleFonts.dmSans(
                                           fontWeight: FontWeight.normal,
                                           fontStyle:
                                               FlutterFlowTheme.of(context)
                                                   .titleMedium
                                                   .fontStyle,
                                         ),
-                                labelColor: Colors.black,
-                                unselectedLabelColor: Colors.black,
-                                backgroundColor: Colors.white,
-                                unselectedBackgroundColor:
-                                    const Color(0xFFE5E5EA),
-                                borderWidth: 0,
-                                borderRadius: 4,
-                                elevation: 0,
-                                buttonMargin:
-                                    const EdgeInsetsDirectional.fromSTEB(
-                                        8, 0, 8, 0),
-                                tabs: const [
-                                  Tab(
-                                    text: 'Faults',
-                                  ),
-                                  Tab(
-                                    text: 'Alerts',
-                                  ),
-                                  Tab(
-                                    text: 'Recovery',
-                                  ),
-                                ],
-                                controller: _model.tabBarController,
-                                onTap: (i) async {
-                                  [() async {}, () async {}, () async {}][i]();
-                                },
+                                        fontSize: 14,
+                                        letterSpacing: 0.0,
+                                        fontWeight: FontWeight.normal,
+                                        fontStyle: FlutterFlowTheme.of(context)
+                                            .titleMedium
+                                            .fontStyle,
+                                      ),
+                                  unselectedLabelStyle:
+                                      FlutterFlowTheme.of(context)
+                                          .titleMedium
+                                          .override(
+                                            font: GoogleFonts.dmSans(
+                                              fontWeight: FontWeight.normal,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .titleMedium
+                                                      .fontStyle,
+                                            ),
+                                            fontSize: 14,
+                                            letterSpacing: 0.0,
+                                            fontWeight: FontWeight.normal,
+                                            fontStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .titleMedium
+                                                    .fontStyle,
+                                          ),
+                                  labelColor: Colors.black,
+                                  unselectedLabelColor: Colors.black,
+                                  backgroundColor: Colors.white,
+                                  borderColor: Colors.black,
+                                  unselectedBackgroundColor:
+                                      const Color(0xFFE5E5EA),
+                                  borderWidth: 0,
+                                  borderRadius: 4,
+                                  elevation: 0,
+                                  buttonMargin:
+                                      const EdgeInsetsDirectional.fromSTEB(
+                                          8, 0, 8, 0),
+                                  tabs: const [
+                                    Tab(
+                                      text: 'Voltages',
+                                    ),
+                                    Tab(
+                                      text: 'Currents',
+                                    ),
+                                  ],
+                                  controller: _model.tabBarController,
+                                  onTap: (i) async {
+                                    [
+                                      () async {},
+                                      () async {},
+                                      () async {}
+                                    ][i]();
+                                  },
+                                ),
                               ),
                             ),
                           ),
@@ -212,9 +223,8 @@ class _SettingsWidgetState extends State<SettingsWidget>
                             child: TabBarView(
                               controller: _model.tabBarController,
                               children: const [
-                                SettingsFaultCard(),
+                                VoltageFaultCard(),
                                 SettingsAlertsCard(),
-                                SettingsRecoveryCard(),
                               ],
                             ),
                           ),

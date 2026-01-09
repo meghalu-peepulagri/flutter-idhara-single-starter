@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 
 class AddHpFieldWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -50,27 +51,43 @@ class AddHpFieldWidget extends StatelessWidget {
           onChanged: onChanged,
           decoration: InputDecoration(
             isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            labelStyle: FlutterFlowTheme.of(context).labelMedium.override(
+                  fontFamily: 'Inter',
+                  letterSpacing: 0.0,
+                ),
             hintText: hintText,
+            hintStyle: FlutterFlowTheme.of(context).labelMedium.override(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  letterSpacing: 0,
+                  color: const Color(0xFFC5C5C5),
+                ),
             enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFFB4C1D6)),
-              borderRadius: BorderRadius.circular(9),
+              borderSide: const BorderSide(color: Color(0xFFB4C1D6), width: 1),
+              borderRadius: BorderRadius.circular(9.12),
             ),
             focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFF45A845)),
-              borderRadius: BorderRadius.circular(9),
+              borderSide: const BorderSide(color: Color(0xFF45A845), width: 1),
+              borderRadius: BorderRadius.circular(9.12),
             ),
             errorBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.red),
-              borderRadius: BorderRadius.circular(9),
+              borderSide: BorderSide(
+                  color: FlutterFlowTheme.of(context).error, width: 1),
+              borderRadius: BorderRadius.circular(9.12),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.red),
-              borderRadius: BorderRadius.circular(9),
+              borderSide: BorderSide(
+                  color: FlutterFlowTheme.of(context).error, width: 1),
+              borderRadius: BorderRadius.circular(9.12),
             ),
+            // suffixIcon: suffixIcon,
             filled: true,
-            fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            // errorText: message(),
+            errorStyle: const TextStyle(color: Colors.red),
+            fillColor: FlutterFlowTheme.of(context).secondaryBackground,
+            hoverColor: FlutterFlowTheme.of(context).secondaryBackground,
           ),
         ),
         if (errorText != null) ...[
