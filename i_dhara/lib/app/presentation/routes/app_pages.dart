@@ -10,7 +10,7 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_page.dart';
-import 'package:i_dhara/app/presentation/modules/qr_code/q_r_code_page.dart';
+import 'package:i_dhara/app/presentation/modules/qr_code/qr_code_page.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';

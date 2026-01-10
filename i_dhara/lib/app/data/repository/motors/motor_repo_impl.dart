@@ -6,8 +6,13 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 class MotorsRepositoryImpl implements MotorsRepository {
   @override
-  Future<MotorResponse?> getMotors() async {
-    final response = await NetworkManager().get('/motors');
+  Future<MotorResponse?> getMotors(int? page, int? limit) async {
+    Map<String, dynamic> params = {
+      'page': page,
+      'limit': limit,
+    };
+    final response =
+        await NetworkManager().get('/motors', queryParameters: params);
     if (response.statusCode == 200) {
       final res = MotorResponse.fromJson(response.data);
       return res;

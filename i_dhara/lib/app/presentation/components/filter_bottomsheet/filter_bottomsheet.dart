@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
-import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet_controller.dart';
+import 'package:i_dhara/app/presentation/components/filter_bottomsheet/filter_bottomsheet_controller.dart';
 
 class FiltersBottomsheetWidget extends StatefulWidget {
   const FiltersBottomsheetWidget({super.key});

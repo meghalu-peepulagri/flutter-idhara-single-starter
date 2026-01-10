@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 
-class AddHpFieldWidget extends StatelessWidget {
+class AddHorsePowerFieldWidget extends StatelessWidget {
   final TextEditingController controller;
   final Map<String, dynamic> errors;
   final String errorKey;
   final String hintText;
   final void Function(String)? onChanged;
 
-  const AddHpFieldWidget({
+  const AddHorsePowerFieldWidget({
     super.key,
     required this.controller,
     required this.errors,

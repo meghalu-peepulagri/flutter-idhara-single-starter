@@ -3,9 +3,9 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
-import 'package:i_dhara/app/presentation/widgets/graphs/motor_run_time_graph_card.dart';
-import 'package:i_dhara/app/presentation/widgets/graphs/power_graph_card.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
+import 'package:i_dhara/app/presentation/components/graphs/motor_run_time_graph_card.dart';
+import 'package:i_dhara/app/presentation/components/graphs/power_graph_card.dart';
 import 'package:lottie/lottie.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 

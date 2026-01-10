@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_model.dart';
-import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet.dart';
+import 'package:i_dhara/app/presentation/components/filter_bottomsheet/filter_bottomsheet.dart';
 
 class FiltersBottomsheetModel
     extends FlutterFlowModel<FiltersBottomsheetWidget> {

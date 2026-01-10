@@ -180,7 +180,7 @@ class _VoltageFaultCardState extends State<VoltageFaultCard> {
                 // Header
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -216,7 +216,7 @@ class _VoltageFaultCardState extends State<VoltageFaultCard> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
                 // Low Voltage Setting
                 _buildVoltageRow(

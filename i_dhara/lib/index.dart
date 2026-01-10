@@ -8,4 +8,4 @@ export 'app/presentation/modules/locations/locations_page.dart'
     show LocationsWidget;
 export 'app/presentation/modules/motor_details/motor_details_page.dart'
     show MotorControlWidget;
-export 'app/presentation/modules/qr_code/q_r_code_page.dart' show QRCodeWidget;
+export 'app/presentation/modules/qr_code/qr_code_page.dart' show QRCodeWidget;

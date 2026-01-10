@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
-import 'package:i_dhara/app/core/utils/text_fields/hp_text_field.dart';
+import 'package:i_dhara/app/core/utils/text_fields/horse_power_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
@@ -390,7 +390,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                                 ),
                                 SizedBox(
                                   width: MediaQuery.sizeOf(context).width * 0.2,
-                                  child: AddHpFieldWidget(
+                                  child: AddHorsePowerFieldWidget(
                                     controller: _model.textController3!,
                                     errors: _model.errorInstance,
                                     hintText: 'Enter HP',

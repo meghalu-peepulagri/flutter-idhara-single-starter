@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/core/utils/no_data_svg/no_data_svg.dart';
-import 'package:i_dhara/app/core/utils/no_data_svg/no_internet.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
+import 'package:i_dhara/app/presentation/components/location_card.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/new_location/add_new_location.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:i_dhara/app/presentation/widgets/location_card.dart';
+import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';

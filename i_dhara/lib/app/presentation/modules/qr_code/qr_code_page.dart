@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/presentation/modules/qr_code/qr_code_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/flutter_flow/flutter_flow_util.dart';
-import 'q_r_code_controller.dart';
-
-export 'q_r_code_controller.dart';
 
 class QRCodeWidget extends StatefulWidget {
   const QRCodeWidget({super.key});
