@@ -4,11 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_button_tabbar.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/presentation/components/settings_alerts_card.dart';
+import 'package:i_dhara/app/presentation/components/settings_fault_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:i_dhara/app/presentation/widgets/settings_alerts_card.dart';
-import 'package:i_dhara/app/presentation/widgets/settings_fault_card.dart';
 
 class SettingsWidget extends StatefulWidget {
   const SettingsWidget({super.key});
@@ -223,7 +223,7 @@ class _SettingsWidgetState extends State<SettingsWidget>
                             child: TabBarView(
                               controller: _model.tabBarController,
                               children: const [
-                                VoltageFaultCard(),
+                                SettingsFaultCard(),
                                 SettingsAlertsCard(),
                               ],
                             ),

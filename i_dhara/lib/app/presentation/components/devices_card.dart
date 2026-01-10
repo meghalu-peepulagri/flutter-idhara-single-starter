@@ -38,7 +38,9 @@ class DevicesCard extends StatelessWidget {
             if (device.id != null) {
               await controller.deleteDevice(device.id!);
             }
-            Navigator.pop(context);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
           },
         );
       },
@@ -169,256 +171,252 @@ class DevicesCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.max,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    (() {
-                                      final alias = motor?.aliasName;
-                                      final name = (alias != null &&
-                                              alias.trim().isNotEmpty)
-                                          ? alias
-                                          : (motor?.name ?? 'No Motor');
-
-                                      final displayName = name ?? name;
-
-                                      return displayName.length > 10
-                                          ? '${displayName.substring(0, 10)}...'
-                                          : displayName;
-                                    })(),
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          color: const Color(0xFF13120D),
-                                          fontSize: 16.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const Spacer(),
-                                  GestureDetector(
-                                    onTap: () => _showDeviceOptionsBottomSheet(
-                                        context, motor),
-                                    child: const Icon(
-                                      Icons.more_vert,
-                                      color: Color(0XFF464646),
-                                      size: 20.0,
-                                    ),
-                                  )
-                                ],
-                              ),
-                              Text(
-                                '${motor?.hp ?? 'N/A'} Hp',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      color: const Color(0xFF2E393D),
-                                      fontSize: 12.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                              ),
-                            ].divide(const SizedBox(height: 4.0)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.max,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'PCB',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          color: const Color(0xFF62697D),
-                                          fontSize: 14.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(0.0),
-                                    child: SvgPicture.asset(
-                                      device.power == 1
-                                          ? 'assets/images/power.svg'
-                                          : 'assets/images/Power_red.svg',
-                                      width: 17,
-                                      height: 17,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                '#${device.pcbNumber ?? 'N/A'}',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      color: const Color(0xFF2E393D),
-                                      fontSize: 12.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ].divide(const SizedBox(height: 4.0)),
-                          ),
-                        ),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(0.0),
-                          child: SvgPicture.asset(
-                            (motor?.state == 1)
-                                ? 'assets/images/pump.svg'
-                                : 'assets/images/pump_off.svg',
-                            width: 24,
-                            height: 24,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2F80ED),
-                            borderRadius: BorderRadius.circular(4.0),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                                6.0, 2.0, 6.0, 2.0),
-                            child: Text(
-                              motor?.mode?.substring(0, 1).toUpperCase() ?? 'M',
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    color: Colors.white,
-                                    fontSize: 14.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          motor?.mode ?? 'Manual',
-                          style:
-                              FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    color: Colors.black,
-                                    fontSize: 14.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ].divide(const SizedBox(width: 8.0)),
-                    ),
+                    _buildHeader(context, motor),
+                    _buildPcbAndPowerStatus(context, motor),
+                    _buildMotorMode(context, motor),
                   ].divide(const SizedBox(height: 12.0)),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(6.0, 0.0, 6.0, 0.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(0.0),
-                    child: SvgPicture.asset(
-                      (motor?.location?.name == null ||
-                              motor!.location!.name!.trim().isEmpty)
-                          ? 'assets/images/Add.svg'
-                          : 'assets/images/kdkr.svg',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  Expanded(
-                    child: (() {
-                      final locationName = motor?.location?.name;
-
-                      if (locationName == null || locationName.trim().isEmpty) {
-                        return GestureDetector(
-                          onTap: () =>
-                              _showAddLocationBottomSheet(context, motor),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Add Location',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      color: const Color(0xFF6A7282),
-                                      fontSize: 14.0,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return Text(
-                        locationName,
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              font: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w500,
-                              ),
-                              color: const Color(0xFF5E5E5E),
-                              fontSize: 14.0,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      );
-                    })(),
-                  ),
-                ].divide(const SizedBox(width: 8.0)),
-              ),
-            ),
+            _buildLocationRow(context, motor),
           ].divide(const SizedBox(height: 8.0)),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, Motor? motor) {
+    final displayName = _getMotorDisplayName(motor);
+
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    displayName.length > 10
+                        ? '${displayName.substring(0, 10)}...'
+                        : displayName,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          color: const Color(0xFF13120D),
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showDeviceOptionsBottomSheet(context, motor),
+                    child: const Icon(
+                      Icons.more_vert,
+                      color: Color(0XFF464646),
+                      size: 20.0,
+                    ),
+                  )
+                ],
+              ),
+              Text(
+                '${motor?.hp ?? 'N/A'} Hp',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      font: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      color: const Color(0xFF2E393D),
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+            ].divide(const SizedBox(height: 4.0)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getMotorDisplayName(Motor? motor) {
+    final alias = motor?.aliasName;
+    final name = (alias != null && alias.trim().isNotEmpty)
+        ? alias
+        : (motor?.name ?? 'No Motor');
+    return name;
+  }
+
+  Widget _buildPcbAndPowerStatus(BuildContext context, Motor? motor) {
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'PCB',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          color: const Color(0xFF62697D),
+                          fontSize: 14.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(0.0),
+                    child: SvgPicture.asset(
+                      device.power == 1
+                          ? 'assets/images/power.svg'
+                          : 'assets/images/Power_red.svg',
+                      width: 17,
+                      height: 17,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '#${device.pcbNumber ?? 'N/A'}',
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      font: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      color: const Color(0xFF2E393D),
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.w500,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ].divide(const SizedBox(height: 4.0)),
+          ),
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(0.0),
+          child: SvgPicture.asset(
+           (motor?.state == 1)
+              ? 'assets/images/pump.svg'
+              : 'assets/images/pump_off.svg',
+            width: 24,
+            height: 24,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMotorMode(BuildContext context, Motor? motor) {
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF2F80ED),
+            borderRadius: BorderRadius.circular(4.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(6.0, 2.0, 6.0, 2.0),
+            child: Text(
+              motor?.mode?.substring(0, 1).toUpperCase() ?? 'M',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    color: Colors.white,
+                    fontSize: 14.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ),
+        Text(
+          motor?.mode ?? 'Manual',
+          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                font: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w500,
+                ),
+                color: Colors.black,
+                fontSize: 14.0,
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+      ].divide(const SizedBox(width: 8.0)),
+    );
+  }
+
+  Widget _buildLocationRow(BuildContext context, Motor? motor) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(6.0, 0.0, 6.0, 0.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(0.0),
+            child: SvgPicture.asset(
+              (motor?.location?.name == null ||
+                      motor!.location!.name!.trim().isEmpty)
+                  ? 'assets/images/Add.svg'
+                  : 'assets/images/kdkr.svg',
+              fit: BoxFit.contain,
+            ),
+          ),
+          Expanded(
+            child: _buildLocationNameOrAddButton(context, motor),
+          ),
+        ].divide(const SizedBox(width: 8.0)),
+      ),
+    );
+  }
+
+  Widget _buildLocationNameOrAddButton(BuildContext context, Motor? motor) {
+    final locationName = motor?.location?.name;
+
+    if (locationName == null || locationName.trim().isEmpty) {
+      return GestureDetector(
+        onTap: () => _showAddLocationBottomSheet(context, motor),
+        child: Row(
+          children: [
+            Text(
+              'Add Location',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    color: const Color(0xFF6A7282),
+                    fontSize: 14.0,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Text(
+      locationName,
+      style: FlutterFlowTheme.of(context).bodyMedium.override(
+            font: GoogleFonts.dmSans(
+              fontWeight: FontWeight.w500,
+            ),
+            color: const Color(0xFF5E5E5E),
+            fontSize: 14.0,
+          ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
