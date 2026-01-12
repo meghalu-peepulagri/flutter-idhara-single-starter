@@ -1,0 +1,92 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/presentation/components/settings_slider_card.dart';
+import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
+
+class SettingsCurrentCard extends StatefulWidget {
+  final double initialLowCurrent;
+  final double initialHighCurrent;
+  final String motorName;
+  final String motorHp;
+
+  const SettingsCurrentCard({
+    super.key,
+    this.initialLowCurrent = 180.0,
+    this.initialHighCurrent = 280.0,
+    this.motorName = 'Pump 1',
+    this.motorHp = '3 HP',
+  });
+
+  @override
+  State<SettingsCurrentCard> createState() => SettingsCurrentCardState();
+}
+
+class SettingsCurrentCardState extends State<SettingsCurrentCard> {
+  final SettingsController controller = Get.find<SettingsController>();
+  late double lowCurrentValue;
+  late double highCurrentValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeValues();
+  }
+
+  void _initializeValues() {
+    final lowMin = controller.data?.dvcFltLvfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data?.dvcFltLvfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data?.dvcFltHvfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data?.dvcFltHvfMax?.toDouble() ?? 100.0;
+
+    lowCurrentValue = widget.initialLowCurrent.clamp(lowMin, lowMax);
+    highCurrentValue = widget.initialHighCurrent.clamp(highMin, highMax);
+  }
+
+  void resetValues() {
+    setState(() {
+      _initializeValues();
+    });
+  }
+
+  Map<String, double> getValues() {
+    return {
+      'low': lowCurrentValue,
+      'high': highCurrentValue,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lowMin = controller.data?.dvcFltLvfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data?.dvcFltLvfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data?.dvcFltHvfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data?.dvcFltHvfMax?.toDouble() ?? 100.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 10),
+        SettingsDualSlider(
+          heading: 'Current',
+          initialLowValue: lowCurrentValue,
+          initialHighValue: highCurrentValue,
+          minLimit: lowMin,
+          maxLimit: highMax,
+          lowMinLimit: lowMin,
+          lowMaxLimit: lowMax,
+          highMinLimit: highMin,
+          highMaxLimit: highMax,
+          unit: 'A',
+          lowColor: const Color(0xFFE53935),
+          highColor: const Color(0xFFFF6F00),
+          lowThumbColor: const Color(0xFFE53935),
+          highThumbColor: const Color(0xFFFF6F00),
+          onChanged: (low, high) {
+            lowCurrentValue = low;
+            highCurrentValue = high;
+          },
+        ),
+      ],
+    );
+  }
+}

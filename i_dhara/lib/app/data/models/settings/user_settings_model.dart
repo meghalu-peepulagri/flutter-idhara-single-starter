@@ -14,7 +14,7 @@ class UserSettingsResponse {
   int? status;
   bool? success;
   String? message;
-  Data? data;
+  UserSettings? data;
 
   UserSettingsResponse({
     this.status,
@@ -28,7 +28,7 @@ class UserSettingsResponse {
         status: json["status"],
         success: json["success"],
         message: json["message"],
-        data: json["data"] == null ? null : Data.fromJson(json["data"]),
+        data: json["data"] == null ? null : UserSettings.fromJson(json["data"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -39,7 +39,7 @@ class UserSettingsResponse {
       };
 }
 
-class Data {
+class UserSettings {
   int? id;
   int? dvcFltEn;
   int? dvcFlc;
@@ -115,7 +115,7 @@ class Data {
   DateTime? updatedAt;
   Starter? starter;
 
-  Data({
+  UserSettings({
     this.id,
     this.dvcFltEn,
     this.dvcFlc,
@@ -192,7 +192,7 @@ class Data {
     this.starter,
   });
 
-  factory Data.fromJson(Map<String, dynamic> json) => Data(
+  factory UserSettings.fromJson(Map<String, dynamic> json) => UserSettings(
         id: json["id"],
         dvcFltEn: json["dvc_flt_en"],
         dvcFlc: json["dvc_flc"],
