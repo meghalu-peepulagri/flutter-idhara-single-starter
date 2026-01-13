@@ -263,7 +263,7 @@ class DevicesCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'PCB',
+                    'Starter No ',
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w500,
@@ -308,9 +308,9 @@ class DevicesCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(0.0),
           child: SvgPicture.asset(
-           (motor?.state == 1)
-              ? 'assets/images/pump.svg'
-              : 'assets/images/pump_off.svg',
+            (motor?.state == 1)
+                ? 'assets/images/pump.svg'
+                : 'assets/images/pump_off.svg',
             width: 24,
             height: 24,
             fit: BoxFit.cover,

@@ -997,52 +997,110 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ValueListenableBuilder(
-                        valueListenable: _localModeController,
-                        builder: (context, currentModeIndex, child) {
-                          final uiIndex = currentModeIndex == 1 ? 0 : 1;
-                          final isDisabled =
-                              _isWaitingForModeAck || !canChangeMode;
-                          return ToggleSwitch(
-                            changeOnTap: false,
-                            customWidths: const [90, 90],
-                            radiusStyle: true,
-                            minWidth: 80.0,
-                            minHeight: 30.0,
-                            initialLabelIndex: uiIndex,
-                            cornerRadius: 8.0,
-                            activeBgColors: !isDisabled
-                                ? [
-                                    [const Color(0xFFFFA500)],
-                                    [const Color(0xFF2F80ED)]
-                                  ]
-                                : [
-                                    [const Color(0xFFFFA500).withOpacity(0.3)],
-                                    [const Color(0xFF2F80ED).withOpacity(0.3)],
-                                  ],
-                            activeFgColor:
-                                !isDisabled ? Colors.white : Colors.black,
-                            inactiveBgColor: Colors.white,
-                            inactiveFgColor: Colors.black,
-                            fontSize: 12,
-                            totalSwitches: 2,
-                            labels: const ['Auto', 'Manual'],
-                            borderWidth: 1,
-                            borderColor: [Colors.grey.shade300],
-                            onToggle: !isDisabled
-                                ? (index) {
-                                    if (index == null) return;
+                      Row(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          Builder(
+                            builder: (context) {
+                              final mode =
+                                  widget.motor?.mode?.toLowerCase() ?? 'manual';
+                              final isAuto = mode == 'auto';
 
-                                    final newMode = index == 0 ? 1 : 0;
-
-                                    if (newMode != currentModeIndex) {
-                                      _showModeCommandDialog(newMode);
-                                    } else {}
-                                  }
-                                : null,
-                          );
-                        },
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: isAuto
+                                      ? const Color(
+                                          0xFFFFA500) // 🟠 Auto = Orange
+                                      : const Color(
+                                          0xFF2F80ED), // 🔵 Manual = Blue
+                                  borderRadius: BorderRadius.circular(4.0),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
+                                    6.0,
+                                    2.0,
+                                    6.0,
+                                    2.0,
+                                  ),
+                                  child: Text(
+                                    mode.substring(0, 1).toUpperCase(),
+                                    style: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .override(
+                                          font: GoogleFonts.dmSans(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          color: Colors.white,
+                                          fontSize: 14.0,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          Text(
+                            widget.motor?.mode ?? 'Manual',
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  color: Colors.black,
+                                  fontSize: 14.0,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ].divide(const SizedBox(width: 8.0)),
                       ),
+
+                      // ValueListenableBuilder(
+                      //   valueListenable: _localModeController,
+                      //   builder: (context, currentModeIndex, child) {
+                      //     final uiIndex = currentModeIndex == 1 ? 0 : 1;
+                      //     final isDisabled =
+                      //         _isWaitingForModeAck || !canChangeMode;
+                      //     return ToggleSwitch(
+                      //       changeOnTap: false,
+                      //       customWidths: const [90, 90],
+                      //       radiusStyle: true,
+                      //       minWidth: 80.0,
+                      //       minHeight: 30.0,
+                      //       initialLabelIndex: uiIndex,
+                      //       cornerRadius: 8.0,
+                      //       activeBgColors: !isDisabled
+                      //           ? [
+                      //               [const Color(0xFFFFA500)],
+                      //               [const Color(0xFF2F80ED)]
+                      //             ]
+                      //           : [
+                      //               [const Color(0xFFFFA500).withOpacity(0.3)],
+                      //               [const Color(0xFF2F80ED).withOpacity(0.3)],
+                      //             ],
+                      //       activeFgColor:
+                      //           !isDisabled ? Colors.white : Colors.black,
+                      //       inactiveBgColor: Colors.white,
+                      //       inactiveFgColor: Colors.black,
+                      //       fontSize: 12,
+                      //       totalSwitches: 2,
+                      //       labels: const ['Auto', 'Manual'],
+                      //       borderWidth: 1,
+                      //       borderColor: [Colors.grey.shade300],
+                      //       onToggle: !isDisabled
+                      //           ? (index) {
+                      //               if (index == null) return;
+
+                      //               final newMode = index == 0 ? 1 : 0;
+
+                      //               if (newMode != currentModeIndex) {
+                      //                 _showModeCommandDialog(newMode);
+                      //               } else {}
+                      //             }
+                      //           : null,
+                      //     );
+                      //   },
+                      // ),
                       ValueListenableBuilder(
                         valueListenable: _localModeController,
                         builder: (context, modeIndex, _) {
