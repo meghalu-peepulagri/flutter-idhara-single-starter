@@ -20,8 +20,7 @@ class LocationsController extends GetxController {
   var limit = 10.obs;
   var searchQuery = ''.obs;
 
-  Map<String, dynamic> errorInstance =
-      {}; // Changed to dynamic to match LocationpopupModel
+  dynamic errorInstance = {};
   String? message = '';
   final connectivity = Connectivity();
   var hasInternet = true.obs;
@@ -46,9 +45,13 @@ class LocationsController extends GetxController {
 
   void _initConnectivity() async {
     final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
+    if (connectivityResult.isNotEmpty) {
+      _updateConnectionStatus(connectivityResult.first);
+    }
     connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
+      if (results.isNotEmpty) {
+        _updateConnectionStatus(results.first);
+      }
     });
   }
 
@@ -78,7 +81,7 @@ class LocationsController extends GetxController {
         locationscount.value = response.data!.locationsCount ?? 0;
       }
     } catch (e) {
-      print('Error fetching locations: $e');
+      debugPrint('Error fetching locations: $e');
     } finally {
       isLoading.value = false;
       isRefreshing.value = false;
@@ -92,8 +95,8 @@ class LocationsController extends GetxController {
       await fetchLocations();
       Get.back();
       getsuccessSnackBar(response.message ?? 'Location renamed successfully');
-    } else if (response!.errors != null) {
-      errorInstance = response.errors!.toJson();
+    } else if (response?.errors != null) {
+      errorInstance = response!.errors!.toJson();
     }
   }
 
@@ -102,8 +105,6 @@ class LocationsController extends GetxController {
     if (response != null && response.errors == null) {
       await fetchLocations();
       getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
-
-      print("line 26 -----------> ${response.message}");
       return true;
     } else if (response?.errors != null) {
       errorInstance = response!.errors!.toJson();

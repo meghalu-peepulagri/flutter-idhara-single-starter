@@ -30,49 +30,34 @@ class LoginwithmobileWidget extends StatefulWidget {
 
 class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
   late LoginwithmobileModel _model;
-  bool showVerifyButton = false;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  TextEditingController controller1 = TextEditingController();
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  TextEditingController phoneController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginwithmobileModel());
 
-    _model.textController ??= TextEditingController();
-    _model.textFieldFocusNode ??= FocusNode();
-
     _loadSavedPhoneNumber();
 
-    controller1.addListener(() {
-      if (_model.errorInstance != null && controller1.text.isNotEmpty) {
+    phoneController.addListener(() {
+      if (_model.errorInstance != null && phoneController.text.isNotEmpty) {
         setState(() {
           _model.errorInstance = null; // Clear error when user starts typing
         });
       }
-    });
-
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      bool isConnected = results.any((result) =>
-          result == ConnectivityResult.wifi ||
-          result == ConnectivityResult.mobile ||
-          result == ConnectivityResult.ethernet);
-      if (!isConnected) {
-        errorSnackBar(context, 'No Internet Please Check Your Connectivity');
-      } else {}
     });
   }
 
   Future<void> _loadSavedPhoneNumber() async {
     String? phoneNumber = SharedPreference.getPhone();
     if (phoneNumber.isNotEmpty) {
-      setState(() {
-        controller1.text = phoneNumber;
-      });
+      if (mounted) {
+        setState(() {
+          phoneController.text = phoneNumber;
+        });
+      }
     }
   }
 
@@ -85,9 +70,9 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
       final result = await InternetAddress.lookup('google.com')
           .timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (e) {
+    } on SocketException catch (_) {
       return false;
-    } on TimeoutException catch (e) {
+    } on TimeoutException catch (_) {
       return false;
     }
   }
@@ -95,14 +80,14 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
   @override
   void dispose() {
     _model.dispose();
-
+    phoneController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
@@ -241,12 +226,11 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                                   0.25,
                                           child: TextFieldComponent(
                                             readOnly: false,
-                                            controller: controller1,
+                                            controller: phoneController,
                                             errors: _model.errorInstance,
                                             hintText:
                                                 'Enter Your Mobile Number',
                                             errorKey: 'phone',
-                                            // maxlength: 10,
                                             keyboardType: TextInputType.phone,
                                             inputFormatters: [
                                               FilteringTextInputFormatter
@@ -280,39 +264,34 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                 onPressed: () async {
                                   String id = '';
                                   if (!kIsWeb) {
-                                    await SmsAutoFill().unregisterListener();
-                                    id = await SmsAutoFill().getAppSignature;
                                     bool isConnected =
                                         await _checkConnectivity();
                                     if (!isConnected) {
-                                      errorSnackBar(context,
-                                          'No internet connection. Please check your network.');
+                                      if (mounted) {
+                                        errorSnackBar(context,
+                                            'No internet connection. Please check your network.');
+                                      }
                                       return;
                                     }
+                                    await SmsAutoFill().unregisterListener();
+                                    id = await SmsAutoFill().getAppSignature;
                                   }
 
-                                  // bool isConnected = await _checkConnectivity();
-                                  // if (!isConnected) {
-                                  //   errorSnackBar(context, 'No internet connection. Please check your network.');
-                                  //   return;
-                                  // }
                                   await _model.fetchMobile(
-                                      sid: id, phone: controller1.text.trim());
-                                  setState(() {
-                                    showVerifyButton =
-                                        _model.message == "User not verified";
-                                  });
+                                      sid: id,
+                                      phone: phoneController.text.trim());
+
+                                  if (!mounted) return;
+
                                   if (_model.error &&
                                       _model.message.isNotEmpty &&
                                       !_model.isValidation) {
                                     errorSnackBar(context, _model.message);
-                                  } else if (!_model.error &&
-                                      _model.message.isNotEmpty) {
-                                    Get.offNamed(Routes.otp);
-
-                                    // successSnackBar(context, _model.message);
-                                    SharedPreference.setPhone(controller1.text);
                                   }
+
+                                  // Navigating to OTP is handled in controller,
+                                  // but we should trigger UI update if error
+                                  setState(() {});
                                 },
                                 text: 'Generate OTP',
                                 options: FFButtonOptions(
@@ -414,10 +393,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                       ),
                     ].divide(const SizedBox(height: 24.0)),
                   ),
-                ]
-                    // .divide(const SizedBox(height: 24.0))
-                    // .addToStart(const SizedBox(height: 56.0)),
-                    ),
+                ]),
               ),
             ),
           ),

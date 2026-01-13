@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/description_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/auth/register/register_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:sms_autofill/sms_autofill.dart';
@@ -22,16 +20,15 @@ class RegisterWidget extends StatefulWidget {
 }
 
 class _RegisterWidgetState extends State<RegisterWidget> {
-  // late RegisterModel _model;
   RegisterModel _model = RegisterModel();
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  TextEditingController controller1 = TextEditingController();
-  TextEditingController controller2 = TextEditingController();
-  TextEditingController controller3 = TextEditingController();
-  TextEditingController controller4 = TextEditingController();
+  TextEditingController nameController = TextEditingController();
+  TextEditingController emailController = TextEditingController();
+  TextEditingController phoneController = TextEditingController();
+  TextEditingController addressController = TextEditingController();
 
   @override
   void initState() {
@@ -39,45 +36,12 @@ class _RegisterWidgetState extends State<RegisterWidget> {
     _model = createModel(context, () => RegisterModel());
   }
 
-  // bool validateForm() {
-  //   bool isValid = true;
-  //   Map<String, String> errors = {};
-
-  //   if (controller1.text.isEmpty) {
-  //     errors['full_name'] = 'Full name is required';
-  //     isValid = false;
-  //   } else {
-  //     errors['full_name'] = '';
-  //   }
-
-  //   if (controller2.text.isEmpty) {
-  //     errors['email'] = 'Email is required';
-  //     isValid = false;
-  //   } else {
-  //     errors['email'] = '';
-  //   }
-
-  //   if (controller3.text.isEmpty) {
-  //     errors['phone'] = 'Phone is required';
-  //     isValid = false;
-  //   } else {
-  //     errors['phone'] = '';
-  //   }
-  //   setState(() {
-  //     _model.errorInstance = errors;
-  //     _model.errorInstance1 = errors;
-  //     _model.errorInstance2 = errors;
-  //   });
-
-  //   return isValid;
-  // }
-
   @override
   void dispose() {
-    controller1.dispose();
-    controller2.dispose();
-    controller3.dispose();
-    controller4.dispose();
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
     _model.dispose();
     super.dispose();
   }
@@ -90,7 +54,6 @@ class _RegisterWidgetState extends State<RegisterWidget> {
         FocusManager.instance.primaryFocus?.unfocus();
       },
       child: Scaffold(
-        // resizeToAvoidBottomInset: true,
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
         body: LayoutBuilder(builder: (context, constraints) {
@@ -208,11 +171,10 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           TextFieldComponent(
                                             readOnly: false,
-                                            controller: controller1,
+                                            controller: nameController,
                                             errors: _model.errorInstance,
                                             hintText: 'Enter Full Name',
                                             errorKey: 'full_name',
-                                            // maxlength: 10,
                                             keyboardType: TextInputType.name,
                                             onChanged: (value) {
                                               if (_model.errorInstance
@@ -230,7 +192,6 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                   RegExp(r'^\s')),
                                             ],
                                           ),
-
                                           const SizedBox(
                                             height: 10,
                                           ),
@@ -263,7 +224,7 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           TextFieldComponent(
                                             readOnly: false,
-                                            controller: controller3,
+                                            controller: phoneController,
                                             errors: _model.errorInstance,
                                             hintText: 'Enter Mobile Number',
                                             errorKey: 'phone',
@@ -276,7 +237,6 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                 });
                                               }
                                             },
-                                            // maxlength: 10,
                                             keyboardType: TextInputType.phone,
                                             inputFormatters: [
                                               FilteringTextInputFormatter
@@ -317,11 +277,10 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           TextFieldComponent(
                                             readOnly: false,
-                                            controller: controller2,
+                                            controller: emailController,
                                             errors: _model.errorInstance,
                                             hintText: 'Enter Email',
                                             errorKey: '',
-                                            // maxlength: 10,
                                             onChanged: (value) {
                                               if (_model.errorInstance
                                                   .containsKey('email')) {
@@ -357,13 +316,13 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           DescriptionTextField(
                                             readOnly: false,
-                                            controller: controller4,
-                                            // errors: _model.errorInstance,
+                                            controller: addressController,
+                                            errors: _model.errorInstance,
                                             hintText: 'Enter Address',
                                             errorKey: 'location',
                                             keyboardType: TextInputType.text,
+                                            ontap: () {},
                                           ),
-                                          // ),
                                           const SizedBox(height: 30),
                                           Container(
                                             width: double.infinity,
@@ -384,36 +343,23 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                               onPressed: () async {
                                                 String id = await SmsAutoFill()
                                                     .getAppSignature;
+
                                                 await _model.fetchregister(
-                                                    fullName:
-                                                        controller1.text.trim(),
-                                                    email: controller2.text
+                                                    fullName: nameController
+                                                        .text
+                                                        .trim(),
+                                                    email: emailController.text
                                                             .trim()
                                                             .isEmpty
                                                         ? null
-                                                        : controller2.text
+                                                        : emailController.text
                                                             .trim(),
-                                                    phone:
-                                                        controller3.text.trim(),
+                                                    phone: phoneController.text
+                                                        .trim(),
                                                     sid: id);
+
+                                                if (!mounted) return;
                                                 setState(() {});
-                                                if (_model.error &&
-                                                    _model.message.isNotEmpty) {
-                                                  errorSnackBar(
-                                                      context, _model.message);
-                                                } else if (!_model.error &&
-                                                    _model.message.isNotEmpty) {
-                                                  Get.toNamed(Routes.otp);
-                                                  print(
-                                                      "line 26 -----------> ${Get.toNamed(Routes.otp)}");
-                                                  // await _otpModel.fetchOtp(
-                                                  //     phone: controller3.text.trim(),
-                                                  //     otp: '');
-                                                  // successSnackBar(
-                                                  //     context, _model.message);
-                                                  SharedPreference.setPhone(
-                                                      controller3.text);
-                                                }
                                               },
                                               text: 'Register',
                                               options: FFButtonOptions(
@@ -520,16 +466,6 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                           ),
                         ].divide(const SizedBox(height: 20)),
                       ),
-                      // Align(
-                      //   alignment: Alignment.bottomCenter,
-                      //   child: ClipRRect(
-                      //     borderRadius: BorderRadius.circular(8),
-                      //     child: SvgPicture.asset(
-                      //       'assets/images/Login_vector.svg',
-                      //       fit: BoxFit.cover,
-                      //     ),
-                      //   ),
-                      // ),
                     ],
                   ),
                 ),

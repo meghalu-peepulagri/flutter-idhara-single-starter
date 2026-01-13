@@ -5,42 +5,33 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../../core/flutter_flow/form_field_controller.dart';
 
 class LoginwithmobileModel extends FlutterFlowModel {
   ///  State fields for stateful widgets in this page.
 
-  // State field(s) for DropDown widget.
-  String? dropDownValue;
-  FormFieldController<String>? dropDownValueController;
-  // State field(s) for TextField widget.
-  FocusNode? textFieldFocusNode;
-  TextEditingController? textController;
-  String? Function(BuildContext, String?)? textControllerValidator;
-
   @override
   void initState(BuildContext context) {}
+
+  // Use Rx for reactive state if converting to full GetX later,
+  // currently keeping as simple fields to match existing pattern but cleaned up.
   bool error = false;
   bool isValidation = false;
   dynamic errorInstance;
   String message = '';
 
   @override
-  void dispose() {
-    textFieldFocusNode?.dispose();
-    textController?.dispose();
-  }
+  void dispose() {}
 
-  Future<void> fetchMobile({required String phone,required String sid}) async {
+  Future<void> fetchMobile({required String phone, required String sid}) async {
     final response = await AuthRepositoryImpl().login(phone, sid);
-    print("line 268 -----------> ${response}");
 
     if (response != null && response.errors == null) {
+      // Navigate and save phone
       Get.offNamed(Routes.otp);
-      print("line 260 -----------> ${response.data?.accessToken}");
       SharedPreference.setPhone(phone);
     } else if (response?.errors != null) {
       errorInstance = response?.errors!.toJson();
+      error = true;
     }
   }
 }

@@ -18,10 +18,8 @@ class OtpWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () {
-        return Future.value(false);
-      },
+    return PopScope(
+      canPop: false,
       child: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
@@ -353,39 +351,6 @@ class OtpWidget extends StatelessWidget {
                                 ].divide(const SizedBox(height: 20.0)),
                               ),
                             ),
-                            // FFButtonWidget(
-                            //   onPressed: () {
-                            //     controller.verifying(context);
-                            //   },
-                            //   text: 'Verify',
-                            //   options: FFButtonOptions(
-                            //     width: double.infinity,
-                            //     height: 40.0,
-                            //     padding: const EdgeInsetsDirectional.fromSTEB(
-                            //         16.0, 0.0, 16.0, 0.0),
-                            //     iconPadding: const EdgeInsetsDirectional.fromSTEB(
-                            //         0.0, 0.0, 0.0, 0.0),
-                            //     color: const Color(0xFF3686AF),
-                            //     textStyle: FlutterFlowTheme.of(context)
-                            //         .titleSmall
-                            //         .override(
-                            //           font: GoogleFonts.dmSans(
-                            //             fontWeight: FontWeight.normal,
-                            //             fontStyle: FlutterFlowTheme.of(context)
-                            //                 .titleSmall
-                            //                 .fontStyle,
-                            //           ),
-                            //           color: Colors.white,
-                            //           letterSpacing: 0.0,
-                            //           fontWeight: FontWeight.normal,
-                            //           fontStyle: FlutterFlowTheme.of(context)
-                            //               .titleSmall
-                            //               .fontStyle,
-                            //         ),
-                            //     elevation: 0.0,
-                            //     borderRadius: BorderRadius.circular(8.0),
-                            //   ),
-                            // ),
                             Obx(
                               () => Container(
                                 width: double.infinity,
@@ -458,10 +423,7 @@ class OtpWidget extends StatelessWidget {
                       ),
                     ].divide(const SizedBox(height: 24.0)),
                   ),
-                ]
-                    // .divide(const SizedBox(height: 8.0))
-                    // .addToStart(const SizedBox(height: 56.0)),
-                    ),
+                ]),
               ),
             ),
           ),

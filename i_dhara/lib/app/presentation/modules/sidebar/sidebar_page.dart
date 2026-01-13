@@ -155,26 +155,6 @@ class SidebarWidget extends StatelessWidget {
                             },
                             // count: SharedPreference.getPondstats(),
                             context: context)),
-                    _buildMenuItem(
-                        route: Routes.devices,
-                        label: 'Devices',
-                        icon: SvgPicture.asset(
-                          'assets/images/Device Icon.svg',
-                          height: 22,
-                          width: 22,
-                          fit: BoxFit.cover,
-                          color:
-                              _controller.selectedRoute.value == Routes.devices
-                                  ? Colors.white
-                                  : null,
-                        ),
-                        onTap: () {
-                          // SharedPreference.setRouting('/starters');
-                          // SharedPreference.setlocationdropdownid(0);
-                          Get.offNamed(Routes.devices);
-                        },
-                        // count: SharedPreference.getstarterStats(),
-                        context: context),
                     Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
                       child: _buildMenuItem(
@@ -199,6 +179,26 @@ class SidebarWidget extends StatelessWidget {
                           // count: SharedPreference.getlocationstats(),
                           context: context),
                     ),
+                    _buildMenuItem(
+                        route: Routes.devices,
+                        label: 'Devices',
+                        icon: SvgPicture.asset(
+                          'assets/images/Device Icon.svg',
+                          height: 22,
+                          width: 22,
+                          fit: BoxFit.cover,
+                          color:
+                              _controller.selectedRoute.value == Routes.devices
+                                  ? Colors.white
+                                  : null,
+                        ),
+                        onTap: () {
+                          // SharedPreference.setRouting('/starters');
+                          // SharedPreference.setlocationdropdownid(0);
+                          Get.offNamed(Routes.devices);
+                        },
+                        // count: SharedPreference.getstarterStats(),
+                        context: context),
                     _buildMenuItem(
                         route: Routes.userprofile,
                         label: 'Profile',

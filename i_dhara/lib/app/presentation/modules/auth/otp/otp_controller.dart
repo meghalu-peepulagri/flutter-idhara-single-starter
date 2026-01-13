@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository_impl.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:sms_autofill/sms_autofill.dart';
@@ -20,25 +17,12 @@ class OtpController extends GetxController with CodeAutoFill {
   final isLoading = false.obs;
   final maskedPhoneNumber = ''.obs;
   final error = false.obs;
-  final isValidation = false.obs;
-  final message = ''.obs;
-  final user = ''.obs;
   final errorInstance = ''.obs;
-  final clientId = Rxn<String>();
   final codeValue = ''.obs;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void onInit() {
     super.onInit();
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      bool isConnected = results.any((result) =>
-          result == ConnectivityResult.wifi ||
-          result == ConnectivityResult.mobile ||
-          result == ConnectivityResult.ethernet);
-    });
     _startTimer();
     String phone = SharedPreference.getPhone();
     if (phone.length >= 4) {
@@ -49,7 +33,6 @@ class OtpController extends GetxController with CodeAutoFill {
     }
     SmsAutoFill().unregisterListener();
     _listenSmsCode();
-    // pinCodeController.addListener(verifying2);
   }
 
   void _startTimer() {
@@ -65,54 +48,6 @@ class OtpController extends GetxController with CodeAutoFill {
     });
   }
 
-  Future<bool> _checkConnectivity() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      return false;
-    }
-    try {
-      final result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    } on TimeoutException catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> verifying2(BuildContext context) async {
-    if (pinCodeController.text.trim().length == 4) {
-      isLoading.value = true;
-      await verifying(context);
-      isLoading.value = false;
-      if (message.value.isNotEmpty && error.value) {
-        errorSnackBar(Get.context!, message.value);
-      }
-    }
-  }
-
-  // Future<void> verifying(BuildContext context) async {
-  //   try {
-  //     isLoading.value = true;
-  //     errorInstance.value = '';
-  //     FocusScope.of(context).unfocus();
-  //     await fetchOtp(
-  //         phone: SharedPreference.getPhone(),
-  //         otp: pinCodeController.text.trim());
-  //     isLoading.value = false;
-  //     if (!error.value && message.value.isNotEmpty) {
-  //       Get.toNamed(Routes.dashboard);
-  //       // ToastService.showsuccessToast(message.value);
-  //       await SmsAutoFill().unregisterListener();
-  //       pinCodeController.text = '';
-  //     } else if (error.value &&
-  //         message.value.isNotEmpty &&
-  //         errorInstance.value.isEmpty) {
-  //       geterrorSnackBar(message.value);
-  //     }
-  //   } catch (e) {}
-  // }
   Future<void> verifying(BuildContext context) async {
     try {
       isLoading.value = true;
@@ -122,8 +57,11 @@ class OtpController extends GetxController with CodeAutoFill {
       await fetchOtp(
           phone: SharedPreference.getPhone(),
           otp: pinCodeController.text.trim());
+    } catch (e) {
+      debugPrint('Error during verification: $e');
+    } finally {
       isLoading.value = false;
-    } catch (e) {}
+    }
   }
 
   Future<void> fetchOtp({String phone = '', required String otp}) async {
@@ -137,7 +75,6 @@ class OtpController extends GetxController with CodeAutoFill {
       final userId = response!.data!.userDetails!.id;
       SharedPreference.setUserId(userId!);
       await SmsAutoFill().unregisterListener();
-      // ToastService.showsuccessToast(response?.message?.toString() ?? "");
       pinCodeController.text = '';
     } else {
       error.value = true;
@@ -150,6 +87,7 @@ class OtpController extends GetxController with CodeAutoFill {
     final response = await AuthRepositoryImpl().resendOtp(phone, sid);
 
     if (response != null && response.errors == null) {
+      // Success case for resend OTP
     } else if (response?.errors != null) {
       errorInstance.value = response!.errors!.toJson().toString();
     }
@@ -173,11 +111,9 @@ class OtpController extends GetxController with CodeAutoFill {
 
   @override
   void onClose() {
-    // pinCodeController.removeListener(verifying2);
     pinCodeController.dispose();
     SmsAutoFill().unregisterListener();
     timer.value?.cancel();
-    _connectivitySubscription?.cancel();
     super.onClose();
   }
 }

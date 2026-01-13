@@ -20,12 +20,8 @@ class RegisterModel extends FlutterFlowModel {
 
   @override
   void initState(BuildContext context) {}
-  bool error = false;
-  bool isValidation = false;
+
   dynamic errorInstance;
-  dynamic errorInstance1;
-  dynamic errorInstance2;
-  String message = '';
 
   @override
   void dispose() {
