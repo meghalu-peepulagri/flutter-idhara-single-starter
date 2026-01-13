@@ -67,7 +67,10 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
-          heading: 'Current',
+          heading: 'Current Faults',
+          leadingSvg: 'assets/images/Current.svg',
+          // leadingSvgBgColor: const Color(0xFFFFF3E0),
+          // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowCurrentValue,
           initialHighValue: highCurrentValue,
           minLimit: lowMin,

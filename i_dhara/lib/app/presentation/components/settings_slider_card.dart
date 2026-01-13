@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SettingsDualSlider extends StatefulWidget {
@@ -16,6 +17,9 @@ class SettingsDualSlider extends StatefulWidget {
   final Color highColor;
   final Color lowThumbColor;
   final Color highThumbColor;
+  final String? leadingSvg;
+  final Color? leadingSvgBgColor;
+  final Color? leadingSvgColor;
   final Function(double low, double high) onChanged;
 
   const SettingsDualSlider({
@@ -35,6 +39,9 @@ class SettingsDualSlider extends StatefulWidget {
     required this.lowThumbColor,
     required this.highThumbColor,
     required this.onChanged,
+    this.leadingSvg,
+    this.leadingSvgBgColor,
+    this.leadingSvgColor,
   });
 
   @override
@@ -102,13 +109,37 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              widget.heading,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF004E7E),
-              ),
+            child: Row(
+              children: [
+                if (widget.leadingSvg != null)
+                  Container(
+                    // padding: const EdgeInsets.all(8),
+                    // decoration: BoxDecoration(
+                    //   color: widget.leadingSvgBgColor ?? Colors.grey.shade200,
+                    //   borderRadius: BorderRadius.circular(8),
+                    // ),
+                    child: SvgPicture.asset(
+                      widget.leadingSvg!,
+                      width: 24,
+                      height: 24,
+                      colorFilter: widget.leadingSvgColor != null
+                          ? ColorFilter.mode(
+                              widget.leadingSvgColor!,
+                              BlendMode.srcIn,
+                            )
+                          : null,
+                    ),
+                  ),
+                if (widget.leadingSvg != null) const SizedBox(width: 8),
+                Text(
+                  widget.heading,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF004E7E),
+                  ),
+                ),
+              ],
             ),
           ),
           // Labels
@@ -125,10 +156,13 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.arrow_downward,
-                      color: widget.lowColor,
-                      size: 18,
+                    Text(
+                      'Low : ',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: widget.lowColor,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -154,18 +188,21 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                 child: Row(
                   children: [
                     Text(
+                      'High : ',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: widget.lowColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
                       '${highValue.toInt()}${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: widget.highColor,
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.arrow_upward,
-                      color: widget.highColor,
-                      size: 18,
                     ),
                   ],
                 ),
@@ -201,7 +238,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     max: displayMax,
                     color: widget.lowThumbColor,
                     isActive: activeThumb == 'low',
-                    icon: Icons.arrow_downward,
+                    label: "L",
                     onDragStart: () => setState(() => activeThumb = 'low'),
                     onDragUpdate: (delta) {
                       setState(() {
@@ -230,7 +267,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     max: displayMax,
                     color: widget.highThumbColor,
                     isActive: activeThumb == 'high',
-                    icon: Icons.arrow_upward,
+                    label: "H",
                     onDragStart: () => setState(() => activeThumb = 'high'),
                     onDragUpdate: (delta) {
                       setState(() {
@@ -293,7 +330,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
     required double max,
     required Color color,
     required bool isActive,
-    required IconData icon,
+    required String label,
     required VoidCallback onDragStart,
     required Function(double deltaPct) onDragUpdate,
     required VoidCallback onDragEnd,
@@ -332,10 +369,13 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
             ],
           ),
           child: Center(
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 16,
+            child: Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
         ),

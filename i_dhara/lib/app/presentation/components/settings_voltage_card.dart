@@ -67,15 +67,18 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
-          heading: 'Voltage',
+          heading: 'Voltage Faults',
+          leadingSvg: 'assets/images/Voltage.svg',
+          leadingSvgBgColor: const Color(0xFFFFF3E0),
+          // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowVoltageValue,
           initialHighValue: highVoltageValue,
-          minLimit: lowMin, // Default min (when no thumb is active)
-          maxLimit: highMax, // Default max (when no thumb is active)
-          lowMinLimit: lowMin, // Min for low voltage thumb
-          lowMaxLimit: lowMax, // Max for low voltage thumb
-          highMinLimit: highMin, // Min for high voltage thumb
-          highMaxLimit: highMax, // Max for high voltage thumb
+          minLimit: lowMin,
+          maxLimit: highMax,
+          lowMinLimit: lowMin,
+          lowMaxLimit: lowMax,
+          highMinLimit: highMin,
+          highMaxLimit: highMax,
           unit: 'V',
           lowColor: const Color(0xFFE53935),
           highColor: const Color(0xFFFF6F00),
