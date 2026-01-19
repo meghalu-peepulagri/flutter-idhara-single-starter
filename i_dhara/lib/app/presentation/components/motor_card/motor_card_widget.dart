@@ -403,7 +403,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   modeController: _localModeController,
                   onToggleSwitch: _handleToggle,
                   onModeChange: (_) {
-                    /* Mode change from UI usually handled by tap, but logic is here if needed */
+                    //  logic
                   },
                   isSwitchDisabled: _isWaitingForSwitchAck ||
                       !(canControl && _localModeController.value == 0),

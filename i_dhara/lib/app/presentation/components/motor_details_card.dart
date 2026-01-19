@@ -39,22 +39,34 @@ class MotorDetailsCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildMotorName(context),
-                      const SizedBox(height: 2),
-                      _buildTimeStamp(context),
+                      const SizedBox(height: 6),
+                      _buildMotorState(context)
                     ],
                   ),
                 ),
                 Column(
+                  mainAxisSize: MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _buildMotorHP(context),
-                    const SizedBox(height: 6),
-                    _buildMotorState(context),
+                    const SizedBox(
+                      height: 4,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildMotorHP(context),
+                        const SizedBox(
+                            width: 12), // spacing between state & mode
+                        _buildMotorMode(context),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTimeStamp(context),
                   ],
                 ),
               ],
             ),
-            _buildFaultBanner(context),
+            // _buildFaultBanner(context),
           ].divide(const SizedBox(height: 12.0)),
         ),
       ),
@@ -188,6 +200,54 @@ class MotorDetailsCard extends StatelessWidget {
                       ),
                 ),
               ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildMotorMode(BuildContext context) {
+    return Obx(() {
+      final mode = controller.motorMode.value;
+      final isAuto = mode == 'A' || mode.toLowerCase().contains('auto');
+
+      String modeText = 'Manual';
+      Color modeColor = const Color(0xFFFFEDD4);
+
+      if (isAuto) {
+        modeText = 'Auto';
+        modeColor = const Color(0xFFFFEDD4);
+      }
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Mode: ',
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(),
+                  color: const Color(0xFF000000),
+                  fontSize: 14.0,
+                  letterSpacing: 0.0,
+                ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: modeColor,
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+            child: Text(
+              modeText,
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w400,
+                    ),
+                    color: const Color(0XFFCA3500),
+                    fontSize: 14.0,
+                    letterSpacing: 0.0,
+                  ),
             ),
           ),
         ],

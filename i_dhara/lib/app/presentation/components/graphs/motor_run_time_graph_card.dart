@@ -184,7 +184,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Motor & Power Runtime',
+                            'Motor & Power Availability',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(

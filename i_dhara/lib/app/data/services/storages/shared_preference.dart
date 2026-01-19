@@ -13,6 +13,7 @@ class SharedPreference {
   static String motorid = 'motorid';
   static String starterid = 'starterid';
   static String locationName = 'locationName';
+  static String devicesettings = 'devicesettings';
 
   static Future<SharedPreferences> init() async {
     preferences = await SharedPreferences.getInstance();
@@ -67,6 +68,13 @@ class SharedPreference {
 
   ///Method that returns the [motorid].
   static int getMotorId() => preferences.getInt(motorid) ?? 0;
+
+  ///Method that saves the [devicesettings].
+  static Future<bool> setdeviceSettings(int value) async =>
+      preferences.setInt(devicesettings, value);
+
+  ///Method that returns the [devicesettings].
+  static int getdeviceSettings() => preferences.getInt(devicesettings) ?? 0;
 
   ///Method that saves the [deviceId].
   static Future<bool> setStarterId(int value) async =>

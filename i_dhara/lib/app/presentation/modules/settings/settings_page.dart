@@ -112,7 +112,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             InkWell(
                               onTap: () {
                                 Get.offAllNamed(
-                                  Routes.dashboard,
+                                  Routes.devices,
                                   arguments: {'refresh': true},
                                 );
                               },
