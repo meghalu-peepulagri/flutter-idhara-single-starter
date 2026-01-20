@@ -6,8 +6,14 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
 
 class MotorCardDialogs {
-  static void showSwitchCommandDialog(BuildContext context, Motor motor,
-      bool newValue, Function(bool) onConfirm) {
+  static void showSwitchCommandDialog(
+    BuildContext context,
+    Motor motor,
+    bool newValue,
+    Function(bool) onConfirm,
+  ) {
+    final stateName = newValue ? 'ON' : 'OFF';
+
     showDialog(
       context: context,
       builder: (context) {
@@ -20,85 +26,98 @@ class MotorCardDialogs {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Are you sure you want to control this motor?',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontSize: 16,
-                    ),
+                'Are you sure you want to control the motor?',
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: const Color(0xFF6B7280),
+                ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Text(
-                    "Motor: ",
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF3FE),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Motor: ',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
+                          ),
                         ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    motor.aliasName?.capitalizeFirst ?? "Unknown",
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
+                        Expanded(
+                          child: Text(
+                            motor.aliasName?.capitalizeFirst ?? 'Unknown',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    'State:',
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          'New State: ',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
+                          ),
                         ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    newValue ? 'ON' : 'OFF',
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
+                        Text(
+                          stateName,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: newValue
+                                ? const Color(0xFF2F80ED) // ON
+                                : const Color(0xFFDB3B2A), // OFF
+                          ),
                         ),
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Cancel',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                    ),
+                style: GoogleFonts.dmSans(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.of(context).pop();
                 onConfirm(newValue);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFF004E7E),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               child: Text(
                 'Confirm',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                style: GoogleFonts.dmSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

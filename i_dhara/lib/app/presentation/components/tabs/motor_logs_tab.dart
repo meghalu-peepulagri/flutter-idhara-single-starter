@@ -44,12 +44,18 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                             ? 'Pump: $selectedFilter'
                             : selectedFilter!,
                         _getFilterColor(selectedFilter!),
-                        () {
-                          setState(() {
-                            selectedFilter = null;
-                            logsController.currentFilter.value = '';
-                          });
-                        },
+                        // Only show cancel button if NOT Faults (default)
+                        selectedFilter != 'Faults'
+                            ? () {
+                                setState(() {
+                                  selectedFilter =
+                                      'Faults'; // Return to default
+                                  logsController.currentFilter.value = 'Faults';
+                                  logsController.resetPagination();
+                                  logsController.fetchMotorFaults();
+                                });
+                              }
+                            : null, // No cancel for Faults
                       )
                     : const SizedBox(),
               ),
@@ -66,8 +72,11 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                 onSelected: (value) {
                   setState(() {
                     if (selectedFilter == value) {
-                      selectedFilter = null;
-                      logsController.currentFilter.value = '';
+                      // If clicking the same filter, return to default (Faults)
+                      selectedFilter = 'Faults';
+                      logsController.currentFilter.value = 'Faults';
+                      logsController.resetPagination();
+                      logsController.fetchMotorFaults();
                     } else {
                       selectedFilter = value;
                       logsController.currentFilter.value = value;
@@ -149,9 +158,8 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
   }
 
   Widget _buildLogsContent() {
-    if (selectedFilter == null) {
-      return const EmptyLogsWidget(message: 'Select filters to view logs');
-    } else if (selectedFilter == 'Faults') {
+    // Always default to Faults if nothing selected
+    if (selectedFilter == null || selectedFilter == 'Faults') {
       return FaultsListWidget(faults: logsController.motorFaultsList);
     } else if (selectedFilter == 'Alerts') {
       return AlertsListWidget(alerts: logsController.motorAlertsList);
@@ -178,8 +186,11 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
       onSelected: (value) {
         setState(() {
           if (selectedFilter == value) {
-            selectedFilter = null;
-            logsController.currentFilter.value = '';
+            // Return to default (Faults)
+            selectedFilter = 'Faults';
+            logsController.currentFilter.value = 'Faults';
+            logsController.resetPagination();
+            logsController.fetchMotorFaults();
           } else {
             selectedFilter = value;
             logsController.currentFilter.value = value;
@@ -241,7 +252,7 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
   Widget _buildSelectedFilterInlineChip(
     String label,
     Color color,
-    VoidCallback onRemove,
+    VoidCallback? onRemove, // Made nullable
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -264,15 +275,18 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
               color: color,
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onRemove,
-            child: Icon(
-              Icons.close,
-              size: 16,
-              color: color,
+          // Only show close icon if onRemove is not null
+          if (onRemove != null) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onRemove,
+              child: Icon(
+                Icons.close,
+                size: 16,
+                color: color,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

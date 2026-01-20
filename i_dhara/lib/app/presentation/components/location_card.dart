@@ -17,8 +17,10 @@ class LocationCard extends StatelessWidget {
     required this.onToggle,
   });
 
-  Color _getMotorStatusColor(int? state) {
-    return state == 1 ? const Color(0xFF1D7433) : const Color(0xFFDC2626);
+  Color _getMotorStatusColor(Motor motor) {
+    return motor.starter?.power == 1
+        ? const Color(0xFF008000)
+        : const Color(0xFFDC2626);
   }
 
   Color _getMotorBackgroundColor(int? state) {
@@ -104,16 +106,16 @@ class LocationCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.max,
                           children: [
-                            Container(
-                              width: 6.0,
-                              height: 6.0,
-                              decoration: BoxDecoration(
-                                color: onCount > 0
-                                    ? const Color(0xFF1D7433)
-                                    : const Color(0xFFDC2626),
-                                borderRadius: BorderRadius.circular(24.0),
-                              ),
-                            ),
+                            // Container(
+                            //   width: 6.0,
+                            //   height: 6.0,
+                            //   decoration: BoxDecoration(
+                            //     color: onCount > 0
+                            //         ? const Color(0xFF1D7433)
+                            //         : const Color(0xFFDC2626),
+                            //     borderRadius: BorderRadius.circular(24.0),
+                            //   ),
+                            // ),
                             Text(
                               '$onCount / $totalMotors ON',
                               style: FlutterFlowTheme.of(context)
@@ -206,7 +208,7 @@ class LocationCard extends StatelessWidget {
                               width: 6.0,
                               height: 6.0,
                               decoration: BoxDecoration(
-                                color: _getMotorStatusColor(motor.state),
+                                color: _getMotorStatusColor(motor),
                                 borderRadius: BorderRadius.circular(24.0),
                               ),
                             ),

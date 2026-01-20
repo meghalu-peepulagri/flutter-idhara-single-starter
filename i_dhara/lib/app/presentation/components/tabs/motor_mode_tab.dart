@@ -1,16 +1,47 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
 
-class MotorModeTab extends StatelessWidget {
+class MotorModeTab extends StatefulWidget {
   final AnalyticsController controller;
 
   const MotorModeTab({
     super.key,
     required this.controller,
   });
+
+  @override
+  State<MotorModeTab> createState() => _MotorModeTabState();
+}
+
+class _MotorModeTabState extends State<MotorModeTab> {
+  late ValueNotifier<int> _modeNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _modeNotifier = ValueNotifier<int>(widget.controller.localModeIndex.value);
+
+    // Listen to controller mode changes and update the notifier
+    ever(widget.controller.localModeIndex, (value) {
+      if (mounted && _modeNotifier.value != value) {
+        _modeNotifier.value = value;
+        if (kDebugMode) {
+          print(
+              '🔄 Mode notifier updated: $value (${value == 1 ? "Auto" : "Manual"})');
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _modeNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,52 +85,75 @@ class MotorModeTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Obx(() {
-                  final currentModeIndex = controller.localModeIndex.value;
-                  final isAuto = currentModeIndex == 1;
-                  final int uiIndex = isAuto ? 0 : 1;
-                  final isDisabled = controller.isWaitingForModeAck.value;
 
-                  print(
-                      '🎨 UI Update: currentMode=$currentModeIndex, uiIndex=$uiIndex, disabled=$isDisabled');
+                // Use ValueListenableBuilder for mode changes
+                ValueListenableBuilder<int>(
+                  valueListenable: _modeNotifier,
+                  builder: (context, currentModeIndex, child) {
+                    final isAuto = currentModeIndex == 1;
+                    final int uiIndex = isAuto ? 0 : 1;
 
-                  return ToggleSwitch(
-                    key: ValueKey('mode_$currentModeIndex'),
-                    changeOnTap: false,
-                    customWidths: const [90, 90],
-                    radiusStyle: true,
-                    minWidth: 80.0,
-                    minHeight: 30.0,
-                    initialLabelIndex: uiIndex,
-                    cornerRadius: 8.0,
-                    activeBgColors: !isDisabled
-                        ? [
-                            [const Color(0xFFFFA500)],
-                            [const Color(0xFF2F80ED)]
-                          ]
-                        : [
-                            [const Color(0xFFFFA500).withValues(alpha: 0.3)],
-                            [const Color(0xFF2F80ED).withValues(alpha: 0.3)],
-                          ],
-                    activeFgColor: !isDisabled ? Colors.white : Colors.black,
-                    inactiveBgColor: Colors.white,
-                    inactiveFgColor: Colors.black,
-                    fontSize: 12,
-                    totalSwitches: 2,
-                    labels: const ['Auto', 'Manual'],
-                    borderWidth: 1,
-                    borderColor: [Colors.grey.shade300],
-                    onToggle: !isDisabled
-                        ? (index) {
-                            if (index == null) return;
-                            final newModeIndex = index == 0 ? 1 : 0;
-                            if (newModeIndex != currentModeIndex) {
-                              _showModeChangeDialog(context, newModeIndex);
-                            }
-                          }
-                        : null,
-                  );
-                }),
+                    return Obx(() {
+                      final isDisabled =
+                          widget.controller.isWaitingForModeAck.value;
+
+                      if (kDebugMode) {
+                        print(
+                            '🎨 UI Rebuild: mode=$currentModeIndex (${isAuto ? "Auto" : "Manual"}), '
+                            'uiIndex=$uiIndex, disabled=$isDisabled');
+                      }
+
+                      return Column(
+                        children: [
+                          ToggleSwitch(
+                            key: ValueKey('mode_toggle_$currentModeIndex'),
+                            changeOnTap: false,
+                            customWidths: const [90, 90],
+                            radiusStyle: true,
+                            minWidth: 80.0,
+                            minHeight: 30.0,
+                            initialLabelIndex: uiIndex,
+                            cornerRadius: 8.0,
+                            activeBgColors: !isDisabled
+                                ? [
+                                    [const Color(0xFFFFA500)],
+                                    [const Color(0xFF2F80ED)]
+                                  ]
+                                : [
+                                    [
+                                      const Color(0xFFFFA500)
+                                          .withValues(alpha: 0.3)
+                                    ],
+                                    [
+                                      const Color(0xFF2F80ED)
+                                          .withValues(alpha: 0.3)
+                                    ],
+                                  ],
+                            activeFgColor:
+                                !isDisabled ? Colors.white : Colors.black54,
+                            inactiveBgColor: Colors.white,
+                            inactiveFgColor: Colors.black,
+                            fontSize: 12,
+                            totalSwitches: 2,
+                            labels: const ['Auto', 'Manual'],
+                            borderWidth: 1,
+                            borderColor: [Colors.grey.shade300],
+                            onToggle: !isDisabled
+                                ? (index) {
+                                    if (index == null) return;
+                                    final newModeIndex = index == 0 ? 1 : 0;
+                                    if (newModeIndex != currentModeIndex) {
+                                      _showModeChangeDialog(
+                                          context, newModeIndex);
+                                    }
+                                  }
+                                : null,
+                          ),
+                        ],
+                      );
+                    });
+                  },
+                ),
               ],
             ),
           ),
@@ -116,24 +170,6 @@ class MotorModeTab extends StatelessWidget {
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              const Icon(
-                Icons.settings,
-                color: Color(0xFF004E7E),
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Change Motor Mode',
-                style: GoogleFonts.dmSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF004E7E),
-                ),
-              ),
-            ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -167,7 +203,7 @@ class MotorModeTab extends StatelessWidget {
                         ),
                         Expanded(
                           child: Text(
-                            controller.motorName.value,
+                            widget.controller.motorName.value,
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               color: Colors.black,
@@ -218,7 +254,7 @@ class MotorModeTab extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                controller.handleModeChange(newModeIndex);
+                widget.controller.handleModeChange(newModeIndex);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF004E7E),

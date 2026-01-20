@@ -740,6 +740,12 @@ class AnalyticsController extends GetxController {
   static const Duration _ackTimeout = Duration(seconds: 13);
   var isWaitingForModeAck = false.obs;
 
+  // NEW: Track if we're using an existing MQTT instance
+  bool _isUsingExistingMqttInstance = false;
+
+  // NEW: Stream subscription for MQTT updates
+  StreamSubscription? _mqttUpdateSubscription;
+
   @override
   void onInit() {
     super.onInit();
@@ -750,14 +756,12 @@ class AnalyticsController extends GetxController {
     }
 
     if (motorId.value != null) {
-      // First fetch motor details, THEN initialize MQTT
       _initializeSequentially();
     }
     resetDateToToday();
     fetchallApis();
   }
 
-  // NEW: Sequential initialization to ensure motor details are loaded first
   Future<void> _initializeSequentially() async {
     await fetchMotorDetails();
     await _initializeMqtt();
@@ -827,7 +831,7 @@ class AnalyticsController extends GetxController {
     final motor = _convertMotorDetailsToMotor(motorDetails.value!);
     final motorMap = <String, Motor>{};
 
-    // Build motor map for all groups
+    // Build motor map for all 4 groups
     for (int i = 1; i <= 4; i++) {
       final groupId = 'G0$i';
       if (mac != null && mac.isNotEmpty) {
@@ -845,85 +849,59 @@ class AnalyticsController extends GetxController {
     if (kDebugMode)
       print('✓ Analytics: Total motor map entries: ${motorMap.length}');
 
+    // CRITICAL: Get the singleton instance and update its motors
     mqttService = MqttService(initialMotors: motorMap);
-    await mqttService.initializeMqttClient();
+
+    // Check if already connected, if not initialize
+    if (!mqttService.isConnected) {
+      if (kDebugMode) print('⚠ Analytics: MQTT not connected, initializing...');
+      await mqttService.initializeMqttClient();
+    } else {
+      if (kDebugMode)
+        print('✓ Analytics: MQTT already connected, updating motors');
+      mqttService.updateMotors(motorMap);
+
+      // Force resubscribe to topics for this motor
+      await mqttService.resubscribeToTopics();
+    }
+
     mqttInitialized = true;
 
-    mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
+    // Add listener for MQTT updates
+    mqttService.dataUpdateNotifier.addListener(_onMqttDataUpdate);
 
     // Wait for connection to stabilize
     await Future.delayed(const Duration(milliseconds: 2000));
 
-    // Force resubscription with detailed logging
-    if (mqttService.isConnected) {
-      if (kDebugMode) print('📡 Analytics: Forcing topic subscription...');
-      await _subscribeToTopics();
-    } else {
-      if (kDebugMode)
-        print('⚠ Analytics: MQTT not connected, cannot subscribe');
+    // Check if we have data
+    if (kDebugMode) {
+      print('📊 Analytics: Checking motor data availability...');
+      final motorData = getMotorData();
+      if (motorData != null && motorData.hasReceivedData) {
+        print('✓ Analytics: Motor data found!');
+        print('  State: ${motorData.state}');
+        print('  Mode: ${motorData.modeIndex}');
+      } else {
+        print('⚠ Analytics: No motor data yet, waiting for MQTT messages...');
+        print('  Motor data map size: ${mqttService.motorDataMap.length}');
+
+        // Print all keys in the map
+        if (mqttService.motorDataMap.isNotEmpty) {
+          print('  Available keys:');
+          for (var key in mqttService.motorDataMap.keys) {
+            final data = mqttService.motorDataMap[key];
+            print('    $key: hasData=${data?.hasReceivedData}');
+          }
+        }
+      }
     }
 
+    // Initial update
     _updateFromMqttData();
-  }
-
-  // NEW: Manual topic subscription with logging
-  Future<void> _subscribeToTopics() async {
-    if (!mqttInitialized || mqttService.mqttClient == null) {
-      if (kDebugMode)
-        print('⚠ Analytics: Cannot subscribe - MQTT not initialized');
-      return;
-    }
-
-    final starter = motorDetails.value?.starter;
-    if (starter == null) {
-      if (kDebugMode) print('⚠ Analytics: No starter info available');
-      return;
-    }
-
-    final mac = starter.macAddress;
-    final pcb = starter.pcbNumber;
-
-    final Set<String> subscribedIdentifiers = {};
-
-    // Subscribe to MAC topics
-    if (mac != null && mac.isNotEmpty) {
-      try {
-        mqttService.mqttClient!
-            .subscribe('peepul/$mac/cmd', MqttQos.atMostOnce);
-        mqttService.mqttClient!
-            .subscribe('peepul/$mac/status', MqttQos.atMostOnce);
-        subscribedIdentifiers.add(mac);
-        if (kDebugMode) {
-          print('✓ Analytics: Subscribed to peepul/$mac/cmd');
-          print('✓ Analytics: Subscribed to peepul/$mac/status');
-        }
-      } catch (e) {
-        if (kDebugMode)
-          print('✗ Analytics: Failed to subscribe to MAC topics: $e');
-      }
-    }
-
-    // Subscribe to PCB topics
-    if (pcb != null && pcb.isNotEmpty) {
-      try {
-        mqttService.mqttClient!
-            .subscribe('peepul/$pcb/cmd', MqttQos.atMostOnce);
-        mqttService.mqttClient!
-            .subscribe('peepul/$pcb/status', MqttQos.atMostOnce);
-        subscribedIdentifiers.add(pcb);
-        if (kDebugMode) {
-          print('✓ Analytics: Subscribed to peepul/$pcb/cmd');
-          print('✓ Analytics: Subscribed to peepul/$pcb/status');
-        }
-      } catch (e) {
-        if (kDebugMode)
-          print('✗ Analytics: Failed to subscribe to PCB topics: $e');
-      }
-    }
 
     if (kDebugMode) {
-      print(
-          '✓ Analytics: Total subscribed identifiers: ${subscribedIdentifiers.length}');
+      print('✓ Analytics: MQTT initialization complete');
+      print('✓ Analytics: Listener added for MQTT updates');
     }
   }
 
@@ -938,39 +916,89 @@ class AnalyticsController extends GetxController {
     );
   }
 
-  void _onMqttUpdate() {
+  // CRITICAL FIX: Proper MQTT update handler
+  void _onMqttDataUpdate() {
+    if (kDebugMode) {
+      print('🔄 Analytics: MQTT data update notification received');
+    }
     _updateFromMqttData();
   }
 
   void _updateFromMqttData() {
-    if (!mqttInitialized || motorDetails.value?.starter == null) return;
+    if (!mqttInitialized || motorDetails.value?.starter == null) {
+      if (kDebugMode) print('⚠ Analytics: MQTT not ready or no motor details');
+      return;
+    }
 
     final motorData = getMotorData();
 
     if (motorData != null && motorData.hasReceivedData) {
-      // Update mode if no pending command
+      if (kDebugMode) {
+        print('📥 Analytics: Processing MQTT data update');
+        print(
+            '  Motor Data - State: ${motorData.state}, Mode: ${motorData.modeIndex}');
+        print('  Has Pending Command: $_hasPendingModeCommand');
+        print('  Pending Value: $_pendingModeValue');
+      }
+
+      // Handle mode ACK
       if (_hasPendingModeCommand) {
         final mqttMode = motorData.modeIndex;
+        if (kDebugMode) {
+          print('⏳ Analytics: Waiting for mode ACK');
+          print('  Expected: $_pendingModeValue');
+          print('  Received: $mqttMode');
+        }
+
         if (mqttMode == _pendingModeValue) {
-          if (kDebugMode)
-            print('✓ Analytics: Mode ACK received, mode=$mqttMode');
+          if (kDebugMode) {
+            print('✅ Analytics: Mode ACK MATCHED!');
+          }
+
           _modeAckTimer?.cancel();
           _hasPendingModeCommand = false;
           _pendingModeValue = null;
           isWaitingForModeAck.value = false;
+
+          // Force UI update
+          localModeIndex.value = mqttMode!;
+          motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
+
+          if (kDebugMode) {
+            print('✓ Analytics: UI updated successfully');
+            print('  localModeIndex: ${localModeIndex.value}');
+            print('  motorMode: ${motorMode.value}');
+          }
+        } else {
+          if (kDebugMode) {
+            print('⏳ Analytics: ACK mismatch - still waiting');
+          }
         }
       } else {
+        // Normal mode update (no pending command)
         final mqttMode = motorData.modeIndex;
         if (mqttMode != null && localModeIndex.value != mqttMode) {
-          if (kDebugMode)
-            print('✓ Analytics: Mode updated from MQTT, mode=$mqttMode');
+          if (kDebugMode) {
+            print('🔄 Analytics: Mode updated from MQTT (no pending command)');
+            print('  Old mode: ${localModeIndex.value}');
+            print('  New mode: $mqttMode');
+          }
           localModeIndex.value = mqttMode;
           motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
         }
       }
 
-      // Update other motor details
-      motorState.value = motorData.state;
+      // Update motor state
+      if (motorState.value != motorData.state) {
+        if (kDebugMode) {
+          print('🔄 Analytics: State updated to ${motorData.state}');
+        }
+        motorState.value = motorData.state;
+      }
+    } else {
+      if (kDebugMode) {
+        print('⚠ Analytics: No valid motor data available');
+      }
     }
   }
 
@@ -1003,13 +1031,14 @@ class AnalyticsController extends GetxController {
       }
     }
 
+    if (kDebugMode)
+      print('⚠ Analytics: No motor data found with received data');
     return null;
   }
 
   String _getMotorId() {
     if (motorDetails.value?.starter == null) return '';
 
-    // Try to get ID from active data first
     final motorData = getMotorData();
 
     if (motorData != null && motorData.groupId != null) {
@@ -1027,7 +1056,6 @@ class AnalyticsController extends GetxController {
       }
     }
 
-    // Fallback to construction from static details
     final mac = motorDetails.value!.starter!.macAddress;
     final pcb = motorDetails.value!.starter!.pcbNumber;
 
@@ -1082,13 +1110,14 @@ class AnalyticsController extends GetxController {
     final previousValue = localModeIndex.value;
 
     if (kDebugMode) {
-      print('=== Analytics Mode Change ===');
+      print('=== Analytics Mode Change Request ===');
       print('Motor ID: $mId');
       print('Current Mode: $previousValue');
       print('New Mode: $newModeIndex');
       print('Topic: peepul/${mId.split('-')[0]}/cmd');
     }
 
+    // Optimistically update UI
     isWaitingForModeAck.value = true;
     localModeIndex.value = newModeIndex;
     motorMode.value = newModeIndex == 1 ? 'Auto' : 'Manual';
@@ -1385,7 +1414,6 @@ class AnalyticsController extends GetxController {
         deviceId.value = data.starter?.starterNumber ?? 'N/A';
         motorState.value = data.state ?? 0;
 
-        // Set initial mode
         final apiMode = data.mode ?? 'AUTO';
         localModeIndex.value = apiMode.toUpperCase().contains('MANUAL') ? 0 : 1;
         motorMode.value = localModeIndex.value == 1 ? 'Auto' : 'Manual';
@@ -1412,7 +1440,6 @@ class AnalyticsController extends GetxController {
           timeStamp.value = 'N/A';
         }
 
-        // Log motor details for debugging
         if (kDebugMode) {
           print('=== Motor Details Loaded ===');
           print('Motor Name: ${motorName.value}');
@@ -1431,13 +1458,14 @@ class AnalyticsController extends GetxController {
   @override
   void onClose() {
     _modeAckTimer?.cancel();
+    _mqttUpdateSubscription?.cancel();
     if (mqttInitialized) {
-      mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
+      mqttService.dataUpdateNotifier.removeListener(_onMqttDataUpdate);
       mqttService.dispose();
     }
     monthScrollController.dispose();
     controller.dispose();
-    super.dispose();
+    super.onClose();
   }
 }
 

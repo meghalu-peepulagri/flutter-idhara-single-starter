@@ -88,9 +88,6 @@ class MotorControlsRow extends StatelessWidget {
               return ValueListenableBuilder(
                 valueListenable: switchController,
                 builder: (context, isOn, child) {
-                  // Re-evaluate disabled state based on current values if needed
-                  // but parent passes isSwitchDisabled which incorporates logic.
-
                   return GestureDetector(
                     onTap: !isSwitchDisabled
                         ? () {

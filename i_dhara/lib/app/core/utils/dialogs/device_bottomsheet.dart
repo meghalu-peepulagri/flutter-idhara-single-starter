@@ -9,7 +9,7 @@ class DeviceOptionsBottomSheet extends StatefulWidget {
   final VoidCallback onRename;
   final VoidCallback onReplace;
   final VoidCallback onDelete;
-  final VoidCallback onSettings;
+  // final VoidCallback onSettings;
 
   const DeviceOptionsBottomSheet({
     super.key,
@@ -17,7 +17,7 @@ class DeviceOptionsBottomSheet extends StatefulWidget {
     required this.onRename,
     required this.onReplace,
     required this.onDelete,
-    required this.onSettings,
+    // required this.onSettings,
   });
 
   @override
@@ -72,11 +72,11 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
             ),
           ),
           const Divider(height: 1),
-          _buildMenuItem(
-              svgAsset: 'assets/images/settings.svg',
-              text: 'Settings',
-              iconColor: const Color(0xFF4A4A6A),
-              onTap: widget.onSettings),
+          // _buildMenuItem(
+          //     svgAsset: 'assets/images/settings.svg',
+          //     text: 'Settings',
+          //     iconColor: const Color(0xFF4A4A6A),
+          //     onTap: widget.onSettings),
           _buildMenuItem(
             svgAsset: 'assets/images/edit.svg',
             text: 'Rename',

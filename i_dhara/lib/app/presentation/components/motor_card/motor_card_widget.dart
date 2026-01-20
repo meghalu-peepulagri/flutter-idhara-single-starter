@@ -126,7 +126,14 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             ),
             child: Text(
               message,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+                decoration: TextDecoration.none,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           displayDuration: const Duration(seconds: 4),

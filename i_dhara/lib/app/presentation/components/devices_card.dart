@@ -12,6 +12,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:lottie/lottie.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -69,9 +70,9 @@ class DevicesCard extends StatelessWidget {
             Navigator.pop(context);
             _showDeleteDialog(context);
           },
-          onSettings: () {
-            Get.offAllNamed(Routes.usersettings);
-          },
+          // onSettings: () {
+          //   Get.offAllNamed(Routes.usersettings);
+          // },
         );
       },
     );
@@ -312,8 +313,8 @@ class DevicesCard extends StatelessWidget {
             (motor?.state == 1)
                 ? 'assets/images/pump.svg'
                 : 'assets/images/pump_off.svg',
-            width: 24,
-            height: 24,
+            width: 34,
+            height: 34,
             fit: BoxFit.cover,
           ),
         ),
@@ -356,22 +357,22 @@ class DevicesCard extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
         ),
-        const Spacer(),
-        GestureDetector(
-          onTap: () {
-            SharedPreference.setdeviceSettings(device.id!);
-            Get.offAllNamed(Routes.usersettings);
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(0.0),
-            child: SvgPicture.asset(
-              'assets/images/settings_icon.svg',
-              width: 18,
-              height: 18,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
+        // const Spacer(),
+        // GestureDetector(
+        //   onTap: () {
+        //     SharedPreference.setdeviceSettings(device.id!);
+        //     Get.offAllNamed(Routes.usersettings);
+        //   },
+        //   child: ClipRRect(
+        //     borderRadius: BorderRadius.circular(0.0),
+        //     child: SvgPicture.asset(
+        //       'assets/images/settings_icon.svg',
+        //       width: 18,
+        //       height: 18,
+        //       fit: BoxFit.cover,
+        //     ),
+        //   ),
+        // ),
       ].divide(const SizedBox(width: 8.0)),
     );
   }
