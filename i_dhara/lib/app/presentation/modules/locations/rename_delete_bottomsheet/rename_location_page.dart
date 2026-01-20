@@ -56,190 +56,199 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: FlutterFlowTheme.of(context).secondaryBackground,
-          borderRadius: BorderRadius.circular(16.0),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 0.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Rename Location',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              fontFamily: 'Manrope',
-                              color: Colors.black,
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.w600,
+    return SafeArea(
+      top: false,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: FlutterFlowTheme.of(context).secondaryBackground,
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 0.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Rename Location',
+                          style:
+                              FlutterFlowTheme.of(context).bodyMedium.override(
+                                    fontFamily: 'Manrope',
+                                    color: Colors.black,
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            // FocusScope.of(context).unfocus();
+                            Get.back();
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE9E9E9),
                             ),
-                      ),
-                      InkWell(
-                        onTap: () {
-                          // FocusScope.of(context).unfocus();
+                            padding: const EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.close,
+                              color: FlutterFlowTheme.of(context).primaryText,
+                              size: 24.0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24.0),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                                color: Colors.black), // Default text style
+                            children: [
+                              TextSpan(text: 'Location Name '),
+                              TextSpan(
+                                text: '*',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8.0),
+                        TextFieldComponent(
+                          controller: _model.textController!,
+                          errors: _model.errorInstance,
+                          errorKey: 'name',
+                          hintText: 'Enter location name',
+                          readOnly: false,
+                          onChanged: (value) {
+                            if (value.isNotEmpty) {
+                              setState(() {
+                                _model.errorInstance =
+                                    Map.from(_model.errorInstance)
+                                      ..remove('name');
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20.0),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: FFButtonWidget(
+                        onPressed: () {
+                          FocusScope.of(context).unfocus();
                           Get.back();
                         },
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE9E9E9),
-                          ),
-                          padding: const EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.close,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24.0,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24.0),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      RichText(
-                        text: const TextSpan(
-                          style: TextStyle(
-                              color: Colors.black), // Default text style
-                          children: [
-                            TextSpan(text: 'Location Name '),
-                            TextSpan(
-                              text: '*',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8.0),
-                      TextFieldComponent(
-                        controller: _model.textController!,
-                        errors: _model.errorInstance,
-                        errorKey: 'name',
-                        hintText: 'Enter location name',
-                        readOnly: false,
-                        onChanged: (value) {
-                          if (value.isNotEmpty) {
-                            setState(() {
-                              _model.errorInstance =
-                                  Map.from(_model.errorInstance)
-                                    ..remove('name');
-                            });
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20.0),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: FFButtonWidget(
-                      onPressed: () {
-                        FocusScope.of(context).unfocus();
-                        Get.back();
-                      },
-                      text: 'Cancel',
-                      options: FFButtonOptions(
-                        height: 45.0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                        textStyle:
-                            FlutterFlowTheme.of(context).titleSmall.override(
-                                  fontFamily: 'Manrope',
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                        elevation: 0.0,
-                        borderSide: const BorderSide(color: Color(0x38000000)),
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 24.0),
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF004E7E),
-                            Color(0xFF3686AF),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: FFButtonWidget(
-                        onPressed: () async {
-                          FocusScope.of(context).unfocus();
-
-                          final newName = _model.textController!.text.trim();
-
-                          // if (newName.isEmpty) {
-                          //   setState(() {
-                          //     _model.errorInstance = {
-                          //       'title': ['Location name is required']
-                          //     };
-                          //   });
-                          //   return;
-                          // }
-
-                          await locationsController.renamelocation(
-                            locationId: widget.locationId,
-                            name: newName,
-                          );
-                          setState(() {
-                            _model.error = true;
-                            _model.message = locationsController.message ?? '';
-                            _model.errorInstance =
-                                locationsController.errorInstance;
-                          });
-
-                          return;
-
-                          // widget.onLocationAdded(newName);
-                        },
-                        text: 'Save',
+                        text: 'Cancel',
                         options: FFButtonOptions(
-                          height: 40.0,
+                          height: 45.0,
                           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                          color: Colors.transparent,
+                          color:
+                              FlutterFlowTheme.of(context).secondaryBackground,
                           textStyle:
                               FlutterFlowTheme.of(context).titleSmall.override(
                                     fontFamily: 'Manrope',
-                                    color: FlutterFlowTheme.of(context)
-                                        .secondaryBackground,
+                                    color: Colors.black,
                                     fontWeight: FontWeight.w500,
                                   ),
                           elevation: 0.0,
-                          borderRadius: BorderRadius.circular(60.0),
+                          borderSide:
+                              const BorderSide(color: Color(0x38000000)),
+                          borderRadius: BorderRadius.circular(12.0),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 24.0),
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        height: 45,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF004E7E),
+                              Color(0xFF3686AF),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: FFButtonWidget(
+                          onPressed: () async {
+                            FocusScope.of(context).unfocus();
+
+                            final newName = _model.textController!.text.trim();
+
+                            // if (newName.isEmpty) {
+                            //   setState(() {
+                            //     _model.errorInstance = {
+                            //       'title': ['Location name is required']
+                            //     };
+                            //   });
+                            //   return;
+                            // }
+
+                            await locationsController.renamelocation(
+                              locationId: widget.locationId,
+                              name: newName,
+                            );
+                            setState(() {
+                              _model.error = true;
+                              _model.message =
+                                  locationsController.message ?? '';
+                              _model.errorInstance =
+                                  locationsController.errorInstance;
+                            });
+
+                            return;
+
+                            // widget.onLocationAdded(newName);
+                          },
+                          text: 'Save',
+                          options: FFButtonOptions(
+                            height: 40.0,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 24.0),
+                            color: Colors.transparent,
+                            textStyle: FlutterFlowTheme.of(context)
+                                .titleSmall
+                                .override(
+                                  fontFamily: 'Manrope',
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                            elevation: 0.0,
+                            borderRadius: BorderRadius.circular(60.0),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

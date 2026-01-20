@@ -60,6 +60,9 @@ class MotorModeTab extends StatelessWidget {
                   final int uiIndex = isAuto ? 0 : 1;
                   final isDisabled = controller.isWaitingForModeAck.value;
 
+                  print(
+                      '🎨 UI Update: currentMode=$currentModeIndex, uiIndex=$uiIndex, disabled=$isDisabled');
+
                   return ToggleSwitch(
                     key: ValueKey('mode_$currentModeIndex'),
                     changeOnTap: false,

@@ -128,13 +128,13 @@ class _MotorControlConfirmationDialogState
         setState(() {
           isSending = false;
         });
-        // Show error snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send command: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // // Show error snackbar
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Failed to send command: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     }
   }

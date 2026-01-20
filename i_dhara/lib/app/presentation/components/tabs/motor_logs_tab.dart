@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:i_dhara/app/presentation/components/tabs/widgets/alerts_list_widget.dart';
+import 'package:i_dhara/app/presentation/components/tabs/widgets/empty_logs_widget.dart';
+import 'package:i_dhara/app/presentation/components/tabs/widgets/faults_list_widget.dart';
+import 'package:i_dhara/app/presentation/components/tabs/widgets/pump_logs_list_widget.dart';
 
 class MotorLogsTab extends StatefulWidget {
   const MotorLogsTab({super.key});
@@ -9,101 +15,151 @@ class MotorLogsTab extends StatefulWidget {
 }
 
 class _MotorLogsTabState extends State<MotorLogsTab> {
-  String? selectedFilter; // Single selection across all filters
+  String? selectedFilter;
+  final MotorLogsController logsController = Get.put(MotorLogsController());
+
+  @override
+  void initState() {
+    super.initState();
+    selectedFilter = 'Faults';
+    logsController.currentFilter.value = 'Faults';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            SizedBox(
-              height: 36,
-              child: selectedFilter != null
-                  ? _buildSelectedFilterInlineChip(
-                      _isPumpFilter(selectedFilter!)
-                          ? 'Pump: $selectedFilter'
-                          : selectedFilter!,
-                      _getFilterColor(selectedFilter!),
-                      () {
-                        setState(() {
-                          selectedFilter = null;
-                        });
-                      },
-                    )
-                  : const SizedBox(),
-            ),
-            PopupMenuButton<String>(
-              icon: Icon(
-                Icons.filter_list,
-                color: const Color(0xFF004E7E),
-                size: 26,
+    return Obx(() {
+      return ListView(
+        controller: logsController.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SizedBox(
+                height: 36,
+                child: selectedFilter != null
+                    ? _buildSelectedFilterInlineChip(
+                        _isPumpFilter(selectedFilter!)
+                            ? 'Pump: $selectedFilter'
+                            : selectedFilter!,
+                        _getFilterColor(selectedFilter!),
+                        () {
+                          setState(() {
+                            selectedFilter = null;
+                            logsController.currentFilter.value = '';
+                          });
+                        },
+                      )
+                    : const SizedBox(),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.filter_list,
+                  color: Color(0xFF004E7E),
+                  size: 26,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                offset: const Offset(0, 40),
+                onSelected: (value) {
+                  setState(() {
+                    if (selectedFilter == value) {
+                      selectedFilter = null;
+                      logsController.currentFilter.value = '';
+                    } else {
+                      selectedFilter = value;
+                      logsController.currentFilter.value = value;
+
+                      // Reset pagination and fetch data
+                      logsController.resetPagination();
+
+                      if (value == 'Alerts') {
+                        logsController.fetchMotorAlerts();
+                      } else if (value == 'Faults') {
+                        logsController.fetchMotorFaults();
+                      } else if (value == 'MODE') {
+                        logsController.fetchMotorLogs('MODE');
+                      } else if (value == 'ON') {
+                        logsController.fetchMotorLogs('ON');
+                      } else if (value == 'OFF') {
+                        logsController.fetchMotorLogs('OFF');
+                      }
+                    }
+                  });
+                },
+                itemBuilder: (context) => [
+                  _buildMainMenuItem('Faults', selectedFilter == 'Faults'),
+                  _buildMainMenuItem('Alerts', selectedFilter == 'Alerts'),
+                  PopupMenuItem<String>(
+                    enabled: false,
+                    padding: EdgeInsets.zero,
+                    child: _buildPumpsMenuItemWithSubmenu(context),
+                  ),
+                ],
               ),
-              offset: const Offset(0, 40),
-              onSelected: (value) {
-                setState(() {
-                  if (selectedFilter == value) {
-                    selectedFilter = null;
-                  } else {
-                    selectedFilter = value;
-                  }
-                });
-              },
-              itemBuilder: (context) => [
-                _buildMainMenuItem('Faults', selectedFilter == 'Faults'),
-                _buildMainMenuItem('Alerts', selectedFilter == 'Alerts'),
-                PopupMenuItem<String>(
-                  enabled: false,
-                  // height: 6,
-                  padding: EdgeInsets.zero,
-                  child: _buildPumpsMenuItemWithSubmenu(context),
-                ),
-              ],
-            ),
-          ],
-        ),
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.45,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.description_outlined,
-                  size: 64,
-                  color: const Color(0xFF6B7280).withValues(alpha: 0.5),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'No Logs Available',
-                  style: GoogleFonts.dmSans(
-                    color: const Color(0xFF1F2937),
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  selectedFilter == null
-                      ? 'Select filters to view logs'
-                      : 'No logs match your filters',
-                  style: GoogleFonts.dmSans(
-                    color: const Color(0xFF6B7280),
-                    fontSize: 14.0,
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
-        ),
-      ],
-    );
+          const SizedBox(height: 16),
+
+          // Show initial loading
+          if (logsController.isLoading.value &&
+              !logsController.isLoadingMore.value)
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.45,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF004E7E),
+                ),
+              ),
+            )
+          else
+            _buildLogsContent(),
+
+          // Show loading more indicator
+          if (logsController.isLoadingMore.value)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF004E7E),
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+
+  int _getListLength() {
+    if (selectedFilter == 'Faults') {
+      return logsController.motorFaultsList.length;
+    } else if (selectedFilter == 'Alerts') {
+      return logsController.motorAlertsList.length;
+    } else if (_isPumpFilter(selectedFilter ?? '')) {
+      return logsController.motorLogsList.length;
+    }
+    return 0;
+  }
+
+  Widget _buildLogsContent() {
+    if (selectedFilter == null) {
+      return const EmptyLogsWidget(message: 'Select filters to view logs');
+    } else if (selectedFilter == 'Faults') {
+      return FaultsListWidget(faults: logsController.motorFaultsList);
+    } else if (selectedFilter == 'Alerts') {
+      return AlertsListWidget(alerts: logsController.motorAlertsList);
+    } else if (_isPumpFilter(selectedFilter!)) {
+      final logs = logsController.motorLogsList;
+      return PumpLogsListWidget(logs: logs, filterType: selectedFilter!);
+    }
+    return const EmptyLogsWidget(message: 'No logs available');
   }
 
   bool _isPumpFilter(String filter) {
@@ -123,8 +179,12 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
         setState(() {
           if (selectedFilter == value) {
             selectedFilter = null;
+            logsController.currentFilter.value = '';
           } else {
             selectedFilter = value;
+            logsController.currentFilter.value = value;
+            logsController.resetPagination();
+            logsController.fetchMotorLogs(value);
           }
         });
         Navigator.of(context).pop();
@@ -186,10 +246,10 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color: color.withOpacity(0.3),
           width: 1,
         ),
       ),

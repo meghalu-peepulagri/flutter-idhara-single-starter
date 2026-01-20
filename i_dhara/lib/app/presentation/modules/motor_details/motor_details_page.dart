@@ -5,6 +5,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/motor_details_card.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/motor_details_tab_bar.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_mode_tab.dart';
@@ -120,7 +121,7 @@ class MotorControlWidget extends StatelessWidget {
               decoration: const BoxDecoration(),
               child: InkWell(
                 onTap: () {
-                  Get.back();
+                  Get.offAllNamed(Routes.dashboard);
                 },
                 child: const Padding(
                   padding: EdgeInsets.all(6.0),
