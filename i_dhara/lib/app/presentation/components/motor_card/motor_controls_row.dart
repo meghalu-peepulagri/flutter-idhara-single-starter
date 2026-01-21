@@ -61,7 +61,7 @@ class MotorControlsRow extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                               color: Colors.white,
-                              fontSize: 14.0,
+                              fontSize: 12.0,
                               fontWeight: FontWeight.w600,
                             ),
                       ),
@@ -70,13 +70,17 @@ class MotorControlsRow extends StatelessWidget {
                 },
               ),
               Text(
-                motor.mode ?? 'Manual',
+                // motor.mode ?? 'Manual',
+                ((motor.mode ?? 'MANUAL').toLowerCase()).replaceFirstMapped(
+                  RegExp(r'^[a-z]'),
+                  (m) => m.group(0)!.toUpperCase(),
+                ),
                 style: FlutterFlowTheme.of(context).bodyMedium.override(
                       font: GoogleFonts.dmSans(
                         fontWeight: FontWeight.w500,
                       ),
                       color: Colors.black,
-                      fontSize: 14.0,
+                      fontSize: 15.0,
                       fontWeight: FontWeight.w500,
                     ),
               ),

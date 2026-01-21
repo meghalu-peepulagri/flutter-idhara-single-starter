@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
+
 import '../../modules/motor_details/motor_details_controller.dart';
 
 class MotorModeTab extends StatefulWidget {
@@ -95,7 +96,8 @@ class _MotorModeTabState extends State<MotorModeTab> {
 
                     return Obx(() {
                       final isDisabled =
-                          widget.controller.isWaitingForModeAck.value;
+                          widget.controller.isWaitingForModeAck.value ||
+                              !widget.controller.canChangeMode.value;
 
                       if (kDebugMode) {
                         print(

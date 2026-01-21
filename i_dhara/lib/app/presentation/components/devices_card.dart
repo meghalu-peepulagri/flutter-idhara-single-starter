@@ -215,7 +215,7 @@ class DevicesCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        '${motor?.hp ?? 'N/A'} Hp',
+                        '${motor?.hp ?? 'N/A'} HP',
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -303,7 +303,7 @@ class DevicesCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '#${device.pcbNumber ?? 'N/A'}',
+                    '#${device.starterNumber ?? 'N/A'}',
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w500,
@@ -349,7 +349,10 @@ class DevicesCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(6.0, 2.0, 6.0, 2.0),
             child: Text(
-              motor?.mode ?? 'MANUAL',
+              ((motor?.mode ?? 'MANUAL').toLowerCase()).replaceFirstMapped(
+                RegExp(r'^[a-z]'),
+                (m) => m.group(0)!.toUpperCase(),
+              ),
               style: FlutterFlowTheme.of(context).bodyMedium.override(
                     font: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w600,

@@ -26,7 +26,7 @@ class TextFieldComponent extends StatelessWidget {
     this.inputFormatters,
     required this.hintText,
     required this.readOnly,
-    this.maxlength = 30,
+    this.maxlength = 60,
     this.ontap,
     this.icon,
     this.onChanged,

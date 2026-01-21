@@ -280,7 +280,7 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                             controller: emailController,
                                             errors: _model.errorInstance,
                                             hintText: 'Enter Email',
-                                            errorKey: '',
+                                            errorKey: 'email',
                                             onChanged: (value) {
                                               if (_model.errorInstance
                                                   .containsKey('email')) {
