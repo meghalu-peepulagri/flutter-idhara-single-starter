@@ -93,7 +93,7 @@ class PumpLogsListWidget extends StatelessWidget {
                   message,
                   style: GoogleFonts.dmSans(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                     color: const Color(0xFF1F2937),
                     height: 1.3,
                   ),
@@ -108,7 +108,18 @@ class PumpLogsListWidget extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime timestamp) {
-    return DateFormat('dd MMM yyyy • hh:mm a').format(timestamp);
+    final DateTime utcTime = DateTime.utc(
+      timestamp.year,
+      timestamp.month,
+      timestamp.day,
+      timestamp.hour,
+      timestamp.minute,
+      timestamp.second,
+    );
+
+    final DateTime istTime = utcTime.add(const Duration(hours: 5, minutes: 30));
+
+    return DateFormat('dd MMM yyyy • hh:mm a').format(istTime);
   }
 
   Color _getFilterColor(String filter) {

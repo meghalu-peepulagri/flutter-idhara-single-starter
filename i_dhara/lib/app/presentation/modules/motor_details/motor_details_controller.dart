@@ -676,6 +676,7 @@ import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
@@ -1160,6 +1161,29 @@ class AnalyticsController extends GetxController {
     }
   }
 
+  // Future<void> onrefresh() async {
+  //   isRefreshing.value = true;
+  //   resetDateToToday();
+  //   voltageTrackball.value?.hide();
+  //   currentTrackball.value?.hide();
+  //   clearAllData();
+
+  //   try {
+  //     await Future.wait([
+  //       fetchMotorDetails(),
+  //       fetchRuntime(daterange),
+  //       logsController.fetchMotorFaults(),
+  //     ]);
+
+  //     if (mqttInitialized) {
+  //       _updateFromMqttData();
+  //     }
+  //   } catch (e) {
+  //     if (kDebugMode) print('Error onRefresh: $e');
+  //   } finally {
+  //     isRefreshing.value = false;
+  //   }
+  // }
   Future<void> onrefresh() async {
     isRefreshing.value = true;
     resetDateToToday();
@@ -1168,10 +1192,23 @@ class AnalyticsController extends GetxController {
     clearAllData();
 
     try {
-      await Future.wait([
-        fetchMotorDetails(),
-        fetchRuntime(daterange),
-      ]);
+      // Create a list of futures to wait for
+      final futures = <Future>[];
+
+      futures.add(fetchMotorDetails());
+
+      // Only fetch runtime if we're on the runtime tab
+      if (selectedTabIndex.value == 1) {
+        futures.add(fetchRuntime(daterange));
+      }
+
+      // Fetch motor logs if we're on the logs tab
+      if (selectedTabIndex.value == 2) {
+        final logsController = Get.find<MotorLogsController>();
+        futures.add(logsController.refreshCurrentTab());
+      }
+
+      await Future.wait(futures);
 
       if (mqttInitialized) {
         _updateFromMqttData();

@@ -232,4 +232,21 @@ class MotorLogsController extends GetxController {
       await fetchMotorLogs(currentFilter.value);
     }
   }
+
+  Future<void> refreshCurrentTab() async {
+    isRefreshing.value = true;
+    resetPagination();
+
+    try {
+      if (currentFilter.value == 'Faults' || currentFilter.value.isEmpty) {
+        await fetchMotorFaults();
+      } else if (currentFilter.value == 'Alerts') {
+        await fetchMotorAlerts();
+      } else if (_isPumpFilter(currentFilter.value)) {
+        await fetchMotorLogs(currentFilter.value);
+      }
+    } finally {
+      isRefreshing.value = false;
+    }
+  }
 }

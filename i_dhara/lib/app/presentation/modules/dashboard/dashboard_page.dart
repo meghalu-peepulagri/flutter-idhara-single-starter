@@ -21,7 +21,7 @@ class DashboardWidget extends StatelessWidget {
   DashboardWidget({super.key});
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  final controller = Get.put(DashboardController());
+  final controller = Get.put(DashboardController(), permanent: true);
   final ScrollController _scrollController = ScrollController();
 
   void onTapMenu() {
@@ -72,7 +72,7 @@ class DashboardWidget extends StatelessWidget {
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   _buildHeader(context),
-                   Expanded(
+                  Expanded(
                     child: Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(
                           16.0, 0.0, 16.0, 0.0),

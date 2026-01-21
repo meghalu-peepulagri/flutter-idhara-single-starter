@@ -602,11 +602,16 @@ class MqttService {
 
   void _handleModeChangeAck(String identifier, dynamic payloadData) {
     final newModeIndex = payloadData as int?;
-    if (newModeIndex == null || (newModeIndex != 0 && newModeIndex != 1))
+
+    if (newModeIndex == null || (newModeIndex != 0 && newModeIndex != 1)) {
       return;
+    }
 
+    // Find the motor that either has pending command or matches identifier (MAC or PCB)
     String? targetMotorId;
+    bool hasPendingCommand = false;
 
+    // First, check for pending mode command
     for (var entry in motorDataMap.entries) {
       final motorData = entry.value;
       final matchesMac = motorData.macAddress == identifier;
@@ -616,49 +621,165 @@ class MqttService {
         final hasPending = _pendingCommands.containsKey('${entry.key}_2');
         if (hasPending) {
           targetMotorId = entry.key;
+          hasPendingCommand = true;
           break;
         }
       }
     }
 
+    // If no pending command, find motor from working identifiers
     if (targetMotorId == null) {
-      targetMotorId = _workingIdentifiers.entries
-          .firstWhere((e) => e.value.startsWith(identifier),
-              orElse: () => const MapEntry('', ''))
-          .key;
+      final workingEntry = _workingIdentifiers.entries.firstWhere(
+          (e) => e.value.startsWith(identifier),
+          orElse: () => const MapEntry('', ''));
 
-      if (targetMotorId.isEmpty) {
-        for (var entry in motorDataMap.entries) {
-          final motorData = entry.value;
-          if (motorData.macAddress == identifier ||
-              motorData.pcbNumber == identifier) {
+      if (workingEntry.key.isNotEmpty) {
+        targetMotorId = workingEntry.key;
+      }
+    }
+
+    // If not in working identifiers, find from recent activity
+    if (targetMotorId == null) {
+      DateTime? latestActivity;
+      for (var entry in motorDataMap.entries) {
+        final motorData = entry.value;
+        final matchesMac = motorData.macAddress == identifier;
+        final matchesPcb = motorData.pcbNumber == identifier;
+
+        if (matchesMac || matchesPcb) {
+          final lastAck = _lastAckTimes[entry.key];
+          if (lastAck != null &&
+              (latestActivity == null || lastAck.isAfter(latestActivity))) {
+            latestActivity = lastAck;
             targetMotorId = entry.key;
-            break;
           }
         }
       }
     }
 
-    if (targetMotorId != null && targetMotorId.isNotEmpty) {
-      final motorData = motorDataMap[targetMotorId];
-      if (motorData != null) {
-        motorData.modeIndex = newModeIndex;
-        motorData.modeswitchcontroller.value = newModeIndex;
-        motorData.motorMode = newModeIndex == 1 ? 'AUTO' : 'MANUAL';
-        motorData.hasReceivedData = true;
-        _lastAckTimes[targetMotorId] = DateTime.now();
+    // Last resort: default to G01
+    if (targetMotorId == null) {
+      targetMotorId = '$identifier-G01';
+    }
 
-        final parts = targetMotorId.split('-');
-        _workingIdentifiers[targetMotorId] =
-            identifier + (parts.length > 1 ? '-${parts[1]}' : '');
+    // Update the motor mode
+    if (motorDataMap.containsKey(targetMotorId)) {
+      final motorData = motorDataMap[targetMotorId]!;
+      motorData.modeIndex = newModeIndex;
+      motorData.modeswitchcontroller.value = newModeIndex;
+      motorData.motorMode = newModeIndex == 1 ? 'AUTO' : 'MANUAL';
+      motorData.hasReceivedData = true;
+      _lastAckTimes[targetMotorId] = DateTime.now();
 
-        _clearPendingCommand(targetMotorId, 2);
-        debugPrint('✓ Mode change ACK for $targetMotorId: mode=$newModeIndex');
-      }
+      // Track working identifier
+      final parts = targetMotorId.split('-');
+      _workingIdentifiers[targetMotorId] =
+          identifier + (parts.length > 1 ? '-${parts[1]}' : '');
+
+      // Always clear pending command if it exists
+      _clearPendingCommand(targetMotorId, 2);
+
+      debugPrint(
+          '✓ Mode change ACK for $targetMotorId: mode=$newModeIndex, hasPending=$hasPendingCommand (identifier: $identifier)');
     }
 
     _dataUpdateNotifier.value++;
   }
+
+  // void _handleModeChangeAck(String identifier, dynamic payloadData) {
+  //   final newModeIndex = payloadData as int?;
+
+  //   if (newModeIndex == null || (newModeIndex != 0 && newModeIndex != 1)) {
+  //     return;
+  //   }
+
+  //   // Find the motor that either has pending command or matches identifier (MAC or PCB)
+  //   String? targetMotorId;
+  //   bool hasPendingCommand = false;
+
+  //   // First, check for pending mode command
+  //   for (var entry in motorDataMap.entries) {
+  //     final motorData = entry.value;
+  //     final matchesMac = motorData.macAddress == identifier;
+  //     final matchesPcb = motorData.pcbNumber == identifier;
+
+  //     if (matchesMac || matchesPcb) {
+  //       final hasPending = _pendingCommands.containsKey('${entry.key}_2');
+  //       if (hasPending) {
+  //         targetMotorId = entry.key;
+  //         hasPendingCommand = true;
+  //         break;
+  //       }
+  //     }
+  //   }
+
+  //   // If no pending command, find motor from working identifiers
+  //   if (targetMotorId == null) {
+  //     targetMotorId = _workingIdentifiers.entries
+  //         .firstWhere((e) => e.value.startsWith(identifier),
+  //             orElse: () => const MapEntry('', ''))
+  //         .key;
+
+  //     // If not in working identifiers, find from recent activity
+  //     if (targetMotorId.isEmpty) {
+  //       DateTime? latestActivity;
+  //       for (var entry in motorDataMap.entries) {
+  //         final motorData = entry.value;
+  //         final matchesMac = motorData.macAddress == identifier;
+  //         final matchesPcb = motorData.pcbNumber == identifier;
+
+  //         if (matchesMac || matchesPcb) {
+  //           final lastAck = _lastAckTimes[entry.key];
+  //           if (lastAck != null &&
+  //               (latestActivity == null || lastAck.isAfter(latestActivity))) {
+  //             latestActivity = lastAck;
+  //             targetMotorId = entry.key;
+  //           }
+  //         }
+  //       }
+
+  //       // Last resort: default to G01
+  //       if (targetMotorId == null || targetMotorId.isEmpty) {
+  //         targetMotorId = '$identifier-G01';
+  //       }
+  //     }
+  //   }
+
+  //   // Update the motor mode
+  //   if (targetMotorId != null && targetMotorId.isNotEmpty) {
+  //     final motorData = motorDataMap[targetMotorId];
+  //     if (motorData != null) {
+  //       motorData.modeIndex = newModeIndex;
+  //       motorData.modeswitchcontroller.value = newModeIndex;
+  //       motorData.motorMode = newModeIndex == 1 ? 'AUTO' : 'MANUAL';
+  //       motorData.hasReceivedData = true;
+  //       _lastAckTimes[targetMotorId] = DateTime.now();
+
+  //       final pendingKey = '${targetMotorId}_2';
+  //       if (_pendingCommands.containsKey(pendingKey)) {
+  //         _clearPendingCommand(targetMotorId, 2);
+  //         debugPrint(
+  //             '✓ Mode change ACK processed for $targetMotorId → retry STOPPED');
+  //       }
+
+  //       // Track working identifier
+  //       final parts = targetMotorId.split('-');
+  //       _workingIdentifiers[targetMotorId] =
+  //           identifier + (parts.length > 1 ? '-${parts[1]}' : '');
+
+  //       if (hasPendingCommand) {
+  //         _clearPendingCommand(targetMotorId, 2);
+  //         debugPrint(
+  //             '✓ Mode change ACK processed for $targetMotorId: mode=$newModeIndex, retry STOPPED');
+  //       }
+
+  //       debugPrint(
+  //           '✓ Mode change ACK for $targetMotorId: mode=$newModeIndex (identifier: $identifier)');
+  //     }
+  //   }
+
+  //   _dataUpdateNotifier.value++;
+  // }
 
   void _handleLiveData(String identifier, dynamic payloadData) {
     if (payloadData is! Map<String, dynamic>) {
@@ -1007,16 +1128,21 @@ class MqttService {
     final key = '${motorId}_$commandType';
     final command = _pendingCommands[key];
     if (command != null) {
-      debugPrint(
-          '✓ ACK received for $motorId (type $commandType), canceling retry timer');
       command.cancelTimer();
       _pendingCommands.remove(key);
+      debugPrint(
+          '✓ ACK received for $motorId (type $commandType), canceling retry timer');
     }
   }
 
   void _scheduleRetry(String motorId, int commandType, dynamic commandData,
       int sequenceNumber) {
     final key = '${motorId}_$commandType';
+
+    // if (!_pendingCommands.containsKey(key)) {
+    //   debugPrint('🛑 Retry aborted — ACK already received for $motorId');
+    //   return;
+    // }
 
     final command = _pendingCommands[key] ??
         RetryCommand(
@@ -1061,7 +1187,7 @@ class MqttService {
                 .aliasName ??
             'Motor';
 
-        command.onMaxRetriesReached('Failed $motorName to publish.');
+        command.onMaxRetriesReached('$motorName: No response from the device.');
       }
     });
 

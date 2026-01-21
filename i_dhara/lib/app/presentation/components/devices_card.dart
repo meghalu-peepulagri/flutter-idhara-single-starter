@@ -8,11 +8,8 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:lottie/lottie.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -175,7 +172,6 @@ class DevicesCard extends StatelessWidget {
                   children: [
                     _buildHeader(context, motor),
                     _buildPcbAndPowerStatus(context, motor),
-                    _buildMotorMode(context, motor),
                   ].divide(const SizedBox(height: 12.0)),
                 ),
               ),
@@ -200,42 +196,70 @@ class DevicesCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    displayName.length > 10
-                        ? '${displayName.substring(0, 10)}...'
-                        : displayName,
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          font: GoogleFonts.dmSans(
-                            fontWeight: FontWeight.w500,
-                          ),
-                          color: const Color(0xFF13120D),
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.w500,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    spacing: 10,
+                    children: [
+                      Text(
+                        displayName.length > 10
+                            ? '${displayName.substring(0, 10)}...'
+                            : displayName,
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              font: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              color: const Color(0xFF13120D),
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.w500,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${motor?.hp ?? 'N/A'} Hp',
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                              font: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              color: const Color(0xFF2E393D),
+                              fontSize: 12.0,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                      _buildMotorMode(context, motor),
+                    ],
                   ),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: () => _showDeviceOptionsBottomSheet(context, motor),
-                    child: const Icon(
-                      Icons.more_vert,
-                      color: Color(0XFF464646),
-                      size: 20.0,
-                    ),
+                  Row(
+                    spacing: 10,
+                    children: [
+                      // const Icon(
+                      //   Icons.settings_outlined,
+                      //   color: Colors.grey,
+                      //   size: 20,
+                      // ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(0.0),
+                        child: SvgPicture.asset(
+                          device.power == 1
+                              ? 'assets/images/power.svg'
+                              : 'assets/images/Power_red.svg',
+                          width: 17,
+                          height: 17,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () =>
+                            _showDeviceOptionsBottomSheet(context, motor),
+                        child: const Icon(
+                          Icons.more_vert,
+                          color: Color(0XFF464646),
+                          size: 20.0,
+                        ),
+                      ),
+                    ],
                   )
                 ],
-              ),
-              Text(
-                '${motor?.hp ?? 'N/A'} Hp',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      font: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w500,
-                      ),
-                      color: const Color(0xFF2E393D),
-                      fontSize: 12.0,
-                      fontWeight: FontWeight.w500,
-                    ),
               ),
             ].divide(const SizedBox(height: 4.0)),
           ),
@@ -265,7 +289,7 @@ class DevicesCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Starter No ',
+                    'Starter No :',
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w500,
@@ -278,31 +302,20 @@ class DevicesCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(width: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(0.0),
-                    child: SvgPicture.asset(
-                      device.power == 1
-                          ? 'assets/images/power.svg'
-                          : 'assets/images/Power_red.svg',
-                      width: 17,
-                      height: 17,
-                      fit: BoxFit.cover,
-                    ),
+                  Text(
+                    '#${device.pcbNumber ?? 'N/A'}',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          color: const Color(0xFF2E393D),
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
-              ),
-              Text(
-                '#${device.pcbNumber ?? 'N/A'}',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      font: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w500,
-                      ),
-                      color: const Color(0xFF2E393D),
-                      fontSize: 12.0,
-                      fontWeight: FontWeight.w500,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ].divide(const SizedBox(height: 4.0)),
           ),
@@ -328,13 +341,15 @@ class DevicesCard extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF2F80ED),
-            borderRadius: BorderRadius.circular(4.0),
+            color: (motor?.mode?.toUpperCase() == 'AUTO')
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF2F80ED),
+            borderRadius: BorderRadius.circular(8.0),
           ),
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(6.0, 2.0, 6.0, 2.0),
             child: Text(
-              motor?.mode?.substring(0, 1).toUpperCase() ?? 'M',
+              motor?.mode ?? 'MANUAL',
               style: FlutterFlowTheme.of(context).bodyMedium.override(
                     font: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w600,
@@ -345,18 +360,19 @@ class DevicesCard extends StatelessWidget {
                   ),
             ),
           ),
-        ),
-        Text(
-          motor?.mode ?? 'Manual',
-          style: FlutterFlowTheme.of(context).bodyMedium.override(
-                font: GoogleFonts.dmSans(
-                  fontWeight: FontWeight.w500,
-                ),
-                color: Colors.black,
-                fontSize: 14.0,
-                fontWeight: FontWeight.w500,
-              ),
-        ),
+        )
+
+        // Text(
+        //   motor?.mode ?? 'Manual',
+        //   style: FlutterFlowTheme.of(context).bodyMedium.override(
+        //         font: GoogleFonts.dmSans(
+        //           fontWeight: FontWeight.w500,
+        //         ),
+        //         color: Colors.black,
+        //         fontSize: 14.0,
+        //         fontWeight: FontWeight.w500,
+        //       ),
+        // ),
         // const Spacer(),
         // GestureDetector(
         //   onTap: () {

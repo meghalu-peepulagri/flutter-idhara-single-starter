@@ -365,10 +365,15 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_hasPendingModeCommand)
                   _updateModeFromMqtt(motorData.modeIndex!);
+                setState(() {});
               });
             }
           }
         }
+
+        final isManualMode = _localModeController.value == 0;
+        final isSwitchDisabled =
+            _isWaitingForSwitchAck || !(canControl && isManualMode);
 
         return Container(
           decoration: BoxDecoration(
@@ -412,8 +417,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   onModeChange: (_) {
                     //  logic
                   },
-                  isSwitchDisabled: _isWaitingForSwitchAck ||
-                      !(canControl && _localModeController.value == 0),
+                  isSwitchDisabled: isSwitchDisabled,
+                  // isSwitchDisabled: _isWaitingForSwitchAck ||
+                  //     !(canControl && _localModeController.value == 0),
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                 ),
               ].divide(const SizedBox(height: 4.0)),

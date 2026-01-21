@@ -29,7 +29,7 @@ class MotorControlWidget extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        Get.back();
+        Get.offAllNamed(Routes.dashboard);
       },
       child: GestureDetector(
         onTap: () {
