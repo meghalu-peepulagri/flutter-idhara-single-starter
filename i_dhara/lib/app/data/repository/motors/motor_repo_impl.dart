@@ -39,7 +39,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
     Map<String, dynamic> params = {
       'type': 'fault',
       'page': page,
-      'limit': limit,
+      'page_size': 15,
     };
     final response = await NetworkManager().get(
         '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/alerts-faults',
@@ -56,7 +56,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
     Map<String, dynamic> params = {
       'type': 'alert',
       'page': page,
-      'limit': limit,
+      'page_size': 15,
     };
     final response = await NetworkManager().get(
         '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/alerts-faults',
@@ -76,7 +76,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
       'entity_id': SharedPreference.getMotorId(),
       'action': action,
       'page': page,
-      'limit': limit,
+      'page_size': 15,
     };
     final response =
         await NetworkManager().get('/activities', queryParameters: params);

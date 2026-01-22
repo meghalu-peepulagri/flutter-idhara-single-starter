@@ -741,6 +741,7 @@ class AnalyticsController extends GetxController {
   static const Duration _ackTimeout = Duration(seconds: 13);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = true.obs;
+  var signalQuality = 0.obs;
 
   // NEW: Track if we're using an existing MQTT instance
   final bool _isUsingExistingMqttInstance = false;
@@ -1504,6 +1505,7 @@ class AnalyticsController extends GetxController {
         locationName.value = data.location?.name?.trim().isNotEmpty == true
             ? data.location!.name!
             : 'No Location';
+        signalQuality.value = data.starter?.signalQuality ?? 0;
 
         final starterParams = data.starter?.starterParameters;
         if (starterParams != null && starterParams.isNotEmpty) {

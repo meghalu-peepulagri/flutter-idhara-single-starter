@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
@@ -38,9 +39,10 @@ class MotorDetailsCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildMotorName(context),
+                      _buildMotorState(context),
+                      // _buildMotorName(context),
                       const SizedBox(height: 6),
-                      _buildMotorState(context)
+                      _buildMotorMode(context),
                     ],
                   ),
                 ),
@@ -57,7 +59,8 @@ class MotorDetailsCard extends StatelessWidget {
                         _buildMotorHP(context),
                         const SizedBox(
                             width: 12), // spacing between state & mode
-                        _buildMotorMode(context),
+                        _buildNetworkIcon(context)
+                        // _buildMotorMode(context),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -71,6 +74,66 @@ class MotorDetailsCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildNetworkIcon(BuildContext context) {
+    return Obx(() {
+      // Get signal quality from controller
+      final signalQuality = controller.signalQuality.value;
+
+      int bars = 0;
+
+      // Calculate signal bars based on signal quality
+      if (signalQuality >= 2 && signalQuality <= 31) {
+        if (signalQuality >= 2 && signalQuality <= 9) {
+          bars = 1;
+        } else if (signalQuality >= 10 && signalQuality <= 14) {
+          bars = 2;
+        } else if (signalQuality >= 15 && signalQuality <= 19) {
+          bars = 3;
+        } else if (signalQuality >= 20 && signalQuality <= 31) {
+          bars = 4;
+        }
+      }
+
+      String assetPath;
+      double iconWidth = 16;
+      double iconHeight = 16;
+
+      switch (bars) {
+        case 1:
+          assetPath = 'assets/images/first_signal.svg';
+          break;
+        case 2:
+          assetPath = 'assets/images/second_signal.svg';
+          break;
+        case 3:
+          assetPath = 'assets/images/third_signal.svg';
+          break;
+        case 4:
+          assetPath = 'assets/images/network.svg';
+          break;
+        case 0:
+        default:
+          assetPath = 'assets/images/no_network.svg';
+          iconWidth = 20;
+          iconHeight = 20;
+          break;
+      }
+
+      return SizedBox(
+        width: 20,
+        height: 20,
+        child: Center(
+          child: SvgPicture.asset(
+            assetPath,
+            width: iconWidth,
+            height: iconHeight,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildMotorName(BuildContext context) {

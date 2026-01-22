@@ -344,7 +344,7 @@ class DevicesCard extends StatelessWidget {
             color: (motor?.mode?.toUpperCase() == 'AUTO')
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF2F80ED),
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(4.0),
           ),
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(6.0, 2.0, 6.0, 2.0),

@@ -44,47 +44,53 @@ class MotorControlsRow extends StatelessWidget {
                 builder: (context) {
                   final mode = motor.mode?.toLowerCase() ?? 'manual';
                   final isAuto = mode == 'auto';
+
+                  final String modeText = mode.replaceFirstMapped(
+                    RegExp(r'^[a-z]'),
+                    (m) => m.group(0)!.toUpperCase(),
+                  );
+
                   return Container(
                     decoration: BoxDecoration(
                       color: isAuto
-                          ? const Color(0xFFFFA500) //  Auto = Orange
-                          : const Color(0xFF2F80ED), //  Manual = Blue
+                          ? const Color(0xFFFFA500).withOpacity(0.8)
+                          : const Color(0xFF2F80ED).withOpacity(0.8),
                       borderRadius: BorderRadius.circular(4.0),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          6.0, 2.0, 6.0, 2.0),
-                      child: Text(
-                        mode.substring(0, 1).toUpperCase(),
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              font: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              color: Colors.white,
-                              fontSize: 12.0,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        8.0, 4.0, 8.0, 4.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Text(
+                        //   mode.substring(0, 1).toUpperCase(),
+                        //   style:
+                        //       FlutterFlowTheme.of(context).bodyMedium.override(
+                        //             font: GoogleFonts.dmSans(
+                        //               fontWeight: FontWeight.w600,
+                        //             ),
+                        //             color: Colors.white,
+                        //             fontSize: 12.0,
+                        //           ),
+                        // ),
+
+                        Text(
+                          modeText,
+                          style:
+                              FlutterFlowTheme.of(context).bodyMedium.override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    color: Colors.white,
+                                    fontSize: 14.0,
+                                  ),
+                        ),
+                      ],
                     ),
                   );
                 },
               ),
-              Text(
-                // motor.mode ?? 'Manual',
-                ((motor.mode ?? 'MANUAL').toLowerCase()).replaceFirstMapped(
-                  RegExp(r'^[a-z]'),
-                  (m) => m.group(0)!.toUpperCase(),
-                ),
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      font: GoogleFonts.dmSans(
-                        fontWeight: FontWeight.w500,
-                      ),
-                      color: Colors.black,
-                      fontSize: 15.0,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-            ].divide(const SizedBox(width: 8.0)),
+            ],
           ),
           ValueListenableBuilder(
             valueListenable: modeController,

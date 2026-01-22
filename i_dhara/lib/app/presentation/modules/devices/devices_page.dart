@@ -252,8 +252,8 @@ class DevicesPage extends StatelessWidget {
                                     padding:
                                         EdgeInsets.symmetric(vertical: 16.0),
                                     child: CircularProgressIndicator(
-                                      color: Colors.green,
-                                    ),
+                                        // color: Colors.green,
+                                        ),
                                   ),
                               ],
                             );
