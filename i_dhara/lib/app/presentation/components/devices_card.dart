@@ -8,8 +8,10 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -232,11 +234,17 @@ class DevicesCard extends StatelessWidget {
                   Row(
                     spacing: 10,
                     children: [
-                      // const Icon(
-                      //   Icons.settings_outlined,
-                      //   color: Colors.grey,
-                      //   size: 20,
-                      // ),
+                      GestureDetector(
+                        onTap: () {
+                          SharedPreference.setStarterId(device.id ?? 0);
+                          Get.offNamed(Routes.usersettings);
+                        },
+                        child: const Icon(
+                          Icons.settings_outlined,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                      ),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(0.0),
                         child: SvgPicture.asset(

@@ -33,10 +33,10 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   }
 
   void _initializeValues() {
-    final lowMin = controller.data?.dvcFltLvfMin?.toDouble() ?? 0.0;
-    final lowMax = controller.data?.dvcFltLvfMax?.toDouble() ?? 100.0;
-    final highMin = controller.data?.dvcFltHvfMin?.toDouble() ?? 0.0;
-    final highMax = controller.data?.dvcFltHvfMax?.toDouble() ?? 100.0;
+    final lowMin = controller.data?.lvfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data?.lvfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data?.hvfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data?.hvfMax?.toDouble() ?? 100.0;
 
     lowCurrentValue = widget.initialLowCurrent.clamp(lowMin, lowMax);
     highCurrentValue = widget.initialHighCurrent.clamp(highMin, highMax);
@@ -57,10 +57,10 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lowMin = controller.data?.dvcFltLvfMin?.toDouble() ?? 0.0;
-    final lowMax = controller.data?.dvcFltLvfMax?.toDouble() ?? 100.0;
-    final highMin = controller.data?.dvcFltHvfMin?.toDouble() ?? 0.0;
-    final highMax = controller.data?.dvcFltHvfMax?.toDouble() ?? 100.0;
+    final lowMin = controller.data?.lvfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data?.lvfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data?.hvfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data?.hvfMax?.toDouble() ?? 100.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

@@ -33,10 +33,10 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
   }
 
   void _initializeValues() {
-    final lowMin = controller.data?.dvcFltLvfMin?.toDouble() ?? 150.0;
-    final lowMax = controller.data?.dvcFltLvfMax?.toDouble() ?? 300.0;
-    final highMin = controller.data?.dvcFltHvfMin?.toDouble() ?? 240.0;
-    final highMax = controller.data?.dvcFltHvfMax?.toDouble() ?? 550.0;
+    final lowMin = controller.data?.lvfMin?.toDouble() ?? 150.0;
+    final lowMax = controller.data?.lvfMax?.toDouble() ?? 300.0;
+    final highMin = controller.data?.hvfMin?.toDouble() ?? 240.0;
+    final highMax = controller.data?.hvfMax?.toDouble() ?? 550.0;
 
     lowVoltageValue = widget.initialLowVoltage.clamp(lowMin, lowMax);
     highVoltageValue = widget.initialHighVoltage.clamp(highMin, highMax);
@@ -57,10 +57,10 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lowMin = controller.data?.dvcFltLvfMin?.toDouble() ?? 150.0;
-    final lowMax = controller.data?.dvcFltLvfMax?.toDouble() ?? 300.0;
-    final highMin = controller.data?.dvcFltHvfMin?.toDouble() ?? 240.0;
-    final highMax = controller.data?.dvcFltHvfMax?.toDouble() ?? 550.0;
+    final lowMin = controller.data?.lvfMin?.toDouble() ?? 150.0;
+    final lowMax = controller.data?.lvfMax?.toDouble() ?? 300.0;
+    final highMin = controller.data?.hvfMin?.toDouble() ?? 240.0;
+    final highMax = controller.data?.hvfMax?.toDouble() ?? 550.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

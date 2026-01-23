@@ -7,8 +7,8 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 class SettingsRepositoryImpl extends SettingsRepository {
   @override
   Future<UserSettingsResponse?> getSettings() async {
-    final response = await NetworkManager()
-        .get('/settings/starter/${SharedPreference.getdeviceSettings()}');
+    final id = SharedPreference.getStarterId();
+    final response = await NetworkManager().get('/settings/acknowledged/$id');
     if (response.statusCode == 200) {
       final res = UserSettingsResponse.fromJson(response.data);
       return res;
@@ -18,8 +18,8 @@ class SettingsRepositoryImpl extends SettingsRepository {
 
   @override
   Future<UserSettingsLimitsResponse?> getSettingsLimits() async {
-    final response = await NetworkManager()
-        .get('/settings/limits/${SharedPreference.getdeviceSettings()}');
+    final id = SharedPreference.getStarterId();
+    final response = await NetworkManager().get('/settings/limits-mobile/$id');
     if (response.statusCode == 200) {
       final res = UserSettingsLimitsResponse.fromJson(response.data);
       return res;

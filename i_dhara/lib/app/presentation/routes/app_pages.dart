@@ -88,8 +88,8 @@ class AppPages {
     GetPage(
       name: Routes.usersettings,
       page: () => const SettingsWidget(),
-      // transition: Transition.fade,
-      // transitionDuration: const Duration(milliseconds: 300),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
     ),
   ];
 }
