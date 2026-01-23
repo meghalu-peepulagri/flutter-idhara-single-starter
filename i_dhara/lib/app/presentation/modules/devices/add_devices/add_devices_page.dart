@@ -146,7 +146,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
           backgroundColor: const Color(0xFFEBF3FE),
           body: SafeArea(
             child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(1.0, 16.0, 0.0, 0.0),
+              padding:
+                  const EdgeInsetsDirectional.fromSTEB(1.0, 16.0, 0.0, 0.0),
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
@@ -233,14 +234,16 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
     );
   }
 
-  Widget _buildLabel(BuildContext context, String label, {bool isMandatory = false}) {
+  Widget _buildLabel(BuildContext context, String label,
+      {bool isMandatory = false}) {
     return Row(
       children: [
         Text(
           label,
           style: FlutterFlowTheme.of(context).bodyMedium.override(
                 font: GoogleFonts.dmSans(
-                  fontWeight: FlutterFlowTheme.of(context).bodyMedium.fontWeight,
+                  fontWeight:
+                      FlutterFlowTheme.of(context).bodyMedium.fontWeight,
                 ),
                 color: Colors.black,
               ),
@@ -264,7 +267,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(context, 'PCB / Serial Number', isMandatory: true),
+        _buildLabel(context, 'PCB / Starter Number', isMandatory: true),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -272,7 +275,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
             controller: _model.textController1!,
             errors: _model.errorInstance,
             errorKey: 'pcb_number',
-            hintText: 'Enter PCB/Serial Number',
+            hintText: 'Enter PCB/Starter Number',
             readOnly: false,
             onChanged: (value) {
               if (_model.errorInstance.containsKey('pcb_number')) {
@@ -408,8 +411,9 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
                       'Add Location',
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
                             font: GoogleFonts.dmSans(
-                              fontWeight:
-                                  FlutterFlowTheme.of(context).bodyMedium.fontWeight,
+                              fontWeight: FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .fontWeight,
                             ),
                             color: Colors.white,
                             letterSpacing: 0.0,

@@ -1367,75 +1367,260 @@ class AnalyticsController extends GetxController {
     List<TimeSegment> segments = [];
 
     for (var runtime in runtimes) {
-      if (runtime.startTime != null && runtime.endTime != null) {
-        Duration duration = runtime.endTime!.difference(runtime.startTime!);
+      // Only process records where:
+      // 1. Motor state is 1 (ON)
+      // 2. Start and end times exist
+      // 3. Duration exists or can be calculated
+      if (runtime.motorState != 1) continue;
+      if (runtime.startTime == null) continue;
 
-        String state = 'OFFLINE';
-        if (runtime.motorState == 1) {
-          state = 'ON';
-        } else if (runtime.motorState == 0) {
-          state = 'OFF';
+      DateTime startTime = runtime.startTime!;
+      DateTime endTime;
+      Duration duration;
+
+      // Handle end time and duration
+      if (runtime.endTime != null) {
+        endTime = runtime.endTime!;
+        if (runtime.duration != null) {
+          duration = durationconvert(runtime.duration!);
+        } else {
+          duration = endTime.difference(startTime);
         }
+      } else {
+        // If no end time, skip this segment (incomplete data)
+        continue;
+      }
 
+      // Only add if duration is positive
+      if (duration.inSeconds > 0) {
         segments.add(TimeSegment(
-          runtime.startTime!,
-          runtime.endTime!,
-          state,
+          startTime,
+          endTime,
+          'ON',
           duration,
         ));
       }
     }
+
     return segments;
   }
+
+  // List<TimeSegment> convertRuntimeToTimeSegments(List<Runtime> runtimes) {
+  //   List<TimeSegment> segments = [];
+
+  //   for (var runtime in runtimes) {
+  //     if (runtime.startTime != null && runtime.endTime != null) {
+  //       Duration duration = runtime.endTime!.difference(runtime.startTime!);
+
+  //       String state = 'OFFLINE';
+  //       if (runtime.motorState == 1) {
+  //         state = 'ON';
+  //       } else if (runtime.motorState == 0) {
+  //         state = 'OFF';
+  //       }
+
+  //       segments.add(TimeSegment(
+  //         runtime.startTime!,
+  //         runtime.endTime!,
+  //         state,
+  //         duration,
+  //       ));
+  //     }
+  //   }
+  //   return segments;
+  // }
+
+  // List<TimeSegment> convertRuntimeToPowerSegments(List<Runtime> runtimes) {
+  //   final List<TimeSegment> segments = [];
+
+  //   DateTime? lastPowerTime;
+  //   int? lastPowerState;
+
+  //   runtimes.sort((a, b) =>
+  //       (a.timeStamp ?? DateTime(0)).compareTo(b.timeStamp ?? DateTime(0)));
+
+  //   for (final runtime in runtimes) {
+  //     if (runtime.powerState == null) continue;
+
+  //     DateTime? startTime = runtime.powerStart ?? lastPowerTime;
+  //     if (startTime == null) continue;
+
+  //     DateTime endTime = runtime.powerEnd ??
+  //         (runtime.powerState == lastPowerState ? DateTime.now() : startTime);
+
+  //     String state = runtime.powerState == 1
+  //         ? 'POWER_ON'
+  //         : runtime.powerState == 0
+  //             ? 'POWER_OFF'
+  //             : 'POWER_OFFLINE';
+
+  //     Duration duration;
+  //     if (runtime.powerDuration != null) {
+  //       duration = durationconvert(runtime.powerDuration!);
+  //     } else {
+  //       duration = endTime.difference(startTime);
+  //     }
+
+  //     if (duration.inSeconds > 0) {
+  //       segments.add(
+  //         TimeSegment(
+  //           startTime,
+  //           endTime,
+  //           state,
+  //           duration,
+  //         ),
+  //       );
+  //     }
+
+  //     lastPowerTime = endTime;
+  //     lastPowerState = runtime.powerState;
+  //   }
+  //   return segments;
+  // }
+  // List<TimeSegment> convertRuntimeToPowerSegments(List<Runtime> runtimes) {
+  //   final List<TimeSegment> segments = [];
+
+  //   // Sort by timestamp to process in order
+  //   final sortedRuntimes = List<Runtime>.from(runtimes);
+  //   sortedRuntimes.sort((a, b) =>
+  //       (a.timeStamp ?? DateTime(0)).compareTo(b.timeStamp ?? DateTime(0)));
+
+  //   for (int i = 0; i < sortedRuntimes.length; i++) {
+  //     final runtime = sortedRuntimes[i];
+
+  //     // Only process records where power state is 1 (POWER ON)
+  //     if (runtime.powerState != 1) continue;
+  //     if (runtime.powerStart == null) continue;
+
+  //     DateTime startTime = runtime.powerStart!;
+  //     DateTime endTime;
+  //     Duration duration;
+
+  //     // Handle end time and duration
+  //     if (runtime.powerEnd != null) {
+  //       // Power end exists - use it
+  //       endTime = runtime.powerEnd!;
+  //       if (runtime.powerDuration != null) {
+  //         duration = durationconvert(runtime.powerDuration!);
+  //       } else {
+  //         duration = endTime.difference(startTime);
+  //       }
+  //     } else {
+  //       // Power end is null - this is an ONGOING power session
+  //       // Use the next record's power_start/start_time or current time
+  //       DateTime? nextTime;
+
+  //       // Look for the next record's timestamp
+  //       if (i + 1 < sortedRuntimes.length) {
+  //         final nextRecord = sortedRuntimes[i + 1];
+  //         // Use power_start if available, otherwise use start_time
+  //         nextTime = nextRecord.powerStart ?? nextRecord.startTime;
+  //       }
+
+  //       // If we found a next time, use it; otherwise use current time
+  //       endTime = nextTime ?? DateTime.now();
+  //       duration = endTime.difference(startTime);
+  //     }
+
+  //     // Only add if duration is positive
+  //     if (duration.inSeconds > 0) {
+  //       segments.add(
+  //         TimeSegment(
+  //           startTime,
+  //           endTime,
+  //           'POWER_ON',
+  //           duration,
+  //         ),
+  //       );
+  //     }
+  //   }
+
+  //   return segments;
+  // } //power
 
   List<TimeSegment> convertRuntimeToPowerSegments(List<Runtime> runtimes) {
     final List<TimeSegment> segments = [];
 
-    DateTime? lastPowerTime;
-    int? lastPowerState;
-
-    runtimes.sort((a, b) =>
-        (a.timeStamp ?? DateTime(0)).compareTo(b.timeStamp ?? DateTime(0)));
-
     for (final runtime in runtimes) {
-      if (runtime.powerState == null) continue;
+      // Only POWER ON records
+      if (runtime.powerState != 1) continue;
+      if (runtime.powerStart == null) continue;
 
-      DateTime? startTime = runtime.powerStart ?? lastPowerTime;
-      if (startTime == null) continue;
-
-      DateTime endTime = runtime.powerEnd ??
-          (runtime.powerState == lastPowerState ? DateTime.now() : startTime);
-
-      String state = runtime.powerState == 1
-          ? 'POWER_ON'
-          : runtime.powerState == 0
-              ? 'POWER_OFF'
-              : 'POWER_OFFLINE';
-
+      final DateTime startTime = runtime.powerStart!;
+      DateTime endTime;
       Duration duration;
-      if (runtime.powerDuration != null) {
-        duration = durationconvert(runtime.powerDuration!);
+
+      if (runtime.powerEnd == null) {
+        // 🔴 STILL RUNNING
+        endTime = startTime; // keep same to avoid fake duration
+        duration = Duration.zero;
       } else {
-        duration = endTime.difference(startTime);
+        // 🟢 COMPLETED SESSION
+        endTime = runtime.powerEnd!;
+
+        if (runtime.powerDuration != null) {
+          duration = durationconvert(runtime.powerDuration!);
+        } else {
+          duration = endTime.difference(startTime);
+        }
       }
 
-      if (duration.inSeconds > 0) {
-        segments.add(
-          TimeSegment(
-            startTime,
-            endTime,
-            state,
-            duration,
-          ),
-        );
-      }
-
-      lastPowerTime = endTime;
-      lastPowerState = runtime.powerState;
+      segments.add(
+        TimeSegment(
+          startTime,
+          endTime,
+          'POWER_ON',
+          duration,
+        ),
+      );
     }
+
     return segments;
   }
 
+  // Future<void> fetchRuntime(List<DateTime?> dateRange) async {
+  //   if (dateRange.isEmpty ||
+  //       dateRange.first == null ||
+  //       dateRange.last == null) {
+  //     if (kDebugMode) print('Invalid date range for runtime fetch');
+  //     return;
+  //   }
+
+  //   if (!isRefreshing.value) {
+  //     isLoadingruntime.value = true;
+  //   }
+
+  //   try {
+  //     final response = await AnalyticsRepositoryImpl().getMotorRunTime(
+  //       DateFormat('yyyy-MM-dd').format(dateRange.first!),
+  //       DateFormat('yyyy-MM-dd').format(dateRange.last!),
+  //       // state: 'on'
+  //     );
+
+  //     if (response != null && response.data != null) {
+  //       motorRuntimeData.value = response.data!.records ?? [];
+  //       motortotalRuntime.value = response.data!.totalRunOnTime ?? '';
+
+  //       if (response.data!.records != null) {
+  //         chartData.value =
+  //             convertRuntimeToTimeSegments(response.data!.records!);
+  //         powerChartData.value =
+  //             convertRuntimeToPowerSegments(response.data!.records!);
+  //       }
+  //     } else {
+  //       motorRuntimeData.clear();
+  //       chartData.clear();
+  //       powerChartData.clear();
+  //     }
+  //   } catch (e) {
+  //     motorRuntimeData.clear();
+  //     chartData.clear();
+  //     powerChartData.clear();
+  //     if (kDebugMode) print('Error fetching runtime: $e');
+  //   } finally {
+  //     isLoadingruntime.value = false;
+  //   }
+  // }
   Future<void> fetchRuntime(List<DateTime?> dateRange) async {
     if (dateRange.isEmpty ||
         dateRange.first == null ||
@@ -1450,12 +1635,14 @@ class AnalyticsController extends GetxController {
 
     try {
       final response = await AnalyticsRepositoryImpl().getMotorRunTime(
-          DateFormat('yyyy-MM-dd').format(dateRange.first!),
-          DateFormat('yyyy-MM-dd').format(dateRange.last!),
-          state: 'on');
+        DateFormat('yyyy-MM-dd').format(dateRange.first!),
+        DateFormat('yyyy-MM-dd').format(dateRange.last!),
+      );
 
       if (response != null && response.data != null) {
         motorRuntimeData.value = response.data!.records ?? [];
+
+        // Use the API's total or calculate from filtered data
         motortotalRuntime.value = response.data!.totalRunOnTime ?? '';
 
         if (response.data!.records != null) {
@@ -1463,16 +1650,32 @@ class AnalyticsController extends GetxController {
               convertRuntimeToTimeSegments(response.data!.records!);
           powerChartData.value =
               convertRuntimeToPowerSegments(response.data!.records!);
+
+          // Calculate power total runtime
+          Duration totalPowerDuration = Duration.zero;
+          for (var segment in powerChartData) {
+            totalPowerDuration += segment.duration;
+          }
+
+          // Format power total runtime
+          int hours = totalPowerDuration.inHours;
+          int minutes = (totalPowerDuration.inMinutes % 60);
+          int seconds = (totalPowerDuration.inSeconds % 60);
+          powerTotalRuntime.value = '$hours h $minutes m $seconds sec';
         }
       } else {
         motorRuntimeData.clear();
         chartData.clear();
         powerChartData.clear();
+        motortotalRuntime.value = '';
+        powerTotalRuntime.value = '';
       }
     } catch (e) {
       motorRuntimeData.clear();
       chartData.clear();
       powerChartData.clear();
+      motortotalRuntime.value = '';
+      powerTotalRuntime.value = '';
       if (kDebugMode) print('Error fetching runtime: $e');
     } finally {
       isLoadingruntime.value = false;

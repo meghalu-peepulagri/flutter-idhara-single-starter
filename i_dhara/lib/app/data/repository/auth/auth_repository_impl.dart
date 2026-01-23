@@ -40,13 +40,14 @@ class AuthRepositoryImpl extends AuthRepository {
   }
 
   @override
-  Future<RegisterResponse?> register(
-      String fullName, String? email, String phone, String signId) async {
+  Future<RegisterResponse?> register(String fullName, String? email,
+      String phone, String signId, String? address) async {
     final queryparams = {"is_public": "true"};
     final body = {
       "full_name": fullName,
       "email": email,
       "phone": phone,
+      "address": address,
       "user_type": "USER",
       "signature_id": signId
     };

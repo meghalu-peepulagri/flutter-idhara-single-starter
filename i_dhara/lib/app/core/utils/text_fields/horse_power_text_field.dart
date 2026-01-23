@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
+import 'package:i_dhara/app/core/utils/text_fields/form_error_helper.dart';
 
 class AddHorsePowerFieldWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -17,6 +18,10 @@ class AddHorsePowerFieldWidget extends StatelessWidget {
     required this.hintText,
     this.onChanged,
   });
+
+  String? message() {
+    return FormErrorHelper(errors: errors).message(errorKey!);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,22 +89,22 @@ class AddHorsePowerFieldWidget extends StatelessWidget {
             ),
             // suffixIcon: suffixIcon,
             filled: true,
-            // errorText: message(),
+            errorText: message(),
             errorStyle: const TextStyle(color: Colors.red),
             fillColor: FlutterFlowTheme.of(context).secondaryBackground,
             hoverColor: FlutterFlowTheme.of(context).secondaryBackground,
           ),
         ),
-        if (errorText != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText,
-            style: const TextStyle(
-              color: Colors.red,
-              fontSize: 12,
-            ),
-          ),
-        ],
+        // if (errorText != null) ...[
+        //   const SizedBox(height: 4),
+        //   Text(
+        //     errorText,
+        //     style: const TextStyle(
+        //       color: Colors.red,
+        //       fontSize: 12,
+        //     ),
+        //   ),
+        // ],
       ],
     );
   }

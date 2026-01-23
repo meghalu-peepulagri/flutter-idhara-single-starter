@@ -34,9 +34,10 @@ class RegisterModel extends FlutterFlowModel {
     String? email,
     required String phone,
     required String sid,
+    String? address,
   }) async {
-    final response =
-        await AuthRepositoryImpl().register(fullName, email, phone, sid);
+    final response = await AuthRepositoryImpl()
+        .register(fullName, email, phone, sid, address);
 
     if (response != null && response.errors == null) {
       Get.offNamed(Routes.otp);

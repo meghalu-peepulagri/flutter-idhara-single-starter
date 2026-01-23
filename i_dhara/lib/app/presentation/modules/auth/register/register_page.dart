@@ -356,6 +356,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                             .trim(),
                                                     phone: phoneController.text
                                                         .trim(),
+                                                    address: addressController
+                                                        .text
+                                                        .trim(),
                                                     sid: id);
 
                                                 if (!mounted) return;
