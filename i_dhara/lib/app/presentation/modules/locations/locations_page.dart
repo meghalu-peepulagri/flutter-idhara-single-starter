@@ -51,7 +51,7 @@ class LocationsWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Get.offAllNamed(Routes.dashboard);
+        Get.offAllNamed(Routes.dashboard, arguments: {"refresh": true});
         return false;
       },
       child: GestureDetector(
@@ -103,7 +103,8 @@ class LocationsWidget extends StatelessWidget {
                           children: [
                             InkWell(
                               onTap: () {
-                                Get.offAllNamed(Routes.dashboard);
+                                Get.offAllNamed(Routes.dashboard,
+                                    arguments: {"refresh": true});
                               },
                               child: const Icon(
                                 Icons.arrow_back,

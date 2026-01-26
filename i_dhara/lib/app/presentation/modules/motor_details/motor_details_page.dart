@@ -121,7 +121,8 @@ class MotorControlWidget extends StatelessWidget {
               decoration: const BoxDecoration(),
               child: InkWell(
                 onTap: () {
-                  Get.offAllNamed(Routes.dashboard);
+                  Get.offAllNamed(Routes.dashboard,
+                      arguments: {"refresh": true});
                 },
                 child: const Padding(
                   padding: EdgeInsets.all(6.0),

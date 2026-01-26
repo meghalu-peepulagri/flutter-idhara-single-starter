@@ -17,7 +17,6 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
   @override
   void initState() {
     super.initState();
-    // Fetch data once when the bottom sheet is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.fetchLocationDropDown();
     });
@@ -42,7 +41,11 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
           );
         }
 
-        if (controller.locations.isEmpty) {
+        // Filter out "All" option to check if there are real locations
+        final realLocations =
+            controller.locations.where((loc) => loc.id != null).toList();
+
+        if (realLocations.isEmpty) {
           return const Center(
             child: Padding(
                 padding: EdgeInsets.all(32.0), child: NoLocationsFound()),
@@ -51,6 +54,9 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
 
         return ListView.builder(
           shrinkWrap: true,
+          physics: controller.locations.length > 3
+              ? const AlwaysScrollableScrollPhysics()
+              : const NeverScrollableScrollPhysics(),
           itemCount: controller.locations.length,
           itemBuilder: (context, index) {
             final loc = controller.locations[index];
@@ -77,7 +83,9 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      loc.name?.capitalizeFirst ?? '',
+                      (loc.name ?? '').length > 20
+                          ? '${loc.name!.substring(0, 20)}…'
+                          : loc.name ?? '',
                       style: const TextStyle(fontSize: 16),
                     ),
                     if (isSelected)
@@ -203,11 +211,14 @@ class _LocationSelectionBottomSheetState
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            loc.name?.capitalizeFirst ?? '',
+                            (loc.name ?? '').length > 20
+                                ? '${loc.name!.substring(0, 20)}…'
+                                : loc.name ?? '',
                             style: GoogleFonts.dmSans(
                               fontSize: 15,
                               fontWeight: FontWeight.w400,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (isSelected)
                             const Icon(

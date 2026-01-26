@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_model.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -29,6 +30,7 @@ class NewLocationController extends FlutterFlowModel {
     final response = await LocationRepoImpl().addLocation(name);
     if (response != null && response.errors == null) {
       Get.offAllNamed(Routes.locations);
+      getsuccessSnackBar(response.message!);
     } else if (response!.errors != null) {
       errorInstance = response.errors!.toJson();
     }

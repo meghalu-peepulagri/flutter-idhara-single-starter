@@ -204,16 +204,29 @@ class UserProfileCard extends StatelessWidget {
                               fit: BoxFit.cover,
                             ),
                           ),
-                          Column(
-                            mainAxisSize: MainAxisSize.max,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Address',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Address',
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .override(
+                                        font: GoogleFonts.dmSans(
+                                          fontWeight:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontWeight,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontStyle,
+                                        ),
+                                        color: const Color(0xFF6A7282),
+                                        fontSize: 16,
+                                        letterSpacing: 0.0,
                                         fontWeight: FlutterFlowTheme.of(context)
                                             .bodyMedium
                                             .fontWeight,
@@ -221,23 +234,26 @@ class UserProfileCard extends StatelessWidget {
                                             .bodyMedium
                                             .fontStyle,
                                       ),
-                                      color: const Color(0xFF6A7282),
-                                      fontSize: 16,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                              Text(
-                                controller.userProfile.value?.address ?? 'N/A',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmSans(
+                                ),
+                                Text(
+                                  controller.userProfile.value?.address ??
+                                      'N/A',
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .override(
+                                        font: GoogleFonts.dmSans(
+                                          fontWeight:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontWeight,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontStyle,
+                                        ),
+                                        color: const Color(0xFF1A1A1A),
+                                        fontSize: 16,
+                                        letterSpacing: 0.0,
                                         fontWeight: FlutterFlowTheme.of(context)
                                             .bodyMedium
                                             .fontWeight,
@@ -245,18 +261,9 @@ class UserProfileCard extends StatelessWidget {
                                             .bodyMedium
                                             .fontStyle,
                                       ),
-                                      color: const Color(0xFF1A1A1A),
-                                      fontSize: 16,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ].divide(const SizedBox(height: 6)),
+                                ),
+                              ].divide(const SizedBox(height: 6)),
+                            ),
                           ),
                         ].divide(const SizedBox(width: 12)),
                       ),

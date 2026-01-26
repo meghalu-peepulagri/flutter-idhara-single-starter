@@ -217,6 +217,7 @@ class DashboardWidget extends StatelessWidget {
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(0, 0, 0, 24.0),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: controller.motors.length +
                 (controller.isLoadingMore.value ? 1 : 0),
             itemBuilder: (context, index) {

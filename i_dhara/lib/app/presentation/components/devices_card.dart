@@ -234,17 +234,17 @@ class DevicesCard extends StatelessWidget {
                   Row(
                     spacing: 10,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          SharedPreference.setStarterId(device.id ?? 0);
-                          Get.offNamed(Routes.usersettings);
-                        },
-                        child: const Icon(
-                          Icons.settings_outlined,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                      ),
+                      // GestureDetector(
+                      //   onTap: () {
+                      //     SharedPreference.setStarterId(device.id ?? 0);
+                      //     Get.offNamed(Routes.usersettings);
+                      //   },
+                      //   child: const Icon(
+                      //     Icons.settings_outlined,
+                      //     color: Colors.grey,
+                      //     size: 20,
+                      //   ),
+                      // ),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(0.0),
                         child: SvgPicture.asset(
