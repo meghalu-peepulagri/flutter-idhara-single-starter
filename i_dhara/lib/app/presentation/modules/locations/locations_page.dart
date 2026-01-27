@@ -5,7 +5,7 @@ import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/components/location_card.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
-import 'package:i_dhara/app/presentation/modules/locations/new_location/add_new_location.dart';
+import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
@@ -39,8 +39,10 @@ class LocationsWidget extends StatelessWidget {
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: NewLocation(
-            onLocationAdded: (String newLocation) {},
+          child: AddNewLocation(
+            onLocationAdded: (String newLocation) {
+              controller.refreshLocations();
+            },
           ),
         );
       },

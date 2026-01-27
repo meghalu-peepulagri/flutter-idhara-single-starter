@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
-import 'package:i_dhara/app/presentation/modules/locations/new_location/add_new_location_model.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_controller.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
 
-class NewLocation extends StatefulWidget {
-  const NewLocation({super.key, required this.onLocationAdded});
+class AddNewLocation extends StatefulWidget {
+  const AddNewLocation({super.key, required this.onLocationAdded});
   final Function(String) onLocationAdded;
 
   @override
-  State<NewLocation> createState() => _NewLocationState();
+  State<AddNewLocation> createState() => _AddNewLocationState();
 }
 
-class _NewLocationState extends State<NewLocation> {
-  late NewLocationController _model;
+class _AddNewLocationState extends State<AddNewLocation> {
+  late AddNewLocationController _model;
 
   @override
   void initState() {
     super.initState();
-    _model = NewLocationController();
+    _model = AddNewLocationController();
     _model.textController = TextEditingController();
     _model.textFieldFocusNode = FocusNode();
   }
@@ -45,7 +46,7 @@ class _NewLocationState extends State<NewLocation> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 0.0),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -77,7 +78,7 @@ class _NewLocationState extends State<NewLocation> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24.0),
+                  const SizedBox(height: 20.0),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -164,32 +165,36 @@ class _NewLocationState extends State<NewLocation> {
                       ),
                       child: FFButtonWidget(
                         onPressed: () async {
-                          // if (!_model.validateLocationName()) {
-                          //   return; // Stop execution if invalid
+                          // if (_model.textController!.text.trim().isEmpty) {
+                          //   // Show error
+                          //   return;
                           // }
+                          setState(() {
+                            _model.errorInstance = {};
+                            _model.error = false;
+                            _model.isValidation = false;
+                            _model.message = '';
+                          });
 
-                          await _model.fetchnewlocation(
+                          final isSuccess = await _model.fetchnewlocation(
                             name: _model.textController!.text.trim(),
                           );
                           setState(() {});
-
-                          if (_model.error &&
-                              _model.message.isNotEmpty &&
-                              !_model.isValidation) {
-                            errorSnackBar(context, _model.message);
-                          } else if (!_model.error &&
-                              _model.message.isNotEmpty) {
-                            // successSnackBar(context, _model.message);
-                            // Get.back();
-                            // Get.offAllNamed(Routes.locations);
+                          if (!isSuccess) {
+                            return;
                           }
+                          print("line 36 loc id-----------> ${_model.error}");
+                          print(
+                              "line 37 loc id-----------> ${_model.errorInstance}");
+
+                          SharedPreference.setLocationId(
+                              _model.locationId.toString());
                           final locationName =
                               _model.textController!.text.trim();
 
-                          return;
-
-                          // Get.back();
-                          // Get.offAllNamed(Routes.locations);
+                          Get.back();
+                          getsuccessSnackBar("Location added successfully");
+                          widget.onLocationAdded(locationName);
                         },
                         text: 'Save',
                         options: FFButtonOptions(

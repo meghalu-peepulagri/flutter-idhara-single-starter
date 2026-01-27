@@ -3,7 +3,7 @@ import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
-import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
 

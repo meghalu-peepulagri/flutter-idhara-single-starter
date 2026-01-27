@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
-class AddNewLocatonController extends GetxController {
+class AddNewLocationController extends GetxController {
   FocusNode? textFieldFocusNode;
   TextEditingController? textController;
   String? Function(BuildContext, String?)? textControllerValidator;

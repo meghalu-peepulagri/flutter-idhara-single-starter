@@ -1,4 +1,4 @@
-import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/motors/faults_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_alerts_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';

@@ -1,6 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
@@ -41,7 +41,6 @@ class DashboardController extends GetxController {
     _initConnectivity();
     _loadAllData();
     _requestPermissionAndLoad();
-    fetchMotors();
   }
 
   @override

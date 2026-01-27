@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
-import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
 class MotorCardDialogs {
   static void showSwitchCommandDialog(
@@ -126,10 +124,13 @@ class MotorCardDialogs {
     );
   }
 
-  static void showModeCommandDialog(
-      BuildContext context, Motor motor, int newMode, Function(int) onConfirm) {
-    final modeName = newMode == 1 ? 'Auto' : 'Manual';
-
+  static void showModeChangeDialog(
+    BuildContext context,
+    String motorName,
+    int newModeIndex,
+    Function(int) onConfirm,
+  ) {
+    final modeName = newModeIndex == 1 ? 'Auto' : 'Manual';
     showDialog(
       context: context,
       builder: (context) {
@@ -143,84 +144,97 @@ class MotorCardDialogs {
             children: [
               Text(
                 'Are you sure you want to change the motor mode?',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontSize: 16,
-                    ),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: const Color(0xFF6B7280),
+                ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Text(
-                    "Motor: ",
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF3FE),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "Motor: ",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
+                          ),
                         ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    motor.aliasName?.capitalizeFirst ?? "Unknown",
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
+                        Expanded(
+                          child: Text(
+                            motorName,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          "New Mode: ",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
+                          ),
                         ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    'Mode:',
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        Text(
+                          modeName,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: newModeIndex == 1
+                                ? const Color(0xFFFFA500)
+                                : const Color(0xFF2F80ED),
+                          ),
                         ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    modeName,
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Cancel',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                    ),
+                style: GoogleFonts.dmSans(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                onConfirm(newMode);
+                Navigator.of(context).pop();
+                onConfirm(newModeIndex);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFF004E7E),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               child: Text(
                 'Confirm',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                style: GoogleFonts.dmSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

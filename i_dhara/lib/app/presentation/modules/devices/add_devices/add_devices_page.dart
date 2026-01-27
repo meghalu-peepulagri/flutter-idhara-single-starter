@@ -7,7 +7,7 @@ import 'package:i_dhara/app/core/utils/text_fields/horse_power_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
-import 'package:i_dhara/app/presentation/modules/devices/add_new_location/add_new_location_page.dart';
+import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';

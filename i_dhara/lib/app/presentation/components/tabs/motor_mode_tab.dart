@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
+import '../motor_card/motor_card_dialogs.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
 
 class MotorModeTab extends StatefulWidget {
@@ -86,8 +87,6 @@ class _MotorModeTabState extends State<MotorModeTab> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Use ValueListenableBuilder for mode changes
                 ValueListenableBuilder<int>(
                   valueListenable: _modeNotifier,
                   builder: (context, currentModeIndex, child) {
@@ -145,8 +144,12 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                     if (index == null) return;
                                     final newModeIndex = index == 0 ? 1 : 0;
                                     if (newModeIndex != currentModeIndex) {
-                                      _showModeChangeDialog(
-                                          context, newModeIndex);
+                                      MotorCardDialogs.showModeChangeDialog(
+                                        context,
+                                        widget.controller.motorName.value,
+                                        newModeIndex,
+                                        widget.controller.handleModeChange,
+                                      );
                                     }
                                   }
                                 : null,
@@ -161,120 +164,6 @@ class _MotorModeTabState extends State<MotorModeTab> {
           ),
         ),
       ],
-    );
-  }
-
-  void _showModeChangeDialog(BuildContext context, int newModeIndex) {
-    final modeName = newModeIndex == 1 ? 'Auto' : 'Manual';
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Are you sure you want to change the motor mode?',
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: const Color(0xFF6B7280),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          "Motor: ",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF004E7E),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.controller.motorName.value,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.black,
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Text(
-                          "New Mode: ",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF004E7E),
-                          ),
-                        ),
-                        Text(
-                          modeName,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: newModeIndex == 1
-                                ? const Color(0xFFFFA500)
-                                : const Color(0xFF2F80ED),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.dmSans(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                widget.controller.handleModeChange(newModeIndex);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF004E7E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Confirm',
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

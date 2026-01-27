@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
-import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
 import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
@@ -148,8 +148,7 @@ class AnalyticsController extends GetxController {
 
   Future<void> _initializeMqtt() async {
     if (motorDetails.value?.starter == null) {
-      if (kDebugMode)
-        print('⚠ Analytics: Motor details not loaded, cannot initialize MQTT');
+      if (kDebugMode) print('Motor details not loaded, cannot initialize MQTT');
       return;
     }
 
@@ -164,7 +163,7 @@ class AnalyticsController extends GetxController {
     }
 
     if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
-      if (kDebugMode) print('⚠ Analytics: No MAC or PCB available');
+      if (kDebugMode) print('No MAC or PCB available');
       return;
     }
 
@@ -186,19 +185,15 @@ class AnalyticsController extends GetxController {
       }
     }
 
-    if (kDebugMode)
-      print('✓ Analytics: Total motor map entries: ${motorMap.length}');
-
     // CRITICAL: Get the singleton instance and update its motors
     mqttService = MqttService(initialMotors: motorMap);
 
     // Check if already connected, if not initialize
     if (!mqttService.isConnected) {
-      if (kDebugMode) print('⚠ Analytics: MQTT not connected, initializing...');
+      if (kDebugMode) print('MQTT not connected, initializing...');
       await mqttService.initializeMqttClient();
     } else {
-      if (kDebugMode)
-        print('✓ Analytics: MQTT already connected, updating motors');
+      if (kDebugMode) print(' MQTT already connected, updating motors');
       mqttService.updateMotors(motorMap);
 
       // Force resubscribe to topics for this motor
@@ -207,7 +202,6 @@ class AnalyticsController extends GetxController {
 
     mqttInitialized = true;
 
-    // Add listener for MQTT updates
     mqttService.dataUpdateNotifier.addListener(_onMqttDataUpdate);
 
     // Wait for connection to stabilize
@@ -215,14 +209,14 @@ class AnalyticsController extends GetxController {
 
     // Check if we have data
     if (kDebugMode) {
-      print('📊 Analytics: Checking motor data availability...');
+      print('Checking motor data availability...');
       final motorData = getMotorData();
       if (motorData != null && motorData.hasReceivedData) {
-        print('✓ Analytics: Motor data found!');
+        print('Motor data found!');
         print('  State: ${motorData.state}');
         print('  Mode: ${motorData.modeIndex}');
       } else {
-        print('⚠ Analytics: No motor data yet, waiting for MQTT messages...');
+        print('No motor data yet, waiting for MQTT messages...');
         print('  Motor data map size: ${mqttService.motorDataMap.length}');
 
         // Print all keys in the map
@@ -241,8 +235,8 @@ class AnalyticsController extends GetxController {
     _updateCanChangeMode();
 
     if (kDebugMode) {
-      print('✓ Analytics: MQTT initialization complete');
-      print('✓ Analytics: Listener added for MQTT updates');
+      print('MQTT initialization complete');
+      print('Listener added for MQTT updates');
     }
   }
 
@@ -257,44 +251,29 @@ class AnalyticsController extends GetxController {
     );
   }
 
-  // CRITICAL FIX: Proper MQTT update handler
-
   void _onMqttDataUpdate() {
     if (kDebugMode) {
-      print('🔄 Analytics: MQTT data update notification received');
+      print('MQTT data update notification received');
     }
     _updateFromMqttData();
   }
 
   void _updateFromMqttData() {
     if (!mqttInitialized || motorDetails.value?.starter == null) {
-      if (kDebugMode) print('⚠ Analytics: MQTT not ready or no motor details');
+      if (kDebugMode) print('MQTT not ready or no motor details');
       return;
     }
 
     final motorData = getMotorData();
 
     if (motorData != null && motorData.hasReceivedData) {
-      if (kDebugMode) {
-        print('📥 Analytics: Processing MQTT data update');
-        print(
-            '  Motor Data - State: ${motorData.state}, Mode: ${motorData.modeIndex}');
-        print('  Has Pending Command: $_hasPendingModeCommand');
-        print('  Pending Value: $_pendingModeValue');
-      }
-
       // Handle mode ACK
       if (_hasPendingModeCommand) {
         final mqttMode = motorData.modeIndex;
-        if (kDebugMode) {
-          print('⏳ Analytics: Waiting for mode ACK');
-          print('  Expected: $_pendingModeValue');
-          print('  Received: $mqttMode');
-        }
 
         if (mqttMode == _pendingModeValue) {
           if (kDebugMode) {
-            print('✅ Analytics: Mode ACK MATCHED!');
+            print('Mode ACK MATCHED!');
           }
 
           _modeAckTimer?.cancel();
@@ -305,26 +284,15 @@ class AnalyticsController extends GetxController {
           // Force UI update
           localModeIndex.value = mqttMode!;
           motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
-
-          if (kDebugMode) {
-            print('✓ Analytics: UI updated successfully');
-            print('  localModeIndex: ${localModeIndex.value}');
-            print('  motorMode: ${motorMode.value}');
-          }
         } else {
           if (kDebugMode) {
-            print('⏳ Analytics: ACK mismatch - still waiting');
+            print('ACK mismatch - still waiting');
           }
         }
       } else {
-        // Normal mode update (no pending command)
         final mqttMode = motorData.modeIndex;
         if (mqttMode != null && localModeIndex.value != mqttMode) {
-          if (kDebugMode) {
-            print('🔄 Analytics: Mode updated from MQTT (no pending command)');
-            print('  Old mode: ${localModeIndex.value}');
-            print('  New mode: $mqttMode');
-          }
+          if (kDebugMode) {}
           localModeIndex.value = mqttMode;
           motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
         }
@@ -333,13 +301,13 @@ class AnalyticsController extends GetxController {
       // Update motor state
       if (motorState.value != motorData.state) {
         if (kDebugMode) {
-          print('🔄 Analytics: State updated to ${motorData.state}');
+          print('State updated to ${motorData.state}');
         }
         motorState.value = motorData.state;
       }
     } else {
       if (kDebugMode) {
-        print('⚠ Analytics: No valid motor data available');
+        print('No valid motor data available');
       }
     }
 
@@ -360,7 +328,7 @@ class AnalyticsController extends GetxController {
         final key = '$mac-$groupId';
         final data = mqttService.motorDataMap[key];
         if (data?.hasReceivedData == true) {
-          if (kDebugMode) print('✓ Analytics: Found data for MAC key=$key');
+          if (kDebugMode) print('Found data for MAC key=$key');
           return data;
         }
       }
@@ -369,14 +337,13 @@ class AnalyticsController extends GetxController {
         final key = '$pcb-$groupId';
         final data = mqttService.motorDataMap[key];
         if (data?.hasReceivedData == true) {
-          if (kDebugMode) print('✓ Analytics: Found data for PCB key=$key');
+          if (kDebugMode) print('Found data for PCB key=$key');
           return data;
         }
       }
     }
 
-    if (kDebugMode)
-      print('⚠ Analytics: No motor data found with received data');
+    if (kDebugMode) print('No motor data found with received data');
     return null;
   }
 
@@ -388,14 +355,12 @@ class AnalyticsController extends GetxController {
     if (motorData != null && motorData.groupId != null) {
       if (motorData.macAddress != null && motorData.macAddress!.isNotEmpty) {
         final motorId = '${motorData.macAddress}-${motorData.groupId}';
-        if (kDebugMode)
-          print('✓ Analytics: Using active MAC motor ID: $motorId');
+        if (kDebugMode) print('Using active MAC motor ID: $motorId');
         return motorId;
       } else if (motorData.pcbNumber != null &&
           motorData.pcbNumber!.isNotEmpty) {
         final motorId = '${motorData.pcbNumber}-${motorData.groupId}';
-        if (kDebugMode)
-          print('✓ Analytics: Using active PCB motor ID: $motorId');
+        if (kDebugMode) print('Using active PCB motor ID: $motorId');
         return motorId;
       }
     }
@@ -405,17 +370,15 @@ class AnalyticsController extends GetxController {
 
     if (mac != null && mac.isNotEmpty) {
       final motorId = '$mac-G01';
-      if (kDebugMode)
-        print('✓ Analytics: Using fallback MAC motor ID: $motorId');
+      if (kDebugMode) print('fallback MAC motor ID: $motorId');
       return motorId;
     } else if (pcb != null && pcb.isNotEmpty) {
       final motorId = '$pcb-G01';
-      if (kDebugMode)
-        print('✓ Analytics: Using fallback PCB motor ID: $motorId');
+      if (kDebugMode) print('fallback PCB motor ID: $motorId');
       return motorId;
     }
 
-    if (kDebugMode) print('⚠ Analytics: No valid motor ID found');
+    if (kDebugMode) print(' No valid motor ID found');
     return '';
   }
 
@@ -437,11 +400,6 @@ class AnalyticsController extends GetxController {
     final motorData = getMotorData();
     final signalBars = _getSignalBars(motorData);
     canChangeMode.value = hasInternet.value && signalBars > 0;
-
-    if (kDebugMode) {
-      print(
-          '🔧 Analytics: canChangeMode updated to ${canChangeMode.value} (network: ${hasInternet.value}, signal: $signalBars)');
-    }
   }
 
   int _getSignalBars(MotorData? motorData) {
@@ -475,28 +433,15 @@ class AnalyticsController extends GetxController {
 
   Future<void> handleModeChange(int newModeIndex) async {
     if (!mqttInitialized || isWaitingForModeAck.value) {
-      if (kDebugMode)
-        print(
-            '⚠ Analytics: Cannot change mode - MQTT not ready or waiting for ACK');
-      return;
+      if (kDebugMode) return;
     }
 
     final mId = _getMotorId();
     if (mId.isEmpty) {
-      if (kDebugMode)
-        print('⚠ Analytics: Cannot change mode - Invalid motor ID');
-      return;
+      if (kDebugMode) return;
     }
 
     final previousValue = localModeIndex.value;
-
-    if (kDebugMode) {
-      print('=== Analytics Mode Change Request ===');
-      print('Motor ID: $mId');
-      print('Current Mode: $previousValue');
-      print('New Mode: $newModeIndex');
-      print('Topic: peepul/${mId.split('-')[0]}/cmd');
-    }
 
     // Optimistically update UI
     isWaitingForModeAck.value = true;
@@ -509,9 +454,9 @@ class AnalyticsController extends GetxController {
 
     try {
       await mqttService.publishModeCommand(mId, newModeIndex);
-      if (kDebugMode) print('✓ Analytics: Mode command published successfully');
+      if (kDebugMode) print('Mode command published successfully');
     } catch (e) {
-      if (kDebugMode) print('✗ Analytics: Error publishing mode command: $e');
+      if (kDebugMode) print('Error publishing mode command: $e');
       _modeAckTimer?.cancel();
       localModeIndex.value = previousValue;
       motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
@@ -549,17 +494,14 @@ class AnalyticsController extends GetxController {
     clearAllData();
 
     try {
-      // Create a list of futures to wait for
       final futures = <Future>[];
 
       futures.add(fetchMotorDetails());
 
-      // Only fetch runtime if we're on the runtime tab
       if (selectedTabIndex.value == 1) {
         futures.add(fetchRuntime(daterange));
       }
 
-      // Fetch motor logs if we're on the logs tab
       if (selectedTabIndex.value == 2) {
         final logsController = Get.find<MotorLogsController>();
         futures.add(logsController.refreshCurrentTab());
@@ -680,7 +622,7 @@ class AnalyticsController extends GetxController {
     for (int i = 0; i < runtimes.length; i++) {
       var runtime = runtimes[i];
 
-      // Only process records where motor state is 1 (ON)
+      // Only process  motor state is 1 (ON)
       if (runtime.motorState != 1) continue;
       if (runtime.startTime == null) continue;
 
@@ -688,7 +630,7 @@ class AnalyticsController extends GetxController {
       DateTime endTime;
       Duration duration;
 
-      // Check if this is the last motor_state == 1 record
+      //  last motor_state == 1 record
       bool isLastMotorOnRecord = true;
       for (int j = i + 1; j < runtimes.length; j++) {
         if (runtimes[j].motorState == 1) {
@@ -706,13 +648,10 @@ class AnalyticsController extends GetxController {
           duration = endTime.difference(startTime);
         }
       } else {
-        // If no end time
         if (isLastMotorOnRecord) {
-          // 🔴 STILL RUNNING - use current time (only for last motor ON record)
           endTime = now;
           duration = now.difference(startTime);
         } else {
-          // Skip incomplete data for non-last records
           continue;
         }
       }
@@ -731,79 +670,6 @@ class AnalyticsController extends GetxController {
     return segments;
   }
 
-  // List<TimeSegment> convertRuntimeToTimeSegments(List<Runtime> runtimes) {
-  //   List<TimeSegment> segments = [];
-
-  //   for (var runtime in runtimes) {
-  //     if (runtime.startTime != null && runtime.endTime != null) {
-  //       Duration duration = runtime.endTime!.difference(runtime.startTime!);
-
-  //       String state = 'OFFLINE';
-  //       if (runtime.motorState == 1) {
-  //         state = 'ON';
-  //       } else if (runtime.motorState == 0) {
-  //         state = 'OFF';
-  //       }
-
-  //       segments.add(TimeSegment(
-  //         runtime.startTime!,
-  //         runtime.endTime!,
-  //         state,
-  //         duration,
-  //       ));
-  //     }
-  //   }
-  //   return segments;
-  // }
-
-  // List<TimeSegment> convertRuntimeToPowerSegments(List<Runtime> runtimes) {
-  //   final List<TimeSegment> segments = [];
-
-  //   DateTime? lastPowerTime;
-  //   int? lastPowerState;
-
-  //   runtimes.sort((a, b) =>
-  //       (a.timeStamp ?? DateTime(0)).compareTo(b.timeStamp ?? DateTime(0)));
-
-  //   for (final runtime in runtimes) {
-  //     if (runtime.powerState == null) continue;
-
-  //     DateTime? startTime = runtime.powerStart ?? lastPowerTime;
-  //     if (startTime == null) continue;
-
-  //     DateTime endTime = runtime.powerEnd ??
-  //         (runtime.powerState == lastPowerState ? DateTime.now() : startTime);
-
-  //     String state = runtime.powerState == 1
-  //         ? 'POWER_ON'
-  //         : runtime.powerState == 0
-  //             ? 'POWER_OFF'
-  //             : 'POWER_OFFLINE';
-
-  //     Duration duration;
-  //     if (runtime.powerDuration != null) {
-  //       duration = durationconvert(runtime.powerDuration!);
-  //     } else {
-  //       duration = endTime.difference(startTime);
-  //     }
-
-  //     if (duration.inSeconds > 0) {
-  //       segments.add(
-  //         TimeSegment(
-  //           startTime,
-  //           endTime,
-  //           state,
-  //           duration,
-  //         ),
-  //       );
-  //     }
-
-  //     lastPowerTime = endTime;
-  //     lastPowerState = runtime.powerState;
-  //   }
-  //   return segments;
-  // }
-
   List<TimeSegment> convertRuntimeToPowerSegments(List<Runtime> runtimes) {
     final List<TimeSegment> segments = [];
     final DateTime now = DateTime.now();
@@ -819,25 +685,20 @@ class AnalyticsController extends GetxController {
       DateTime endTime;
       Duration duration;
 
-      // Check if this is the last record in the list
+      // Check  last record in the list
       bool isLastRecord = (i == runtimes.length - 1);
 
       if (runtime.powerEnd != null && runtime.powerDuration != null) {
-        // ✅ COMPLETED - has both end time and duration
         endTime = runtime.powerEnd!;
         duration = durationconvert(runtime.powerDuration!);
       } else if (runtime.powerEnd == null && runtime.powerDuration == null) {
-        // ⏳ NO END TIME AND NO DURATION
         if (isLastRecord) {
-          // 🔴 STILL RUNNING - only for last record
           endTime = now;
           duration = now.difference(startTime);
         } else {
-          // Skip incomplete data for non-last records
           continue;
         }
       } else {
-        // Skip records with incomplete data (only end time or only duration)
         continue;
       }
 

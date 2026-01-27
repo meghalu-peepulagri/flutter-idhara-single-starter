@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
-import 'package:i_dhara/app/data/models/dashboard/motor_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
@@ -236,31 +236,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _hasPendingSwitchCommand = false;
       _pendingSwitchValue = null;
       if (mounted) setState(() => _isWaitingForSwitchAck = false);
-    }
-  }
-
-  Future<void> _handleModeToggle(int? index) async {
-    if (index == null || !_isMotorAvailable() || _isWaitingForModeAck) return;
-    final motorId = _getMotorId();
-    if (motorId.isEmpty) return;
-
-    final previousValue = _localModeController.value;
-    setState(() => _isWaitingForModeAck = true);
-
-    final oldIndex = _localModeController.value;
-    _localModeController.value = index;
-    _hasPendingModeCommand = true;
-    _pendingModeValue = index;
-    _startModeAckTimer(previousValue);
-
-    try {
-      await widget.mqttService.publishModeCommand(motorId, index);
-    } catch (e) {
-      _modeAckTimer?.cancel();
-      _localModeController.value = oldIndex;
-      _hasPendingModeCommand = false;
-      _pendingModeValue = null;
-      if (mounted) setState(() => _isWaitingForModeAck = false);
     }
   }
 
