@@ -16,6 +16,7 @@ class MotorControlsRow extends StatelessWidget {
   final Function(int) onModeChange;
   final bool isSwitchDisabled;
   final bool isModeDisabled;
+  final VoidCallback? onNavigateToDetails;
 
   const MotorControlsRow({
     super.key,
@@ -27,6 +28,7 @@ class MotorControlsRow extends StatelessWidget {
     required this.onModeChange,
     required this.isSwitchDisabled,
     required this.isModeDisabled,
+    this.onNavigateToDetails,
   });
 
   @override
@@ -37,60 +39,64 @@ class MotorControlsRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Builder(
-                builder: (context) {
-                  final mode = motor.mode?.toLowerCase() ?? 'manual';
-                  final isAuto = mode == 'auto';
+          GestureDetector(
+            onTap: onNavigateToDetails,
+            child: Row(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                Builder(
+                  builder: (context) {
+                    final mode = motor.mode?.toLowerCase() ?? 'manual';
+                    final isAuto = mode == 'auto';
 
-                  final String modeText = mode.replaceFirstMapped(
-                    RegExp(r'^[a-z]'),
-                    (m) => m.group(0)!.toUpperCase(),
-                  );
+                    final String modeText = mode.replaceFirstMapped(
+                      RegExp(r'^[a-z]'),
+                      (m) => m.group(0)!.toUpperCase(),
+                    );
 
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isAuto
-                          ? const Color(0xFFFFA500).withOpacity(0.8)
-                          : const Color(0xFF2F80ED).withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(4.0),
-                    ),
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                        8.0, 4.0, 8.0, 4.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Text(
-                        //   mode.substring(0, 1).toUpperCase(),
-                        //   style:
-                        //       FlutterFlowTheme.of(context).bodyMedium.override(
-                        //             font: GoogleFonts.dmSans(
-                        //               fontWeight: FontWeight.w600,
-                        //             ),
-                        //             color: Colors.white,
-                        //             fontSize: 12.0,
-                        //           ),
-                        // ),
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isAuto
+                            ? const Color(0xFFFFA500).withOpacity(0.8)
+                            : const Color(0xFF2F80ED).withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(4.0),
+                      ),
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                          8.0, 4.0, 8.0, 4.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Text(
+                          //   mode.substring(0, 1).toUpperCase(),
+                          //   style:
+                          //       FlutterFlowTheme.of(context).bodyMedium.override(
+                          //             font: GoogleFonts.dmSans(
+                          //               fontWeight: FontWeight.w600,
+                          //             ),
+                          //             color: Colors.white,
+                          //             fontSize: 12.0,
+                          //           ),
+                          // ),
 
-                        Text(
-                          modeText,
-                          style:
-                              FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    color: Colors.white,
-                                    fontSize: 14.0,
+                          Text(
+                            modeText,
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.dmSans(
+                                    fontWeight: FontWeight.w500,
                                   ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
+                                  color: Colors.white,
+                                  fontSize: 14.0,
+                                ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           ValueListenableBuilder(
             valueListenable: modeController,
