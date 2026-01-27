@@ -421,6 +421,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   // isSwitchDisabled: _isWaitingForSwitchAck ||
                   //     !(canControl && _localModeController.value == 0),
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
+                  onNavigateToDetails: _navigateToDetails,
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),
