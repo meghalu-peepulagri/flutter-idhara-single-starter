@@ -33,13 +33,17 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   }
 
   void _initializeValues() {
-    final lowMin = controller.data?.lvfMin?.toDouble() ?? 0.0;
-    final lowMax = controller.data?.lvfMax?.toDouble() ?? 100.0;
-    final highMin = controller.data?.hvfMin?.toDouble() ?? 0.0;
-    final highMax = controller.data?.hvfMax?.toDouble() ?? 100.0;
+    final lowMin = controller.data.value?.drfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data.value?.drfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
+    print(
+        "line  40 ----------------------> $lowMin $lowMax  $highMin $highMax");
 
     lowCurrentValue = widget.initialLowCurrent.clamp(lowMin, lowMax);
     highCurrentValue = widget.initialHighCurrent.clamp(highMin, highMax);
+
+    print("line 46 --------------> $lowCurrentValue  $highCurrentValue");
   }
 
   void resetValues() {
@@ -57,10 +61,13 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lowMin = controller.data?.lvfMin?.toDouble() ?? 0.0;
-    final lowMax = controller.data?.lvfMax?.toDouble() ?? 100.0;
-    final highMin = controller.data?.hvfMin?.toDouble() ?? 0.0;
-    final highMax = controller.data?.hvfMax?.toDouble() ?? 100.0;
+    final lowMin = controller.data.value?.drfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data.value?.drfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
+
+    print(
+        "line  68 ----------------------> $lowMin $lowMax  $highMin $highMax");
 
     return Column(
       mainAxisSize: MainAxisSize.min,

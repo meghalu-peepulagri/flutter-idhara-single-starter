@@ -103,29 +103,31 @@ class NetworkManager {
           if (error.response != null) {
             final statusCode = error.response!.statusCode;
             final responseData = error.response!.data;
+            final message = error.response!.statusMessage;
+
             switch (statusCode) {
               case 400:
-                geterrorSnackBar(responseData['message']);
+                geterrorSnackBar(message.toString());
                 return error.response;
               case 401:
-                geterrorSnackBar(errorsMap["unauthorized_error"]);
+                geterrorSnackBar(message.toString());
                 return error.response;
               case 404:
                 geterrorSnackBar(responseData['message']);
                 return error.response;
               case 403:
-                geterrorSnackBar(errorsMap["bad_request_error"]);
+                geterrorSnackBar(message.toString());
                 return error.response;
               case 409:
-                geterrorSnackBar(responseData['message']);
+                geterrorSnackBar(message.toString());
                 return error.response;
               case 422:
                 return error.response;
               case 500:
-                geterrorSnackBar("Internal Server Error");
+                geterrorSnackBar(message.toString());
                 return error.response;
               case 555:
-                geterrorSnackBar(errorsMap["internal_server_error"]);
+                geterrorSnackBar(message.toString());
                 return error.response;
             }
           } else {

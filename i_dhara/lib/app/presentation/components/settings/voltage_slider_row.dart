@@ -32,8 +32,8 @@ class VoltageSliderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Get the appropriate display value based on voltage type
     final displayValue = isHighVoltage
-        ? controller.userSettings.value!.dvcFltHvf.toString()
-        : controller.userSettings.value!.dvcFltLvf.toString();
+        ? controller.userSettings2.value!.hvf.toString()
+        : controller.userSettings2.value!.lvf.toString();
 
     return Container(
       decoration: BoxDecoration(

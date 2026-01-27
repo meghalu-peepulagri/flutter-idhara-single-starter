@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
+import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+
+import '../../../data/models/settings/user_setting_limits2_model.dart';
+import '../../components/popups/default_setting_popup.dart';
 
 class SettingsWidget extends StatefulWidget {
   const SettingsWidget({super.key});
@@ -19,15 +25,28 @@ class SettingsWidget extends StatefulWidget {
 class _SettingsWidgetState extends State<SettingsWidget> {
   final SettingsController controller = Get.put(SettingsController());
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  StreamSubscription? _subscription;
 
-  // Keys to access card states
-  // Keys to access card states
+  late MqttService mqttService;
+  MotorData? motorData;
   final GlobalKey<SettingsVoltageCardState> voltageCardKey = GlobalKey();
   final GlobalKey<SettingsCurrentCardState> currentCardKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+    mqttService = MqttService();
+    mqttConnection();
+    mqttService.settingstream.listen((data) {
+      if (data == 1) {
+        controller.fetchUserSettings2();
+      }
+      print("line 40 ----->\n$data");
+    });
+  }
+
+  mqttConnection() async {
+    await mqttService.initializeMqttClient();
   }
 
   void onTapMenu() {
@@ -39,19 +58,161 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     currentCardKey.currentState?.resetValues();
   }
 
-  void _handleSave() {
-    final voltageValues = voltageCardKey.currentState?.getValues();
-    final currentValues = currentCardKey.currentState?.getValues();
+  void _showModeChangeDialog(
+    BuildContext context,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to update the settings?',
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF3FE),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "Voltage: ",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${controller.lvf.value}(lvf)   ${controller.hvf.value}(hvf)',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          "Current: ",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
+                          ),
+                        ),
+                        Text(
+                          '',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2F80ED),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.dmSans(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final voltageValues = voltageCardKey.currentState?.getValues();
+                final currentValues = currentCardKey.currentState?.getValues();
+                debugPrint(
+                    'Voltage - Low: ${voltageValues?['low']}, High: ${voltageValues?['high']}');
+                debugPrint(
+                    'Current - Low: ${currentValues?['low']}, High: ${currentValues?['high']}');
+                controller.lvf.value = voltageValues?['low']?.toInt() ??
+                    controller.userSettings2.value!.lvf!;
+                controller.hvf.value = voltageValues?['high']?.toInt() ??
+                    controller.userSettings2.value!.hvf!;
+                print("line 163  ${controller.userSettings2.value?.starter}");
 
-    // Handle save logic here
-    // Handle save logic here
-    debugPrint(
-        'Voltage - Low: ${voltageValues?['low']}, High: ${voltageValues?['high']}');
-    debugPrint(
-        'Current - Low: ${currentValues?['low']}, High: ${currentValues?['high']}');
+                var pcbNumber =
+                    pcbnumberPass(controller.userSettings2.value?.starter);
 
-    // You can call your controller methods here
-    // controller.updateSettings(faultValues, alertValues);
+                Navigator.of(context).pop();
+                await mqttService.publishUpdateSettings(
+                    controller.lvf.value, controller.hvf.value, pcbNumber);
+                await controller.fetchupdateSettings();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF004E7E),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Confirm',
+                style: GoogleFonts.dmSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String pcbnumberPass(Starter? starter) {
+    print("line 190");
+    print("line 191 ${starter!.toJson()}");
+    if (starter.pcbNumber != null) {
+      return starter.pcbNumber.toString();
+    } else if (starter.macAddress != null) {
+      return starter.macAddress.toString();
+    } else {
+      return '';
+    }
+  }
+
+  void _handleSave() async {
+    _showModeChangeDialog(context);
+  }
+
+  _defaultSettingsPopUp(BuildContext context) async {
+    showDeviceSettingConfirmDialog(
+      context,
+      title: 'Confirm Default Settings',
+      message: 'Are you sure you want to fetch the default settings?',
+      onConfirm: () async {
+        await controller.fetchupdateSettings();
+      },
+    );
   }
 
   @override
@@ -155,48 +316,84 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                     );
                   }
 
-                  if (controller.userSettings.value == null) {
-                    return const Center(
-                      child: Text('No settings available'),
-                    );
-                  }
+                  // if (controller.userSettings2.value == null) {
+                  //   return const Center(
+                  //     child: Text('No settings available'),
+                  //   );
+                  // }
 
-                  final settings = controller.userSettings.value;
-                  if (settings == null) {
-                    return const Center(
-                      child: Text('No settings available'),
-                    );
-                  }
+                  final settings = controller.userSettings2.value;
+
+                  // if (settings == null) {
+                  //   return const Center(
+                  //     child: Text('No settings available'),
+                  //   );
+                  // }
 
                   return Column(
                     children: [
                       Padding(
                         padding:
-                            const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
+                            const EdgeInsets.fromLTRB(16.0, 16.0, 25.0, 0.0),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              settings.starter?.name?.toString() ?? 'Pump 1',
-                              style: FlutterFlowTheme.of(context)
-                                  .titleMedium
-                                  .override(
-                                    fontFamily: 'Manrope',
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF004E7E),
-                                    fontSize: 18.0,
-                                  ),
+                            Row(
+                              spacing: 10,
+                              children: [
+                                Text(
+                                  settings?.starter?.name?.toString() ??
+                                      'Pump 1',
+                                  style: FlutterFlowTheme.of(context)
+                                      .titleMedium
+                                      .override(
+                                        fontFamily: 'Manrope',
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF004E7E),
+                                        fontSize: 18.0,
+                                      ),
+                                ),
+                                Text(
+                                  '3 HP',
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .override(
+                                        fontFamily: 'Manrope',
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF6B7280),
+                                        fontSize: 14.0,
+                                      ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8.0),
-                            Text(
-                              '3 HP',
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    fontFamily: 'Manrope',
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF6B7280),
-                                    fontSize: 14.0,
-                                  ),
+                            Container(
+                              height: 25,
+                              width: 90,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE53935),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: FFButtonWidget(
+                                onPressed: () {
+                                  _defaultSettingsPopUp(context);
+                                },
+                                text: 'Default',
+                                options: FFButtonOptions(
+                                  height: 40.0,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20.0),
+                                  color: Colors.transparent,
+                                  textStyle: FlutterFlowTheme.of(context)
+                                      .titleSmall
+                                      .override(
+                                        fontFamily: 'Manrope',
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                  elevation: 0.0,
+                                  borderRadius: BorderRadius.circular(0),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -211,12 +408,17 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               // Voltages Section
                               SettingsVoltageCard(
                                 key: voltageCardKey,
-                                initialLowVoltage:
-                                    settings.dvcFltLvf?.toDouble() ?? 180.0,
-                                initialHighVoltage:
-                                    settings.dvcFltHvf?.toDouble() ?? 280.0,
-                                motorName: settings.starter?.name?.toString() ??
-                                    'Pump 1',
+                                initialLowVoltage: controller
+                                        .userSettings2.value?.lvf
+                                        ?.toDouble() ??
+                                    180.0,
+                                initialHighVoltage: controller
+                                        .userSettings2.value?.hvf
+                                        ?.toDouble() ??
+                                    280.0,
+                                motorName:
+                                    settings?.starter?.name?.toString() ??
+                                        'Pump 1',
                                 motorHp: '3 HP',
                               ),
                               const SizedBox(height: 24),
@@ -225,14 +427,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               // Currents Section
                               SettingsCurrentCard(
                                 key: currentCardKey,
-                                initialLowCurrent:
-                                    settings.dvcFltLvf?.toDouble() ??
-                                        180.0, // NOTE: Check mapping
-                                initialHighCurrent:
-                                    settings.dvcFltHvf?.toDouble() ??
-                                        280.0, // NOTE: Check mapping
-                                motorName: settings.starter?.name?.toString() ??
-                                    'Pump 1',
+                                initialLowCurrent: settings?.drf?.toDouble() ??
+                                    180.0, // NOTE: Check mapping
+                                initialHighCurrent: settings?.olf?.toDouble() ??
+                                    280.0, // NOTE: Check mapping
+                                motorName:
+                                    settings?.starter?.name?.toString() ??
+                                        'Pump 1',
                                 motorHp: '3 HP',
                               ),
                             ],
