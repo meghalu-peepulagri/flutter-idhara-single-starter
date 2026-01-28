@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geocoding/geocoding.dart' hide Location;
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
@@ -97,5 +100,78 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
       errorInstance.clear();
       errorInstance.addAll(response!.errors!.toJson());
     }
+  }
+
+  Future<Map<String, dynamic>?> getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return {'error': 'Location services are disabled. Please enable them.'};
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return {'error': 'Location permission denied.'};
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return {'error': 'Location permissions are permanently denied.'};
+    }
+
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(position.latitude, position.longitude);
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String address =
+            "${place.locality ?? ''}, ${place.subAdministrativeArea ?? ''}"
+                .replaceAll(RegExp(r'^, |^, |, $'), '')
+                .trim();
+        if (address.isEmpty) {
+          address = place.name ?? 'New Location';
+        }
+
+        // Check if location already exists
+        final existingResponse = await LocationRepoImpl().getLocations();
+        if (existingResponse != null && existingResponse.data != null) {
+          for (var element in existingResponse.data!) {
+            if (element.name == address) {
+              return {
+                'id': element.id.toString(),
+                'name': element.name ?? address,
+              };
+            }
+          }
+        }
+
+        // Try to add location if not found
+        await LocationRepoImpl().addLocation(address);
+
+        // Fetch all locations to find the ID of the newly added location
+        final response = await LocationRepoImpl().getLocations();
+        if (response != null && response.data != null) {
+          for (var element in response.data!) {
+            if (element.name == address) {
+              return {
+                'id': element.id.toString(),
+                'name': element.name ?? address,
+              };
+            }
+          }
+        }
+      }
+    } on MissingPluginException catch (e) {
+      print("Location Error: $e");
+    } catch (e) {
+      print("Location Error: $e");
+    }
+    return null;
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/horse_power_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart';
@@ -27,15 +28,19 @@ class AddDevicesWidget extends StatefulWidget {
   State<AddDevicesWidget> createState() => _AddDevicesWidgetState();
 }
 
-class _AddDevicesWidgetState extends State<AddDevicesWidget> {
+class _AddDevicesWidgetState extends State<AddDevicesWidget>
+    with WidgetsBindingObserver {
   late AddDevicesModel _model;
   String? selectedLocationId;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool isLocationFetching = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _model = createModel(context, () => AddDevicesModel());
 
     _model.textController1 ??= TextEditingController();
@@ -64,10 +69,150 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
       _model.textController1!.text = args['pcbNumber'];
     }
     _model.fetchLocationDropDown();
+
+    // Auto-fetch location
+    _fetchCurrentLocation();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Retry fetching location when app is resumed (e.g. from settings)
+      // Only retry if location is not already set
+      if (_model.textController4!.text.isEmpty) {
+        _fetchCurrentLocation();
+      }
+    }
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() {
+      isLocationFetching = true;
+    });
+
+    final loc = await _model.getCurrentLocation();
+
+    if (mounted) {
+      setState(() {
+        isLocationFetching = false;
+      });
+
+      if (loc != null) {
+        if (loc.containsKey('error')) {
+          geterrorSnackBar("Enable the Mobile location");
+        } else {
+          setState(() {
+            _model.textController4!.text = loc['name'];
+            selectedLocationId = loc['id'];
+            if (_model.errorInstance.containsKey('location_id')) {
+              _model.errorInstance.remove('location_id');
+            }
+          });
+        }
+      }
+    }
+  }
+
+  Widget _buildLocationField(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildLabel(context, 'Location', isMandatory: true),
+            GestureDetector(
+              onTap: () {
+                _onTapLocation(context);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(bounds),
+                    child: const Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 18.0,
+                    ),
+                  ),
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(bounds),
+                    child: Text(
+                      'Add Location',
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            font: GoogleFonts.dmSans(
+                              fontWeight: FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .fontWeight,
+                            ),
+                            color: Colors.white,
+                            letterSpacing: 0.0,
+                          ),
+                    ),
+                  ),
+                ].divide(const SizedBox(width: 4.0)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () {
+            showLocationBottomSheet(context);
+          },
+          child: AbsorbPointer(
+            child: TextFieldComponent(
+              controller: _model.textController4!,
+              errors: _model.errorInstance,
+              errorKey: 'location_id',
+              hintText: 'Select Location',
+              readOnly: false,
+              onChanged: (value) {
+                if (_model.errorInstance.containsKey('location_id')) {
+                  setState(() {
+                    _model.errorInstance.remove('location_id');
+                  });
+                }
+              },
+              suffixIcon: isLocationFetching
+                  ? Transform.scale(
+                      scale: 0.5,
+                      child: const CircularProgressIndicator(
+                        // strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFF004E7E)),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Color(0xFF757575),
+                      size: 24.0,
+                    ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                FilteringTextInputFormatter.deny(RegExp(r'^\s')),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _model.dispose();
 
     super.dispose();
@@ -367,94 +512,6 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget> {
               ),
             ),
           ].divide(const SizedBox(width: 8)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLocationField(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.max,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildLabel(context, 'Location', isMandatory: true),
-            GestureDetector(
-              onTap: () {
-                _onTapLocation(context);
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ).createShader(bounds),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 18.0,
-                    ),
-                  ),
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ).createShader(bounds),
-                    child: Text(
-                      'Add Location',
-                      style: FlutterFlowTheme.of(context).bodyMedium.override(
-                            font: GoogleFonts.dmSans(
-                              fontWeight: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .fontWeight,
-                            ),
-                            color: Colors.white,
-                            letterSpacing: 0.0,
-                          ),
-                    ),
-                  ),
-                ].divide(const SizedBox(width: 4.0)),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: () {
-            showLocationBottomSheet(context);
-          },
-          child: AbsorbPointer(
-            child: TextFieldComponent(
-              controller: _model.textController4!,
-              errors: _model.errorInstance,
-              errorKey: 'location_id',
-              hintText: 'Select Location',
-              readOnly: false,
-              onChanged: (value) {
-                if (_model.errorInstance.containsKey('location_id')) {
-                  setState(() {
-                    _model.errorInstance.remove('location_id');
-                  });
-                }
-              },
-              suffixIcon: const Icon(
-                Icons.keyboard_arrow_down,
-                color: Color(0xFF757575),
-                size: 24.0,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
-                FilteringTextInputFormatter.deny(RegExp(r'^\s')),
-              ],
-            ),
-          ),
         ),
       ],
     );

@@ -90,6 +90,7 @@ dependencies:
   pinput: ^6.0.1
   flutter_launcher_icons: ^0.14.4
   video_player: ^2.10.0
+  geocoding: ^4.0.0
 
 dependency_overrides:
   http: 1.4.0
