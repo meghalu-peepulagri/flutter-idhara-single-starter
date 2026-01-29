@@ -4,6 +4,7 @@ import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_delete_location_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_location_page.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -46,7 +47,7 @@ class EditDeleteLocationPage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Options',
+                  AppLocalizations.of(context)!.options,
                   style: FlutterFlowTheme.of(context).bodyMedium.override(
                         fontFamily: 'Lexend', // Match motor font
                         color: const Color(0xFF6A7185),
@@ -124,7 +125,8 @@ class EditDeleteLocationPage extends StatelessWidget {
                         ),
                         const SizedBox(width: 8), // Match motor spacing
                         Text(
-                          'Rename Location', // Consistent naming
+                          AppLocalizations.of(context)!
+                              .renameLocation, // Consistent naming
                           style:
                               FlutterFlowTheme.of(context).bodyMedium.override(
                                     fontFamily: 'Lexend', // Match motor font
@@ -149,11 +151,11 @@ class EditDeleteLocationPage extends StatelessWidget {
                       context: context,
                       builder: (context) {
                         return PopupDialog(
-                          description:
-                              "This  will be deleted permanently. Do you wish to go ahead?",
-                          title: "Delete Location",
+                          description: AppLocalizations.of(context)!
+                              .deleteLocationConfirmation,
+                          title: AppLocalizations.of(context)!.deleteLocation,
                           iconAssetPath: 'assets/images/location.svg',
-                          buttonlable: 'Delete',
+                          buttonlable: AppLocalizations.of(context)!.delete,
                           onDelete: () async {
                             final success = await locationsController
                                 .deleteLocation(locationId);
@@ -190,7 +192,8 @@ class EditDeleteLocationPage extends StatelessWidget {
                         ),
                         const SizedBox(width: 8), // Match motor spacing
                         Text(
-                          'Delete Location', // Consistent naming
+                          AppLocalizations.of(context)!
+                              .deleteLocation, // Consistent naming
                           style:
                               FlutterFlowTheme.of(context).bodyMedium.override(
                                     fontFamily: 'Lexend', // Match motor font

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:lottie/lottie.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../modules/motor_details/motor_details_controller.dart';
 
@@ -222,7 +223,7 @@ class MotorDetailsCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'State :  ',
+            '${AppLocalizations.of(context)!.stateLabel}  ',
             style: FlutterFlowTheme.of(context).bodyMedium.override(
                   font: GoogleFonts.dmSans(
                     fontWeight: FontWeight.normal,
@@ -250,7 +251,9 @@ class MotorDetailsCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  isOn ? 'ON' : 'OFF',
+                  isOn
+                      ? AppLocalizations.of(context)!.on
+                      : AppLocalizations.of(context)!.off,
                   style: FlutterFlowTheme.of(context).bodyMedium.override(
                         font: GoogleFonts.dmSans(
                           fontWeight: FontWeight.w400,
@@ -275,11 +278,11 @@ class MotorDetailsCard extends StatelessWidget {
       final mode = controller.motorMode.value;
       final isAuto = mode == 'A' || mode.toLowerCase().contains('auto');
 
-      String modeText = 'Manual';
+      String modeText = AppLocalizations.of(context)!.manual;
       Color modeColor = const Color(0xFFFFEDD4);
 
       if (isAuto) {
-        modeText = 'Auto';
+        modeText = AppLocalizations.of(context)!.auto;
         modeColor = const Color(0xFFFFEDD4);
       }
 
@@ -287,7 +290,7 @@ class MotorDetailsCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Mode: ',
+            '${AppLocalizations.of(context)!.modeLabel} ',
             style: FlutterFlowTheme.of(context).bodyMedium.override(
                   font: GoogleFonts.dmSans(),
                   color: const Color(0xFF000000),

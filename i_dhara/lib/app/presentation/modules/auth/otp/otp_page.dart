@@ -10,6 +10,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/presentation/modules/auth/otp/otp_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:sms_autofill/sms_autofill.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class OtpWidget extends StatelessWidget {
   OtpWidget({super.key});
@@ -86,7 +87,8 @@ class OtpWidget extends StatelessWidget {
                                       mainAxisSize: MainAxisSize.max,
                                       children: [
                                         Text(
-                                          'OTP Verification',
+                                          AppLocalizations.of(context)!
+                                              .otpVerification,
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -123,7 +125,7 @@ class OtpWidget extends StatelessWidget {
                                               children: [
                                                 TextSpan(
                                                   text:
-                                                      '       Enter the OTP sent to your mobile number \n ',
+                                                      '       ${AppLocalizations.of(context)!.enterOtpSent} \n ',
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -135,7 +137,8 @@ class OtpWidget extends StatelessWidget {
                                                       ),
                                                 ),
                                                 TextSpan(
-                                                  text: 'ends with ',
+                                                  text:
+                                                      '${AppLocalizations.of(context)!.endsWith} ',
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -164,7 +167,9 @@ class OtpWidget extends StatelessWidget {
                                                 const WidgetSpan(
                                                     child: SizedBox(width: 8)),
                                                 TextSpan(
-                                                  text: 'Change',
+                                                  text: AppLocalizations.of(
+                                                          context)!
+                                                      .change,
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -277,7 +282,8 @@ class OtpWidget extends StatelessWidget {
                                       mainAxisSize: MainAxisSize.max,
                                       children: [
                                         Text(
-                                          'Didn’t you receive OTP? ',
+                                          AppLocalizations.of(context)!
+                                              .didntReceiveOtp,
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -291,7 +297,8 @@ class OtpWidget extends StatelessWidget {
                                         controller.isTimerRunning.value
                                             ? Text.rich(
                                                 TextSpan(
-                                                  text: 'Resend OTP in  ',
+                                                  text:
+                                                      '${AppLocalizations.of(context)!.resendOtpIn}  ',
                                                   style: const TextStyle(
                                                     color: Color(0XFF555555),
                                                     fontSize: 16,
@@ -313,8 +320,9 @@ class OtpWidget extends StatelessWidget {
                                                             FontWeight.w400,
                                                       ),
                                                     ),
-                                                    const TextSpan(
-                                                      text: ' seconds',
+                                                    TextSpan(
+                                                      text:
+                                                          ' ${AppLocalizations.of(context)!.seconds}',
                                                       style: TextStyle(
                                                         color:
                                                             Color(0XFF555555),
@@ -330,7 +338,8 @@ class OtpWidget extends StatelessWidget {
                                             : InkWell(
                                                 onTap: controller.resendOtp,
                                                 child: Text(
-                                                  'Resend OTP ',
+                                                  AppLocalizations.of(context)!
+                                                      .resendOtp,
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -384,12 +393,13 @@ class OtpWidget extends StatelessWidget {
                                           } else {
                                             controller.error.value = true;
                                             controller.errorInstance.value =
-                                                'Please enter valid OTP';
+                                                AppLocalizations.of(context)!
+                                                    .enterValidOtp;
                                           }
                                         },
                                   text: controller.isLoading.value
-                                      ? 'Verifying...'
-                                      : 'Verify',
+                                      ? AppLocalizations.of(context)!.verifying
+                                      : AppLocalizations.of(context)!.verify,
                                   options: FFButtonOptions(
                                     width: double.infinity,
                                     height: 45,

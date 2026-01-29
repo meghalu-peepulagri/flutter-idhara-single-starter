@@ -11,6 +11,7 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
@@ -79,7 +80,7 @@ class LocationsWidget extends StatelessWidget {
                         // Centered title
                         Center(
                           child: Text(
-                            'Locations',
+                            AppLocalizations.of(context)!.locations,
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
@@ -154,7 +155,8 @@ class LocationsWidget extends StatelessWidget {
                                   height: 40,
                                   child: SearchFieldComponent(
                                     controller: controller.controller1,
-                                    hintText: 'Search Locations',
+                                    hintText: AppLocalizations.of(context)!
+                                        .searchLocations,
                                   ),
                                 ),
                               ),
@@ -167,7 +169,7 @@ class LocationsWidget extends StatelessWidget {
                           Row(
                             children: [
                               Text(
-                                'Locations',
+                                AppLocalizations.of(context)!.locations,
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -251,7 +253,7 @@ class LocationsWidget extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Add',
+                                        AppLocalizations.of(context)!.add,
                                         style: FlutterFlowTheme.of(context)
                                             .bodySmall
                                             .override(

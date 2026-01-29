@@ -3,6 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../modules/motor_details/motor_details_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class MotorDetailsTabBar extends StatelessWidget {
   final AnalyticsController controller;
@@ -32,19 +33,19 @@ class MotorDetailsTabBar extends StatelessWidget {
           children: [
             _buildTab(
               context,
-              'Mode',
+              AppLocalizations.of(context)!.modeTab, // 'Mode'
               0,
               'assets/images/Mode.svg',
             ),
             _buildTab(
               context,
-              'Analytics',
+              AppLocalizations.of(context)!.analyticsTab, // 'Analytics'
               1,
               'assets/images/Graph.svg',
             ),
             _buildTab(
               context,
-              'Logs',
+              AppLocalizations.of(context)!.logsTab, // 'Logs'
               2,
               'assets/images/Logs.svg',
             ),

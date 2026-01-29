@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../motor_card/motor_card_dialogs.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
@@ -69,7 +70,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
             child: Column(
               children: [
                 Text(
-                  'Motor Mode',
+                  AppLocalizations.of(context)!.motorMode,
                   style: GoogleFonts.dmSans(
                     color: const Color(0xFF004E7E),
                     fontSize: 18.0,
@@ -78,7 +79,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Switch between Auto and Manual modes',
+                  AppLocalizations.of(context)!.switchModeDescription,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     color: const Color(0xFF6B7280),
@@ -136,7 +137,10 @@ class _MotorModeTabState extends State<MotorModeTab> {
                             inactiveFgColor: Colors.black,
                             fontSize: 12,
                             totalSwitches: 2,
-                            labels: const ['Auto', 'Manual'],
+                            labels: [
+                              AppLocalizations.of(context)!.auto,
+                              AppLocalizations.of(context)!.manual
+                            ],
                             borderWidth: 1,
                             borderColor: [Colors.grey.shade300],
                             onToggle: !isDisabled

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:i_dhara/app/core/utils/app_text/app_text.dart';
 
 class NoAlertsFound extends StatelessWidget {
@@ -20,7 +21,7 @@ class NoAlertsFound extends StatelessWidget {
           AppText(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            text: "No-Alerts",
+            text: AppLocalizations.of(context)!.noAlerts,
           ),
         ],
       ),
@@ -46,7 +47,7 @@ class NoFaultsFound extends StatelessWidget {
           AppText(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            text: "No-Faults",
+            text: AppLocalizations.of(context)!.noFaults,
           ),
         ],
       ),
@@ -70,7 +71,9 @@ class NoLocationsFound extends StatelessWidget {
             width: 70,
           ),
           AppText(
-              fontSize: 16, fontWeight: FontWeight.w500, text: "No Locations"),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              text: AppLocalizations.of(context)!.noLocations),
         ],
       ),
     );
@@ -95,7 +98,7 @@ class NoGatewaysFound extends StatelessWidget {
           AppText(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            text: "No Gateways Found",
+            text: AppLocalizations.of(context)!.noGateways,
           ),
         ],
       ),
@@ -114,7 +117,10 @@ class NoPondsFound extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SvgPicture.asset('assets/images/Pond.svg', height: 100, width: 100),
-          AppText(fontSize: 16, fontWeight: FontWeight.w500, text: "No-Ponds"),
+          AppText(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              text: AppLocalizations.of(context)!.noPonds),
         ],
       ),
     );
@@ -144,7 +150,7 @@ class NoLogsFound extends StatelessWidget {
             child: AppText(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              text: "No-Logs",
+              text: AppLocalizations.of(context)!.noLogs,
             ),
           ),
         ],
@@ -171,7 +177,7 @@ class NoStartersFound extends StatelessWidget {
           AppText(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              text: "No Devices Found"),
+              text: AppLocalizations.of(context)!.noDevices),
         ],
       ),
     );
@@ -197,7 +203,7 @@ class NoMotorFound extends StatelessWidget {
           AppText(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            text: "  No-Pumps",
+            text: "  ${AppLocalizations.of(context)!.noPumps}",
           ),
         ],
       ),
@@ -224,7 +230,7 @@ class NoModeFound extends StatelessWidget {
           AppText(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            text: "No-Modes",
+            text: AppLocalizations.of(context)!.noModes,
           ),
         ],
       ),
@@ -245,7 +251,10 @@ class NoGraphsFound extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SvgPicture.asset('assets/images/No graph.svg', height: 70, width: 70),
-          AppText(text: 'No-Graph', fontSize: 16, fontWeight: FontWeight.w500)
+          AppText(
+              text: AppLocalizations.of(context)!.noGraph,
+              fontSize: 16,
+              fontWeight: FontWeight.w500)
         ],
       ),
     ));

@@ -13,6 +13,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 export 'devices_controller.dart';
 
@@ -115,7 +116,7 @@ class DevicesPage extends StatelessWidget {
                         children: [
                           Center(
                             child: Text(
-                              'Devices',
+                              AppLocalizations.of(context)!.devices,
                               style: FlutterFlowTheme.of(context)
                                   .bodyMedium
                                   .override(
@@ -191,7 +192,8 @@ class DevicesPage extends StatelessWidget {
                                   height: 40,
                                   child: SearchFieldComponent(
                                     controller: controller.controller1,
-                                    hintText: 'Search devices',
+                                    hintText: AppLocalizations.of(context)!
+                                        .searchDevices,
                                   ),
                                 ),
                               ),

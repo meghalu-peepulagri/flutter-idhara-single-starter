@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class UserProfileCard extends StatelessWidget {
   UserProfileCard({super.key});
@@ -33,7 +34,7 @@ class UserProfileCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       Text(
-                        'Contact Information',
+                        AppLocalizations.of(context)!.contactInformation,
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FlutterFlowTheme.of(context)
@@ -76,7 +77,7 @@ class UserProfileCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Email',
+                                  AppLocalizations.of(context)!.email,
                                   style: FlutterFlowTheme.of(context)
                                       .bodyMedium
                                       .override(
@@ -142,7 +143,7 @@ class UserProfileCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Phone',
+                                AppLocalizations.of(context)!.phone,
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -210,7 +211,7 @@ class UserProfileCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Address',
+                                  AppLocalizations.of(context)!.address,
                                   style: FlutterFlowTheme.of(context)
                                       .bodyMedium
                                       .override(

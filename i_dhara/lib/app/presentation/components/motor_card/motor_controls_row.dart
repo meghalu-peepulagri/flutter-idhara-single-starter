@@ -6,6 +6,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class MotorControlsRow extends StatelessWidget {
   final Motor motor;
@@ -48,11 +49,9 @@ class MotorControlsRow extends StatelessWidget {
                   builder: (context) {
                     final mode = motor.mode?.toLowerCase() ?? 'manual';
                     final isAuto = mode == 'auto';
-
-                    final String modeText = mode.replaceFirstMapped(
-                      RegExp(r'^[a-z]'),
-                      (m) => m.group(0)!.toUpperCase(),
-                    );
+                    final modeText = isAuto
+                        ? AppLocalizations.of(context)!.auto
+                        : AppLocalizations.of(context)!.manual;
 
                     return Container(
                       decoration: BoxDecoration(
@@ -124,17 +123,17 @@ class MotorControlsRow extends StatelessWidget {
                           initialValue: isOn,
                           activeColor: Colors.green,
                           inactiveColor: Colors.red.shade500,
-                          activeChild: const Text(
-                            'ON',
-                            style: TextStyle(
+                          activeChild: Text(
+                            AppLocalizations.of(context)!.on,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          inactiveChild: const Text(
-                            'OFF',
-                            style: TextStyle(
+                          inactiveChild: Text(
+                            AppLocalizations.of(context)!.off,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,

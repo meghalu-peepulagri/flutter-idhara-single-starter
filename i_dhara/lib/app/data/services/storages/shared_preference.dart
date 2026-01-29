@@ -14,11 +14,19 @@ class SharedPreference {
   static String starterid = 'starterid';
   static String locationName = 'locationName';
   static String devicesettings = 'devicesettings';
+  static String languageCode = 'language_code';
 
   static Future<SharedPreferences> init() async {
     preferences = await SharedPreferences.getInstance();
     return preferences;
   }
+
+  ///Method that saves the [languageCode].
+  static Future<bool> setLanguage(String value) async =>
+      preferences.setString(languageCode, value);
+
+  ///Method that returns the [languageCode].
+  static String getLanguage() => preferences.getString(languageCode) ?? '';
 
   ///Method that saves the [accestoken].
   static Future<bool> setAccessToken(String value) async =>

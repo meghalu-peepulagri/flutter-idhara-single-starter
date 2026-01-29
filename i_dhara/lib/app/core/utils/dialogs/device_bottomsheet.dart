@@ -3,6 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class DeviceOptionsBottomSheet extends StatefulWidget {
   final bool hasMotor;
@@ -44,7 +45,7 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Device Management',
+                  AppLocalizations.of(context)!.deviceManagement,
                   style: GoogleFonts.dmSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -79,20 +80,20 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
           //     onTap: widget.onSettings),
           _buildMenuItem(
             svgAsset: 'assets/images/edit.svg',
-            text: 'Rename',
+            text: AppLocalizations.of(context)!.rename,
             enabled: widget.hasMotor,
             iconColor: Colors.black,
             onTap: widget.onRename,
           ),
           _buildMenuItem(
             svgAsset: 'assets/images/kdkr.svg',
-            text: 'Replace',
+            text: AppLocalizations.of(context)!.replace,
             iconColor: Colors.green,
             onTap: widget.onReplace,
           ),
           _buildMenuItem(
             svgAsset: 'assets/images/delete.svg',
-            text: 'Delete',
+            text: AppLocalizations.of(context)!.delete,
             color: Colors.red,
             iconColor: Colors.red,
             onTap: widget.onDelete,

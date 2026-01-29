@@ -12,6 +12,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -30,11 +31,10 @@ class DevicesCard extends StatelessWidget {
       context: context,
       builder: (context) {
         return PopupDialog(
-          title: "Delete Device",
-          description:
-              "This device will be deleted permanently. Do you wish to go ahead?",
+          title: AppLocalizations.of(context)!.deleteDeviceTitle,
+          description: AppLocalizations.of(context)!.deleteDeviceDescription,
           iconAssetPath: 'assets/images/Device Icon.svg',
-          buttonlable: 'Delete',
+          buttonlable: AppLocalizations.of(context)!.delete,
           onDelete: () async {
             if (device.id != null) {
               await controller.deleteDevice(device.id!);
@@ -280,7 +280,7 @@ class DevicesCard extends StatelessWidget {
     final alias = motor?.aliasName;
     final name = (alias != null && alias.trim().isNotEmpty)
         ? alias
-        : (motor?.name ?? 'No Motor');
+        : (motor?.name ?? AppLocalizations.of(Get.context!)!.noMotor);
     return name;
   }
 
@@ -297,7 +297,7 @@ class DevicesCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Starter No :',
+                    '${AppLocalizations.of(context)!.starterNo} ',
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w500,
@@ -357,7 +357,9 @@ class DevicesCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(6.0, 2.0, 6.0, 2.0),
             child: Text(
-              ((motor?.mode ?? 'MANUAL').toLowerCase()).replaceFirstMapped(
+              ((motor?.mode ?? AppLocalizations.of(context)!.manual)
+                      .toLowerCase())
+                  .replaceFirstMapped(
                 RegExp(r'^[a-z]'),
                 (m) => m.group(0)!.toUpperCase(),
               ),
@@ -437,7 +439,7 @@ class DevicesCard extends StatelessWidget {
         child: Row(
           children: [
             Text(
-              'Add Location',
+              AppLocalizations.of(context)!.addLocation,
               style: FlutterFlowTheme.of(context).bodyMedium.override(
                     font: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w600,

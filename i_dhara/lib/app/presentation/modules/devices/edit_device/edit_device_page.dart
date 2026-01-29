@@ -4,6 +4,7 @@ import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -80,7 +81,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Rename Pump',
+                          AppLocalizations.of(context)!.renamePump,
                           style:
                               FlutterFlowTheme.of(context).bodyMedium.override(
                                     fontFamily: 'Manrope',
@@ -113,11 +114,12 @@ class _EditDevicePageState extends State<EditDevicePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         RichText(
-                          text: const TextSpan(
+                          text: TextSpan(
                             style: TextStyle(
                                 color: Colors.black), // Default text style
                             children: [
-                              TextSpan(text: 'Pump Name'),
+                              TextSpan(
+                                  text: AppLocalizations.of(context)!.pumpName),
                               TextSpan(
                                 text: '*',
                                 style: TextStyle(color: Colors.red),
@@ -130,7 +132,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                           controller: _model.textController!,
                           errors: _model.errorInstance,
                           errorKey: 'name',
-                          hintText: 'Enter Pump name',
+                          hintText: AppLocalizations.of(context)!.enterPumpName,
                           readOnly: false,
                           onChanged: (value) {
                             if (value.isNotEmpty) {
@@ -159,7 +161,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                           FocusScope.of(context).unfocus();
                           Get.back();
                         },
-                        text: 'Cancel',
+                        text: AppLocalizations.of(context)!.cancel,
                         options: FFButtonOptions(
                           height: 45.0,
                           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -225,7 +227,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
 
                             // widget.onLocationAdded(newName);
                           },
-                          text: 'Save',
+                          text: AppLocalizations.of(context)!.save,
                           options: FFButtonOptions(
                             height: 45.0,
                             padding:

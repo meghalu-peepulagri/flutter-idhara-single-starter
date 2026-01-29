@@ -7,6 +7,7 @@ import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/presentation/modules/auth/register/register_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:sms_autofill/sms_autofill.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -103,7 +104,8 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                 mainAxisSize: MainAxisSize.max,
                                 children: [
                                   Text(
-                                    'Create Your Account',
+                                    AppLocalizations.of(context)!
+                                        .createYourAccount,
                                     textAlign: TextAlign.center,
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium
@@ -116,7 +118,8 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                         ),
                                   ),
                                   Text(
-                                    'Enter your details to get started.',
+                                    AppLocalizations.of(context)!
+                                        .enterDetailsToGetStarted,
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .override(
@@ -144,7 +147,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                         children: [
                                           Text.rich(
                                             TextSpan(
-                                              text: 'Full Name',
+                                              text:
+                                                  AppLocalizations.of(context)!
+                                                      .fullName,
                                               style: FlutterFlowTheme.of(
                                                       context)
                                                   .bodyMedium
@@ -173,7 +178,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                             readOnly: false,
                                             controller: nameController,
                                             errors: _model.errorInstance,
-                                            hintText: 'Enter Full Name',
+                                            hintText:
+                                                AppLocalizations.of(context)!
+                                                    .enterFullName,
                                             errorKey: 'full_name',
                                             keyboardType: TextInputType.name,
                                             onChanged: (value) {
@@ -197,7 +204,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           Text.rich(
                                             TextSpan(
-                                              text: 'Mobile Number',
+                                              text:
+                                                  AppLocalizations.of(context)!
+                                                      .mobileNumber,
                                               style: FlutterFlowTheme.of(
                                                       context)
                                                   .bodyMedium
@@ -226,7 +235,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                             readOnly: false,
                                             controller: phoneController,
                                             errors: _model.errorInstance,
-                                            hintText: 'Enter Mobile Number',
+                                            hintText:
+                                                AppLocalizations.of(context)!
+                                                    .enterMobileHint,
                                             errorKey: 'phone',
                                             onChanged: (value) {
                                               if (_model.errorInstance
@@ -250,7 +261,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                           ),
                                           Text.rich(
                                             TextSpan(
-                                              text: 'Email',
+                                              text:
+                                                  AppLocalizations.of(context)!
+                                                      .email,
                                               style: FlutterFlowTheme.of(
                                                       context)
                                                   .bodyMedium
@@ -279,7 +292,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                             readOnly: false,
                                             controller: emailController,
                                             errors: _model.errorInstance,
-                                            hintText: 'Enter Email',
+                                            hintText:
+                                                AppLocalizations.of(context)!
+                                                    .enterEmail,
                                             errorKey: 'email',
                                             onChanged: (value) {
                                               if (_model.errorInstance
@@ -300,7 +315,8 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                             height: 10,
                                           ),
                                           Text(
-                                            'Address',
+                                            AppLocalizations.of(context)!
+                                                .address,
                                             style: FlutterFlowTheme.of(context)
                                                 .bodyMedium
                                                 .override(
@@ -318,7 +334,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                             readOnly: false,
                                             controller: addressController,
                                             errors: _model.errorInstance,
-                                            hintText: 'Enter Address',
+                                            hintText:
+                                                AppLocalizations.of(context)!
+                                                    .enterAddress,
                                             errorKey: 'location',
                                             keyboardType: TextInputType.text,
                                             ontap: () {},
@@ -364,7 +382,9 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                 if (!mounted) return;
                                                 setState(() {});
                                               },
-                                              text: 'Register',
+                                              text:
+                                                  AppLocalizations.of(context)!
+                                                      .register,
                                               options: FFButtonOptions(
                                                 width: double.infinity,
                                                 height: 40,
@@ -396,7 +416,8 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                   MainAxisAlignment.center,
                                               children: [
                                                 Text(
-                                                  'or',
+                                                  AppLocalizations.of(context)!
+                                                      .or,
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -418,7 +439,8 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                 MainAxisAlignment.center,
                                             children: [
                                               Text(
-                                                'Already have an account?',
+                                                AppLocalizations.of(context)!
+                                                    .alreadyHaveAccount,
                                                 style:
                                                     FlutterFlowTheme.of(context)
                                                         .bodyMedium
@@ -440,9 +462,12 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                   Get.toNamed(
                                                       Routes.loginwithmobile);
                                                 },
-                                                child: Text('Login',
-                                                    style: FlutterFlowTheme.of(
-                                                            context)
+                                                child: Text(
+                                                    AppLocalizations.of(
+                                                            context)!
+                                                        .login,
+                                                    style: FlutterFlowTheme
+                                                            .of(context)
                                                         .bodyMedium
                                                         .override(
                                                             fontFamily:

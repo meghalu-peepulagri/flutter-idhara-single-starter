@@ -6,6 +6,7 @@ import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class MotorRuntimeGraphWidget extends StatefulWidget {
   final List<DateTime?> selectedDateRange;
@@ -80,7 +81,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                   .isAfter(e.start.subtract(const Duration(microseconds: 1))) &&
               xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
             final motorDur = formatDuration(e.duration);
-            tooltipText += '\nDuration: $motorDur';
+            tooltipText +=
+                '\n${AppLocalizations.of(context)!.duration}: $motorDur';
             break;
           }
         }
@@ -91,7 +93,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                   .isAfter(e.start.subtract(const Duration(microseconds: 1))) &&
               xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
             final powerDur = formatDuration(e.duration);
-            tooltipText += '\nDuration: $powerDur';
+            tooltipText +=
+                '\n${AppLocalizations.of(context)!.duration}: $powerDur';
             break;
           }
         }
@@ -184,7 +187,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Motor & Power Availability',
+                            AppLocalizations.of(context)!
+                                .motorAndPowerAvailability,
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(
@@ -298,9 +302,10 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                             ),
                                           ),
                                           const SizedBox(width: 6),
-                                          const Text(
-                                            'Running',
-                                            style: TextStyle(
+                                          Text(
+                                            AppLocalizations.of(context)!
+                                                .running,
+                                            style: const TextStyle(
                                               fontSize: 12,
                                               color: Colors.black87,
                                             ),

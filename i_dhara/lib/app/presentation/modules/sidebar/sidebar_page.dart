@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 export 'sidebar_controller.dart';
 
@@ -137,7 +138,7 @@ class SidebarWidget extends StatelessWidget {
                             const EdgeInsetsDirectional.fromSTEB(0, 16, 0, 0),
                         child: _buildMenuItem(
                             route: Routes.dashboard,
-                            label: 'Home',
+                            label: AppLocalizations.of(context)!.home,
                             icon: SvgPicture.asset(
                               'assets/images/Home.svg',
                               height: 22,
@@ -159,7 +160,7 @@ class SidebarWidget extends StatelessWidget {
                       padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
                       child: _buildMenuItem(
                           route: Routes.locations,
-                          label: 'Locations',
+                          label: AppLocalizations.of(context)!.locations,
                           icon: SvgPicture.asset(
                             'assets/images/location.svg',
                             height: 22,
@@ -181,7 +182,7 @@ class SidebarWidget extends StatelessWidget {
                     ),
                     _buildMenuItem(
                         route: Routes.devices,
-                        label: 'Devices',
+                        label: AppLocalizations.of(context)!.devices,
                         icon: SvgPicture.asset(
                           'assets/images/Device Icon.svg',
                           height: 22,
@@ -201,7 +202,7 @@ class SidebarWidget extends StatelessWidget {
                         context: context),
                     _buildMenuItem(
                         route: Routes.userprofile,
-                        label: 'Profile',
+                        label: AppLocalizations.of(context)!.profile,
                         icon: Icon(
                           Icons.person,
                           color: _controller.selectedRoute.value ==

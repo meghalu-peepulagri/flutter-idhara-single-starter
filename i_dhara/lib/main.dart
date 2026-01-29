@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:get/get.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
@@ -12,6 +13,8 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/presentation/controllers/language_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 void main() async {
   if (kIsWeb) {
@@ -88,30 +91,40 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'I Dhara',
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('en', '')],
-      theme: ThemeData(
-        brightness: Brightness.light,
-        useMaterial3: false,
-      ),
-      // darkTheme: ThemeData(
-      //   brightness: Brightness.dark,
-      //   useMaterial3: false,
-      // ),
-      // themeMode: _themeMode,
-      // routerConfig: _router,
-      initialRoute: SharedPreference.getAccessToken().isNotEmpty
-          ? Routes.dashboard
-          : Routes.splash,
-      getPages: AppPages.getPages,
-    );
+    // Initialize LanguageController
+    final LanguageController languageController =
+        Get.put(LanguageController(), permanent: true);
+
+    return Obx(() => GetMaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'I Dhara',
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en', ''),
+            Locale('te', ''),
+            Locale('hi', ''),
+          ],
+          locale: languageController.currentLocale.value,
+          theme: ThemeData(
+            brightness: Brightness.light,
+            useMaterial3: false,
+          ),
+          // darkTheme: ThemeData(
+          //   brightness: Brightness.dark,
+          //   useMaterial3: false,
+          // ),
+          // themeMode: _themeMode,
+          // routerConfig: _router,
+          initialRoute: SharedPreference.getAccessToken().isNotEmpty
+              ? Routes.dashboard
+              : Routes.splash,
+          getPages: AppPages.getPages,
+        ));
   }
 }
 

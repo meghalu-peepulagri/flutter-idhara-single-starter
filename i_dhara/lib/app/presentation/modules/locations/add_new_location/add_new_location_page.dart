@@ -4,6 +4,7 @@ import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
@@ -55,7 +56,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'New Location',
+                        AppLocalizations.of(context)!.newLocation,
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                             fontFamily: 'Manrope',
                             color: Colors.black,
@@ -84,7 +85,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                     children: [
                       Text.rich(
                         TextSpan(
-                          text: 'Location Name',
+                          text: AppLocalizations.of(context)!.locationName,
                           style:
                               FlutterFlowTheme.of(context).bodyMedium.override(
                                     fontFamily: 'Manrope',
@@ -107,7 +108,8 @@ class _AddNewLocationState extends State<AddNewLocation> {
                           controller: _model.textController!,
                           errors: _model.errorInstance,
                           errorKey: 'name',
-                          hintText: 'Enter location name',
+                          hintText:
+                              AppLocalizations.of(context)!.enterLocationName,
                           onChanged: (value) {
                             if (_model.errorInstance.containsKey('name')) {
                               setState(() {
@@ -130,7 +132,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                   Expanded(
                     child: FFButtonWidget(
                       onPressed: () => Get.back(),
-                      text: 'Cancel',
+                      text: AppLocalizations.of(context)!.cancel,
                       options: FFButtonOptions(
                         height: 45.0,
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -196,7 +198,7 @@ class _AddNewLocationState extends State<AddNewLocation> {
                           getsuccessSnackBar("Location added successfully");
                           widget.onLocationAdded(locationName);
                         },
-                        text: 'Save',
+                        text: AppLocalizations.of(context)!.save,
                         options: FFButtonOptions(
                           height: 45.0,
                           padding: const EdgeInsets.symmetric(horizontal: 24.0),

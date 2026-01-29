@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/presentation/modules/locations/rename_delete_bottomsheet/rename_delete_location_page.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LocationCard extends StatelessWidget {
   final Location location;
@@ -62,7 +63,8 @@ class LocationCard extends StatelessWidget {
                     Text(
                       (location.name != null && location.name!.length > 16)
                           ? '${location.name!.capitalizeFirst!.substring(0, 16)}...'
-                          : (location.name ?? 'Unknown Location'),
+                          : (location.name ??
+                              AppLocalizations.of(context)!.unknownLocation),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -218,7 +220,7 @@ class LocationCard extends StatelessWidget {
                                     ? motor.aliasName!
                                     : (motor.name?.trim().isNotEmpty ?? false)
                                         ? motor.name!
-                                        : 'Pump ${index + 1}',
+                                        : '${AppLocalizations.of(context)!.pump} ${index + 1}',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(

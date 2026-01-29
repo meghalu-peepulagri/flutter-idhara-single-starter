@@ -12,7 +12,9 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart
 import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:i_dhara/app/presentation/components/settings_button_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ProfileWidget extends StatelessWidget {
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -76,7 +78,7 @@ class ProfileWidget extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Profile ',
+                          AppLocalizations.of(context)!.profile,
                           style:
                               FlutterFlowTheme.of(context).bodyMedium.override(
                                     font: GoogleFonts.dmSans(
@@ -282,7 +284,7 @@ class ProfileWidget extends StatelessWidget {
                                     ),
                                   ),
                                   UserProfileCard(),
-                                  // const SettingsButtonCard(),
+                                  const SettingsButtonCard(),
                                   FFButtonWidget(
                                     onPressed: () async {
                                       await SharedPreference.clear();
@@ -301,7 +303,7 @@ class ProfileWidget extends StatelessWidget {
                                       print(
                                           "line 260 -----------> ${Get.isRegistered<DashboardController>}");
                                     },
-                                    text: 'Logout',
+                                    text: AppLocalizations.of(context)!.logout,
                                     icon: const Icon(
                                       Icons.logout,
                                       size: 18,

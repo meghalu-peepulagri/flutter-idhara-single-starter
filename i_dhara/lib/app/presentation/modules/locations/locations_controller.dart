@@ -115,7 +115,7 @@ class LocationsController extends GetxController {
   }
 
   Future<void> refreshLocations() async {
-    // isRefreshing.value = true;
+    isRefreshing.value = true;
     await fetchLocations();
   }
 

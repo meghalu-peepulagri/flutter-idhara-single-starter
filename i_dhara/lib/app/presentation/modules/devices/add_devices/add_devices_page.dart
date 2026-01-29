@@ -10,6 +10,7 @@ import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -122,7 +123,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
           mainAxisSize: MainAxisSize.max,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildLabel(context, 'Location', isMandatory: true),
+            _buildLabel(context, AppLocalizations.of(context)!.locationName,
+                isMandatory: true),
             GestureDetector(
               onTap: () {
                 _onTapLocation(context);
@@ -149,7 +151,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                       end: Alignment.centerRight,
                     ).createShader(bounds),
                     child: Text(
-                      'Add Location',
+                      AppLocalizations.of(context)!.addLocation,
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
                             font: GoogleFonts.dmSans(
                               fontWeight: FlutterFlowTheme.of(context)
@@ -176,7 +178,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
               controller: _model.textController4!,
               errors: _model.errorInstance,
               errorKey: 'location_id',
-              hintText: 'Select Location',
+              hintText: AppLocalizations.of(context)!.selectLocation,
               readOnly: false,
               onChanged: (value) {
                 if (_model.errorInstance.containsKey('location_id')) {
@@ -305,7 +307,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                         mainAxisSize: MainAxisSize.max,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSectionTitle(context, 'Device Information'),
+                          _buildSectionTitle(context,
+                              AppLocalizations.of(context)!.deviceInformation),
                           _buildPcbNumberField(context),
                           _buildPumpNameAndHpFields(context),
                           _buildLocationField(context),
@@ -333,7 +336,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
         children: [
           Center(
             child: Text(
-              'Add Device',
+              AppLocalizations.of(context)!.addDevice,
               style: FlutterFlowTheme.of(context).bodyMedium.override(
                     font: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w500,
@@ -412,7 +415,8 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(context, 'PCB / Starter Number', isMandatory: true),
+        _buildLabel(context, AppLocalizations.of(context)!.pcbStarterNumber,
+            isMandatory: true),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -420,7 +424,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
             controller: _model.textController1!,
             errors: _model.errorInstance,
             errorKey: 'pcb_number',
-            hintText: 'Enter PCB/Starter Number',
+            hintText: AppLocalizations.of(context)!.enterPcbStarterNumber,
             readOnly: false,
             onChanged: (value) {
               if (_model.errorInstance.containsKey('pcb_number')) {
@@ -448,14 +452,16 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
         Row(
           children: [
             Expanded(
-              child: _buildLabel(context, 'Pump Name', isMandatory: true),
+              child: _buildLabel(
+                  context, AppLocalizations.of(context)!.pumpName,
+                  isMandatory: true),
             ),
             SizedBox(
               width: MediaQuery.sizeOf(context).width * 0.2,
-              child: const Row(
+              child: Row(
                 children: [
                   Text(
-                    'HP',
+                    AppLocalizations.of(context)!.hp,
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 14,
@@ -484,7 +490,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                 controller: _model.textController2!,
                 errors: _model.errorInstance,
                 errorKey: 'motor_name',
-                hintText: 'Enter Pump Name',
+                hintText: AppLocalizations.of(context)!.enterPumpName,
                 readOnly: false,
                 onChanged: (value) {
                   if (_model.errorInstance.containsKey('motor_name')) {
@@ -500,7 +506,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
               child: AddHorsePowerFieldWidget(
                 controller: _model.textController3!,
                 errors: _model.errorInstance,
-                hintText: 'Enter HP',
+                hintText: AppLocalizations.of(context)!.enterHp,
                 errorKey: 'hp',
                 onChanged: (value) {
                   if (_model.errorInstance.containsKey('hp')) {
@@ -541,7 +547,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
           );
           setState(() {});
         },
-        text: 'Add Device',
+        text: AppLocalizations.of(context)!.addDevice,
         options: FFButtonOptions(
           width: double.infinity,
           height: 40.0,

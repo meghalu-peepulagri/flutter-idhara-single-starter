@@ -10,6 +10,7 @@ import 'package:i_dhara/app/presentation/components/motor_card/motor_card_widget
 import 'package:i_dhara/app/presentation/components/weather_card.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
@@ -162,12 +163,12 @@ class DashboardWidget extends StatelessWidget {
         String locationName;
 
         if (selectedId == null) {
-          locationName = "All";
+          locationName = AppLocalizations.of(context)!.all;
         } else {
           locationName = controller.locations
                   .firstWhereOrNull((e) => e.id == selectedId)
                   ?.name ??
-              "Location";
+              AppLocalizations.of(context)!.unknownLocation;
         }
 
         final displayName = locationName.length > 10

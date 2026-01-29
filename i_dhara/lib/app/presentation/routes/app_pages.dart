@@ -10,7 +10,11 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_bindings.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_page.dart';
+import 'package:i_dhara/app/presentation/modules/app_overview/app_overview_page.dart';
 import 'package:i_dhara/app/presentation/modules/qr_code/qr_code_page.dart';
+import 'package:i_dhara/app/presentation/modules/settings/app_settings_page.dart';
+import 'package:i_dhara/app/presentation/modules/settings/language_bindings.dart';
+import 'package:i_dhara/app/presentation/modules/settings/language_page.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';
@@ -88,6 +92,25 @@ class AppPages {
     GetPage(
       name: Routes.usersettings,
       page: () => const SettingsWidget(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.appSettings,
+      page: () => const AppSettingsPage(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.language,
+      page: () => const LanguagePage(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+      binding: LanguageBindings(),
+    ),
+    GetPage(
+      name: Routes.appOverview,
+      page: () => const AppOverviewPage(),
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
     ),

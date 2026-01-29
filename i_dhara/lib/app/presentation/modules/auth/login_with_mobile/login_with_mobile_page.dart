@@ -17,6 +17,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/auth/login_with_mobile/login_with_mobile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:sms_autofill/sms_autofill.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LoginwithmobileWidget extends StatefulWidget {
   const LoginwithmobileWidget({super.key});
@@ -154,7 +155,8 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                       mainAxisSize: MainAxisSize.max,
                                       children: [
                                         Text(
-                                          'Verify Your Mobile Number',
+                                          AppLocalizations.of(context)!
+                                              .verifyMobileNumber,
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -184,7 +186,8 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                               ),
                                         ),
                                         Text(
-                                          'Enter Mobile Number to Access Your Account',
+                                          AppLocalizations.of(context)!
+                                              .enterMobileAccessAccount,
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -229,7 +232,8 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                             controller: phoneController,
                                             errors: _model.errorInstance,
                                             hintText:
-                                                'Enter Your Mobile Number',
+                                                AppLocalizations.of(context)!
+                                                    .enterMobileHint,
                                             errorKey: 'phone',
                                             keyboardType: TextInputType.phone,
                                             inputFormatters: [
@@ -268,8 +272,10 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                         await _checkConnectivity();
                                     if (!isConnected) {
                                       if (mounted) {
-                                        errorSnackBar(context,
-                                            'No internet connection. Please check your network.');
+                                        errorSnackBar(
+                                            context,
+                                            AppLocalizations.of(context)!
+                                                .noInternetConnection);
                                       }
                                       return;
                                     }
@@ -293,7 +299,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                   // but we should trigger UI update if error
                                   setState(() {});
                                 },
-                                text: 'Generate OTP',
+                                text: AppLocalizations.of(context)!.generateOtp,
                                 options: FFButtonOptions(
                                   width: double.infinity,
                                   height: 40.0,
@@ -327,7 +333,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                             ),
                             Column(
                               children: [
-                                const Row(
+                                Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     SizedBox(
@@ -342,7 +348,7 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                       padding:
                                           EdgeInsets.symmetric(horizontal: 8.0),
                                       child: Text(
-                                        'or',
+                                        AppLocalizations.of(context)!.or,
                                         style: TextStyle(
                                             color: Color(0xFF6A7185),
                                             fontSize: 16,
@@ -363,7 +369,8 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
                                   onPressed: () {
                                     Get.toNamed(Routes.register);
                                   },
-                                  text: 'Create an Account',
+                                  text: AppLocalizations.of(context)!
+                                      .createAccount,
                                   options: FFButtonOptions(
                                     width: double.infinity,
                                     height: 40,

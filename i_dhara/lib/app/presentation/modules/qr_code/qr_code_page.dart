@@ -7,6 +7,7 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/flutter_flow/flutter_flow_util.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class QRCodeWidget extends StatefulWidget {
   const QRCodeWidget({super.key});
@@ -137,7 +138,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                             ),
                           ),
                           Text(
-                            'Scan QR',
+                            AppLocalizations.of(context)!.scanQr,
                             style: GoogleFonts.dmSans(
                               fontWeight: FontWeight.w500,
                               color: Colors.black,
@@ -158,11 +159,11 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                     ),
                     const SizedBox(height: 30),
                     // Instruction Text
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 30.0),
                       child: Center(
                         child: Text(
-                          'Please scan the QR code on the PCB to proceed.',
+                          AppLocalizations.of(context)!.scanQrInstruction,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0XFF101828),
@@ -209,7 +210,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                             Get.offAllNamed(Routes.addDevices);
                           },
                           child: Text(
-                            'Or Enter PCB Number',
+                            AppLocalizations.of(context)!.enterPcbNumber,
                             style: GoogleFonts.dmSans(
                               color: const Color(0XFF101828),
                               fontSize: 14,
