@@ -6,6 +6,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 
 class DeviceOptionsBottomSheet extends StatefulWidget {
   final bool hasMotor;
+  final bool hasLocation;
   final VoidCallback onRename;
   final VoidCallback onReplace;
   final VoidCallback onDelete;
@@ -14,6 +15,7 @@ class DeviceOptionsBottomSheet extends StatefulWidget {
   const DeviceOptionsBottomSheet({
     super.key,
     required this.hasMotor,
+    required this.hasLocation,
     required this.onRename,
     required this.onReplace,
     required this.onDelete,
@@ -87,6 +89,7 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
           _buildMenuItem(
             svgAsset: 'assets/images/kdkr.svg',
             text: 'Replace',
+            enabled: widget.hasLocation,
             iconColor: Colors.green,
             onTap: widget.onReplace,
           ),

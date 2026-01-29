@@ -33,6 +33,13 @@ class MotorHeader extends StatelessWidget {
     return motor.starter?.starterParameters?.firstOrNull?.fault ?? 0;
   }
 
+  String _normalizeMotorName(String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return '';
+    }
+    return name.trim().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -58,11 +65,15 @@ class MotorHeader extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    (motor.aliasName != null &&
-                                motor.aliasName!.trim().isNotEmpty
-                            ? motor.aliasName!
-                            : motor.name ?? '') ??
-                        '',
+                    () {
+                      final aliasName = _normalizeMotorName(motor.aliasName);
+                      final motorName = _normalizeMotorName(motor.name);
+                      final displayName =
+                          aliasName.isNotEmpty ? aliasName : motorName;
+                      return displayName.length > 20
+                          ? '${displayName.substring(0, 20)}...'
+                          : displayName;
+                    }(),
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.dmSans(
                             fontWeight: FlutterFlowTheme.of(context)

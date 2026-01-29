@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
+import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
+
+String _normalizeLocationName(String? name) {
+  if (name == null || name.trim().isEmpty) {
+    return '';
+  }
+  return name.trim().replaceAll(RegExp(r'\s+'), ' ');
+}
 
 class LocationBottomSheet extends StatefulWidget {
   const LocationBottomSheet({super.key});
@@ -83,9 +90,12 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      (loc.name ?? '').length > 20
-                          ? '${loc.name!.substring(0, 20)}…'
-                          : loc.name ?? '',
+                      () {
+                        final normalizedName = _normalizeLocationName(loc.name);
+                        return normalizedName.length > 20
+                            ? '${normalizedName.substring(0, 20)}…'
+                            : normalizedName;
+                      }(),
                       style: const TextStyle(fontSize: 16),
                     ),
                     if (isSelected)
@@ -190,7 +200,7 @@ class _LocationSelectionBottomSheetState
                   return InkWell(
                     onTap: () {
                       widget.onLocationSelected(
-                        loc.name ?? '',
+                        _normalizeLocationName(loc.name),
                         loc.id.toString(),
                       );
                     },
@@ -211,9 +221,13 @@ class _LocationSelectionBottomSheetState
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            (loc.name ?? '').length > 20
-                                ? '${loc.name!.substring(0, 20)}…'
-                                : loc.name ?? '',
+                            () {
+                              final normalizedName =
+                                  _normalizeLocationName(loc.name);
+                              return normalizedName.length > 20
+                                  ? '${normalizedName.substring(0, 20)}…'
+                                  : normalizedName;
+                            }(),
                             style: GoogleFonts.dmSans(
                               fontSize: 15,
                               fontWeight: FontWeight.w400,

@@ -8,10 +8,8 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -50,6 +48,11 @@ class DevicesCard extends StatelessWidget {
 
   void _showDeviceOptionsBottomSheet(BuildContext context, Motor? motor) {
     final bool hasMotor = device.motors?.isNotEmpty == true;
+    final bool hasLocation = motor?.location?.name != null &&
+        motor!.location!.name!
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim()
+            .isNotEmpty;
 
     showModalBottomSheet(
       context: context,
@@ -57,6 +60,7 @@ class DevicesCard extends StatelessWidget {
       builder: (context) {
         return DeviceOptionsBottomSheet(
           hasMotor: hasMotor,
+          hasLocation: hasLocation,
           onRename: () {
             Navigator.pop(context);
             _showRenameBottomSheet(context, motor);
@@ -69,9 +73,6 @@ class DevicesCard extends StatelessWidget {
             Navigator.pop(context);
             _showDeleteDialog(context);
           },
-          // onSettings: () {
-          //   Get.offAllNamed(Routes.usersettings);
-          // },
         );
       },
     );
@@ -79,6 +80,12 @@ class DevicesCard extends StatelessWidget {
 
   void _showRenameBottomSheet(BuildContext context, Motor? motor) {
     if (motor == null) return;
+
+    // Get the motor name and replace multiple spaces with single space
+    final motorName = (motor.aliasName?.trim().isNotEmpty ?? false)
+        ? motor.aliasName!
+        : motor.name ?? '';
+    final cleanedMotorName = motorName.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     showModalBottomSheet(
       context: context,
@@ -95,9 +102,7 @@ class DevicesCard extends StatelessWidget {
           ),
           child: EditDevicePage(
             motorId: motor.id!,
-            motorName: (motor.aliasName?.trim().isNotEmpty ?? false)
-                ? motor.aliasName!
-                : motor.name ?? '',
+            motorName: cleanedMotorName,
             hp: double.tryParse(motor.hp?.toString() ?? '0') ?? 0.0,
             onLocationAdded: (updatedName) {},
           ),
@@ -281,10 +286,14 @@ class DevicesCard extends StatelessWidget {
     final name = (alias != null && alias.trim().isNotEmpty)
         ? alias
         : (motor?.name ?? 'No Motor');
-    return name;
+    return name.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   Widget _buildPcbAndPowerStatus(BuildContext context, Motor? motor) {
+    String starterText = device.starterNumber ?? 'N/A';
+    String displayText = starterText.length > 12
+        ? '${starterText.substring(0, 12)}...'
+        : starterText;
     return Row(
       mainAxisSize: MainAxisSize.max,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -311,7 +320,7 @@ class DevicesCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '#${device.starterNumber ?? 'N/A'}',
+                    '#$displayText',
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w500,
@@ -372,34 +381,6 @@ class DevicesCard extends StatelessWidget {
             ),
           ),
         )
-
-        // Text(
-        //   motor?.mode ?? 'Manual',
-        //   style: FlutterFlowTheme.of(context).bodyMedium.override(
-        //         font: GoogleFonts.dmSans(
-        //           fontWeight: FontWeight.w500,
-        //         ),
-        //         color: Colors.black,
-        //         fontSize: 14.0,
-        //         fontWeight: FontWeight.w500,
-        //       ),
-        // ),
-        // const Spacer(),
-        // GestureDetector(
-        //   onTap: () {
-        //     SharedPreference.setdeviceSettings(device.id!);
-        //     Get.offAllNamed(Routes.usersettings);
-        //   },
-        //   child: ClipRRect(
-        //     borderRadius: BorderRadius.circular(0.0),
-        //     child: SvgPicture.asset(
-        //       'assets/images/settings_icon.svg',
-        //       width: 18,
-        //       height: 18,
-        //       fit: BoxFit.cover,
-        //     ),
-        //   ),
-        // ),
       ].divide(const SizedBox(width: 8.0)),
     );
   }
@@ -414,7 +395,10 @@ class DevicesCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(0.0),
             child: SvgPicture.asset(
               (motor?.location?.name == null ||
-                      motor!.location!.name!.trim().isEmpty)
+                      motor!.location!.name!
+                          .replaceAll(RegExp(r'\s+'), ' ')
+                          .trim()
+                          .isEmpty)
                   ? 'assets/images/Add.svg'
                   : 'assets/images/kdkr.svg',
               fit: BoxFit.contain,
@@ -430,8 +414,10 @@ class DevicesCard extends StatelessWidget {
 
   Widget _buildLocationNameOrAddButton(BuildContext context, Motor? motor) {
     final locationName = motor?.location?.name;
+    final cleanedLocationName =
+        locationName?.replaceAll(RegExp(r'\s+'), ' ').trim();
 
-    if (locationName == null || locationName.trim().isEmpty) {
+    if (locationName == null || cleanedLocationName?.isEmpty == true) {
       return GestureDetector(
         onTap: () => _showAddLocationBottomSheet(context, motor),
         child: Row(
@@ -452,7 +438,7 @@ class DevicesCard extends StatelessWidget {
     }
 
     return Text(
-      locationName,
+      cleanedLocationName!,
       style: FlutterFlowTheme.of(context).bodyMedium.override(
             font: GoogleFonts.dmSans(
               fontWeight: FontWeight.w500,

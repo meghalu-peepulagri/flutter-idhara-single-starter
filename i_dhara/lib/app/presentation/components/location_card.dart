@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
@@ -31,6 +30,14 @@ class LocationCard extends StatelessWidget {
     return state == 1 ? const Color(0xFFB9F8CF) : const Color(0xFFFECACA);
   }
 
+  String _normalizeLocationName(String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return 'Unknown Location';
+    }
+    // Trim and replace multiple consecutive spaces with a single space
+    return name.trim().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final motors = location.motors ?? [];
@@ -60,9 +67,12 @@ class LocationCard extends StatelessWidget {
                       size: 20.0,
                     ),
                     Text(
-                      (location.name != null && location.name!.length > 16)
-                          ? '${location.name!.capitalizeFirst!.substring(0, 16)}...'
-                          : (location.name ?? 'Unknown Location'),
+                      () {
+                        final normalizedName = _normalizeLocationName(location.name);
+                        return normalizedName.length > 16
+                            ? '${normalizedName.substring(0, 16)}...'
+                            : normalizedName;
+                      }(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -155,7 +165,7 @@ class LocationCard extends StatelessWidget {
                           ),
                           builder: (_) => EditDeleteLocationPage(
                             locationId: location.id!,
-                            locationName: location.name!,
+                            locationName: _normalizeLocationName(location.name),
                           ),
                         );
                       },
