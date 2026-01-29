@@ -15,7 +15,10 @@ class SettingsVoltageCard extends StatefulWidget {
     this.initialHighVoltage = 280.0,
     this.motorName = 'Pump 1',
     this.motorHp = '3 HP',
+    this.onChanged,
   });
+
+  final Function(double, double)? onChanged;
 
   @override
   State<SettingsVoltageCard> createState() => SettingsVoltageCardState();
@@ -90,6 +93,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
           onChanged: (low, high) {
             lowVoltageValue = low;
             highVoltageValue = high;
+            widget.onChanged?.call(low, high);
           },
         ),
       ],

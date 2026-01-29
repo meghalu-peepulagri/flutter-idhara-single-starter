@@ -5,13 +5,15 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../components/popups/default_setting_popup.dart';
 import '../../components/popups/setting_update.dart';
@@ -39,38 +41,22 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool allowSnackbar = true;
   bool isSnackbarShown = false;
   bool isbuttonActive = false;
+
+  // New: Track current values to compare with initial
+  double? _currentVoltageLow;
+  double? _currentVoltageHigh;
+  double? _currentCurrentLow;
+  double? _currentCurrentHigh;
   @override
   void initState() {
     super.initState();
     mqttService = MqttService();
     mqttConnection();
     mqttService.settingstream.listen((data) async {
-      print("line 47 ----->");
       if (data == 1 && !_ackInProgress) {
         isSnackbarShown = true;
         _ackInProgress = true;
-        showTopSnackBar(
-          Overlay.of(context),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.green,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              "ack recieved successfully",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-                decoration: TextDecoration.none,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          displayDuration: const Duration(seconds: 4),
-        );
+        getsuccessSnackBar("Settings updated successfully");
 
         controller.isLoading.value = true;
         await controller.fetchUserSettings2();
@@ -87,32 +73,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     super.dispose();
   }
 
-  void _onCommandStatusChanged(String message) {
-    showTopSnackBar(
-      Overlay.of(context),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0XFFDB3B2A),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          message,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-            decoration: TextDecoration.none,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      displayDuration: const Duration(seconds: 4),
-    );
-    mqttService.commandStatusNotifier.value = null;
-  }
-
   mqttConnection() async {
     await mqttService.initializeMqttClient();
   }
@@ -124,6 +84,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   void _handleCancel() {
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
+    setState(() {
+      isbuttonActive = false;
+    });
   }
 
   Map<String, dynamic> diffNestedPayload({
@@ -144,6 +107,32 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       newPayload[key] = newMap;
     }
     return newPayload;
+  }
+
+  void _checkForChanges() {
+    final settings = controller.userSettings2.value;
+    if (settings == null) return;
+
+    final initialVoltageLow = settings.lvf?.toDouble() ?? 180.0;
+    final initialVoltageHigh = settings.hvf?.toDouble() ?? 280.0;
+    final initialCurrentLow = settings.drf?.toDouble() ?? 180.0;
+    final initialCurrentHigh = settings.olf?.toDouble() ?? 280.0;
+
+    final currentVoltageLow = _currentVoltageLow ?? initialVoltageLow;
+    final currentVoltageHigh = _currentVoltageHigh ?? initialVoltageHigh;
+    final currentCurrentLow = _currentCurrentLow ?? initialCurrentLow;
+    final currentCurrentHigh = _currentCurrentHigh ?? initialCurrentHigh;
+
+    final hasChanges = (currentVoltageLow != initialVoltageLow) ||
+        (currentVoltageHigh != initialVoltageHigh) ||
+        (currentCurrentLow != initialCurrentLow) ||
+        (currentCurrentHigh != initialCurrentHigh);
+
+    if (isbuttonActive != hasChanges) {
+      setState(() {
+        isbuttonActive = hasChanges;
+      });
+    }
   }
 
   void _handleSave(
@@ -249,7 +238,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               await controller.fetchupdateSettings();
                               Future.delayed(const Duration(seconds: 8), () {
                                 if (!isSnackbarShown)
-                                  _onCommandStatusChanged(
+                                  geterrorSnackBar(
                                       "No response from the device");
                                 _handleCancel();
                               });
@@ -369,7 +358,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                 child: Obx(() {
                   if (controller.isLoading.value) {
                     return const Center(
-                      child: CircularProgressIndicator(),
+                      child: AppLottieLoading(),
                     );
                   }
                   final settings = controller.userSettings2.value;
@@ -441,39 +430,56 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         ),
                       ),
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 24.0),
-                          child: Column(
-                            children: [
-                              SettingsVoltageCard(
-                                key: voltageCardKey,
-                                initialLowVoltage: controller
-                                        .userSettings2.value?.lvf
-                                        ?.toDouble() ??
-                                    180.0,
-                                initialHighVoltage: controller
-                                        .userSettings2.value?.hvf
-                                        ?.toDouble() ??
-                                    280.0,
-                                motorName:
-                                    settings?.starter?.name?.toString() ??
-                                        'Pump 1',
-                                motorHp: '3 HP',
-                              ),
-                              const SizedBox(height: 24),
-                              SettingsCurrentCard(
-                                key: currentCardKey,
-                                initialLowCurrent: settings?.drf?.toDouble() ??
-                                    180.0, // NOTE: Check mapping
-                                initialHighCurrent: settings?.olf?.toDouble() ??
-                                    280.0, // NOTE: Check mapping
-                                motorName:
-                                    settings?.starter?.name?.toString() ??
-                                        'Pump 1',
-                                motorHp: '3 HP',
-                              ),
-                            ],
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            await controller.fetchdata();
+                          },
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 24.0),
+                            child: Column(
+                              children: [
+                                SettingsVoltageCard(
+                                  key: voltageCardKey,
+                                  initialLowVoltage: controller
+                                          .userSettings2.value?.lvf
+                                          ?.toDouble() ??
+                                      180.0,
+                                  initialHighVoltage: controller
+                                          .userSettings2.value?.hvf
+                                          ?.toDouble() ??
+                                      280.0,
+                                  motorName:
+                                      settings?.starter?.name?.toString() ??
+                                          'Pump 1',
+                                  motorHp: '3 HP',
+                                  onChanged: (low, high) {
+                                    _currentVoltageLow = low;
+                                    _currentVoltageHigh = high;
+                                    _checkForChanges();
+                                  },
+                                ),
+                                const SizedBox(height: 24),
+                                SettingsCurrentCard(
+                                  key: currentCardKey,
+                                  initialLowCurrent:
+                                      settings?.drf?.toDouble() ??
+                                          180.0, // NOTE: Check mapping
+                                  initialHighCurrent:
+                                      settings?.olf?.toDouble() ??
+                                          280.0, // NOTE: Check mapping
+                                  motorName:
+                                      settings?.starter?.name?.toString() ??
+                                          'Pump 1',
+                                  motorHp: '3 HP',
+                                  onChanged: (low, high) {
+                                    _currentCurrentLow = low;
+                                    _currentCurrentHigh = high;
+                                    _checkForChanges();
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -533,65 +539,73 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: FFButtonWidget(
-                                  onPressed: () {
-                                    final voltageValues = voltageCardKey
-                                        .currentState
-                                        ?.getValues();
-                                    final currentValues = currentCardKey
-                                        .currentState
-                                        ?.getValues();
-                                    controller.lvf.value = voltageValues?['low']
-                                            ?.toInt() ??
-                                        controller.userSettings2.value!.lvf!;
-                                    controller.hvf.value =
-                                        voltageValues?['high']?.toInt() ??
-                                            controller
-                                                .userSettings2.value!.hvf!;
-                                    controller.drf.value =
-                                        currentValues?['low']?.toInt() ??
-                                            controller.userSettings2.value!.drf!
-                                                .toInt();
-                                    controller.olf.value =
-                                        currentValues?['high']?.toInt() ??
-                                            controller.userSettings2.value!.olf!
-                                                .toInt();
-                                    var pcbNumber = controller.pcbNumber.value;
-                                    updatedpayload = {
-                                      "dvc_c": {
-                                        "lvf": controller.lvf.value,
-                                        "hvf": controller.hvf.value,
-                                        "drf": controller.drf.value,
-                                        "olf": controller.olf.value,
-                                      },
-                                    };
-                                    updatedpayload = diffNestedPayload(
-                                      newPayload: updatedpayload,
-                                      oldPayload: controller.payload,
-                                      key: "dvc_c",
-                                    );
-                                    final Map<String, dynamic> dvcMap =
-                                        updatedpayload["dvc_c"] ?? {};
-                                    setState(() {
-                                      isVoltageRange =
-                                          dvcMap.containsKey("lvf") ||
-                                              dvcMap.containsKey("hvf");
-                                      isCurrentRange =
-                                          dvcMap.containsKey("drf") ||
-                                              dvcMap.containsKey("olf");
-                                      bool vmin = dvcMap.containsKey("lvf");
-                                      bool vmax = dvcMap.containsKey("hvf");
-                                      bool cmin = dvcMap.containsKey("drf");
-                                      bool cmax = dvcMap.containsKey("olf");
-                                      if (isVoltageRange || isCurrentRange) {
-                                        _handleSave(
-                                            vmin, vmax, cmin, cmax, pcbNumber);
-                                        isbuttonActive = false;
-                                      } else {
-                                        _onCommandStatusChanged(
-                                            "No changes found");
-                                      }
-                                    });
-                                  },
+                                  onPressed: !isbuttonActive
+                                      ? null
+                                      : () {
+                                          final voltageValues = voltageCardKey
+                                              .currentState
+                                              ?.getValues();
+                                          final currentValues = currentCardKey
+                                              .currentState
+                                              ?.getValues();
+                                          controller.lvf.value =
+                                              voltageValues?['low']?.toInt() ??
+                                                  controller.userSettings2
+                                                      .value!.lvf!;
+                                          controller.hvf.value =
+                                              voltageValues?['high']?.toInt() ??
+                                                  controller.userSettings2
+                                                      .value!.hvf!;
+                                          controller.drf.value =
+                                              currentValues?['low']?.toInt() ??
+                                                  controller
+                                                      .userSettings2.value!.drf!
+                                                      .toInt();
+                                          controller.olf.value =
+                                              currentValues?['high']?.toInt() ??
+                                                  controller
+                                                      .userSettings2.value!.olf!
+                                                      .toInt();
+                                          var pcbNumber =
+                                              controller.pcbNumber.value;
+                                          updatedpayload = {
+                                            "dvc_c": {
+                                              "lvf": controller.lvf.value,
+                                              "hvf": controller.hvf.value,
+                                              "drf": controller.drf.value,
+                                              "olf": controller.olf.value,
+                                            },
+                                          };
+                                          updatedpayload = diffNestedPayload(
+                                            newPayload: updatedpayload,
+                                            oldPayload: controller.payload,
+                                            key: "dvc_c",
+                                          );
+                                          final Map<String, dynamic> dvcMap =
+                                              updatedpayload["dvc_c"] ?? {};
+                                          setState(() {
+                                            isVoltageRange =
+                                                dvcMap.containsKey("lvf") ||
+                                                    dvcMap.containsKey("hvf");
+                                            isCurrentRange =
+                                                dvcMap.containsKey("drf") ||
+                                                    dvcMap.containsKey("olf");
+                                            bool vmin =
+                                                dvcMap.containsKey("lvf");
+                                            bool vmax =
+                                                dvcMap.containsKey("hvf");
+                                            bool cmin =
+                                                dvcMap.containsKey("drf");
+                                            bool cmax =
+                                                dvcMap.containsKey("olf");
+                                            if (isVoltageRange ||
+                                                isCurrentRange) {
+                                              _handleSave(vmin, vmax, cmin,
+                                                  cmax, pcbNumber);
+                                              isbuttonActive = false;
+                                            } else {}
+                                          });
+                                        },
                                   text: 'Save',
                                   options: FFButtonOptions(
                                     height: 45.0,
@@ -607,6 +621,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                         ),
                                     elevation: 0.0,
                                     borderRadius: BorderRadius.circular(12.0),
+                                    disabledColor: const Color(0xFFB0B0B0),
+                                    disabledTextColor: Colors.white,
                                   ),
                                 ),
                               ),

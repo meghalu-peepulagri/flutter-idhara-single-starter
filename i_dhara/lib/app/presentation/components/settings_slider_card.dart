@@ -173,7 +173,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     Text(
                       !isdragging
                           ? '${lowValue.toInt()}${widget.unit}'
-                          : '$temp A',
+                          : '$temp${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -201,12 +201,12 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         fontWeight: FontWeight.w700,
                         color: widget.lowColor,
                       ),
-                    ),
+                    ),  
                     const SizedBox(width: 6),
                     Text(
                       !islowdragging
                           ? '${highValue.toInt()}${widget.unit}'
-                          : '$temp  A',
+                          : '$temp${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -253,7 +253,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         isdragging = false;
                         islowdragging = true;
                         temp = highValue.toInt();
-                        highValue = displayMax;
+                        highValue = displayMax + 10;
                         activeThumb = 'low';
                       });
                     },

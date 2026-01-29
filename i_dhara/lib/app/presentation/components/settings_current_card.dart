@@ -17,7 +17,10 @@ class SettingsCurrentCard extends StatefulWidget {
     this.initialHighCurrent = 280.0,
     this.motorName = 'Pump 1',
     this.motorHp = '3 HP',
+    this.onChanged,
   });
+
+  final Function(double, double)? onChanged;
 
   @override
   State<SettingsCurrentCard> createState() => SettingsCurrentCardState();
@@ -96,6 +99,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
           onChanged: (low, high) {
             lowCurrentValue = low;
             highCurrentValue = high;
+            widget.onChanged?.call(low, high);
           },
         ),
       ],
