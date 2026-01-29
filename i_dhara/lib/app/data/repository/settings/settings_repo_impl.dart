@@ -12,11 +12,10 @@ import '../../models/settings/user_setting_limits2_model.dart';
 
 class SettingsRepositoryImpl extends SettingsRepository {
   @override
-  Future<UserSettingsResponse?> getDefaultSettings() async {
-    final id = SharedPreference.getStarterId();
+  Future<UserSettingsResponse2?> getDefaultSettings() async {
     final response = await NetworkManager().get('/settings/default');
     if (response.statusCode == 200) {
-      final res = UserSettingsResponse.fromJson(response.data);
+      final res = UserSettingsResponse2.fromJson(response.data);
       return res;
     }
     return null;
@@ -56,8 +55,6 @@ class SettingsRepositoryImpl extends SettingsRepository {
     try {
       if (response.statusCode == 200) {
         final res = UserSettingsLimitsResponse.fromJson(response.data);
-        print("line 53 ------> \n${res.toJson()}");
-
         return res;
       }
     } catch (e) {

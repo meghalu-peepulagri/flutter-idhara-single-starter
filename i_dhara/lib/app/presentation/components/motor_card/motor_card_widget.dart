@@ -64,7 +64,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     _localSwitchController = ValueNotifier(initialState);
     _localModeController = ValueNotifier(initialMode);
-    // _isInitialized = true;
     widget.mqttService.commandStatusNotifier
         .addListener(_onCommandStatusChanged);
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math; // Add for min/max
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/presentation/components/settings_slider_card.dart';
@@ -25,6 +27,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   final SettingsController controller = Get.find<SettingsController>();
   late double lowCurrentValue;
   late double highCurrentValue;
+  int _resetVersion = 0;
 
   @override
   void initState() {
@@ -37,17 +40,14 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     final lowMax = controller.data.value?.drfMax?.toDouble() ?? 100.0;
     final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
     final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
-    print(
-        "line  40 ----------------------> $lowMin $lowMax  $highMin $highMax");
 
     lowCurrentValue = widget.initialLowCurrent.clamp(lowMin, lowMax);
     highCurrentValue = widget.initialHighCurrent.clamp(highMin, highMax);
-
-    print("line 46 --------------> $lowCurrentValue  $highCurrentValue");
   }
 
   void resetValues() {
     setState(() {
+      _resetVersion++;
       _initializeValues();
     });
   }
@@ -66,22 +66,24 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
     final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
 
-    print(
-        "line  68 ----------------------> $lowMin $lowMax  $highMin $highMax");
+    // Compute global min/max for the track (union of both ranges)
+    final globalMin = math.min(lowMin, highMin);
+    final globalMax = math.max(lowMax, highMax);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
+          key: ValueKey("current_slider_$_resetVersion"),
           heading: 'Current Faults',
           leadingSvg: 'assets/images/Current.svg',
-          // leadingSvgBgColor: const Color(0xFFFFF3E0),
+          leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowCurrentValue,
           initialHighValue: highCurrentValue,
-          minLimit: lowMin,
-          maxLimit: highMax,
+          minLimit: globalMin, // Updated: global min
+          maxLimit: globalMax, // Updated: global max
           lowMinLimit: lowMin,
           lowMaxLimit: lowMax,
           highMinLimit: highMin,

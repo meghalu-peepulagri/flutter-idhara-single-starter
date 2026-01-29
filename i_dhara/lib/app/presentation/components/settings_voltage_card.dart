@@ -25,6 +25,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
   final SettingsController controller = Get.find<SettingsController>();
   late double lowVoltageValue;
   late double highVoltageValue;
+  int _resetVersion = 0;
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
 
   void resetValues() {
     setState(() {
+      _resetVersion++;
       _initializeValues();
     });
   }
@@ -67,9 +69,10 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
+          key: ValueKey("voltage_slider_$_resetVersion"),
           heading: 'Voltage Faults',
           leadingSvg: 'assets/images/Voltage.svg',
-          leadingSvgBgColor: const Color(0xFFFFF3E0),
+          // leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowVoltageValue,
           initialHighValue: highVoltageValue,

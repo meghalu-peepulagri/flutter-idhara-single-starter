@@ -17,6 +17,13 @@ class SettingsController extends GetxController {
 
   var lvf = 0.obs;
   var hvf = 0.obs;
+  var drf = 0.obs;
+  var olf = 0.obs;
+  Map<String, dynamic> payload = {};
+
+  var pumpName = ''.obs;
+  var pumpHP = ''.obs;
+  var pcbNumber = ''.obs;
 
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
@@ -28,10 +35,52 @@ class SettingsController extends GetxController {
     fetchdata();
   }
 
+  String pcbnumberPass(Starter? starter) {
+    print("line 190");
+    print("line 191 ${starter!.toJson()}");
+    try {
+      if (starter.pcbNumber != null) {
+        return starter.pcbNumber.toString();
+      } else if (starter.macAddress != null) {
+        return starter.macAddress.toString();
+      } else {
+        return '';
+      }
+    } catch (e) {
+      print("error ---> $e");
+      return '';
+    }
+  }
+
   Future<void> fetchdata() async {
     isLoading.value = true;
     await Future.wait([fetchUserSettings2(), fetchUserSettingsLimits()]);
     isLoading.value = false;
+  }
+
+  String motorName() {
+    final settings = userSettings2.value;
+    if (settings?.starter != null) {
+      if (settings!.starter!.motors!.first.aliasName != null) {
+        return settings.starter!.motors!.first.aliasName.toString();
+      }
+    } else {
+      return "N/A";
+    }
+
+    return settings.starter!.motors!.first.name.toString();
+  }
+
+  String motorHP() {
+    final settings = userSettings2.value;
+    if (settings?.starter != null) {
+      if (settings!.starter!.motors!.first.hp != null) {
+        return settings.starter!.motors!.first.hp.toString();
+      }
+    } else {
+      return "0";
+    }
+    return settings.starter!.motors!.first.hp.toString();
   }
 
   Future<void> fetchUserSettings2() async {
@@ -42,24 +91,31 @@ class SettingsController extends GetxController {
       if (response != null &&
           response.success == true &&
           response.data != null) {
+        print("line 90");
         userSettings2.value = response.data;
+        pumpName.value = motorName();
+        pumpHP.value = motorHP();
 
-        print("line 63 ------> \n${response.data}");
+        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        print("line 101 pcb ${pcbNumber.value}");
+        lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
+        hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
+        drf.value = userSettings2.value?.drf?.toInt() ?? 0;
+        olf.value = userSettings2.value?.olf?.toInt() ?? 0;
 
-        lvf.value = userSettings2.value?.lvf ?? 0;
-        hvf.value = userSettings2.value?.hvf ?? 0;
+        payload = {
+          "dvc_c": {
+            "lvf": lvf.value,
+            "hvf": hvf.value,
+            "drf": drf.value,
+            "olf": olf.value,
+          },
+        };
+        print("line 101 $payload");
 
-        print("line 53 ----> \n${response.data}");
-        // ✅ Proper assignment
         updateSettingDto.assignAll(response.data!.toJson());
-
-        print("line 57 ----> \n$updateSettingDto");
-
-        // ✅ Remove server-only fields
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
-
-        print("line 66-----> \n$updateSettingDto");
       } else {
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }
@@ -71,11 +127,9 @@ class SettingsController extends GetxController {
 
   Future<void> fetchUserSettingsLimits() async {
     try {
-      print("line 75");
       final response = await SettingsRepositoryImpl().getSettingsLimits();
       if (response?.status == 200 || response?.status == 201) {
         data.value = response?.data;
-        print("line 78 ----->\n ${data.toJson()}");
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }
     } catch (e) {
@@ -85,28 +139,40 @@ class SettingsController extends GetxController {
 
   Future<void> fetchupdateSettings() async {
     try {
-      print("line 100-----> \n$updateSettingDto");
-
-      // ✅ update values
       updateSettingDto['lvf'] = lvf.value;
       updateSettingDto['hvf'] = hvf.value;
-
-      print("line 103 ------> \n$updateSettingDto");
-
+      updateSettingDto['drf'] = drf.value;
+      updateSettingDto['olf'] = olf.value;
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);
-
       final response = await SettingsRepositoryImpl().updateSettings(dto);
-
       if (response?.status == 200 || response?.status == 201) {
         getsuccessSnackBar(response!.message.toString());
-        // Get.offNamed(Routes.devices);
       } else {
         errorMessage.value = response?.message ?? 'Failed to update settings';
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
       print('Error updating user settings: $e');
+    }
+  }
+
+  Future<void> fetchdefaultSettings() async {
+    try {
+      isLoading.value = true;
+      final res = await SettingsRepositoryImpl().getDefaultSettings();
+      if (res?.status == 200 || res?.status == 201) {
+        userSettings2.value = res?.data;
+        lvf.value = userSettings2.value?.lvf ?? 0;
+        hvf.value = userSettings2.value?.hvf ?? 0;
+        drf.value = userSettings2.value?.drf?.toInt() ?? 0;
+        olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+      }
+    } catch (e) {
+      print("error ---> $e");
+    } finally {
+      isLoading.value = false;
+      Get.back();
     }
   }
 

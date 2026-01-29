@@ -90,6 +90,7 @@ dependencies:
   pinput: ^6.0.1
   flutter_launcher_icons: ^0.14.4
   video_player: ^2.10.0
+  syncfusion_flutter_sliders: ^29.1.38
 
 dependency_overrides:
   http: 1.4.0

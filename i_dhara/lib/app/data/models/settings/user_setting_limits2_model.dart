@@ -44,13 +44,13 @@ class UserSettings2 {
   int? id;
   int? starterId;
   int? allfltEn;
-  double? flc;
+  num? flc;
   int? asDly;
   int? prFltEn;
   int? tpf;
   int? vEn;
   int? cEn;
-  int? ipf;
+  num? ipf;
   int? lvf;
   int? hvf;
   int? vif;
@@ -59,7 +59,7 @@ class UserSettings2 {
   int? fDr;
   int? fOl;
   int? fLr;
-  double? fOpf;
+  num? fOpf;
   int? fCi;
   int? pfa;
   int? lva;
@@ -73,11 +73,11 @@ class UserSettings2 {
   int? ci;
   int? lvr;
   int? hvr;
-  int? olf;
-  int? lrf;
-  double? opf;
-  double? cif;
-  int? drf;
+  num? olf;
+  num? lrf;
+  num? opf;
+  num? cif;
+  num? drf;
   int? olr;
   int? lrr;
   int? cir;
@@ -120,7 +120,7 @@ class UserSettings2 {
   int? crtEn;
   String? smsPswd;
   int? cLang;
-  List<String>? authNum;
+  List<dynamic>? authNum; // Changed to dynamic to handle both num and String
   int? dftLivF;
   int? hLivF;
   int? mLivF;
@@ -239,7 +239,7 @@ class UserSettings2 {
         id: json["id"],
         starterId: json["starter_id"],
         allfltEn: json["allflt_en"],
-        flc: json["flc"]?.toDouble(),
+        flc: json["flc"],
         asDly: json["as_dly"],
         prFltEn: json["pr_flt_en"],
         tpf: json["tpf"],
@@ -254,7 +254,7 @@ class UserSettings2 {
         fDr: json["f_dr"],
         fOl: json["f_ol"],
         fLr: json["f_lr"],
-        fOpf: json["f_opf"]?.toDouble(),
+        fOpf: json["f_opf"],
         fCi: json["f_ci"],
         pfa: json["pfa"],
         lva: json["lva"],
@@ -270,8 +270,8 @@ class UserSettings2 {
         hvr: json["hvr"],
         olf: json["olf"],
         lrf: json["lrf"],
-        opf: json["opf"]?.toDouble(),
-        cif: json["cif"]?.toDouble(),
+        opf: json["opf"],
+        cif: json["cif"],
         drf: json["drf"],
         olr: json["olr"],
         lrr: json["lrr"],
@@ -317,7 +317,7 @@ class UserSettings2 {
         cLang: json["c_lang"],
         authNum: json["auth_num"] == null
             ? []
-            : List<String>.from(json["auth_num"]!.map((x) => x)),
+            : List<dynamic>.from(json["auth_num"]!.map((x) => x)),
         dftLivF: json["dft_liv_f"],
         hLivF: json["h_liv_f"],
         mLivF: json["m_liv_f"],
@@ -481,8 +481,8 @@ class Starter {
 class Motor {
   int? id;
   String? name;
-  String? hp;
-  dynamic aliasName;
+  dynamic hp; // Changed to dynamic to handle both int, double, and String
+  String? aliasName;
 
   Motor({
     this.id,
@@ -494,7 +494,7 @@ class Motor {
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
         id: json["id"],
         name: json["name"],
-        hp: json["hp"],
+        hp: json["hp"], // Will accept any type
         aliasName: json["alias_name"],
       );
 

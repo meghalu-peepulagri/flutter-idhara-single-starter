@@ -882,7 +882,7 @@ class MqttService {
   }
 
   void _scheduleRetry(String motorId, int commandType, dynamic commandData,
-      int sequenceNumber, int lvf, int hvf, String pcb) {
+      int sequenceNumber, int lvf, int hvf, String pcb, int drf, int olf) {
     final key = '${motorId}_$commandType';
     final command = _pendingCommands[key] ??
         RetryCommand(
@@ -909,18 +909,11 @@ class MqttService {
                 sequenceNumber: command.sequenceNumber, isRetry: true);
           } else if (commandType == 4) {
             await _publishDefaultSettingCommandInternal(
-                commandData, lvf, hvf, pcb,
+                commandData, lvf, hvf, pcb, drf, olf,
                 sequenceNumber: command.sequenceNumber, isRetry: true);
           }
-          _scheduleRetry(
-            motorId,
-            commandType,
-            commandData,
-            command.sequenceNumber,
-            lvf,
-            hvf,
-            pcb,
-          );
+          _scheduleRetry(motorId, commandType, commandData,
+              command.sequenceNumber, lvf, hvf, pcb, drf, olf);
         } catch (e) {
           _pendingCommands.remove(key);
         }
@@ -938,12 +931,8 @@ class MqttService {
     _pendingCommands[key] = command;
   }
 
-  Future<void> publishUpdateSettings(
-    int lvf,
-    int hvf,
-    String pcb,
-  ) async {
-    print("line 946 ------> $pcb");
+  Future<void> publishUpdateSettings(int lvf, int hvf, String pcb, int drf,
+      int olf, Map<String, dynamic> payload) async {
     if (mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
       _dataUpdateNotifier.value++;
@@ -951,18 +940,11 @@ class MqttService {
     }
     final seq = _generateRandomSequence();
 
-    final commandData = {
-      "dvc_c": {
-        "lvf": lvf,
-        "hvf": hvf,
-      },
-    };
-
     try {
-      await _publishDefaultSettingCommandInternal(commandData, lvf, hvf, pcb,
-          sequenceNumber: seq);
+      await _publishDefaultSettingCommandInternal(
+          payload, lvf, hvf, pcb, sequenceNumber: seq, drf, olf);
       statusMessage = 'Motor command sent successfully';
-      _scheduleRetry('', 4, commandData, seq, lvf, hvf, pcb);
+      _scheduleRetry('', 4, payload, seq, lvf, hvf, pcb, drf, olf);
     } catch (e) {
       statusMessage = 'Failed to publish motor command: $e';
       // _lastCommandTimes.remove();
@@ -1007,7 +989,7 @@ class MqttService {
 
   // Internal publish method for mode control
   Future<void> _publishDefaultSettingCommandInternal(
-      dynamic commandData, int lvf, int hvf, String pcbnumber,
+      dynamic commandData, int lvf, int hvf, String pcbnumber, int drf, int olf,
       {int? sequenceNumber, bool isRetry = false}) async {
     if (mqttClient == null || !isConnected) {
       throw Exception('MQTT not connected');
@@ -1016,16 +998,7 @@ class MqttService {
 
     final seq = sequenceNumber ?? _generateRandomSequence();
 
-    final payload = {
-      "T": 1,
-      "S": seq,
-      "D": {
-        "dvc_c": {
-          "lvf": lvf,
-          "hvf": hvf,
-        }
-      },
-    };
+    final payload = {"T": 1, "S": seq, "D": commandData};
 
     final message = jsonEncode(payload);
     final builder = MqttClientPayloadBuilder();
@@ -1096,7 +1069,7 @@ class MqttService {
       statusMessage = 'Motor command sent successfully';
 
       // Schedule retry mechanism
-      _scheduleRetry(motorId, 1, state, sequenceNumber, 0, 0, '');
+      _scheduleRetry(motorId, 1, state, sequenceNumber, 0, 0, '', 0, 0);
     } catch (e) {
       statusMessage = 'Failed to publish motor command: $e';
       _lastCommandTimes.remove(motorId);
@@ -1123,7 +1096,8 @@ class MqttService {
           sequenceNumber: sequenceNumber);
       statusMessage = 'Motor command sent successfully';
 
-      _scheduleRetry(motorId, 2, simplifiedMode, sequenceNumber, 0, 0, '');
+      _scheduleRetry(
+          motorId, 2, simplifiedMode, sequenceNumber, 0, 0, '', 0, 0);
     } catch (e) {
       statusMessage = 'Failed to publish motor command: $e';
       _lastCommandTimes.remove(motorId);

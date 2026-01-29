@@ -10,4 +10,5 @@ abstract class SettingsRepository {
   Future<UserSettingsResponse2?> getSettings2();
   Future<UserSettingsLimitsResponse?> getSettingsLimits();
   Future<UpdateUserSettingResponse?> updateSettings(UserUpdateSettingsDto dto);
+  Future<UserSettingsResponse2?> getDefaultSettings();
 }
