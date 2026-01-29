@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
 
@@ -147,7 +146,6 @@ class SettingsController extends GetxController {
           UserUpdateSettingsDto.fromJson(updateSettingDto);
       final response = await SettingsRepositoryImpl().updateSettings(dto);
       if (response?.status == 200 || response?.status == 201) {
-        getsuccessSnackBar(response!.message.toString());
       } else {
         errorMessage.value = response?.message ?? 'Failed to update settings';
       }

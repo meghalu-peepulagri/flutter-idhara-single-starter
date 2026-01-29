@@ -38,6 +38,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool isCurrentRange = false;
   bool allowSnackbar = true;
   bool isSnackbarShown = false;
+  bool isbuttonActive = false;
   @override
   void initState() {
     super.initState();
@@ -250,6 +251,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                 if (!isSnackbarShown)
                                   _onCommandStatusChanged(
                                       "No response from the device");
+                                _handleCancel();
                               });
                             },
                             options: const FFButtonOptions(
@@ -553,7 +555,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                         currentValues?['high']?.toInt() ??
                                             controller.userSettings2.value!.olf!
                                                 .toInt();
-                                    var pcbNumber = "TESTRUN";
+                                    var pcbNumber = controller.pcbNumber.value;
                                     updatedpayload = {
                                       "dvc_c": {
                                         "lvf": controller.lvf.value,
@@ -562,14 +564,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                         "olf": controller.olf.value,
                                       },
                                     };
-                                    print("line 563  $updatedpayload");
                                     updatedpayload = diffNestedPayload(
                                       newPayload: updatedpayload,
                                       oldPayload: controller.payload,
                                       key: "dvc_c",
                                     );
-                                    print("line 566  $updatedpayload");
-                                    print("line 570  ${controller.payload}");
                                     final Map<String, dynamic> dvcMap =
                                         updatedpayload["dvc_c"] ?? {};
                                     setState(() {
@@ -586,6 +585,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       if (isVoltageRange || isCurrentRange) {
                                         _handleSave(
                                             vmin, vmax, cmin, cmax, pcbNumber);
+                                        isbuttonActive = false;
                                       } else {
                                         _onCommandStatusChanged(
                                             "No changes found");
