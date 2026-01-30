@@ -52,6 +52,11 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
   late double lowValue;
   late double highValue;
   String activeThumb = 'none';
+  int temp = 0;
+  int lowtemp = 0;
+
+  bool isdragging = false;
+  bool islowdragging = false;
 
   @override
   void initState() {
@@ -75,6 +80,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
 
   @override
   Widget build(BuildContext context) {
+    print("line 84 ------> $lowValue $highValue");
     // Dynamic min/max based on active thumb
     double displayMin;
     double displayMax;
@@ -166,7 +172,9 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '${lowValue.toInt()}${widget.unit}',
+                      !isdragging
+                          ? '${lowValue.toInt()}${widget.unit}'
+                          : '$temp${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -197,7 +205,9 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '${highValue.toInt()}${widget.unit}',
+                      !islowdragging
+                          ? '${highValue.toInt()}${widget.unit}'
+                          : '$temp${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -239,27 +249,44 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     color: widget.lowThumbColor,
                     isActive: activeThumb == 'low',
                     label: "L",
-                    onDragStart: () => setState(() => activeThumb = 'low'),
+                    onDragStart: () {
+                      print("line 252 $displayMin $displayMax");
+                      setState(() {
+                        isdragging = false;
+                        islowdragging = true;
+                        temp = highValue.toInt();
+                        highValue = displayMax + displayMax + 10;
+                        print("line 257 $highValue $temp");
+                        activeThumb = 'low';
+                      });
+                    },
                     onDragUpdate: (delta) {
                       setState(() {
+                        print("line 264 $displayMin $displayMax $highValue");
                         final range = displayMax - displayMin;
                         final pxChange = delta * range;
-
                         var newValue = lowValue + pxChange;
                         newValue = newValue.clamp(
                             widget.lowMinLimit, widget.lowMaxLimit);
                         // Ensure low doesn't exceed high
+                        highValue = displayMax + displayMax + 10;
                         newValue =
                             newValue.clamp(widget.lowMinLimit, highValue - 1);
                         lowValue = newValue;
-
                         widget.onChanged(lowValue, highValue);
                       });
                     },
-                    onDragEnd: () => setState(() => activeThumb = 'none'),
+                    onDragEnd: () {
+                      setState(() {
+                        activeThumb = 'none';
+                        isdragging = false;
+                        islowdragging = false;
+                        highValue = temp.toDouble();
+                        widget.onChanged(lowValue, highValue);
+                      });
+                    },
                     maxWidth: constraints.maxWidth,
                   ),
-
                   // High Thumb
                   _buildThumb(
                     value: highValue,
@@ -268,12 +295,23 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     color: widget.highThumbColor,
                     isActive: activeThumb == 'high',
                     label: "H",
-                    onDragStart: () => setState(() => activeThumb = 'high'),
-                    onDragUpdate: (delta) {
+                    onDragStart: () {
                       setState(() {
+                        activeThumb = 'high';
+                        temp = lowValue.toInt();
+                        lowValue = 0;
+                        isdragging = true;
+                        islowdragging = false;
+                      });
+                    },
+                    onDragUpdate: (delta) {
+                      print("line 308 $displayMin $displayMax $lowValue");
+
+                      setState(() {
+                        lowValue = 0;
+
                         final range = displayMax - displayMin;
                         final pxChange = delta * range;
-
                         var newValue = highValue + pxChange;
                         newValue = newValue.clamp(
                             widget.highMinLimit, widget.highMaxLimit);
@@ -281,11 +319,18 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         newValue =
                             newValue.clamp(lowValue + 1, widget.highMaxLimit);
                         highValue = newValue;
-
                         widget.onChanged(lowValue, highValue);
                       });
                     },
-                    onDragEnd: () => setState(() => activeThumb = 'none'),
+                    onDragEnd: () {
+                      setState(() {
+                        activeThumb = 'none';
+                        isdragging = false;
+                        islowdragging = false;
+                        lowValue = temp.toDouble();
+                        widget.onChanged(lowValue, highValue);
+                      });
+                    },
                     maxWidth: constraints.maxWidth,
                   ),
                 ],

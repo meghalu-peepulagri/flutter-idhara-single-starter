@@ -101,6 +101,10 @@ class PendingCommand {
 /// MQTT Service - Singleton that handles all MQTT communication
 class MqttService {
   static final MqttService _instance = MqttService._internal();
+  final StreamController<Map<String, dynamic>> defaultSettingsController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get settingstream =>
+      defaultSettingsController.stream;
 
   factory MqttService({Map<String, Motor>? initialMotors}) {
     if (initialMotors != null) {
@@ -255,6 +259,53 @@ class MqttService {
       rethrow;
     }
     _dataUpdateNotifier.value++;
+  }
+
+  Future<void> publishUpdateSettings(
+      String pcb, Map<String, dynamic> payload) async {
+    if (_mqttClient == null || !isConnected) {
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      return;
+    }
+    final seq = _random.nextInt(251);
+
+    try {
+      await _publishDefaultSettingCommandInternal(
+        payload,
+        pcb,
+        sequenceNumber: seq,
+      );
+      statusMessage = 'Device Settings command sent successfully';
+      _registerPendingCommand('', 4, payload, seq);
+    } catch (e) {
+      statusMessage = 'Failed to publish Device Settings command: $e';
+      // _lastCommandTimes.remove();
+      _dataUpdateNotifier.value++;
+      rethrow;
+    }
+  }
+
+  Future<void> _publishDefaultSettingCommandInternal(
+      dynamic commandData, String pcbnumber,
+      {int? sequenceNumber, bool isRetry = false}) async {
+    if (_mqttClient == null || !isConnected) {
+      throw Exception('MQTT not connected');
+    }
+    final topic = 'peepul/$pcbnumber/cmd';
+
+    final seq = sequenceNumber ?? _random.nextInt(251);
+    ();
+
+    final payload = {"T": 1, "S": seq, "D": commandData};
+
+    final message = jsonEncode(payload);
+    final builder = MqttClientPayloadBuilder();
+    builder.addString(message);
+    _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    if (!isRetry) {
+      debugPrint(' Payload: $message');
+    } else {}
   }
 
   /// Publish mode change command (0=Manual, 1=Auto)
@@ -499,6 +550,9 @@ class MqttService {
           case 32:
             _handleModeChangeAck(identifier, payloadData);
             break;
+          case 34:
+            handleDefaultSettings(identifier, payloadData);
+            break;
           case 35:
           case 41:
             _handleLiveData(identifier, payloadData);
@@ -682,6 +736,16 @@ class MqttService {
     }
 
     _dataUpdateNotifier.value++;
+  }
+
+  void handleDefaultSettings(String identifier, dynamic payloadData) {
+    final type = payloadData as int;
+    final map = {"D": type, "topic": identifier};
+    for (var entry in motorDataMap.entries) {
+      final motorData = entry.value;
+      print("line 47 $type");
+      defaultSettingsController.add(map);
+    }
   }
 
   /// Handle heartbeat (type 40)

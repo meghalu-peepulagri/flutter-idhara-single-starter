@@ -1,3 +1,5 @@
+import 'dart:math' as math; // Add for min/max
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/presentation/components/settings_slider_card.dart';
@@ -15,7 +17,10 @@ class SettingsCurrentCard extends StatefulWidget {
     this.initialHighCurrent = 280.0,
     this.motorName = 'Pump 1',
     this.motorHp = '3 HP',
+    this.onChanged,
   });
+
+  final Function(double, double)? onChanged;
 
   @override
   State<SettingsCurrentCard> createState() => SettingsCurrentCardState();
@@ -25,6 +30,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   final SettingsController controller = Get.find<SettingsController>();
   late double lowCurrentValue;
   late double highCurrentValue;
+  int _resetVersion = 0;
 
   @override
   void initState() {
@@ -33,10 +39,12 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   }
 
   void _initializeValues() {
-    final lowMin = controller.data?.lvfMin?.toDouble() ?? 0.0;
-    final lowMax = controller.data?.lvfMax?.toDouble() ?? 100.0;
-    final highMin = controller.data?.hvfMin?.toDouble() ?? 0.0;
-    final highMax = controller.data?.hvfMax?.toDouble() ?? 100.0;
+    print(
+        "line 44 -----> ${widget.initialLowCurrent} ${widget.initialHighCurrent}");
+    final lowMin = controller.data.value?.drfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data.value?.drfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
 
     lowCurrentValue = widget.initialLowCurrent.clamp(lowMin, lowMax);
     highCurrentValue = widget.initialHighCurrent.clamp(highMin, highMax);
@@ -44,6 +52,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
 
   void resetValues() {
     setState(() {
+      _resetVersion++;
       _initializeValues();
     });
   }
@@ -57,24 +66,29 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lowMin = controller.data?.lvfMin?.toDouble() ?? 0.0;
-    final lowMax = controller.data?.lvfMax?.toDouble() ?? 100.0;
-    final highMin = controller.data?.hvfMin?.toDouble() ?? 0.0;
-    final highMax = controller.data?.hvfMax?.toDouble() ?? 100.0;
+    final lowMin = controller.data.value?.drfMin?.toDouble() ?? 0.0;
+    final lowMax = controller.data.value?.drfMax?.toDouble() ?? 100.0;
+    final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
+    final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
+
+    // Compute global min/max for the track (union of both ranges)
+    final globalMin = math.min(lowMin, highMin);
+    final globalMax = math.max(lowMax, highMax);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
+          key: ValueKey("current_slider_$_resetVersion"),
           heading: 'Current Faults',
           leadingSvg: 'assets/images/Current.svg',
-          // leadingSvgBgColor: const Color(0xFFFFF3E0),
+          leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowCurrentValue,
           initialHighValue: highCurrentValue,
-          minLimit: lowMin,
-          maxLimit: highMax,
+          minLimit: globalMin, // Updated: global min
+          maxLimit: globalMax, // Updated: global max
           lowMinLimit: lowMin,
           lowMaxLimit: lowMax,
           highMinLimit: highMin,
@@ -87,6 +101,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
           onChanged: (low, high) {
             lowCurrentValue = low;
             highCurrentValue = high;
+            widget.onChanged?.call(low, high);
           },
         ),
       ],

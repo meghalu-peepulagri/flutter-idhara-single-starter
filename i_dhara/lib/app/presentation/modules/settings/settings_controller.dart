@@ -1,77 +1,200 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
-import 'package:i_dhara/app/data/models/settings/user_settings_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
 
+import '../../../data/dto/device_setting_dto.dart';
+import '../../../data/models/settings/user_setting_limits2_model.dart';
+
 class SettingsController extends GetxController {
-  // State field(s) for TabBar widget.
   TabController? tabBarController;
 
-  int get tabBarCurrentIndex =>
-      tabBarController != null ? tabBarController!.index : 0;
-  int get tabBarPreviousIndex =>
-      tabBarController != null ? tabBarController!.previousIndex : 0;
+  final Rx<UserSettings2?> userSettings2 = Rx<UserSettings2?>(null);
 
-  final Rx<UserSettings?> userSettings = Rx<UserSettings?>(null);
-  final Rx<UserSettingsLimits?> userSettingsLimits =
-      Rx<UserSettingsLimits?>(null);
+  // ✅ Typed reactive map
+  final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
 
+  var lvf = 0.obs;
+  var hvf = 0.obs;
+  var drf = 0.obs;
+  var olf = 0.obs;
+  Map<String, dynamic> payload = {};
+  var isrefreshing = false.obs;
+  var pumpName = ''.obs;
+  var pumpHP = ''.obs;
+  var pcbNumber = ''.obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
-  UserSettingsLimits? data;
+  var data = Rxn<UserSettingsLimits>();
 
   @override
   void onInit() {
     super.onInit();
-    fetchUserSettings();
-    fetchUserSettingsLimits();
+    fetchdata();
   }
 
-  @override
-  void dispose() {
-    tabBarController?.dispose();
-    super.dispose();
-  }
-
-  Future<void> fetchUserSettings() async {
+  String pcbnumberPass(Starter? starter) {
+    print("line 190");
+    print("line 191 ${starter!.toJson()}");
     try {
-      isLoading.value = true;
-      errorMessage.value = '';
+      if (starter.pcbNumber != null) {
+        return starter.pcbNumber.toString();
+      } else if (starter.macAddress != null) {
+        return starter.macAddress.toString();
+      } else {
+        return '';
+      }
+    } catch (e) {
+      print("error ---> $e");
+      return '';
+    }
+  }
 
-      final response = await SettingsRepositoryImpl().getSettings();
+  Future<void> fetchdata() async {
+    if (!isrefreshing.value) isLoading.value = true;
+    try {
+      await Future.wait([fetchUserSettings2(), fetchUserSettingsLimits()]);
+    } finally {
+      isrefreshing.value = false;
+      isLoading.value = false;
+    }
+  }
+
+  String motorName() {
+    final settings = userSettings2.value;
+    if (settings?.starter != null) {
+      if (settings!.starter!.motors!.first.aliasName != null) {
+        return settings.starter!.motors!.first.aliasName.toString();
+      }
+    } else {
+      return "N/A";
+    }
+
+    return settings.starter!.motors!.first.name.toString();
+  }
+
+  String motorHP() {
+    final settings = userSettings2.value;
+    if (settings?.starter != null) {
+      if (settings!.starter!.motors!.first.hp != null) {
+        return settings.starter!.motors!.first.hp.toString();
+      }
+    } else {
+      return "0";
+    }
+    return settings.starter!.motors!.first.hp.toString();
+  }
+
+  Future<void> fetchUserSettings2() async {
+    try {
+      errorMessage.value = '';
+      final response = await SettingsRepositoryImpl().getSettings2();
 
       if (response != null &&
           response.success == true &&
           response.data != null) {
-        userSettings.value = response.data;
+        print("line 90");
+        userSettings2.value = response.data;
+        pumpName.value = motorName();
+        pumpHP.value = motorHP();
+
+        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        print("line 101 pcb ${pcbNumber.value}");
+        lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
+        hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
+        drf.value = userSettings2.value?.drf?.toInt() ?? 0;
+        olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+
+        payload = {
+          "dvc_c": {
+            "lvf": lvf.value,
+            "hvf": hvf.value,
+            "drf": drf.value,
+            "olf": olf.value,
+          },
+        };
+        print("line 101 $payload");
+
+        updateSettingDto.assignAll(response.data!.toJson());
+        updateSettingDto.removeWhere((key, value) =>
+            key == "updated_at" || key == "created_at" || key == "created_by");
       } else {
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
       print('Error fetching user settings: $e');
-    } finally {
-      isLoading.value = false;
     }
   }
 
   Future<void> fetchUserSettingsLimits() async {
     try {
       final response = await SettingsRepositoryImpl().getSettingsLimits();
-
-      if (response != null &&
-          response.success == true &&
-          response.data != null) {
-        data = response.data;
-      } else {
+      if (response?.status == 200 || response?.status == 201) {
+        data.value = response?.data;
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
-    } finally {
-      // isLoading.value = false;
     }
+  }
+
+  Future<void> fetchupdateSettings() async {
+    try {
+      updateSettingDto['lvf'] = lvf.value;
+      updateSettingDto['hvf'] = hvf.value;
+      updateSettingDto['drf'] = drf.value;
+      updateSettingDto['olf'] = olf.value;
+      UserUpdateSettingsDto dto =
+          UserUpdateSettingsDto.fromJson(updateSettingDto);
+      final response = await SettingsRepositoryImpl().updateSettings(dto);
+      if (response?.status == 200 || response?.status == 201) {
+      } else {
+        errorMessage.value = response?.message ?? 'Failed to update settings';
+      }
+    } catch (e) {
+      errorMessage.value = 'Error updating settings: $e';
+      print('Error updating user settings: $e');
+    }
+  }
+
+  Future<void> fetchdefaultSettings() async {
+    try {
+      isLoading.value = true;
+      final res = await SettingsRepositoryImpl().getDefaultSettings();
+      if (res?.status == 200 || res?.status == 201) {
+        userSettings2.value = res?.data;
+        lvf.value = userSettings2.value?.lvf ?? 0;
+        hvf.value = userSettings2.value?.hvf ?? 0;
+        drf.value = userSettings2.value?.drf?.toInt() ?? 0;
+        olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+
+        payload = {
+          "dvc_c": {
+            "lvf": lvf.value,
+            "hvf": hvf.value,
+            "drf": drf.value,
+            "olf": olf.value,
+          },
+        };
+        print("line 101 $payload");
+
+        updateSettingDto.assignAll(res!.data!.toJson());
+        updateSettingDto.removeWhere((key, value) =>
+            key == "updated_at" || key == "created_at" || key == "created_by");
+        print("line 185 ${updateSettingDto.toJson()}");
+      }
+    } catch (e) {
+      print("error ---> $e");
+    } finally {
+      isLoading.value = false;
+      Get.back();
+    }
+  }
+
+  @override
+  void dispose() {
+    tabBarController?.dispose();
+    super.dispose();
   }
 }

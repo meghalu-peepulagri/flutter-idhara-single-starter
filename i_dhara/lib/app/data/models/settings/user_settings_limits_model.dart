@@ -49,16 +49,23 @@ class UserSettingsLimits {
   int? hvfMin;
   int? hvfMax;
   DateTime? createdAt;
+  int? drfMin;
+  int? drfMax;
+  int? olfMin;
+  int? olfMax;
 
-  UserSettingsLimits({
-    this.id,
-    this.starterId,
-    this.lvfMin,
-    this.lvfMax,
-    this.hvfMin,
-    this.hvfMax,
-    this.createdAt,
-  });
+  UserSettingsLimits(
+      {this.id,
+      this.starterId,
+      this.lvfMin,
+      this.lvfMax,
+      this.hvfMin,
+      this.hvfMax,
+      this.createdAt,
+      this.drfMin,
+      this.drfMax,
+      this.olfMin,
+      this.olfMax});
 
   factory UserSettingsLimits.fromJson(Map<String, dynamic> json) =>
       UserSettingsLimits(
@@ -68,6 +75,10 @@ class UserSettingsLimits {
         lvfMax: json["lvf_max"],
         hvfMin: json["hvf_min"],
         hvfMax: json["hvf_max"],
+        drfMin: json["drf_min"],
+        drfMax: json["drf_max"],
+        olfMin: json["olf_min"],
+        olfMax: json["olf_max"],
         createdAt: json["created_at"] == null
             ? null
             : DateTime.parse(json["created_at"]),
@@ -81,5 +92,9 @@ class UserSettingsLimits {
         "hvf_min": hvfMin,
         "hvf_max": hvfMax,
         "created_at": createdAt?.toIso8601String(),
+        "drf_min": drfMin,
+        "drf_max": drfMax,
+        "olf_min": olfMin,
+        "olf_max": olfMax
       };
 }

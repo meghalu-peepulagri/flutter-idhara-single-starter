@@ -15,7 +15,10 @@ class SettingsVoltageCard extends StatefulWidget {
     this.initialHighVoltage = 280.0,
     this.motorName = 'Pump 1',
     this.motorHp = '3 HP',
+    this.onChanged,
   });
+
+  final Function(double, double)? onChanged;
 
   @override
   State<SettingsVoltageCard> createState() => SettingsVoltageCardState();
@@ -25,6 +28,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
   final SettingsController controller = Get.find<SettingsController>();
   late double lowVoltageValue;
   late double highVoltageValue;
+  int _resetVersion = 0;
 
   @override
   void initState() {
@@ -33,10 +37,12 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
   }
 
   void _initializeValues() {
-    final lowMin = controller.data?.lvfMin?.toDouble() ?? 150.0;
-    final lowMax = controller.data?.lvfMax?.toDouble() ?? 300.0;
-    final highMin = controller.data?.hvfMin?.toDouble() ?? 240.0;
-    final highMax = controller.data?.hvfMax?.toDouble() ?? 550.0;
+    print(
+        "line 41 ------> ${widget.initialLowVoltage} ${widget.initialHighVoltage}");
+    final lowMin = controller.data.value?.lvfMin?.toDouble() ?? 150.0;
+    final lowMax = controller.data.value?.lvfMax?.toDouble() ?? 300.0;
+    final highMin = controller.data.value?.hvfMin?.toDouble() ?? 240.0;
+    final highMax = controller.data.value?.hvfMax?.toDouble() ?? 550.0;
 
     lowVoltageValue = widget.initialLowVoltage.clamp(lowMin, lowMax);
     highVoltageValue = widget.initialHighVoltage.clamp(highMin, highMax);
@@ -44,6 +50,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
 
   void resetValues() {
     setState(() {
+      _resetVersion++;
       _initializeValues();
     });
   }
@@ -57,19 +64,20 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lowMin = controller.data?.lvfMin?.toDouble() ?? 150.0;
-    final lowMax = controller.data?.lvfMax?.toDouble() ?? 300.0;
-    final highMin = controller.data?.hvfMin?.toDouble() ?? 240.0;
-    final highMax = controller.data?.hvfMax?.toDouble() ?? 550.0;
+    final lowMin = controller.data.value?.lvfMin?.toDouble() ?? 150.0;
+    final lowMax = controller.data.value?.lvfMax?.toDouble() ?? 300.0;
+    final highMin = controller.data.value?.hvfMin?.toDouble() ?? 240.0;
+    final highMax = controller.data.value?.hvfMax?.toDouble() ?? 550.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
+          key: ValueKey("voltage_slider_$_resetVersion"),
           heading: 'Voltage Faults',
           leadingSvg: 'assets/images/Voltage.svg',
-          leadingSvgBgColor: const Color(0xFFFFF3E0),
+          // leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowVoltageValue,
           initialHighValue: highVoltageValue,
@@ -87,6 +95,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
           onChanged: (low, high) {
             lowVoltageValue = low;
             highVoltageValue = high;
+            widget.onChanged?.call(low, high);
           },
         ),
       ],
