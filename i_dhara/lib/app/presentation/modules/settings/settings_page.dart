@@ -56,7 +56,12 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     mqttService.settingstream.listen((data) async {
       final type = data["D"];
       final topic = data["topic"];
-      if (type == 1 && !_ackInProgress && topic == controller.pcbNumber.value) {
+      final pcbNumber = controller.pcbNumber.value;
+      final macAddress = controller.macAddress.value;
+
+      if (type == 1 &&
+          !_ackInProgress &&
+          (topic == pcbNumber || topic == macAddress)) {
         isSnackbarShown = true;
         _ackInProgress = true;
         getsuccessSnackBar("Settings updated successfully");
@@ -184,7 +189,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                   infoCard(
                       bgColor: const Color(0xFFEAF3FF),
                       iconBg: const Color(0xFF3B82F6),
-                      svg: 'assets/images/voltage_range.svg',
+                      svg: 'assets/images/Voltage.svg',
                       title: "Voltage Range",
                       lowOld:
                           "${controller.userSettings2.value!.lvf.toString()}A",
@@ -202,7 +207,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                   infoCard(
                       bgColor: const Color(0xFFFFF3E8),
                       iconBg: const Color(0xFFFF7A00),
-                      svg: 'assets/images/current_range.svg',
+                      svg: 'assets/images/Current.svg',
                       title: "Current Range",
                       lowOld:
                           "${controller.userSettings2.value?.drf?.toInt()}A",
@@ -387,10 +392,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               spacing: 10,
                               children: [
                                 Text(
-                                  controller.pumpName.value.length > 16
-                                      ? controller.pumpName.value
-                                          .substring(0, 16)
-                                      : controller.pumpName.value ?? 'N/A',
+                                  (() {
+                                    final name =
+                                        (controller.pumpName.value ?? 'N/A')
+                                            .replaceAll(RegExp(r'\s+'), ' ');
+                                    return name.length > 16
+                                        ? '${name.substring(0, 16)}...'
+                                        : name;
+                                  })(),
                                   style: FlutterFlowTheme.of(context)
                                       .titleMedium
                                       .override(

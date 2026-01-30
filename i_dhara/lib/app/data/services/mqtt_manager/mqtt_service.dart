@@ -76,9 +76,10 @@ class MotorData {
 /// Tracks pending commands for retry mechanism
 class PendingCommand {
   final String motorId;
-  final int commandType; // 1 = motor control, 2 = mode change
+  final int commandType; // 1 = motor control, 2 = mode change, 4 = settings
   final dynamic commandData;
   final int sequenceNumber;
+  final String? pcbnumber; // For settings commands (type 4)
   int retryCount;
   Timer? retryTimer;
   final Function(String) onMaxRetriesReached;
@@ -90,6 +91,7 @@ class PendingCommand {
     required this.sequenceNumber,
     this.retryCount = 0,
     required this.onMaxRetriesReached,
+    this.pcbnumber,
   });
 
   void cancelTimer() {
@@ -277,13 +279,14 @@ class MqttService {
         sequenceNumber: seq,
       );
       statusMessage = 'Device Settings command sent successfully';
-      _registerPendingCommand('', 4, payload, seq);
+      _registerPendingCommand('', 4, payload, seq, pcbnumber: pcb);
     } catch (e) {
       statusMessage = 'Failed to publish Device Settings command: $e';
       // _lastCommandTimes.remove();
       _dataUpdateNotifier.value++;
       rethrow;
     }
+    _dataUpdateNotifier.value++;
   }
 
   Future<void> _publishDefaultSettingCommandInternal(
@@ -295,7 +298,6 @@ class MqttService {
     final topic = 'peepul/$pcbnumber/cmd';
 
     final seq = sequenceNumber ?? _random.nextInt(251);
-    ();
 
     final payload = {"T": 1, "S": seq, "D": commandData};
 
@@ -304,8 +306,8 @@ class MqttService {
     builder.addString(message);
     _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
     if (!isRetry) {
-      debugPrint(' Payload: $message');
-    } else {}
+      debugPrint('✓ Published Settings Command: $message');
+    }
   }
 
   /// Publish mode change command (0=Manual, 1=Auto)
@@ -741,11 +743,13 @@ class MqttService {
   void handleDefaultSettings(String identifier, dynamic payloadData) {
     final type = payloadData as int;
     final map = {"D": type, "topic": identifier};
-    for (var entry in motorDataMap.entries) {
-      final motorData = entry.value;
-      print("line 47 $type");
-      defaultSettingsController.add(map);
-    }
+
+    // Clear pending settings command to stop retries
+    _clearPendingCommand('', 4);
+
+    debugPrint('✓ Settings ACK received from $identifier: $type');
+
+    defaultSettingsController.add(map);
   }
 
   /// Handle heartbeat (type 40)
@@ -896,8 +900,8 @@ class MqttService {
     debugPrint(' Published: $motorId (T=$type, D=$data) -> $topic');
   }
 
-  void _registerPendingCommand(
-      String motorId, int type, dynamic data, int seq) {
+  void _registerPendingCommand(String motorId, int type, dynamic data, int seq,
+      {String? pcbnumber}) {
     final key = '${motorId}_$type';
 
     final command = PendingCommand(
@@ -909,6 +913,7 @@ class MqttService {
         commandStatusNotifier.value = message;
         _dataUpdateNotifier.value++;
       },
+      pcbnumber: pcbnumber,
     );
 
     _scheduleRetry(command);
@@ -931,29 +936,54 @@ class MqttService {
         command.retryCount++;
 
         try {
-          await _publishCommand(
-            command.motorId,
-            command.commandType,
-            command.commandData as int,
-            command.sequenceNumber,
-          );
-          debugPrint('🔄 Retry ${command.retryCount}: ${command.motorId}');
+          if (command.commandType == 4 && command.pcbnumber != null) {
+            // Settings command
+            await _publishDefaultSettingCommandInternal(
+              command.commandData,
+              command.pcbnumber!,
+              sequenceNumber: command.sequenceNumber,
+              isRetry: true,
+            );
+            debugPrint(
+                '🔄 Retry ${command.retryCount}: Settings (${command.pcbnumber})');
+          } else {
+            // Motor control or mode change command
+            await _publishCommand(
+              command.motorId,
+              command.commandType,
+              command.commandData as int,
+              command.sequenceNumber,
+            );
+            debugPrint('🔄 Retry ${command.retryCount}: ${command.motorId}');
+          }
           _scheduleRetry(command);
         } catch (e) {
+          debugPrint('✗ Retry failed: $e');
           _pendingCommands.remove(key);
         }
       } else {
         // Max retries reached
         _pendingCommands.remove(key);
 
-        final motorName = _motors.entries
-                .firstWhere((e) => e.key == command.motorId,
-                    orElse: () => MapEntry('', Motor()))
-                .value
-                .aliasName ??
-            'Motor';
+        if (command.commandType == 4) {
+          command
+              .onMaxRetriesReached('Device Settings: No response from device');
+        } else {
+          final rawMotorName = (_motors.entries
+                      .firstWhere((e) => e.key == command.motorId,
+                          orElse: () => MapEntry('', Motor()))
+                      .value
+                      .aliasName ??
+                  'Motor')
+              .trim()
+              .replaceAll(RegExp(r'\s+'), ' ');
 
-        command.onMaxRetriesReached('$motorName: No response from device');
+          final motorName = rawMotorName.length > 16
+              ? '${rawMotorName.substring(0, 16)}...'
+              : rawMotorName;
+
+          command.onMaxRetriesReached('$motorName: No response from device');
+        }
       }
     });
   }

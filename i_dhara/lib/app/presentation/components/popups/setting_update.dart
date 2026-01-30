@@ -29,16 +29,16 @@ Widget infoCard(
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: iconBg,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: SvgPicture.asset(
                 svg,
-                color: Colors.white,
-                width: 16,
-                height: 16,
+                width: 20,
+                height: 20,
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(width: 8),

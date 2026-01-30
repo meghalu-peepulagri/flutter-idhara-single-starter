@@ -6,7 +6,6 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
-import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
@@ -111,10 +110,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     });
   }
 
+  String _formatMotorName(String name) {
+    final formatted = name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (formatted.length > 10) {
+      return '${formatted.substring(0, 10)}...';
+    }
+    return formatted;
+  }
+
   void _onCommandStatusChanged() {
     final message = widget.mqttService.commandStatusNotifier.value;
     if (message != null && mounted) {
-      final motorName = widget.motor.aliasName ?? 'Motor';
+      final motorName = _formatMotorName(widget.motor.aliasName ?? 'Motor');
       if (message.contains(motorName)) {
         showTopSnackBar(
           Overlay.of(context),

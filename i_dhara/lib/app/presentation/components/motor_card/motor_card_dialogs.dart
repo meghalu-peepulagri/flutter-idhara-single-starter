@@ -4,6 +4,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
 class MotorCardDialogs {
+  static String _formatMotorName(String? name) {
+    if (name == null || name.isEmpty) return 'Unknown';
+    final formatted = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (formatted.length > 16) {
+      return '${formatted.substring(0, 16)}...';
+    }
+    return formatted;
+  }
+
   static void showSwitchCommandDialog(
     BuildContext context,
     Motor motor,
@@ -51,7 +60,7 @@ class MotorCardDialogs {
                         ),
                         Expanded(
                           child: Text(
-                            motor.aliasName?.capitalizeFirst ?? 'Unknown',
+                            _formatMotorName(motor.aliasName?.capitalizeFirst),
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               color: Colors.black,
@@ -170,7 +179,7 @@ class MotorCardDialogs {
                         ),
                         Expanded(
                           child: Text(
-                            motorName,
+                            _formatMotorName(motorName),
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               color: Colors.black,

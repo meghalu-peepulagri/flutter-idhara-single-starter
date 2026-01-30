@@ -23,6 +23,7 @@ class SettingsController extends GetxController {
   var pumpName = ''.obs;
   var pumpHP = ''.obs;
   var pcbNumber = ''.obs;
+  var macAddress = ''.obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   var data = Rxn<UserSettingsLimits>();
@@ -99,7 +100,9 @@ class SettingsController extends GetxController {
         pumpHP.value = motorHP();
 
         pcbNumber.value = pcbnumberPass(response.data?.starter);
+        macAddress.value = response.data?.starter?.macAddress ?? '';
         print("line 101 pcb ${pcbNumber.value}");
+        print("line 102 mac ${macAddress.value}");
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
@@ -118,6 +121,8 @@ class SettingsController extends GetxController {
         updateSettingDto.assignAll(response.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
+
+        print("line 185 ${updateSettingDto.toJson()}");
       } else {
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }
@@ -164,6 +169,8 @@ class SettingsController extends GetxController {
       final res = await SettingsRepositoryImpl().getDefaultSettings();
       if (res?.status == 200 || res?.status == 201) {
         userSettings2.value = res?.data;
+        pcbNumber.value = pcbnumberPass(res?.data?.starter);
+        macAddress.value = res?.data?.starter?.macAddress ?? '';
         lvf.value = userSettings2.value?.lvf ?? 0;
         hvf.value = userSettings2.value?.hvf ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;

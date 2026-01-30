@@ -51,6 +51,7 @@ class UserUpdateSettingsDto {
   int? fDr;
   int? fOl;
   int? fLr;
+  num? limit;
 
   /// decimals
   double? fOpf;
@@ -174,6 +175,7 @@ class UserUpdateSettingsDto {
     this.olr,
     this.lrr,
     this.cir,
+    this.limit,
     this.vfltUnderVoltage,
     this.vfltOverVoltage,
     this.vfltVoltageImbalance,
@@ -249,6 +251,7 @@ class UserUpdateSettingsDto {
         lva: parseInt(json["lva"]),
         hva: parseInt(json["hva"]),
         via: parseInt(json["via"]),
+        limit: json["limit"],
         pamina: parseInt(json["pamina"]),
         pamaxa: parseInt(json["pamaxa"]),
         dr: parseInt(json["dr"]),
@@ -336,6 +339,7 @@ class UserUpdateSettingsDto {
         "f_ol": fOl,
         "f_lr": fLr,
         "f_opf": fOpf,
+        "limit": limit,
         "f_ci": fCi,
         "pfa": pfa,
         "lva": lva,

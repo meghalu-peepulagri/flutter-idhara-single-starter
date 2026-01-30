@@ -129,6 +129,7 @@ class UserSettings2 {
   int? ivrsEn;
   int? smsEn;
   int? rmtEn;
+  num? limit;
   DateTime? timeStamp;
   int? isNewConfigurationSaved;
   String? acknowledgement;
@@ -226,6 +227,7 @@ class UserSettings2 {
     this.ivrsEn,
     this.smsEn,
     this.rmtEn,
+    this.limit,
     this.timeStamp,
     this.isNewConfigurationSaved,
     this.acknowledgement,
@@ -306,6 +308,7 @@ class UserSettings2 {
         r2: json["r2"],
         off: json["off"],
         caFn: json["ca_fn"],
+        limit: json["limit"],
         bkrAdrs: json["bkr_adrs"],
         sn: json["sn"],
         usrn: json["usrn"],
@@ -383,6 +386,7 @@ class UserSettings2 {
         "olr": olr,
         "lrr": lrr,
         "cir": cir,
+        "limit": limit,
         "vflt_under_voltage": vfltUnderVoltage,
         "vflt_over_voltage": vfltOverVoltage,
         "vflt_voltage_imbalance": vfltVoltageImbalance,
