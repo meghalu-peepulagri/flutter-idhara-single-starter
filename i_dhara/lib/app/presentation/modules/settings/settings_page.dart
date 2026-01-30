@@ -71,6 +71,16 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     });
   }
 
+  num calculatedFlc(int value) {
+    final flc = controller.userSettings2.value?.flc?.toInt() ?? 0;
+    final percantage = value / 100;
+    final result = flc * percantage;
+    final roundedResult = double.parse(result.toStringAsFixed(2));
+
+    print("line 77 --------> $flc $percantage  $result");
+    return roundedResult;
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -231,13 +241,17 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             text: 'Confirm & Save',
                             onPressed: () async {
                               isSnackbarShown = false;
+                              final calculatedDrf =
+                                  calculatedFlc(controller.drf.value);
+                              final calculatedOlf =
+                                  calculatedFlc(controller.olf.value);
                               Navigator.of(context).pop();
                               await mqttService.publishUpdateSettings(
                                   controller.lvf.value,
                                   controller.hvf.value,
                                   pcbNumber,
-                                  controller.drf.value,
-                                  controller.olf.value,
+                                  calculatedDrf,
+                                  calculatedOlf,
                                   updatedpayload);
                               await controller.fetchupdateSettings();
                               Future.delayed(const Duration(seconds: 8), () {
@@ -405,7 +419,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               height: 25,
                               width: 90,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE53935),
+                                color: const Color(0xffef2994a),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: FFButtonWidget(
@@ -592,6 +606,23 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                             oldPayload: controller.payload,
                                             key: "dvc_c",
                                           );
+
+                                          print("line 610 $updatedpayload");
+
+                                          if (updatedpayload["dvc_c"]
+                                              .containsKey("drf")) {
+                                            final calculatedDrf = calculatedFlc(
+                                                controller.drf.value);
+                                            updatedpayload["dvc_c"]['drf'] =
+                                                calculatedDrf;
+                                          }
+                                          if (updatedpayload["dvc_c"]
+                                              .containsKey('olf')) {
+                                            final calculatedOlf = calculatedFlc(
+                                                controller.olf.value);
+                                            updatedpayload["dvc_c"]['olf'] =
+                                                calculatedOlf;
+                                          }
                                           final Map<String, dynamic> dvcMap =
                                               updatedpayload["dvc_c"] ?? {};
                                           setState(() {

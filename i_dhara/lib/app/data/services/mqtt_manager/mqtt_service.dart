@@ -884,7 +884,7 @@ class MqttService {
   }
 
   void _scheduleRetry(String motorId, int commandType, dynamic commandData,
-      int sequenceNumber, int lvf, int hvf, String pcb, int drf, int olf) {
+      int sequenceNumber, int lvf, int hvf, String pcb, num drf, num olf) {
     final key = '${motorId}_$commandType';
     final command = _pendingCommands[key] ??
         RetryCommand(
@@ -933,8 +933,8 @@ class MqttService {
     _pendingCommands[key] = command;
   }
 
-  Future<void> publishUpdateSettings(int lvf, int hvf, String pcb, int drf,
-      int olf, Map<String, dynamic> payload) async {
+  Future<void> publishUpdateSettings(int lvf, int hvf, String pcb, num drf,
+      num olf, Map<String, dynamic> payload) async {
     if (mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
       _dataUpdateNotifier.value++;
@@ -942,13 +942,15 @@ class MqttService {
     }
     final seq = _generateRandomSequence();
 
+    print("line 945 ------->$drf $olf");
+
     try {
       await _publishDefaultSettingCommandInternal(
           payload, lvf, hvf, pcb, sequenceNumber: seq, drf, olf);
-      statusMessage = 'Motor command sent successfully';
+      statusMessage = 'Device Settings command sent successfully';
       _scheduleRetry('', 4, payload, seq, lvf, hvf, pcb, drf, olf);
     } catch (e) {
-      statusMessage = 'Failed to publish motor command: $e';
+      statusMessage = 'Failed to publish Device Settings command: $e';
       // _lastCommandTimes.remove();
       _dataUpdateNotifier.value++;
       rethrow;
@@ -991,7 +993,7 @@ class MqttService {
 
   // Internal publish method for mode control
   Future<void> _publishDefaultSettingCommandInternal(
-      dynamic commandData, int lvf, int hvf, String pcbnumber, int drf, int olf,
+      dynamic commandData, int lvf, int hvf, String pcbnumber, num drf, num olf,
       {int? sequenceNumber, bool isRetry = false}) async {
     if (mqttClient == null || !isConnected) {
       throw Exception('MQTT not connected');
