@@ -37,6 +37,8 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
   }
 
   void _initializeValues() {
+    print(
+        "line 41 ------> ${widget.initialLowVoltage} ${widget.initialHighVoltage}");
     final lowMin = controller.data.value?.lvfMin?.toDouble() ?? 150.0;
     final lowMax = controller.data.value?.lvfMax?.toDouble() ?? 300.0;
     final highMin = controller.data.value?.hvfMin?.toDouble() ?? 240.0;

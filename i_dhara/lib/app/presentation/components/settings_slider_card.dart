@@ -80,6 +80,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
 
   @override
   Widget build(BuildContext context) {
+    print("line 84 ------> $lowValue $highValue");
     // Dynamic min/max based on active thumb
     double displayMin;
     double displayMax;

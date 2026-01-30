@@ -56,7 +56,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     mqttService.settingstream.listen((data) async {
       final type = data["D"];
       final topic = data["topic"];
-      print("line 599--------> $topic t====> ${controller.pcbNumber.value}");
       if (type == 1 && !_ackInProgress && topic == controller.pcbNumber.value) {
         isSnackbarShown = true;
         _ackInProgress = true;
@@ -281,6 +280,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       title: 'Confirm Default Settings',
       message: 'Are you sure you want to fetch the default settings?',
       onConfirm: () async {
+        updatedpayload = {};
+        controller.payload = {};
         await controller.fetchdefaultSettings();
       },
     );
@@ -601,6 +602,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               "olf": controller.olf.value,
                                             },
                                           };
+                                          print(
+                                              "line 610 ---> $updatedpayload ${controller.payload}");
                                           updatedpayload = diffNestedPayload(
                                             newPayload: updatedpayload,
                                             oldPayload: controller.payload,

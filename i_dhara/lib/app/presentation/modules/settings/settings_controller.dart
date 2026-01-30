@@ -168,6 +168,21 @@ class SettingsController extends GetxController {
         hvf.value = userSettings2.value?.hvf ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+
+        payload = {
+          "dvc_c": {
+            "lvf": lvf.value,
+            "hvf": hvf.value,
+            "drf": drf.value,
+            "olf": olf.value,
+          },
+        };
+        print("line 101 $payload");
+
+        updateSettingDto.assignAll(res!.data!.toJson());
+        updateSettingDto.removeWhere((key, value) =>
+            key == "updated_at" || key == "created_at" || key == "created_by");
+        print("line 185 ${updateSettingDto.toJson()}");
       }
     } catch (e) {
       print("error ---> $e");
