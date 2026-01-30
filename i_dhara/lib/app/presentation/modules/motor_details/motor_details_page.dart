@@ -5,11 +5,11 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/motor_details_card.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:i_dhara/app/presentation/widgets/motor_details_tab_bar.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_mode_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_runtime_tab.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:i_dhara/app/presentation/widgets/motor_details_tab_bar.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -95,25 +95,33 @@ class MotorControlWidget extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Center(
-            child: Obx(() => Text(
-                  controller.motorName.value,
-                  style: FlutterFlowTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w500,
-                          fontStyle:
-                              FlutterFlowTheme.of(context).bodyMedium.fontStyle,
-                        ),
-                        color: const Color(0xFF004E7E),
-                        fontSize: 16.0,
-                        letterSpacing: 0.0,
+            child: Obx(() {
+              String displayName = controller.motorName.value
+                  .replaceAll(RegExp(r'\s+'), ' ')
+                  .trim();
+              if (displayName.length > 16) {
+                displayName = '${displayName.substring(0, 16)}...';
+              }
+              return Text(
+                displayName,
+                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                      font: GoogleFonts.dmSans(
                         fontWeight: FontWeight.w500,
                         fontStyle:
                             FlutterFlowTheme.of(context).bodyMedium.fontStyle,
                       ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )),
+                      color: const Color(0xFF004E7E),
+                      fontSize: 16.0,
+                      letterSpacing: 0.0,
+                      fontWeight: FontWeight.w500,
+                      fontStyle:
+                          FlutterFlowTheme.of(context).bodyMedium.fontStyle,
+                    ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              );
+            }),
           ),
           Align(
             alignment: Alignment.centerLeft,

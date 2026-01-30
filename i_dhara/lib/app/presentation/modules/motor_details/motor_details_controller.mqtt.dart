@@ -22,37 +22,42 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       return;
     }
 
-    final motor = _convertMotorDetailsToMotor(motorDetails.value!);
-    final motorMap = <String, Motor>{};
-
-    // Build motor map for all 4 groups
-    for (int i = 1; i <= 4; i++) {
-      final groupId = 'G0$i';
-      if (mac != null && mac.isNotEmpty) {
-        final key = '$mac-$groupId';
-        motorMap[key] = motor;
-        if (kDebugMode) print('✓ Analytics: Added motor map entry: $key');
-      }
-      if (pcb != null && pcb.isNotEmpty) {
-        final key = '$pcb-$groupId';
-        motorMap[key] = motor;
-        if (kDebugMode) print('✓ Analytics: Added motor map entry: $key');
-      }
-    }
-
-    // CRITICAL: Get the singleton instance and update its motors
-    mqttService = MqttService(initialMotors: motorMap);
+    // Get the singleton instance
+    // No need to create motorMap or update motors since we're using wildcard subscriptions
+    mqttService = MqttService();
 
     // Check if already connected, if not initialize
     if (!mqttService.isConnected) {
-      if (kDebugMode) print('MQTT not connected, initializing...');
+      if (kDebugMode)
+        print(
+            'MQTT not connected - it should have been initialized from dashboard');
+      if (kDebugMode) print('   Initializing MQTT from motor details...');
+
+      // Build minimal motor map for this motor
+      final motor = _convertMotorDetailsToMotor(motorDetails.value!);
+      final motorMap = <String, Motor>{};
+
+      // Build motor map for all 4 groups
+      for (int i = 1; i <= 4; i++) {
+        final groupId = 'G0$i';
+        if (mac != null && mac.isNotEmpty) {
+          final key = '$mac-$groupId';
+          motorMap[key] = motor;
+          if (kDebugMode) print('✓ Analytics: Added motor map entry: $key');
+        }
+        if (pcb != null && pcb.isNotEmpty) {
+          final key = '$pcb-$groupId';
+          motorMap[key] = motor;
+          if (kDebugMode) print('✓ Analytics: Added motor map entry: $key');
+        }
+      }
+
+      mqttService = MqttService(initialMotors: motorMap);
       await mqttService.initializeMqttClient();
     } else {
-      if (kDebugMode) print(' MQTT already connected, updating motors');
-      mqttService.updateMotors(motorMap);
-
-      // Force resubscribe to topics for this motor
-      await mqttService.resubscribeToTopics();
+      if (kDebugMode)
+        print('✓ MQTT already connected with wildcard subscriptions');
+      if (kDebugMode) print('   No need to update motors or resubscribe');
     }
 
     mqttInitialized = true;
@@ -60,26 +65,27 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     mqttService.dataUpdateNotifier.addListener(_onMqttDataUpdate);
 
     // Wait for connection to stabilize
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     // Check if we have data
     if (kDebugMode) {
       print('Checking motor data availability...');
       final motorData = getMotorData();
       if (motorData != null && motorData.hasReceivedData) {
-        print('Motor data found!');
-        print('  State: ${motorData.state}');
-        print('  Mode: ${motorData.modeIndex}');
+        print('✓ Motor data found!');
+        print('   State: ${motorData.state}');
+        print('   Mode: ${motorData.modeIndex}');
+        print('   Group: ${motorData.groupId}');
       } else {
         print('No motor data yet, waiting for MQTT messages...');
-        print('  Motor data map size: ${mqttService.motorDataMap.length}');
+        print('   Motor data map size: ${mqttService.motorDataMap.length}');
 
         // Print all keys in the map
         if (mqttService.motorDataMap.isNotEmpty) {
-          print('  Available keys:');
+          print('   Available keys:');
           for (var key in mqttService.motorDataMap.keys) {
             final data = mqttService.motorDataMap[key];
-            print('    $key: hasData=${data?.hasReceivedData}');
+            print('     $key: hasData=${data?.hasReceivedData}');
           }
         }
       }
@@ -90,8 +96,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     _updateCanChangeMode();
 
     if (kDebugMode) {
-      print('MQTT initialization complete');
-      print('Listener added for MQTT updates');
+      print('✓ Analytics MQTT initialization complete');
+      print('   Listener added for MQTT updates');
     }
   }
 

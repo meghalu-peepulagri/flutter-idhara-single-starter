@@ -70,8 +70,8 @@ class MotorHeader extends StatelessWidget {
                       final motorName = _normalizeMotorName(motor.name);
                       final displayName =
                           aliasName.isNotEmpty ? aliasName : motorName;
-                      return displayName.length > 20
-                          ? '${displayName.substring(0, 20)}...'
+                      return displayName.length > 16
+                          ? '${displayName.substring(0, 16)}...'
                           : displayName;
                     }(),
                     style: FlutterFlowTheme.of(context).bodyMedium.override(

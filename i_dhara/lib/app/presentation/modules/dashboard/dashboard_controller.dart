@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
@@ -105,40 +106,43 @@ class DashboardController extends GetxController {
     super.onClose();
   }
 
-  // FIXED: Complete motor map rebuild
+  /// Build motor map - creates entries for ALL groups (G01-G04) for each identifier
+  /// This ensures any MQTT data on any group can be matched to the motor
   Map<String, Motor> _buildMotorMap(List<Motor> motorsList) {
     final motorMap = <String, Motor>{};
     _motorIdToGroupId.clear();
 
     for (var motor in motorsList) {
-      if (motor.starter != null) {
-        final mac = motor.starter!.macAddress;
-        final pcb = motor.starter!.pcbNumber;
+      if (motor.starter == null) continue;
 
-        for (int i = 1; i <= 4; i++) {
-          final groupId = 'G0$i';
+      final mac = motor.starter!.macAddress;
+      final pcb = motor.starter!.pcbNumber;
 
-          if (mac != null && mac.isNotEmpty) {
-            final macKey = '$mac-$groupId';
-            motorMap[macKey] = motor;
+      // Determine primary identifier (prefer MAC over PCB)
+      final identifier = (mac != null && mac.isNotEmpty) ? mac : pcb;
+      if (identifier == null || identifier.isEmpty) continue;
 
-            if (i == 1) {
-              _motorIdToGroupId[motor.id!] = groupId;
-            }
-          }
+      // Default to G01 for each motor
+      const groupId = 'G01';
+      _motorIdToGroupId[motor.id!] = groupId;
 
-          if (pcb != null && pcb.isNotEmpty) {
-            final pcbKey = '$pcb-$groupId';
-            motorMap[pcbKey] = motor;
+      // Create entries for ALL groups (G01-G04) so MQTT data on any group is matched
+      for (int i = 1; i <= 4; i++) {
+        final group = 'G0$i';
 
-            if (i == 1 && (mac == null || mac.isEmpty)) {
-              _motorIdToGroupId[motor.id!] = groupId;
-            }
-          }
+        if (mac != null && mac.isNotEmpty) {
+          motorMap['$mac-$group'] = motor;
+        }
+
+        if (pcb != null && pcb.isNotEmpty) {
+          motorMap['$pcb-$group'] = motor;
         }
       }
+
+      debugPrint('✓ Motor ${motor.id} (${motor.name}): identifier=$identifier');
     }
 
+    debugPrint('✓ Motor map: ${motorMap.length} entries for ${motorsList.length} motors');
     return motorMap;
   }
 
