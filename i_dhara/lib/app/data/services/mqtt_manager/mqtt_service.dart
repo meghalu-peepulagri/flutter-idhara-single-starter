@@ -108,9 +108,10 @@ class RetryCommand {
 }
 
 class MqttService {
-  final StreamController<int> defaultSettingsController =
+  final StreamController<Map<String, dynamic>> defaultSettingsController =
       StreamController.broadcast();
-  Stream<int> get settingstream => defaultSettingsController.stream;
+  Stream<Map<String, dynamic>> get settingstream =>
+      defaultSettingsController.stream;
   static final MqttService _instance = MqttService._internal();
 
   factory MqttService({Map<String, Motor>? initialMotors}) {
@@ -474,10 +475,11 @@ class MqttService {
 
   void handleDefaultSettings(String identifier, dynamic payloadData) {
     final type = payloadData as int;
+    final map = {"D": type, "topic": identifier};
     for (var entry in motorDataMap.entries) {
       final motorData = entry.value;
       print("line 47 $type");
-      defaultSettingsController.add(type);
+      defaultSettingsController.add(map);
     }
   }
 

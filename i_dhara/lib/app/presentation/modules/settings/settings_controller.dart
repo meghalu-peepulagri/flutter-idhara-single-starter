@@ -19,11 +19,10 @@ class SettingsController extends GetxController {
   var drf = 0.obs;
   var olf = 0.obs;
   Map<String, dynamic> payload = {};
-
+  var isrefreshing = false.obs;
   var pumpName = ''.obs;
   var pumpHP = ''.obs;
   var pcbNumber = ''.obs;
-
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   var data = Rxn<UserSettingsLimits>();
@@ -52,9 +51,13 @@ class SettingsController extends GetxController {
   }
 
   Future<void> fetchdata() async {
-    isLoading.value = true;
-    await Future.wait([fetchUserSettings2(), fetchUserSettingsLimits()]);
-    isLoading.value = false;
+    if (!isrefreshing.value) isLoading.value = true;
+    try {
+      await Future.wait([fetchUserSettings2(), fetchUserSettingsLimits()]);
+    } finally {
+      isrefreshing.value = false;
+      isLoading.value = false;
+    }
   }
 
   String motorName() {

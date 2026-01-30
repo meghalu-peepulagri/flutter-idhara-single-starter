@@ -241,7 +241,7 @@ class DevicesCard extends StatelessWidget {
                         },
                         child: const Icon(
                           Icons.settings_outlined,
-                          color: Colors.grey,
+                          color: Colors.black54,
                           size: 20,
                         ),
                       ),

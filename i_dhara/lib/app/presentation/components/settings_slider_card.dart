@@ -201,7 +201,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         fontWeight: FontWeight.w700,
                         color: widget.lowColor,
                       ),
-                    ),  
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       !islowdragging
@@ -249,22 +249,26 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     isActive: activeThumb == 'low',
                     label: "L",
                     onDragStart: () {
+                      print("line 252 $displayMin $displayMax");
                       setState(() {
                         isdragging = false;
                         islowdragging = true;
                         temp = highValue.toInt();
-                        highValue = displayMax + 10;
+                        highValue = displayMax + displayMax + 10;
+                        print("line 257 $highValue $temp");
                         activeThumb = 'low';
                       });
                     },
                     onDragUpdate: (delta) {
                       setState(() {
+                        print("line 264 $displayMin $displayMax $highValue");
                         final range = displayMax - displayMin;
                         final pxChange = delta * range;
                         var newValue = lowValue + pxChange;
                         newValue = newValue.clamp(
                             widget.lowMinLimit, widget.lowMaxLimit);
                         // Ensure low doesn't exceed high
+                        highValue = displayMax + displayMax + 10;
                         newValue =
                             newValue.clamp(widget.lowMinLimit, highValue - 1);
                         lowValue = newValue;
@@ -300,7 +304,11 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                       });
                     },
                     onDragUpdate: (delta) {
+                      print("line 308 $displayMin $displayMax $lowValue");
+
                       setState(() {
+                        lowValue = 0;
+
                         final range = displayMax - displayMin;
                         final pxChange = delta * range;
                         var newValue = highValue + pxChange;

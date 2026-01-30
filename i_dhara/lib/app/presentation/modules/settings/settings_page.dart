@@ -14,6 +14,7 @@ import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../components/popups/default_setting_popup.dart';
 import '../../components/popups/setting_update.dart';
@@ -53,11 +54,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     mqttService = MqttService();
     mqttConnection();
     mqttService.settingstream.listen((data) async {
-      if (data == 1 && !_ackInProgress) {
+      final type = data["D"];
+      final topic = data["topic"];
+      print("line 599--------> $topic t====> ${controller.pcbNumber.value}");
+      if (type == 1 && !_ackInProgress && topic == controller.pcbNumber.value) {
         isSnackbarShown = true;
         _ackInProgress = true;
         getsuccessSnackBar("Settings updated successfully");
-
         controller.isLoading.value = true;
         await controller.fetchUserSettings2();
         controller.isLoading.value = false;
@@ -155,7 +158,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Confirm Electrical Safety Updates',
+                  'Confirm Setting Updates',
                   style: TextStyle(
                     fontFamily: 'DMSans',
                     fontSize: 20,
@@ -216,6 +219,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         ),
                         onPressed: () {
                           Navigator.pop(context);
+                          _handleCancel();
                         },
                         child: const Text("Cancel"),
                       ),
@@ -432,53 +436,60 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                       Expanded(
                         child: RefreshIndicator(
                           onRefresh: () async {
+                            controller.isrefreshing.value = true;
+                            _handleCancel();
                             await controller.fetchdata();
+                            controller.isrefreshing.value = false;
                           },
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 24.0),
-                            child: Column(
-                              children: [
-                                SettingsVoltageCard(
-                                  key: voltageCardKey,
-                                  initialLowVoltage: controller
-                                          .userSettings2.value?.lvf
-                                          ?.toDouble() ??
-                                      180.0,
-                                  initialHighVoltage: controller
-                                          .userSettings2.value?.hvf
-                                          ?.toDouble() ??
-                                      280.0,
-                                  motorName:
-                                      settings?.starter?.name?.toString() ??
-                                          'Pump 1',
-                                  motorHp: '3 HP',
-                                  onChanged: (low, high) {
-                                    _currentVoltageLow = low;
-                                    _currentVoltageHigh = high;
-                                    _checkForChanges();
-                                  },
-                                ),
-                                const SizedBox(height: 24),
-                                SettingsCurrentCard(
-                                  key: currentCardKey,
-                                  initialLowCurrent:
-                                      settings?.drf?.toDouble() ??
-                                          180.0, // NOTE: Check mapping
-                                  initialHighCurrent:
-                                      settings?.olf?.toDouble() ??
-                                          280.0, // NOTE: Check mapping
-                                  motorName:
-                                      settings?.starter?.name?.toString() ??
-                                          'Pump 1',
-                                  motorHp: '3 HP',
-                                  onChanged: (low, high) {
-                                    _currentCurrentLow = low;
-                                    _currentCurrentHigh = high;
-                                    _checkForChanges();
-                                  },
-                                ),
-                              ],
+                          child: Skeletonizer(
+                            enabled: controller.isrefreshing.value,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 24.0),
+                              child: Column(
+                                children: [
+                                  SettingsVoltageCard(
+                                    key: voltageCardKey,
+                                    initialLowVoltage: controller
+                                            .userSettings2.value?.lvf
+                                            ?.toDouble() ??
+                                        180.0,
+                                    initialHighVoltage: controller
+                                            .userSettings2.value?.hvf
+                                            ?.toDouble() ??
+                                        280.0,
+                                    motorName:
+                                        settings?.starter?.name?.toString() ??
+                                            'Pump 1',
+                                    motorHp: '3 HP',
+                                    onChanged: (low, high) {
+                                      _currentVoltageLow = low;
+                                      _currentVoltageHigh = high;
+                                      _checkForChanges();
+                                    },
+                                  ),
+                                  const SizedBox(height: 24),
+                                  SettingsCurrentCard(
+                                    key: currentCardKey,
+                                    initialLowCurrent:
+                                        settings?.drf?.toDouble() ??
+                                            180.0, // NOTE: Check mapping
+                                    initialHighCurrent:
+                                        settings?.olf?.toDouble() ??
+                                            280.0, // NOTE: Check mapping
+                                    motorName:
+                                        settings?.starter?.name?.toString() ??
+                                            'Pump 1',
+                                    motorHp: '3 HP',
+                                    onChanged: (low, high) {
+                                      _currentCurrentLow = low;
+                                      _currentCurrentHigh = high;
+                                      _checkForChanges();
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
