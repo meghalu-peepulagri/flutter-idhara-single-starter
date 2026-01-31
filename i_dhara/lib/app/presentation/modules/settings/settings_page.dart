@@ -29,7 +29,6 @@ class SettingsWidget extends StatefulWidget {
 class _SettingsWidgetState extends State<SettingsWidget> {
   final SettingsController controller = Get.put(SettingsController());
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  StreamSubscription? _subscription;
   Map<String, dynamic> updatedpayload = {};
 
   late MqttService mqttService;
@@ -249,11 +248,15 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               await mqttService.publishUpdateSettings(
                                   pcbNumber, updatedpayload);
                               await controller.fetchupdateSettings();
-                              Future.delayed(const Duration(seconds: 8), () {
-                                if (!isSnackbarShown)
-                                  geterrorSnackBar(
-                                      "No response from the device");
-                                _handleCancel();
+
+                              // Wait for MQTT service to complete all retries (13 seconds: 3 payloads + 3 sec wait)
+                              Future.delayed(const Duration(seconds: 15), () {
+                                final errorMessage = mqttService.commandStatusNotifier.value;
+                                if (errorMessage != null && !isSnackbarShown) {
+                                  isSnackbarShown = true;
+                                  geterrorSnackBar(errorMessage);
+                                  _handleCancel();
+                                }
                               });
                             },
                             options: const FFButtonOptions(

@@ -143,7 +143,8 @@ class MqttService {
   // Retry settings
   static const int _maxRetries = 2;
   static const Duration _firstRetryDelay = Duration(seconds: 5);
-  static const Duration _secondRetryDelay = Duration(seconds: 3);
+  static const Duration _secondRetryDelay = Duration(seconds: 5);
+  static const Duration _finalWaitDelay = Duration(seconds: 3);
 
   final Random _random = Random();
 
@@ -299,7 +300,7 @@ class MqttService {
 
     final seq = sequenceNumber ?? _random.nextInt(251);
 
-    final payload = {"T": 1, "S": seq, "D": commandData};
+    final payload = {"T": 4, "S": seq, "D": commandData};
 
     final message = jsonEncode(payload);
     final builder = MqttClientPayloadBuilder();
@@ -745,9 +746,16 @@ class MqttService {
     final map = {"D": type, "topic": identifier};
 
     // Clear pending settings command to stop retries
-    _clearPendingCommand('', 4);
-
-    debugPrint('✓ Settings ACK received from $identifier: $type');
+    final command = _pendingCommands['_4'];
+    if (command != null && command.retryCount >= _maxRetries) {
+      // Only clear if all retries are completed
+      _clearPendingCommand('', 4);
+      debugPrint(
+          '✓ Settings ACK received from $identifier: $type (All retries completed)');
+    } else {
+      debugPrint(
+          '✓ Settings ACK received but retries still pending. Ignoring early ACK.');
+    }
 
     defaultSettingsController.add(map);
   }
@@ -923,8 +931,11 @@ class MqttService {
   }
 
   void _scheduleRetry(PendingCommand command) {
-    final delay =
-        command.retryCount == 0 ? _firstRetryDelay : _secondRetryDelay;
+    final delay = command.retryCount == 0
+        ? _firstRetryDelay
+        : command.retryCount == 1
+            ? _secondRetryDelay
+            : _finalWaitDelay;
 
     command.retryTimer = Timer(delay, () async {
       final key = '${command.motorId}_${command.commandType}';
