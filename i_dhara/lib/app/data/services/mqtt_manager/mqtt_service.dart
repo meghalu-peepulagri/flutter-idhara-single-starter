@@ -745,16 +745,17 @@ class MqttService {
     final type = payloadData as int;
     final map = {"D": type, "topic": identifier};
 
-    // Clear pending settings command to stop retries
+    // Clear pending settings command to stop retries immediately upon ACK
     final command = _pendingCommands['_4'];
-    if (command != null && command.retryCount >= _maxRetries) {
-      // Only clear if all retries are completed
+    if (command != null) {
+      // Cancel the retry timer and remove the pending command
+      command.cancelTimer();
       _clearPendingCommand('', 4);
       debugPrint(
-          '✓ Settings ACK received from $identifier: $type (All retries completed)');
+          '✓ Settings ACK received from $identifier: $type (Retries stopped)');
     } else {
       debugPrint(
-          '✓ Settings ACK received but retries still pending. Ignoring early ACK.');
+          '✓ Settings ACK received from $identifier: $type (No pending command)');
     }
 
     defaultSettingsController.add(map);

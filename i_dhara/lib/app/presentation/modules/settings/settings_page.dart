@@ -155,121 +155,114 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       bool vmin, bool vmax, bool cmin, bool cmax, String pcbNumber) async {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Center(
-          child: Container(
-            width: 380,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Confirm Setting Updates',
+                style: GoogleFonts.dmSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF004E7E),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              /// Voltage Range Card
+              if (isVoltageRange)
+                infoCard(
+                    bgColor: const Color(0xFFEAF3FF),
+                    iconBg: const Color(0xFF3B82F6),
+                    svg: 'assets/images/Voltage.svg',
+                    title: "Voltage Fault",
+                    lowOld:
+                        "${controller.userSettings2.value!.lvf.toString()}V",
+                    lowNew: "${controller.lvf.value.toString()}V",
+                    highOld:
+                        "${controller.userSettings2.value!.hvf.toString()}V",
+                    highNew: "${controller.hvf.value.toString()}V",
+                    valueColor: const Color(0xFF2563EB),
+                    vmin: vmin,
+                    vmax: vmax,
+                    cmin: false,
+                    cmax: false),
+              const SizedBox(height: 12),
+              if (isCurrentRange)
+                infoCard(
+                    bgColor: const Color(0xFFFFF3E8),
+                    iconBg: const Color(0xFFFF7A00),
+                    svg: 'assets/images/Current.svg',
+                    title: "Current Fault",
+                    lowOld: "${controller.userSettings2.value?.drf?.toInt()}A",
+                    lowNew: "${controller.drf.value.toInt()}A",
+                    highOld: "${controller.userSettings2.value?.olf?.toInt()}A",
+                    highNew: "${controller.olf.value.toString()}A",
+                    valueColor: const Color(0xFFF97316),
+                    vmin: false,
+                    vmax: false,
+                    cmin: cmin,
+                    cmax: cmax),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleCancel();
+              },
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.dmSans(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Confirm Setting Updates',
-                  style: TextStyle(
-                    fontFamily: 'DMSans',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500, // Medium
-                    height: 1.0, // 100% line height
-                    letterSpacing: 0,
+            SizedBox(
+              width: MediaQuery.of(context).size.width * 0.25,
+              child: ElevatedButton(
+                onPressed: () async {
+                  isSnackbarShown = false;
+                  Navigator.of(context).pop();
+                  await mqttService.publishUpdateSettings(
+                      pcbNumber, updatedpayload);
+                  await controller.fetchupdateSettings();
+
+                  // Wait for MQTT service to complete all retries
+                  Future.delayed(const Duration(seconds: 15), () {
+                    final errorMessage =
+                        mqttService.commandStatusNotifier.value;
+                    if (errorMessage != null && !isSnackbarShown) {
+                      isSnackbarShown = true;
+                      geterrorSnackBar(errorMessage);
+                      _handleCancel();
+                    }
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF004E7E),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-
-                const SizedBox(height: 20),
-
-                /// Voltage Range Card
-                if (isVoltageRange)
-                  infoCard(
-                      bgColor: const Color(0xFFEAF3FF),
-                      iconBg: const Color(0xFF3B82F6),
-                      svg: 'assets/images/Voltage.svg',
-                      title: "Voltage Range",
-                      lowOld:
-                          "${controller.userSettings2.value!.lvf.toString()}A",
-                      lowNew: "${controller.lvf.value.toString()}A",
-                      highOld:
-                          "${controller.userSettings2.value!.hvf.toString()}A",
-                      highNew: "${controller.hvf.value.toString()}A",
-                      valueColor: const Color(0xFF2563EB),
-                      vmin: vmin,
-                      vmax: vmax,
-                      cmin: false,
-                      cmax: false),
-                const SizedBox(height: 12),
-                if (isCurrentRange)
-                  infoCard(
-                      bgColor: const Color(0xFFFFF3E8),
-                      iconBg: const Color(0xFFFF7A00),
-                      svg: 'assets/images/Current.svg',
-                      title: "Current Range",
-                      lowOld:
-                          "${controller.userSettings2.value?.drf?.toInt()}A",
-                      lowNew: "${controller.drf.value.toInt()}A",
-                      highOld:
-                          "${controller.userSettings2.value?.olf?.toInt()}A",
-                      highNew: "${controller.olf.value.toString()}A",
-                      valueColor: const Color(0xFFF97316),
-                      vmin: false,
-                      vmax: false,
-                      cmin: cmin,
-                      cmax: cmax),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _handleCancel();
-                        },
-                        child: const Text("Cancel"),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: FFButtonWidget(
-                            showLoadingIndicator: true,
-                            text: 'Confirm & Save',
-                            onPressed: () async {
-                              isSnackbarShown = false;
-                              Navigator.of(context).pop();
-                              await mqttService.publishUpdateSettings(
-                                  pcbNumber, updatedpayload);
-                              await controller.fetchupdateSettings();
-
-                              // Wait for MQTT service to complete all retries (13 seconds: 3 payloads + 3 sec wait)
-                              Future.delayed(const Duration(seconds: 15), () {
-                                final errorMessage = mqttService.commandStatusNotifier.value;
-                                if (errorMessage != null && !isSnackbarShown) {
-                                  isSnackbarShown = true;
-                                  geterrorSnackBar(errorMessage);
-                                  _handleCancel();
-                                }
-                              });
-                            },
-                            options: const FFButtonOptions(
-                              color: Color(0xff00A63E),
-                              padding: EdgeInsets.symmetric(vertical: 14),
-                            ))),
-                  ],
-                )
-              ],
+                child: Text(
+                  'Save',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -282,6 +275,21 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         updatedpayload = {};
         controller.payload = {};
         await controller.fetchdefaultSettings();
+
+        // Reset form values
+        _currentVoltageLow = null;
+        _currentVoltageHigh = null;
+        _currentCurrentLow = null;
+        _currentCurrentHigh = null;
+
+        // Reset cards to show default values
+        voltageCardKey.currentState?.resetValues();
+        currentCardKey.currentState?.resetValues();
+
+        // Enable Save button
+        setState(() {
+          isbuttonActive = true;
+        });
       },
     );
   }

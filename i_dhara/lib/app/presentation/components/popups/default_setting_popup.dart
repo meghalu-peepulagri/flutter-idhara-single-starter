@@ -69,17 +69,6 @@ Future<bool?> showDeviceSettingConfirmDialog(
               Row(
                 spacing: 10,
                 children: [
-                  // YES Button
-                  Expanded(
-                      child: FFButtonWidget(
-                          showLoadingIndicator: true,
-                          text: yesText,
-                          onPressed: onConfirm,
-                          options: FFButtonOptions(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ))),
                   Expanded(
                       child: FFButtonWidget(
                           showLoadingIndicator: true,
@@ -92,6 +81,17 @@ Future<bool?> showDeviceSettingConfirmDialog(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             color: Colors.red.withOpacity(0.15),
                             elevation: 0,
+                            borderRadius: BorderRadius.circular(8),
+                          ))),
+                  // YES Button
+                  Expanded(
+                      child: FFButtonWidget(
+                          showLoadingIndicator: true,
+                          text: yesText,
+                          onPressed: onConfirm,
+                          options: FFButtonOptions(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            color: Colors.red,
                             borderRadius: BorderRadius.circular(8),
                           ))),
                 ],
