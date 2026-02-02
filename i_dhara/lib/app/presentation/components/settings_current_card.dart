@@ -98,6 +98,8 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
           highColor: const Color(0xFFFF6F00),
           lowThumbColor: const Color(0xFFE53935),
           highThumbColor: const Color(0xFFFF6F00),
+          safetyMargin: 2.0, // Current: 2A margin for red zone
+          cardType: 'current',
           onChanged: (low, high) {
             lowCurrentValue = low;
             highCurrentValue = high;

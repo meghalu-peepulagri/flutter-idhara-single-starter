@@ -8,9 +8,9 @@ class SettingsDualSlider extends StatefulWidget {
   final double initialHighValue;
   final double minLimit;
   final double maxLimit;
-  final double lowMinLimit; // Add separate limits for low thumb
+  final double lowMinLimit;
   final double lowMaxLimit;
-  final double highMinLimit; // Add separate limits for high thumb
+  final double highMinLimit;
   final double highMaxLimit;
   final String unit;
   final Color lowColor;
@@ -21,6 +21,9 @@ class SettingsDualSlider extends StatefulWidget {
   final Color? leadingSvgBgColor;
   final Color? leadingSvgColor;
   final Function(double low, double high) onChanged;
+
+  final double? safetyMargin;
+  final String cardType;
 
   const SettingsDualSlider({
     super.key,
@@ -42,6 +45,8 @@ class SettingsDualSlider extends StatefulWidget {
     this.leadingSvg,
     this.leadingSvgBgColor,
     this.leadingSvgColor,
+    this.safetyMargin = 10.0,
+    this.cardType = 'voltage',
   });
 
   @override
@@ -57,6 +62,10 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
 
   bool isdragging = false;
   bool islowdragging = false;
+
+  // Color feedback tracking
+  bool isScrolling = false;
+  String? scrollingThumb; // 'low' or 'high'
 
   @override
   void initState() {
@@ -78,10 +87,38 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
     highValue = widget.initialHighValue.clamp(widget.minLimit, widget.maxLimit);
   }
 
+  Color _getColorForPosition(double position, String thumbType) {
+    if (!isScrolling || scrollingThumb != thumbType) {
+      return Colors.transparent;
+    }
+
+    if (thumbType == 'low') {
+      // Safe zone: lowMinLimit to (lowMinLimit + 10)
+      if (position >= widget.lowMinLimit &&
+          position <= widget.lowMinLimit + 10) {
+        return Colors.green;
+      }
+      // Unsafe zone: below lowMinLimit
+      if (position < widget.lowMinLimit) {
+        return Colors.red;
+      }
+      return Colors.transparent;
+    } else {
+      if (position >= widget.highMaxLimit - 10 &&
+          position <= widget.highMaxLimit) {
+        return Colors.green;
+      }
+      // Unsafe zone: above highMaxLimit
+      if (position > widget.highMaxLimit) {
+        return Colors.red;
+      }
+      return Colors.transparent;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     print("line 84 ------> $lowValue $highValue");
-    // Dynamic min/max based on active thumb
     double displayMin;
     double displayMax;
 
@@ -92,7 +129,6 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
       displayMin = widget.highMinLimit;
       displayMax = widget.highMaxLimit;
     } else {
-      // Default: show full range (low min to high max)
       displayMin = widget.minLimit;
       displayMax = widget.maxLimit;
     }
@@ -227,7 +263,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
             child: LayoutBuilder(builder: (context, constraints) {
               return Stack(
                 children: [
-                  // Track Background
+                  // Track Background with Color Zones
                   Positioned(
                     left: 0,
                     right: 0,
@@ -235,8 +271,24 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     child: Container(
                       height: 6,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE0E0E0),
                         borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Stack(
+                        children: [
+                          // Default gray background
+                          Container(
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0E0E0),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          // Color zones overlay
+                          if (isScrolling && scrollingThumb == 'low')
+                            _buildLowThumbZones(constraints.maxWidth)
+                          else if (isScrolling && scrollingThumb == 'high')
+                            _buildHighThumbZones(constraints.maxWidth)
+                        ],
                       ),
                     ),
                   ),
@@ -258,6 +310,8 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         highValue = displayMax + displayMax + 10;
                         print("line 257 $highValue $temp");
                         activeThumb = 'low';
+                        isScrolling = true;
+                        scrollingThumb = 'low';
                       });
                     },
                     onDragUpdate: (delta) {
@@ -282,6 +336,8 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         isdragging = false;
                         islowdragging = false;
                         highValue = temp.toDouble();
+                        isScrolling = false;
+                        scrollingThumb = null;
                         widget.onChanged(lowValue, highValue);
                       });
                     },
@@ -302,6 +358,8 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         lowValue = 0;
                         isdragging = true;
                         islowdragging = false;
+                        isScrolling = true;
+                        scrollingThumb = 'high';
                       });
                     },
                     onDragUpdate: (delta) {
@@ -328,6 +386,8 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                         isdragging = false;
                         islowdragging = false;
                         lowValue = temp.toDouble();
+                        isScrolling = false;
+                        scrollingThumb = null;
                         widget.onChanged(lowValue, highValue);
                       });
                     },
@@ -339,7 +399,6 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
           ),
           const SizedBox(height: 4),
 
-          // Min/Max Labels - Dynamic based on active thumb
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
@@ -365,6 +424,45 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLowThumbZones(double maxWidth) {
+    final safeMargin = widget.safetyMargin ?? 10.0;
+
+    bool isInDangerZone = lowValue <
+            widget.lowMinLimit + safeMargin || // Too close to lower limit
+        lowValue > widget.lowMaxLimit - safeMargin; // Too close to upper limit
+
+    // Show full slider in one color
+    final sliderColor = isInDangerZone ? Colors.red : Colors.green;
+
+    return Container(
+      height: 6,
+      decoration: BoxDecoration(
+        color: sliderColor.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
+
+  Widget _buildHighThumbZones(double maxWidth) {
+    final safeMargin = widget.safetyMargin ?? 10.0;
+
+    bool isInDangerZone = highValue <
+            widget.highMinLimit + safeMargin || // Too close to lower limit
+        highValue >
+            widget.highMaxLimit - safeMargin; // Too close to upper limit
+
+    // Show full slider in one color
+    final sliderColor = isInDangerZone ? Colors.red : Colors.green;
+
+    return Container(
+      height: 6,
+      decoration: BoxDecoration(
+        color: sliderColor.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(3),
       ),
     );
   }

@@ -92,6 +92,8 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
           highColor: const Color(0xFFFF6F00),
           lowThumbColor: const Color(0xFFE53935),
           highThumbColor: const Color(0xFFFF6F00),
+          safetyMargin: 10.0,
+          cardType: 'voltage',
           onChanged: (low, high) {
             lowVoltageValue = low;
             highVoltageValue = high;

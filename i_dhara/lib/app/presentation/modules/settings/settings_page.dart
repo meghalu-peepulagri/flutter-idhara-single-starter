@@ -7,7 +7,6 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
-import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
@@ -63,7 +62,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           (topic == pcbNumber || topic == macAddress)) {
         isSnackbarShown = true;
         _ackInProgress = true;
-        getsuccessSnackBar("Settings updated successfully");
+        // getsuccessSnackBar("Settings updated successfully");
         controller.isLoading.value = true;
         await controller.fetchUserSettings2();
         controller.isLoading.value = false;
