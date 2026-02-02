@@ -125,6 +125,7 @@ class MqttService {
   bool isConnected = false;
   String statusMessage = 'Connecting to MQTT broker...';
   DateTime? lastMessageTime;
+  bool _messageListenerAttached = false;
 
   // Motor data
   Map<String, Motor> _motors = {};
@@ -205,18 +206,24 @@ class MqttService {
       return;
     }
 
-    _mqttClient!.updates!.listen(
-      _onMessageReceived,
-      onError: (e) {
-        debugPrint('✗ MQTT Stream error: $e');
-        statusMessage = 'Stream error: $e';
-        _dataUpdateNotifier.value++;
-      },
-      onDone: () {
-        debugPrint('MQTT Stream closed');
-      },
-    );
-    debugPrint('✓ MQTT message listener set up');
+    if (!_messageListenerAttached) {
+      _mqttClient!.updates!.listen(
+        _onMessageReceived,
+        onError: (e) {
+          debugPrint('✗ MQTT Stream error: $e');
+          statusMessage = 'Stream error: $e';
+          _dataUpdateNotifier.value++;
+        },
+        onDone: () {
+          debugPrint('MQTT Stream closed');
+          _messageListenerAttached = false;
+        },
+      );
+      _messageListenerAttached = true;
+      debugPrint('✓ MQTT message listener set up');
+    } else {
+      debugPrint('✓ MQTT message listener already attached');
+    }
   }
 
   /// Resubscribe to all topics (called after reconnect or motor list update)
@@ -427,8 +434,8 @@ class MqttService {
     debugPrint('✓ MQTT Connected');
     debugPrint('   Motors count: ${_motors.length}');
     debugPrint('   MotorDataMap count: ${_motorDataMap.length}');
-    // Use Future.microtask to allow the connection to stabilize before subscribing
-    Future.microtask(() => _subscribeToAllTopics());
+    // Use Future.delayed to ensure listener is attached before subscribing
+    Future.delayed(const Duration(milliseconds: 500), () => _subscribeToAllTopics());
     _dataUpdateNotifier.value++;
   }
 
@@ -463,8 +470,8 @@ class MqttService {
     isConnected = true;
     statusMessage = 'Reconnected';
     debugPrint('✓ MQTT Auto-reconnected');
-    // Use Future.microtask to allow the connection to stabilize before subscribing
-    Future.microtask(() => _subscribeToAllTopics());
+    // Use Future.delayed to ensure listener is attached before subscribing
+    Future.delayed(const Duration(milliseconds: 500), () => _subscribeToAllTopics());
     _dataUpdateNotifier.value++;
   }
 

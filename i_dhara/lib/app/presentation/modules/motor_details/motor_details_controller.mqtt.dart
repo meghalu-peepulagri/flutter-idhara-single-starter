@@ -166,6 +166,14 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         }
         motorState.value = motorData.state;
       }
+
+      // Update network signal quality
+      if (!motorData.isSignalStale()) {
+        signalQuality.value = motorData.signalStrength;
+        if (kDebugMode) {
+          print('Signal Quality updated to ${motorData.signalStrength} (bars=${motorData.signalBars})');
+        }
+      }
     } else {
       if (kDebugMode) {
         print('No valid motor data available');
