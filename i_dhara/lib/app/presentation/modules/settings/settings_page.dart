@@ -7,6 +7,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
@@ -41,17 +42,29 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool isSnackbarShown = false;
   bool isbuttonActive = false;
 
+  // StreamSubscription to properly manage the MQTT stream listener
+  StreamSubscription? _mqttStreamSubscription;
+
   // New: Track current values to compare with initial
   double? _currentVoltageLow;
   double? _currentVoltageHigh;
   double? _currentCurrentLow;
   double? _currentCurrentHigh;
+
+  // Store original user settings before loading defaults
+  int? _originalVoltageLow;
+  int? _originalVoltageHigh;
+  int? _originalCurrentLow;
+  int? _originalCurrentHigh;
+
   @override
   void initState() {
     super.initState();
     mqttService = MqttService();
     mqttConnection();
-    mqttService.settingstream.listen((data) async {
+
+    // Assign the stream listener to the subscription variable
+    _mqttStreamSubscription = mqttService.settingstream.listen((data) async {
       final type = data["D"];
       final topic = data["topic"];
       final pcbNumber = controller.pcbNumber.value;
@@ -60,14 +73,27 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       if (type == 1 &&
           !_ackInProgress &&
           (topic == pcbNumber || topic == macAddress)) {
-        isSnackbarShown = true;
+        // Set flag BEFORE showing snackbar to prevent duplicates
         _ackInProgress = true;
-        // getsuccessSnackBar("Settings updated successfully");
+        isSnackbarShown = true;
+
+        // Show success snackbar only once
+        getsuccessSnackBar("Settings updated successfully");
+
         controller.isLoading.value = true;
         await controller.fetchUserSettings2();
         controller.isLoading.value = false;
+
+        // Reset original values after successful save
+        _originalVoltageLow = null;
+        _originalVoltageHigh = null;
+        _originalCurrentLow = null;
+        _originalCurrentHigh = null;
+
+        // Reset flag after 5 seconds
         await Future.delayed(const Duration(seconds: 5), () {
           _ackInProgress = false;
+          isSnackbarShown = false;
         });
       }
     });
@@ -85,6 +111,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   @override
   void dispose() {
+    // Cancel the MQTT stream subscription to prevent memory leaks
+    _mqttStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -96,9 +124,29 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     scaffoldKey.currentState!.openEndDrawer();
   }
 
-  void _handleCancel() {
+  Future<void> _handleCancel() async {
+    // Reset local form values
+    _currentVoltageLow = null;
+    _currentVoltageHigh = null;
+    _currentCurrentLow = null;
+    _currentCurrentHigh = null;
+
+    // Reset original values (used for default settings comparison)
+    _originalVoltageLow = null;
+    _originalVoltageHigh = null;
+    _originalCurrentLow = null;
+    _originalCurrentHigh = null;
+
+    // Reload actual user settings (not default settings)
+    await controller.fetchUserSettings2();
+
+    // Small delay to ensure controller state is updated
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    // Reset cards to show actual user values after data is loaded
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
+
     setState(() {
       isbuttonActive = false;
     });
@@ -181,10 +229,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                     svg: 'assets/images/Voltage.svg',
                     title: "Voltage Fault",
                     lowOld:
-                        "${controller.userSettings2.value!.lvf.toString()}V",
+                        "${(_originalVoltageLow ?? controller.userSettings2.value!.lvf?.toInt()).toString()}V",
                     lowNew: "${controller.lvf.value.toString()}V",
                     highOld:
-                        "${controller.userSettings2.value!.hvf.toString()}V",
+                        "${(_originalVoltageHigh ?? controller.userSettings2.value!.hvf?.toInt()).toString()}V",
                     highNew: "${controller.hvf.value.toString()}V",
                     valueColor: const Color(0xFF2563EB),
                     vmin: vmin,
@@ -198,9 +246,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                     iconBg: const Color(0xFFFF7A00),
                     svg: 'assets/images/Current.svg',
                     title: "Current Fault",
-                    lowOld: "${controller.userSettings2.value?.drf?.toInt()}A",
+                    lowOld: "${(_originalCurrentLow ?? controller.userSettings2.value?.drf?.toInt()).toString()}A",
                     lowNew: "${controller.drf.value.toInt()}A",
-                    highOld: "${controller.userSettings2.value?.olf?.toInt()}A",
+                    highOld: "${(_originalCurrentHigh ?? controller.userSettings2.value?.olf?.toInt()).toString()}A",
                     highNew: "${controller.olf.value.toString()}A",
                     valueColor: const Color(0xFFF97316),
                     vmin: false,
@@ -271,6 +319,12 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       title: 'Confirm Default Settings',
       message: 'Are you sure you want to fetch the default settings?',
       onConfirm: () async {
+        // Store original user settings BEFORE loading defaults
+        _originalVoltageLow = controller.userSettings2.value?.lvf?.toInt();
+        _originalVoltageHigh = controller.userSettings2.value?.hvf?.toInt();
+        _originalCurrentLow = controller.userSettings2.value?.drf?.toInt();
+        _originalCurrentHigh = controller.userSettings2.value?.olf?.toInt();
+
         updatedpayload = {};
         controller.payload = {};
         await controller.fetchdefaultSettings();
@@ -468,8 +522,34 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         child: RefreshIndicator(
                           onRefresh: () async {
                             controller.isrefreshing.value = true;
-                            _handleCancel();
-                            await controller.fetchdata();
+
+                            // Reset local form values
+                            _currentVoltageLow = null;
+                            _currentVoltageHigh = null;
+                            _currentCurrentLow = null;
+                            _currentCurrentHigh = null;
+
+                            // Reset original values (used for default settings comparison)
+                            _originalVoltageLow = null;
+                            _originalVoltageHigh = null;
+                            _originalCurrentLow = null;
+                            _originalCurrentHigh = null;
+
+                            // Fetch actual user settings (not default)
+                            await controller.fetchUserSettings2();
+
+                            // Small delay to ensure controller state is updated
+                            await Future.delayed(
+                                const Duration(milliseconds: 100));
+
+                            // Reset cards to actual user values after data is loaded
+                            voltageCardKey.currentState?.resetValues();
+                            currentCardKey.currentState?.resetValues();
+
+                            setState(() {
+                              isbuttonActive = false;
+                            });
+
                             controller.isrefreshing.value = false;
                           },
                           child: Skeletonizer(

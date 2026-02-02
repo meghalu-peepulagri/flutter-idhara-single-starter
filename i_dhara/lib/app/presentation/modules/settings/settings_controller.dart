@@ -88,7 +88,7 @@ class SettingsController extends GetxController {
 
   Future<void> fetchUserSettings2() async {
     try {
-      errorMessage.value = '';
+      // errorMessage.value = '';
       final response = await SettingsRepositoryImpl().getSettings2();
 
       if (response != null &&
