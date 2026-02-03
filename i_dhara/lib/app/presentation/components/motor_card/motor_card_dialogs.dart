@@ -353,102 +353,183 @@ class MotorCardDialogs {
   }
 
   /// Confirmation dialog shown in test run page before publishing ACK
+  /// Returns the selected timeout in minutes via onConfirm callback
   static void showTestRunConfirmDialog(
     BuildContext context,
     Motor motor,
-    VoidCallback onConfirm,
+    Function(int timeoutMinutes) onConfirm,
   ) {
+    int selectedTimeout = 3; // Default 3 minutes
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Confirm Test Run',
-                style: GoogleFonts.dmSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E1E1E),
-                ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'This will send a command to the motor to verify the connection. The motor will turn ON briefly and then turn OFF automatically.',
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: const Color(0xFF6B7280),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Motor: ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E),
-                      ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Confirm Test Run',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1E1E1E),
                     ),
-                    Expanded(
-                      child: Text(
-                        _formatMotorName(motor.aliasName?.capitalizeFirst),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: Colors.black,
+                  ),
+                  // const SizedBox(height: 8),
+                  // Text(
+                  //   'This will send a command to the motor to verify the connection. The motor will turn ON briefly and then turn OFF automatically.',
+                  //   style: GoogleFonts.dmSans(
+                  //     fontSize: 14,
+                  //     color: const Color(0xFF6B7280),
+                  //   ),
+                  // ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Motor: ',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF004E7E),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                _formatMotorName(
+                                    motor.aliasName?.capitalizeFirst),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Text(
+                              'Time: ',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF004E7E),
+                              ),
+                            ),
+                            const Spacer(),
+                            _buildTimeChip(
+                              context,
+                              2,
+                              selectedTimeout,
+                              (value) =>
+                                  setState(() => selectedTimeout = value),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildTimeChip(
+                              context,
+                              3,
+                              selectedTimeout,
+                              (value) =>
+                                  setState(() => selectedTimeout = value),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildTimeChip(
+                              context,
+                              4,
+                              selectedTimeout,
+                              (value) =>
+                                  setState(() => selectedTimeout = value),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.dmSans(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w600,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.dmSans(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                onConfirm();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF004E7E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onConfirm(selectedTimeout);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF004E7E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Confirm',
+                    style: GoogleFonts.dmSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                'Confirm',
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
+    );
+  }
+
+  /// Build time selection chip for test run dialog
+  static Widget _buildTimeChip(
+    BuildContext context,
+    int minutes,
+    int selectedMinutes,
+    Function(int) onSelect,
+  ) {
+    final isSelected = minutes == selectedMinutes;
+    return GestureDetector(
+      onTap: () => onSelect(minutes),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF004E7E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color:
+                isSelected ? const Color(0xFF004E7E) : const Color(0xFFDCDCDC),
+          ),
+        ),
+        child: Text(
+          '${minutes}m',
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF6B7280),
+          ),
+        ),
+      ),
     );
   }
 }

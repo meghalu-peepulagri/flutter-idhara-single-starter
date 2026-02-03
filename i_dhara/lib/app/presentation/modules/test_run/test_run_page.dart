@@ -31,8 +31,9 @@ class _TestRunPageState extends State<TestRunPage> {
   bool _isFailed = false;
   String _statusMessage = 'Ready to test';
   Timer? _ackTimer;
-
-  static const Duration _ackTimeout = Duration(minutes: 3);
+  Timer? _countdownTimer;
+  int _remainingSeconds = 0;
+  int _selectedTimeoutMinutes = 3; // Default 3 minutes
 
   late ValueNotifier<bool> _localSwitchController;
   late ValueNotifier<int> _localModeController;
@@ -64,6 +65,7 @@ class _TestRunPageState extends State<TestRunPage> {
   @override
   void dispose() {
     _ackTimer?.cancel();
+    _countdownTimer?.cancel();
     _localSwitchController.dispose();
     _localModeController.dispose();
     super.dispose();
@@ -118,11 +120,14 @@ class _TestRunPageState extends State<TestRunPage> {
     MotorCardDialogs.showTestRunConfirmDialog(
       context,
       motor,
-      _startTestRun,
+      (int timeoutMinutes) {
+        _selectedTimeoutMinutes = timeoutMinutes;
+        _startTestRun(timeoutMinutes);
+      },
     );
   }
 
-  Future<void> _startTestRun() async {
+  Future<void> _startTestRun(int timeoutMinutes) async {
     final motorId = _getMotorId();
     if (motorId.isEmpty) {
       setState(() {
@@ -131,6 +136,9 @@ class _TestRunPageState extends State<TestRunPage> {
       });
       return;
     }
+
+    // Calculate timeout in seconds
+    _remainingSeconds = timeoutMinutes * 60;
 
     setState(() {
       _isRunning = true;
@@ -143,15 +151,29 @@ class _TestRunPageState extends State<TestRunPage> {
     mqttService.dataUpdateNotifier.addListener(_onDataUpdate);
 
     try {
-      // Publish motor ON command
-      await mqttService.publishMotorCommand(motorId, 1);
+      // Publish motor ON command (single publish, no retry)
+      await mqttService.publishTestRunCommand(motorId, 1);
 
       setState(() {
-        _statusMessage = 'Waiting for response...';
+        _statusMessage = 'Waiting for response... (${_formatTime(_remainingSeconds)})';
+      });
+
+      // Start countdown timer to update UI every second
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted || !_isRunning || _isSuccess) {
+          timer.cancel();
+          return;
+        }
+        _remainingSeconds--;
+        if (_remainingSeconds > 0) {
+          setState(() {
+            _statusMessage = 'Waiting for response... (${_formatTime(_remainingSeconds)})';
+          });
+        }
       });
 
       // Start ACK timeout timer
-      _ackTimer = Timer(_ackTimeout, () {
+      _ackTimer = Timer(Duration(minutes: timeoutMinutes), () {
         if (mounted && _isRunning && !_isSuccess) {
           _onAckTimeout();
         }
@@ -167,6 +189,12 @@ class _TestRunPageState extends State<TestRunPage> {
     }
   }
 
+  String _formatTime(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
   void _onDataUpdate() {
     if (!_isRunning || _isSuccess) return;
 
@@ -179,6 +207,7 @@ class _TestRunPageState extends State<TestRunPage> {
 
   void _onAckReceived() {
     _ackTimer?.cancel();
+    _countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(_onDataUpdate);
 
     // Save motor ID to SharedPreferences to persist test run completion
@@ -217,13 +246,14 @@ class _TestRunPageState extends State<TestRunPage> {
 
   void _onAckTimeout() {
     _ackTimer?.cancel();
+    _countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(_onDataUpdate);
 
     setState(() {
       _isRunning = false;
       _isSuccess = false;
       _isFailed = true;
-      _statusMessage = 'No response received. Please check device connection.';
+      _statusMessage = 'No response received after $_selectedTimeoutMinutes min. Please check device connection.';
     });
   }
 
