@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
@@ -17,6 +16,8 @@ class MotorControlsRow extends StatelessWidget {
   final bool isSwitchDisabled;
   final bool isModeDisabled;
   final VoidCallback? onNavigateToDetails;
+  final VoidCallback? onTestRunTap;
+  final bool showTestRun;
 
   const MotorControlsRow({
     super.key,
@@ -29,6 +30,8 @@ class MotorControlsRow extends StatelessWidget {
     required this.isSwitchDisabled,
     required this.isModeDisabled,
     this.onNavigateToDetails,
+    this.onTestRunTap,
+    this.showTestRun = false,
   });
 
   @override
@@ -37,7 +40,6 @@ class MotorControlsRow extends StatelessWidget {
       padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
       child: Row(
         mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: onNavigateToDetails,
@@ -98,6 +100,14 @@ class MotorControlsRow extends StatelessWidget {
               ],
             ),
           ),
+          // Tappable space - only navigates to test run if needed
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: showTestRun ? onTestRunTap : null,
+              child: const SizedBox(height: 25),
+            ),
+          ),
           ValueListenableBuilder(
             valueListenable: modeController,
             builder: (context, modeIndex, _) {
@@ -105,14 +115,16 @@ class MotorControlsRow extends StatelessWidget {
                 valueListenable: switchController,
                 builder: (context, isOn, child) {
                   return GestureDetector(
-                    onTap: !isSwitchDisabled
-                        ? () {
-                            MotorCardDialogs.showSwitchCommandDialog(
-                                context, motor, !isOn, (newValue) {
-                              onToggleSwitch(newValue);
-                            });
-                          }
-                        : null,
+                    onTap: showTestRun
+                        ? onTestRunTap
+                        : (!isSwitchDisabled
+                            ? () {
+                                MotorCardDialogs.showSwitchCommandDialog(
+                                    context, motor, !isOn, (newValue) {
+                                  onToggleSwitch(newValue);
+                                });
+                              }
+                            : null),
                     behavior: HitTestBehavior.opaque,
                     child: AbsorbPointer(
                       absorbing: true,

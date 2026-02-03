@@ -13,6 +13,15 @@ class MotorCardDialogs {
     return formatted;
   }
 
+  static String _getMotorDisplayName(Motor motor) {
+    final aliasName = motor.aliasName?.trim();
+    final motorName = motor.name?.trim();
+    if (aliasName != null && aliasName.isNotEmpty) {
+      return _formatMotorName(aliasName.capitalizeFirst);
+    }
+    return _formatMotorName(motorName?.capitalizeFirst);
+  }
+
   static void showSwitchCommandDialog(
     BuildContext context,
     Motor motor,
@@ -60,7 +69,7 @@ class MotorCardDialogs {
                         ),
                         Expanded(
                           child: Text(
-                            _formatMotorName(motor.aliasName?.capitalizeFirst),
+                            _getMotorDisplayName(motor),
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               color: Colors.black,
@@ -304,7 +313,7 @@ class MotorCardDialogs {
                     ),
                     Expanded(
                       child: Text(
-                        _formatMotorName(motor.aliasName?.capitalizeFirst),
+                        _getMotorDisplayName(motor),
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           color: Colors.black,
@@ -327,22 +336,36 @@ class MotorCardDialogs {
                 ),
               ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                onConfirm();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF004E7E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                'Start Test',
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onConfirm();
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      'Start Test',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -352,14 +375,12 @@ class MotorCardDialogs {
     );
   }
 
-  /// Confirmation dialog shown in test run page before publishing ACK
-  /// Returns the selected timeout in minutes via onConfirm callback
   static void showTestRunConfirmDialog(
     BuildContext context,
     Motor motor,
     Function(int timeoutMinutes) onConfirm,
   ) {
-    int selectedTimeout = 3; // Default 3 minutes
+    int selectedTimeout = 3;
 
     showDialog(
       context: context,
@@ -411,8 +432,7 @@ class MotorCardDialogs {
                             ),
                             Expanded(
                               child: Text(
-                                _formatMotorName(
-                                    motor.aliasName?.capitalizeFirst),
+                                _getMotorDisplayName(motor),
                                 style: GoogleFonts.dmSans(
                                   fontSize: 14,
                                   color: Colors.black,
@@ -474,22 +494,36 @@ class MotorCardDialogs {
                     ),
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    onConfirm(selectedTimeout);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF004E7E),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    'Confirm',
-                    style: GoogleFonts.dmSans(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        onConfirm(selectedTimeout);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Text(
+                          'Confirm',
+                          style: GoogleFonts.dmSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

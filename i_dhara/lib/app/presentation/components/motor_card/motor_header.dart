@@ -56,7 +56,7 @@ class MotorHeader extends StatelessWidget {
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: onTap,
+              onTap: showTestRun && onTestRun != null ? onTestRun : onTap,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -105,19 +105,19 @@ class MotorHeader extends StatelessWidget {
                   onTap: isTestRunEnabled ? onTestRun : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0),
-                    decoration: BoxDecoration(
-                      color: isTestRunEnabled
-                          ? const Color(0xFF004E7E)
-                          : const Color(0xFFB0B0B0),
-                      borderRadius: BorderRadius.circular(4.0),
-                    ),
+                        horizontal: 20.0, vertical: 4.0),
+                    // decoration: BoxDecoration(
+                    //   color: isTestRunEnabled
+                    //       ? const Color(0xFF004E7E)
+                    //       : const Color(0xFFB0B0B0),
+                    //   borderRadius: BorderRadius.circular(4.0),
+                    // ),
                     child: Text(
                       'Test Run',
                       style: GoogleFonts.dmSans(
-                        fontSize: 12.0,
+                        fontSize: 14.0,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: const Color(0XFF4A5565),
                       ),
                     ),
                   ),
@@ -125,7 +125,7 @@ class MotorHeader extends StatelessWidget {
               const SizedBox(width: 8.0),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: onTap,
+                onTap: showTestRun && onTestRun != null ? onTestRun : onTap,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

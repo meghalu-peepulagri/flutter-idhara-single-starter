@@ -428,7 +428,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _navigateToDetails,
+                  onTap: _isNewDeviceWithoutAck(motorData)
+                      ? _navigateToTestRun
+                      : _navigateToDetails,
                   child: AbsorbPointer(
                     child: Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -455,7 +457,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   // isSwitchDisabled: _isWaitingForSwitchAck ||
                   //     !(canControl && _localModeController.value == 0),
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
-                  onNavigateToDetails: _navigateToDetails,
+                  onNavigateToDetails: _isNewDeviceWithoutAck(motorData)
+                      ? _navigateToTestRun
+                      : _navigateToDetails,
+                  onTestRunTap: _navigateToTestRun,
+                  showTestRun: _isNewDeviceWithoutAck(motorData),
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),
