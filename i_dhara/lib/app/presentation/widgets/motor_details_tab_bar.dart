@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../modules/motor_details/motor_details_controller.dart';
 
 class MotorDetailsTabBar extends StatelessWidget {

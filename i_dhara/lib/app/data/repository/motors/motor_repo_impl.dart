@@ -7,6 +7,8 @@ import 'package:i_dhara/app/data/models/motors/motor_logs_model.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repository.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
+import '../../models/motors/temperature_response_model.dart';
+
 class MotorsRepositoryImpl implements MotorsRepository {
   @override
   Future<MotorResponse?> getMotors(int? page, int? limit) async {
@@ -82,6 +84,16 @@ class MotorsRepositoryImpl implements MotorsRepository {
         await NetworkManager().get('/activities', queryParameters: params);
     if (response.statusCode == 200) {
       final res = MotorLogsResponse.fromJson(response.data);
+      return res;
+    }
+    return null;
+  }
+
+  @override
+  Future<TemperatureResponse?> getmotorTemperature() async {
+    final response = await NetworkManager().get('/starters/364/temperature');
+    if (response.statusCode == 200) {
+      final res = TemperatureResponse.fromJson(response.data);
       return res;
     }
     return null;

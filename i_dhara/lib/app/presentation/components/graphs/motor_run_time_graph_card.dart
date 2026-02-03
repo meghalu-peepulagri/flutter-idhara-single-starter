@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
+import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
@@ -373,73 +373,19 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     });
   }
 
-  // List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
-  //     List<TimeSegment> data) {
-  //   final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-
-  //   for (final segment in data) {
-  //     final points = [
-  //       TimePoint(
-  //         segment.start,
-  //         3, // Y-position for motor line (top)
-  //         segment.duration.toString(),
-  //         segment.type,
-  //         segment.start,
-  //         segment.end,
-  //         true,
-  //       ),
-  //       TimePoint(
-  //         segment.end,
-  //         3, // Y-position for motor line (top)
-  //         segment.duration.toString(),
-  //         segment.type,
-  //         segment.start,
-  //         segment.end,
-  //         false,
-  //       ),
-  //     ];
-
-  //     seriesList.add(
-  //       LineSeries(
-  //         dataSource: points,
-  //         xValueMapper: (p, _) => p.time,
-  //         yValueMapper: (p, _) => p.value,
-  //         color: Colors.green,
-  //         width: 3,
-  //         markerSettings: const MarkerSettings(
-  //           isVisible: true,
-  //           height: 6,
-  //           width: 6,
-  //           shape: DataMarkerType.circle,
-  //         ),
-  //         pointColorMapper: (TimePoint point, _) {
-  //           return point.isStartPoint ? Colors.green : Colors.red;
-  //         },
-  //         isVisibleInLegend: false,
-  //       ),
-  //     );
-  //   }
-
-  //   return seriesList;
-  // }
   List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
       List<TimeSegment> data) {
     final List<LineSeries<TimePoint, DateTime>> seriesList = [];
     final DateTime now = DateTime.now();
 
     for (final segment in data) {
-      // Check if this motor segment is still running
-      // A segment is "still running" if end time is very close to now (within 5 seconds)
       final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-      // Choose color based on whether it's still running
       final lineColor = isStillRunning ? Colors.orange : Colors.green;
       final endPointColor = isStillRunning ? Colors.orange : Colors.red;
-
       final points = [
         TimePoint(
           segment.start,
-          3, // Y-position for motor line (top)
+          3,
           segment.duration.toString(),
           segment.type,
           segment.start,
@@ -448,7 +394,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
         ),
         TimePoint(
           segment.end,
-          3, // Y-position for motor line (top)
+          3,
           segment.duration.toString(),
           segment.type,
           segment.start,
@@ -496,11 +442,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     final DateTime now = DateTime.now();
 
     for (final segment in data) {
-      // Check if this segment is still running
-      // A segment is "still running" if end time is very close to now (within 5 seconds)
       final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-      // Choose color based on whether it's still running
       final lineColor = isStillRunning ? Colors.orange : Colors.blue;
       final endPointColor = isStillRunning ? Colors.orange : Colors.orange;
 

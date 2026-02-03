@@ -91,6 +91,7 @@ extension AnalyticsControllerApi on AnalyticsController {
 
     try {
       await fetchRuntime(daterange);
+      await fetchMotorTemperature();
     } catch (e) {
       if (kDebugMode) print('Error in fetchallApis: $e');
     }
@@ -105,11 +106,11 @@ extension AnalyticsControllerApi on AnalyticsController {
 
     try {
       final futures = <Future>[];
-
       futures.add(fetchMotorDetails());
 
       if (selectedTabIndex.value == 1) {
         futures.add(fetchRuntime(daterange));
+        futures.add(fetchMotorTemperature());
       }
 
       if (selectedTabIndex.value == 2) {
@@ -380,6 +381,30 @@ extension AnalyticsControllerApi on AnalyticsController {
     }
 
     return segments;
+  }
+
+  Future<void> fetchMotorTemperature() async {
+    if (!isRefreshing.value) {
+      isLoadingtemperature = true.obs;
+    }
+    print("line 390 $isLoadingtemperature refresh $isRefreshing");
+    try {
+      final response = await MotorsRepositoryImpl().getmotorTemperature();
+      if (response?.status == 200 || response?.status == 201) {
+        temperatureData.value = response!.data!;
+        temperaturePoints.addAll(temperatureData.map((e) {
+          return TemperatureDataPoint(
+              DateFormat('HH').format(e.timeStamp!), e.temperature!.toDouble());
+        }));
+      }
+    } catch (e) {
+      print("error $e");
+      isLoadingtemperature = false.obs;
+    } finally {
+      isLoadingtemperature = false.obs;
+    }
+
+    print("line 406 $isLoadingtemperature refresh $isRefreshing");
   }
 }
 

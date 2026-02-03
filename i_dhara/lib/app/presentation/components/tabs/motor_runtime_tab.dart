@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:i_dhara/app/presentation/components/graphs/motor_run_time_graph_card.dart';
+import 'package:intl/intl.dart';
+
 import '../../modules/motor_details/motor_details_controller.dart';
+import '../graphs/motor_temperature.dart';
 
 class MotorRuntimeTab extends StatelessWidget {
   final AnalyticsController controller;
@@ -24,10 +26,10 @@ class MotorRuntimeTab extends StatelessWidget {
         MotorRuntimeGraphWidget(
           selectedDateRange: controller.daterange,
         ),
-        // const SizedBox(height: 16),
-        // PowerGraphWidget(
-        //   selectedDateRange: controller.daterange,
-        // ),
+        const SizedBox(height: 12),
+        MotorTemperatureWidget(
+          selectedDateRange: controller.daterange,
+        ),
       ],
     );
   }

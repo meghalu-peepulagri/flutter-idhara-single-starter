@@ -79,24 +79,18 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     final percantage = value / 100;
     final result = flc * percantage;
     final roundedResult = double.parse(result.toStringAsFixed(2));
-
-    print("line 77 --------> $flc $percantage  $result");
     return roundedResult;
   }
-
   @override
   void dispose() {
     super.dispose();
   }
-
   mqttConnection() async {
     await mqttService.initializeMqttClient();
   }
-
   void onTapMenu() {
     scaffoldKey.currentState!.openEndDrawer();
   }
-
   void _handleCancel() {
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
@@ -104,7 +98,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       isbuttonActive = false;
     });
   }
-
   Map<String, dynamic> diffNestedPayload({
     required Map<String, dynamic> newPayload,
     required Map<String, dynamic> oldPayload,
@@ -112,7 +105,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   }) {
     final newMap = Map<String, dynamic>.from(newPayload[key] ?? {});
     final oldMap = Map<String, dynamic>.from(oldPayload[key] ?? {});
-
     newMap.removeWhere((k, v) {
       return oldMap.containsKey(k) && oldMap[k] == v;
     });

@@ -1,20 +1,24 @@
 import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
 import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
+import 'package:i_dhara/app/data/models/motors/temperature_response_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+
+import '../../components/graphs/motor_temperature.dart';
 
 part 'motor_details_controller.api.dart';
 part 'motor_details_controller.mqtt.dart';
@@ -28,6 +32,8 @@ class AnalyticsController extends GetxController {
   var voltage = <Voltage>[].obs;
   var current = <Current>[].obs;
   var motorRuntimeData = <Runtime>[].obs;
+  var temperatureData = <TemperatureData>[].obs;
+  var temperaturePoints = <TemperatureDataPoint>[].obs;
   var chartData = <TimeSegment>[].obs;
   var powerChartData = <TimeSegment>[].obs;
 
@@ -37,6 +43,7 @@ class AnalyticsController extends GetxController {
   var isLoadingVoltage = true.obs;
   var isLoadingCurrent = true.obs;
   var isLoadingruntime = false.obs;
+  var isLoadingtemperature = false.obs;
   var isLoadingtotalruntime = false.obs;
   var isRefreshing = false.obs;
   var isModalOpen = false.obs;
@@ -81,9 +88,7 @@ class AnalyticsController extends GetxController {
   var isWaitingForModeAck = false.obs;
   var canChangeMode = true.obs;
   var signalQuality = 0.obs;
-
   final bool _isUsingExistingMqttInstance = false;
-
   StreamSubscription? _mqttUpdateSubscription;
 
   @override
@@ -94,7 +99,6 @@ class AnalyticsController extends GetxController {
     if (args != null) {
       motorId.value = args['motorId'];
     }
-
     if (motorId.value != null) {
       _initializeSequentially();
     }
@@ -125,17 +129,15 @@ class AnalyticsController extends GetxController {
 
   void onTabChanged(int newIndex) {
     final previousIndex = selectedTabIndex.value;
-
     if (previousIndex == 1 && newIndex != 1) {
       _clearAnalyticsData();
     }
-
     if (newIndex == 1 && previousIndex != 1) {
       resetDateToToday();
       clearAllData();
       fetchRuntime(daterange);
+      fetchMotorTemperature();
     }
-
     selectedTabIndex.value = newIndex;
   }
 
