@@ -7,7 +7,7 @@ import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_con
 import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
-import '../popups/temperature_popup.dart';
+import '../bottomsheets/temperature_update_bottomsheet.dart';
 
 class MotorTemperatureWidget extends StatefulWidget {
   final List<DateTime?> selectedDateRange;
@@ -23,6 +23,7 @@ class MotorTemperatureWidget extends StatefulWidget {
 
 class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
   late TooltipBehavior _tooltipBehavior;
+  late ZoomPanBehavior _zoomPanBehavior;
 
   final AnalyticsController analyticsController = Get.find();
 
@@ -38,6 +39,13 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
       enable: true,
       header: '',
       format: 'point.x : point.y°C',
+    );
+    _zoomPanBehavior = ZoomPanBehavior(
+      maximumZoomLevel: 0.08,
+      enablePinching: true,
+      enablePanning: true,
+      zoomMode: ZoomMode.x,
+      enableDoubleTapZooming: true,
     );
   }
 
@@ -134,13 +142,16 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                             ),
                             GestureDetector(
                               onTap: () {
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (BuildContext context) {
-                                    return const TemperaturePopup();
-                                  },
-                                );
+                                showThresholdBottomSheet(context, (val) {
+                                  print("line 146 $val");
+                                });
+                                // showDialog(
+                                //   context: context,
+                                //   barrierDismissible: false,
+                                //   builder: (BuildContext context) {
+                                //     return const TemperaturePopup();
+                                //   },
+                                // );
                               },
                               child: SizedBox(
                                 child: SvgPicture.asset(
@@ -189,6 +200,7 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                     children: [
                                       SfCartesianChart(
                                         tooltipBehavior: _tooltipBehavior,
+                                        zoomPanBehavior: _zoomPanBehavior,
                                         primaryXAxis: const CategoryAxis(
                                           labelStyle: TextStyle(
                                             fontSize: 10,
@@ -200,7 +212,7 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                           majorTickLines:
                                               MajorTickLines(size: 0),
                                           axisLine: AxisLine(
-                                            color: Color(0xFFE0E0E0),
+                                            color: Colors.blue,
                                           ),
                                           title: AxisTitle(
                                             text: 'Time',
@@ -225,7 +237,7 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                           majorTickLines:
                                               const MajorTickLines(size: 0),
                                           axisLine: const AxisLine(
-                                            color: Color(0xFFE0E0E0),
+                                            color: Colors.green,
                                           ),
                                           title: const AxisTitle(
                                             text: 'Temperature (°C)',
@@ -250,7 +262,7 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                           ],
                                         ),
                                         series: <CartesianSeries>[
-                                          ColumnSeries<TemperatureDataPoint,
+                                          SplineSeries<TemperatureDataPoint,
                                               String>(
                                             dataSource: analyticsController
                                                 .temperaturePoints,
@@ -258,19 +270,17 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                                 data.hour,
                                             yValueMapper: (data, _) =>
                                                 data.temperature,
-                                            borderRadius:
-                                                const BorderRadius.only(
-                                              topLeft: Radius.circular(4),
-                                              topRight: Radius.circular(4),
-                                            ),
-                                            width: 0.6,
-                                            gradient: const LinearGradient(
-                                              begin: Alignment.bottomCenter,
-                                              end: Alignment.topCenter,
-                                              colors: [
-                                                Color(0xFFF2994A),
-                                                Color(0xFFEB5757),
-                                              ],
+                                            color: const Color(0xffF2994A),
+                                            width: 2.5,
+                                            markerSettings:
+                                                const MarkerSettings(
+                                              isVisible: true,
+                                              shape: DataMarkerType.circle,
+                                              height: 6,
+                                              width: 6,
+                                              borderWidth: 2,
+                                              borderColor: Color(0xffF2994A),
+                                              color: Colors.white,
                                             ),
                                             dataLabelSettings:
                                                 const DataLabelSettings(
