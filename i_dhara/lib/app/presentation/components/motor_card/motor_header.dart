@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:lottie/lottie.dart';
@@ -11,12 +10,18 @@ class MotorHeader extends StatelessWidget {
   final Motor motor;
   final MotorData? motorData;
   final VoidCallback onTap;
+  final VoidCallback? onTestRun;
+  final bool isTestRunEnabled;
+  final bool showTestRun;
 
   const MotorHeader({
     super.key,
     required this.motor,
     required this.motorData,
     required this.onTap,
+    this.onTestRun,
+    this.isTestRunEnabled = true,
+    this.showTestRun = false,
   });
 
   bool get _isPowerOn {
@@ -42,18 +47,18 @@ class MotorHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AbsorbPointer(
-        child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
-          child: Row(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.max,
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(0.0),
@@ -64,75 +69,113 @@ class MotorHeader extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  Text(
-                    () {
-                      final aliasName = _normalizeMotorName(motor.aliasName);
-                      final motorName = _normalizeMotorName(motor.name);
-                      final displayName =
-                          aliasName.isNotEmpty ? aliasName : motorName;
-                      return displayName.length > 16
-                          ? '${displayName.substring(0, 16)}...'
-                          : displayName;
-                    }(),
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          font: GoogleFonts.dmSans(
-                            fontWeight: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .fontWeight,
+                  const SizedBox(width: 8.0),
+                  Flexible(
+                    child: Text(
+                      () {
+                        final aliasName = _normalizeMotorName(motor.aliasName);
+                        final motorName = _normalizeMotorName(motor.name);
+                        final displayName =
+                            aliasName.isNotEmpty ? aliasName : motorName;
+                        return displayName.length > 12
+                            ? '${displayName.substring(0, 12)}...'
+                            : displayName;
+                      }(),
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            font: GoogleFonts.dmSans(
+                              fontWeight: FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .fontWeight,
+                            ),
+                            color: const Color(0xFF1E1E1E),
+                            fontSize: 16.0,
+                            letterSpacing: 0.0,
                           ),
-                          color: const Color(0xFF1E1E1E),
-                          fontSize: 16.0,
-                          letterSpacing: 0.0,
-                        ),
+                    ),
                   ),
-                ].divide(const SizedBox(width: 8.0)),
+                ],
               ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(0.0),
-                    child: SvgPicture.asset(
-                      _isPowerOn
-                          ? 'assets/images/power.svg'
-                          : 'assets/images/Power_red.svg',
-                      width: 17,
-                      height: 17,
-                      fit: BoxFit.cover,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showTestRun)
+                GestureDetector(
+                  onTap: isTestRunEnabled ? onTestRun : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 4.0),
+                    decoration: BoxDecoration(
+                      color: isTestRunEnabled
+                          ? const Color(0xFF004E7E)
+                          : const Color(0xFFB0B0B0),
+                      borderRadius: BorderRadius.circular(4.0),
+                    ),
+                    child: Text(
+                      'Test Run',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12.0,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  _SignalIcon(motor: motor, motorData: motorData),
-                  if (_faultValue > 0)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24.0),
-                        border: Border.all(
-                          color: const Color(0xFFDCDCDC),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                            8.0, 2.0, 8.0, 2.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            Lottie.asset(
-                              'assets/lottie_animations/warning 1.json',
-                              width: 20,
-                              height: 20,
-                              fit: BoxFit.contain,
-                              repeat: true,
-                            )
-                          ].divide(const SizedBox(width: 6.0)),
-                        ),
+                ),
+              const SizedBox(width: 8.0),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onTap,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(0.0),
+                      child: SvgPicture.asset(
+                        _isPowerOn
+                            ? 'assets/images/power.svg'
+                            : 'assets/images/Power_red.svg',
+                        width: 17,
+                        height: 17,
+                        fit: BoxFit.cover,
                       ),
                     ),
-                ].divide(const SizedBox(width: 8.0)),
+                    const SizedBox(width: 8.0),
+                    _SignalIcon(motor: motor, motorData: motorData),
+                    if (_faultValue > 0) ...[
+                      const SizedBox(width: 8.0),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24.0),
+                          border: Border.all(
+                            color: const Color(0xFFDCDCDC),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                              8.0, 2.0, 8.0, 2.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              Lottie.asset(
+                                'assets/lottie_animations/warning 1.json',
+                                width: 20,
+                                height: 20,
+                                fit: BoxFit.contain,
+                                repeat: true,
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

@@ -299,6 +299,55 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
+  void _navigateToTestRun() {
+    _navigateToTestRunScreen();
+  }
+
+  /// Check if this is a new device that hasn't received ACK yet
+  bool _isNewDeviceWithoutAck(MotorData? motorData) {
+    // Check if motor has completed test run (persisted in SharedPreferences)
+    final motorId = widget.motor.id;
+    if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
+      return false; // Test run completed, hide the button
+    }
+
+    // Check if motor has received MQTT data
+    if (motorData != null && motorData.hasReceivedData) {
+      return false; // Has MQTT data, not a new device
+    }
+
+    // Check if motor has existing API data (starterParameters)
+    final starterParams = widget.motor.starter?.starterParameters;
+    if (starterParams != null && starterParams.isNotEmpty) {
+      return false; // Has API data, not a new device
+    }
+
+    // Check if motor has signal quality from API (indicates previous communication)
+    final signalQuality = widget.motor.starter?.signalQuality;
+    if (signalQuality != null && signalQuality > 0) {
+      return false; // Has signal data, not a new device
+    }
+
+    // This is a new device without any ACK data
+    return true;
+  }
+
+  /// Determine if Test Run button should be enabled
+  bool _shouldShowTestRun(MotorData? motorData) {
+    // Enable only if it's a new device without ACK and motor is available
+    return _isNewDeviceWithoutAck(motorData) && _isMotorAvailable();
+  }
+
+  void _navigateToTestRunScreen() {
+    Get.toNamed(
+      Routes.testRun,
+      arguments: {
+        'motor': widget.motor,
+        'mqttService': widget.mqttService,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
@@ -371,6 +420,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   motor: widget.motor,
                   motorData: motorData,
                   onTap: _navigateToDetails,
+                  onTestRun: _navigateToTestRun,
+                  isTestRunEnabled: _shouldShowTestRun(motorData),
+                  showTestRun: _isNewDeviceWithoutAck(motorData),
                 ),
                 const Divider(
                     height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
