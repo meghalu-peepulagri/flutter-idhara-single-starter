@@ -142,7 +142,8 @@ class DashboardController extends GetxController {
       debugPrint('✓ Motor ${motor.id} (${motor.name}): identifier=$identifier');
     }
 
-    debugPrint('✓ Motor map: ${motorMap.length} entries for ${motorsList.length} motors');
+    debugPrint(
+        '✓ Motor map: ${motorMap.length} entries for ${motorsList.length} motors');
     return motorMap;
   }
 

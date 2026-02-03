@@ -37,15 +37,19 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
   }
 
   void _initializeValues() {
-    print(
-        "line 41 ------> ${widget.initialLowVoltage} ${widget.initialHighVoltage}");
     final lowMin = controller.data.value?.lvfMin?.toDouble() ?? 150.0;
     final lowMax = controller.data.value?.lvfMax?.toDouble() ?? 300.0;
     final highMin = controller.data.value?.hvfMin?.toDouble() ?? 240.0;
     final highMax = controller.data.value?.hvfMax?.toDouble() ?? 550.0;
 
-    lowVoltageValue = widget.initialLowVoltage.clamp(lowMin, lowMax);
-    highVoltageValue = widget.initialHighVoltage.clamp(highMin, highMax);
+    // Read directly from controller for most up-to-date values
+    final initialLow = controller.userSettings2.value?.lvf?.toDouble() ?? widget.initialLowVoltage;
+    final initialHigh = controller.userSettings2.value?.hvf?.toDouble() ?? widget.initialHighVoltage;
+
+    print("line 41 ------> $initialLow $initialHigh");
+
+    lowVoltageValue = initialLow.clamp(lowMin, lowMax);
+    highVoltageValue = initialHigh.clamp(highMin, highMax);
   }
 
   void resetValues() {
@@ -88,10 +92,10 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
           highMinLimit: highMin,
           highMaxLimit: highMax,
           unit: 'V',
-          lowColor: const Color(0xFFE53935),
-          highColor: const Color(0xFFFF6F00),
-          lowThumbColor: const Color(0xFFE53935),
-          highThumbColor: const Color(0xFFFF6F00),
+          lowColor: const Color(0XFF9F0712),
+          highColor: const Color(0XFF9F0712),
+          lowThumbColor: const Color(0XFF9F0712),
+          highThumbColor: const Color(0XFF9F0712),
           safetyMargin: 10.0,
           cardType: 'voltage',
           onChanged: (low, high) {

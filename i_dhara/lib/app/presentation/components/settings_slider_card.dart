@@ -176,9 +176,9 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                 Text(
                   widget.heading,
                   style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF004E7E),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFf0A0A0A),
                   ),
                 ),
               ],
@@ -193,8 +193,10 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: widget.lowColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0XFFFEF3C6),
+                  // widget.lowColor.withValues(alpha: 0.1),
+                  border: Border.all(color: const Color(0XFFFFD230), width: 1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
@@ -226,8 +228,10 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: widget.highColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0XFFFFE2E2),
+                  border: Border.all(color: const Color(0XFFFFA2A2), width: 1),
+                  // widget.highColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
@@ -409,7 +413,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
+                    color: const Color(0xFF4F4F4F),
                   ),
                 ),
                 Text(
@@ -417,7 +421,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
+                    color: const Color(0xFF4F4F4F),
                   ),
                 ),
               ],
@@ -500,16 +504,20 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: color,
+            color: label == "L"
+                ? const Color(0xFFFEF3C6)
+                : const Color(0xFFFFE2E2),
             shape: BoxShape.circle,
-            border: isActive ? Border.all(color: Colors.white, width: 3) : null,
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: label == "L"
+                ? Border.all(color: const Color(0xFFE5B800), width: 2)
+                : Border.all(color: const Color(0xFFFFA2A2), width: 2),
+            // boxShadow: [
+            //   BoxShadow(
+            //     color: color.withValues(alpha: 0.3),
+            //     blurRadius: 8,
+            //     offset: const Offset(0, 2),
+            //   ),
+            // ],
           ),
           child: Center(
             child: Text(
@@ -517,7 +525,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: const Color(0XFF9F0712),
               ),
             ),
           ),

@@ -63,15 +63,22 @@ class SettingsController extends GetxController {
 
   String motorName() {
     final settings = userSettings2.value;
-    if (settings?.starter != null) {
-      if (settings!.starter!.motors!.first.aliasName != null) {
-        return settings.starter!.motors!.first.aliasName.toString();
-      }
-    } else {
+    if (settings?.starter == null) {
       return "N/A";
     }
 
-    return settings.starter!.motors!.first.name.toString();
+    final motor = settings!.starter!.motors?.first;
+    if (motor == null) {
+      return "N/A";
+    }
+
+    // Return aliasName if it exists and is not empty, otherwise return name
+    final aliasName = motor.aliasName?.toString().trim() ?? '';
+    if (aliasName.isNotEmpty) {
+      return aliasName;
+    }
+
+    return motor.name?.toString() ?? 'N/A';
   }
 
   String motorHP() {

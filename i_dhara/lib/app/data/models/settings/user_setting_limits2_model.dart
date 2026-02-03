@@ -71,8 +71,8 @@ class UserSettings2 {
   int? ol;
   int? lr;
   int? ci;
-  int? lvr;
-  int? hvr;
+  num? lvr;
+  num? hvr;
   num? olf;
   num? lrf;
   num? opf;

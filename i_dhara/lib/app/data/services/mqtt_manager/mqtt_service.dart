@@ -435,7 +435,8 @@ class MqttService {
     debugPrint('   Motors count: ${_motors.length}');
     debugPrint('   MotorDataMap count: ${_motorDataMap.length}');
     // Use Future.delayed to ensure listener is attached before subscribing
-    Future.delayed(const Duration(milliseconds: 500), () => _subscribeToAllTopics());
+    Future.delayed(
+        const Duration(milliseconds: 500), () => _subscribeToAllTopics());
     _dataUpdateNotifier.value++;
   }
 
@@ -471,7 +472,8 @@ class MqttService {
     statusMessage = 'Reconnected';
     debugPrint('✓ MQTT Auto-reconnected');
     // Use Future.delayed to ensure listener is attached before subscribing
-    Future.delayed(const Duration(milliseconds: 500), () => _subscribeToAllTopics());
+    Future.delayed(
+        const Duration(milliseconds: 500), () => _subscribeToAllTopics());
     _dataUpdateNotifier.value++;
   }
 
@@ -743,8 +745,14 @@ class MqttService {
       _lastAckTimes[fullMotorId] = DateTime.now();
       debugPrint(
           '   ✓ Updated $fullMotorId: state=${motorData.state}, mode=${motorData.motorMode}');
+      debugPrint(
+          '   ✓ MotorData mac=${motorData.macAddress}, pcb=${motorData.pcbNumber}');
+      debugPrint(
+          '   ✓ Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
     }
 
+    // Force notify listeners
+    debugPrint('📢 Notifying listeners: dataUpdateNotifier=${_dataUpdateNotifier.value + 1}');
     _dataUpdateNotifier.value++;
   }
 

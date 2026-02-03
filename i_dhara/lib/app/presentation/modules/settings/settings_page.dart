@@ -203,59 +203,85 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     showDialog(
       context: context,
       builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final screenHeight = MediaQuery.of(context).size.height;
+
+        // Dynamic dialog width: 85% of screen width, with min 280 and max 400
+        final dialogWidth = (screenWidth * 0.85).clamp(280.0, 400.0);
+
+        // Dynamic padding based on screen size
+        final horizontalPadding = screenWidth < 360 ? 16.0 : 24.0;
+        final verticalPadding = screenHeight < 600 ? 16.0 : 20.0;
+
         return AlertDialog(
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: (screenWidth - dialogWidth) / 2,
+            vertical: 24.0,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Confirm Setting Updates',
-                style: GoogleFonts.dmSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF004E7E),
+          contentPadding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            verticalPadding,
+            horizontalPadding,
+            0,
+          ),
+          actionsPadding: EdgeInsets.all(horizontalPadding),
+          content: SizedBox(
+            width: dialogWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Confirm Setting Updates',
+                  style: GoogleFonts.dmSans(
+                    fontSize: screenWidth < 360 ? 16 : 18,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF004E7E),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
+                SizedBox(height: verticalPadding),
 
-              /// Voltage Range Card
-              if (isVoltageRange)
-                infoCard(
-                    bgColor: const Color(0xFFEAF3FF),
-                    iconBg: const Color(0xFF3B82F6),
-                    svg: 'assets/images/Voltage.svg',
-                    title: "Voltage Fault",
-                    lowOld:
-                        "${(_originalVoltageLow ?? controller.userSettings2.value!.lvf?.toInt()).toString()}V",
-                    lowNew: "${controller.lvf.value.toString()}V",
-                    highOld:
-                        "${(_originalVoltageHigh ?? controller.userSettings2.value!.hvf?.toInt()).toString()}V",
-                    highNew: "${controller.hvf.value.toString()}V",
-                    valueColor: const Color(0xFF2563EB),
-                    vmin: vmin,
-                    vmax: vmax,
-                    cmin: false,
-                    cmax: false),
-              const SizedBox(height: 12),
-              if (isCurrentRange)
-                infoCard(
-                    bgColor: const Color(0xFFFFF3E8),
-                    iconBg: const Color(0xFFFF7A00),
-                    svg: 'assets/images/Current.svg',
-                    title: "Current Fault",
-                    lowOld: "${(_originalCurrentLow ?? controller.userSettings2.value?.drf?.toInt()).toString()}A",
-                    lowNew: "${controller.drf.value.toInt()}A",
-                    highOld: "${(_originalCurrentHigh ?? controller.userSettings2.value?.olf?.toInt()).toString()}A",
-                    highNew: "${controller.olf.value.toString()}A",
-                    valueColor: const Color(0xFFF97316),
-                    vmin: false,
-                    vmax: false,
-                    cmin: cmin,
-                    cmax: cmax),
-            ],
+                /// Voltage Range Card
+                if (isVoltageRange)
+                  infoCard(
+                      bgColor: const Color(0xFFEAF3FF),
+                      iconBg: const Color(0xFF3B82F6),
+                      svg: 'assets/images/Voltage.svg',
+                      title: "Voltage Fault",
+                      lowOld:
+                          "${(_originalVoltageLow ?? controller.userSettings2.value!.lvf?.toInt()).toString()}V",
+                      lowNew: "${controller.lvf.value.toString()}V",
+                      highOld:
+                          "${(_originalVoltageHigh ?? controller.userSettings2.value!.hvf?.toInt()).toString()}V",
+                      highNew: "${controller.hvf.value.toString()}V",
+                      valueColor: const Color(0xFF2563EB),
+                      vmin: vmin,
+                      vmax: vmax,
+                      cmin: false,
+                      cmax: false),
+                const SizedBox(height: 12),
+                if (isCurrentRange)
+                  infoCard(
+                      bgColor: const Color(0xFFFFF3E8),
+                      iconBg: const Color(0xFFFF7A00),
+                      svg: 'assets/images/Current.svg',
+                      title: "Current Fault",
+                      lowOld:
+                          "${(_originalCurrentLow ?? controller.userSettings2.value?.drf?.toInt()).toString()}A",
+                      lowNew: "${controller.drf.value.toInt()}A",
+                      highOld:
+                          "${(_originalCurrentHigh ?? controller.userSettings2.value?.olf?.toInt()).toString()}A",
+                      highNew: "${controller.olf.value.toString()}A",
+                      valueColor: const Color(0xFFF97316),
+                      vmin: false,
+                      vmax: false,
+                      cmin: cmin,
+                      cmax: cmax),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -271,8 +297,20 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                 ),
               ),
             ),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.25,
+            Container(
+              width: dialogWidth * 0.35,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF004E7E),
+                    Color(0xFF3686AF),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: ElevatedButton(
                 onPressed: () async {
                   isSnackbarShown = false;
@@ -293,7 +331,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF004E7E),
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -468,9 +507,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       .titleMedium
                                       .override(
                                         fontFamily: 'Manrope',
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF004E7E),
-                                        fontSize: 18.0,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF000000),
+                                        fontSize: 16.0,
                                       ),
                                 ),
                                 Text(
@@ -479,19 +518,19 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       .bodyMedium
                                       .override(
                                         fontFamily: 'Manrope',
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFF6B7280),
-                                        fontSize: 14.0,
+                                        fontWeight: FontWeight.w400,
+                                        color: const Color(0xFF000000),
+                                        fontSize: 12.0,
                                       ),
                                 ),
                               ],
                             ),
                             Container(
-                              height: 25,
+                              height: 38,
                               width: 90,
                               decoration: BoxDecoration(
-                                color: const Color(0xffef2994a),
-                                borderRadius: BorderRadius.circular(6),
+                                color: const Color(0xFFF2994A),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: FFButtonWidget(
                                 onPressed: () {
@@ -506,10 +545,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   textStyle: FlutterFlowTheme.of(context)
                                       .titleSmall
                                       .override(
-                                        fontFamily: 'Manrope',
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                          fontFamily: 'Manrope',
+                                          color: const Color(0XFFFFFFFF),
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14),
                                   elevation: 0.0,
                                   borderRadius: BorderRadius.circular(0),
                                 ),
@@ -557,7 +596,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             child: SingleChildScrollView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 24.0),
+                                  horizontal: 16.0, vertical: 12.0),
                               child: Column(
                                 children: [
                                   SettingsVoltageCard(
@@ -580,7 +619,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       _checkForChanges();
                                     },
                                   ),
-                                  const SizedBox(height: 24),
+                                  const SizedBox(height: 12),
                                   SettingsCurrentCard(
                                     key: currentCardKey,
                                     initialLowCurrent:

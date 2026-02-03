@@ -83,7 +83,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
           key: ValueKey("current_slider_$_resetVersion"),
           heading: 'Current Faults',
           leadingSvg: 'assets/images/Current.svg',
-          leadingSvgBgColor: const Color(0xFFFFF3E0),
+          // leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),
           initialLowValue: lowCurrentValue,
           initialHighValue: highCurrentValue,
@@ -94,10 +94,10 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
           highMinLimit: highMin,
           highMaxLimit: highMax,
           unit: 'A',
-          lowColor: const Color(0xFFE53935),
-          highColor: const Color(0xFFFF6F00),
-          lowThumbColor: const Color(0xFFE53935),
-          highThumbColor: const Color(0xFFFF6F00),
+          lowColor: const Color(0XFF9F0712),
+          highColor: const Color(0XFF9F0712),
+          lowThumbColor: const Color(0XFF9F0712),
+          highThumbColor: const Color(0XFF9F0712),
           safetyMargin: 2.0, // Current: 2A margin for red zone
           cardType: 'current',
           onChanged: (low, high) {

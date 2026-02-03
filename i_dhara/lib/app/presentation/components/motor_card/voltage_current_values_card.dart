@@ -37,7 +37,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
       final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
       final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
 
-      // Check MAC address first
+      // Check MAC address
       if (macMotorId != null) {
         final data = mqttService.motorDataMap[macMotorId];
         if (data != null && data.hasReceivedData) {
@@ -48,14 +48,12 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                       dataTimestamp.isAfter(latestTimestamp)))) {
             latestData = data;
             latestTimestamp = dataTimestamp;
-            debugPrint(
-                'VoltageCurrentValuesCard - ${motor.name} - Found MQTT data in $groupId using MAC (timestamp: $dataTimestamp)');
           }
         }
       }
 
-      // Check PCB number if no MAC data found
-      if (pcbMotorId != null && latestData == null) {
+      // Check PCB number - also compare timestamps (not just when latestData is null)
+      if (pcbMotorId != null) {
         final data = mqttService.motorDataMap[pcbMotorId];
         if (data != null && data.hasReceivedData) {
           final dataTimestamp = mqttService.getLastAckTime(pcbMotorId);
@@ -65,8 +63,6 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                       dataTimestamp.isAfter(latestTimestamp)))) {
             latestData = data;
             latestTimestamp = dataTimestamp;
-            debugPrint(
-                'VoltageCurrentValuesCard - ${motor.name} - Found MQTT data in $groupId using PCB (timestamp: $dataTimestamp)');
           }
         }
       }
@@ -96,8 +92,13 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                 ? motor.starter!.starterParameters!.first
                 : null;
 
+        // Debug: Log motor identifiers and found data
+        debugPrint('🔍 VoltageCard: motor=${motor.name}, mac=${motor.starter?.macAddress}, pcb=${motor.starter?.pcbNumber}');
         if (motorData != null) {
-          debugPrint('  MQTT Group: ${motorData.groupId}');
+          debugPrint('  ✓ Found MQTT data: group=${motorData.groupId}, state=${motorData.state}, hasData=${motorData.hasReceivedData}');
+          debugPrint('  ✓ Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
+        } else {
+          debugPrint('  ✗ No MQTT data found, using API values');
         }
 
         String voltageR, voltageY, voltageB;

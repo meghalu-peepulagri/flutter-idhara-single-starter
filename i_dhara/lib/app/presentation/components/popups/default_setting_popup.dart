@@ -67,33 +67,50 @@ Future<bool?> showDeviceSettingConfirmDialog(
 
               // Buttons
               Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 spacing: 10,
                 children: [
-                  Expanded(
-                      child: FFButtonWidget(
-                          showLoadingIndicator: true,
-                          text: noText,
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          options: FFButtonOptions(
-                            textStyle: const TextStyle(color: Colors.red),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            color: Colors.red.withOpacity(0.15),
-                            elevation: 0,
-                            borderRadius: BorderRadius.circular(8),
-                          ))),
+                  FFButtonWidget(
+                      showLoadingIndicator: true,
+                      text: noText,
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      options: FFButtonOptions(
+                        textStyle: const TextStyle(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        color: Colors.red.withOpacity(0.15),
+                        elevation: 0,
+                        borderRadius: BorderRadius.circular(8),
+                      )),
                   // YES Button
-                  Expanded(
-                      child: FFButtonWidget(
-                          showLoadingIndicator: true,
-                          text: yesText,
-                          onPressed: onConfirm,
-                          options: FFButtonOptions(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ))),
+                  Container(
+                    width: 65,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF004E7E),
+                          Color(0xFF3686AF),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: FFButtonWidget(
+                      showLoadingIndicator: true,
+                      text: yesText,
+                      onPressed: onConfirm,
+                      options: FFButtonOptions(
+                        // padding: const EdgeInsets.symmetric(
+                        //     horizontal: 20, vertical: 12),
+                        color: Colors.transparent,
+                        elevation: 0,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
                 ],
               )
             ],
