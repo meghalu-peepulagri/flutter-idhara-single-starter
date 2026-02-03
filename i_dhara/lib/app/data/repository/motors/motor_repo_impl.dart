@@ -90,8 +90,12 @@ class MotorsRepositoryImpl implements MotorsRepository {
   }
 
   @override
-  Future<TemperatureResponse?> getmotorTemperature() async {
-    final response = await NetworkManager().get('/starters/364/temperature');
+  Future<TemperatureResponse?> getmotorTemperature(String fromDate,String toDate ) async {
+      Map<String, dynamic> queryParams = {
+      'from_date': fromDate,
+      'to_date': toDate,
+    };
+    final response = await NetworkManager().get('/starters/364/temperature', queryParameters: queryParams);
     if (response.statusCode == 200) {
       final res = TemperatureResponse.fromJson(response.data);
       return res;

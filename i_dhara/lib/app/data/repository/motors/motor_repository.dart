@@ -12,5 +12,6 @@ abstract class MotorsRepository {
   Future<FaultsResponse?> getMotorFaults(int? page, int? limit);
   Future<MotorAlertsResponse?> getMotorAlerts(int? page, int? limit);
   Future<MotorLogsResponse?> getMotorLogs(int? page, int? limit, String action);
-  Future<TemperatureResponse?> getmotorTemperature();
+  Future<TemperatureResponse?> getmotorTemperature(
+      String fromDate, String toDate);
 }

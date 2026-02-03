@@ -26,6 +26,7 @@ extension AnalyticsControllerApi on AnalyticsController {
       clearAllData();
       try {
         await fetchRuntime(daterange);
+        await fetchMotorTemperature(daterange);
       } catch (e) {
         if (kDebugMode) print('Error in leftClick: $e');
       }
@@ -36,15 +37,12 @@ extension AnalyticsControllerApi on AnalyticsController {
     final today =
         DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     if (daterange.isEmpty || daterange.last == null) return;
-
     final nextEndDate = daterange.last!.add(const Duration(days: 1));
     final nextEndDateNormalized =
         DateTime(nextEndDate.year, nextEndDate.month, nextEndDate.day);
-
     if (nextEndDateNormalized.isAfter(today)) {
       return;
     }
-
     if (daterange.isNotEmpty &&
         daterange.first != null &&
         daterange.last != null) {
@@ -55,6 +53,7 @@ extension AnalyticsControllerApi on AnalyticsController {
       clearAllData();
       try {
         await fetchRuntime(daterange);
+        await fetchMotorTemperature(daterange);
       } catch (e) {
         if (kDebugMode) print('Error in rightClick: $e');
       }
@@ -91,7 +90,7 @@ extension AnalyticsControllerApi on AnalyticsController {
 
     try {
       await fetchRuntime(daterange);
-      await fetchMotorTemperature();
+      await fetchMotorTemperature(daterange);
     } catch (e) {
       if (kDebugMode) print('Error in fetchallApis: $e');
     }
@@ -110,7 +109,7 @@ extension AnalyticsControllerApi on AnalyticsController {
 
       if (selectedTabIndex.value == 1) {
         futures.add(fetchRuntime(daterange));
-        futures.add(fetchMotorTemperature());
+        futures.add(fetchMotorTemperature(daterange));
       }
 
       if (selectedTabIndex.value == 2) {
@@ -383,28 +382,28 @@ extension AnalyticsControllerApi on AnalyticsController {
     return segments;
   }
 
-  Future<void> fetchMotorTemperature() async {
+  Future<void> fetchMotorTemperature(List<DateTime?> dateRange) async {
     if (!isRefreshing.value) {
-      isLoadingtemperature = true.obs;
+      isLoadingtemperature.value = true;
     }
-    print("line 390 $isLoadingtemperature refresh $isRefreshing");
     try {
-      final response = await MotorsRepositoryImpl().getmotorTemperature();
+      final response = await MotorsRepositoryImpl().getmotorTemperature(
+        DateFormat('yyyy-MM-dd').format(dateRange.first!),
+        DateFormat('yyyy-MM-dd').format(dateRange.last!),
+      );
       if (response?.status == 200 || response?.status == 201) {
-        temperatureData.value = response!.data!;
-        temperaturePoints.addAll(temperatureData.map((e) {
+        temperatureData.assignAll(response!.data!);
+        temperaturePoints.assignAll(temperatureData.map((e) {
           return TemperatureDataPoint(
-              DateFormat('HH').format(e.timeStamp!), e.temperature!.toDouble());
+              DateFormat('hh:mm').format(e.timeStamp!.toLocal()),
+              e.temperature!.toDouble());
         }));
       }
     } catch (e) {
-      print("error $e");
-      isLoadingtemperature = false.obs;
+      isLoadingtemperature.value = false;
     } finally {
-      isLoadingtemperature = false.obs;
+      isLoadingtemperature.value = false;
     }
-
-    print("line 406 $isLoadingtemperature refresh $isRefreshing");
   }
 }
 

@@ -136,7 +136,7 @@ class AnalyticsController extends GetxController {
       resetDateToToday();
       clearAllData();
       fetchRuntime(daterange);
-      fetchMotorTemperature();
+      fetchMotorTemperature(daterange);
     }
     selectedTabIndex.value = newIndex;
   }
