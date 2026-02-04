@@ -10,6 +10,32 @@
 -dontwarn org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider
 -keep class org.xmlpull.v1.** { *; }
 
+# Flutter
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+
+# Firebase
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
+# Firebase Messaging
+-keep class com.google.firebase.messaging.** { *; }
+
+# MQTT
+-keep class org.eclipse.paho.** { *; }
+-dontwarn org.eclipse.paho.**
+
+# Kotlin
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
+
+# Play Core (referenced by Flutter deferred components but not used)
+-dontwarn com.google.android.play.core.**
+
 
 
 
