@@ -18,6 +18,7 @@ class MotorControlsRow extends StatelessWidget {
   final VoidCallback? onNavigateToDetails;
   final VoidCallback? onTestRunTap;
   final bool showTestRun;
+  final bool isTestRunRequired;
 
   const MotorControlsRow({
     super.key,
@@ -32,6 +33,7 @@ class MotorControlsRow extends StatelessWidget {
     this.onNavigateToDetails,
     this.onTestRunTap,
     this.showTestRun = false,
+    this.isTestRunRequired = false,
   });
 
   @override
@@ -48,7 +50,10 @@ class MotorControlsRow extends StatelessWidget {
               children: [
                 Builder(
                   builder: (context) {
-                    final mode = motor.mode?.toLowerCase() ?? 'manual';
+                    // Block mode display if test run is required
+                    final mode = isTestRunRequired
+                        ? 'auto'
+                        : (motor.mode?.toLowerCase() ?? 'manual');
                     final isAuto = mode == 'auto';
 
                     final String modeText = mode.replaceFirstMapped(
@@ -58,9 +63,12 @@ class MotorControlsRow extends StatelessWidget {
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: isAuto
-                            ? const Color(0xFFFFA500).withOpacity(0.8)
-                            : const Color(0xFF2F80ED).withOpacity(0.8),
+                        color: isTestRunRequired
+                            ? const Color(0xFF9CA3AF)
+                            : (isAuto
+                                ? const Color(0xFFFFA500).withValues(alpha: 0.8)
+                                : const Color(0xFF2F80ED)
+                                    .withValues(alpha: 0.8)),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -68,18 +76,6 @@ class MotorControlsRow extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Text(
-                          //   mode.substring(0, 1).toUpperCase(),
-                          //   style:
-                          //       FlutterFlowTheme.of(context).bodyMedium.override(
-                          //             font: GoogleFonts.dmSans(
-                          //               fontWeight: FontWeight.w600,
-                          //             ),
-                          //             color: Colors.white,
-                          //             fontSize: 12.0,
-                          //           ),
-                          // ),
-
                           Text(
                             modeText,
                             style: FlutterFlowTheme.of(context)
@@ -114,6 +110,8 @@ class MotorControlsRow extends StatelessWidget {
               return ValueListenableBuilder(
                 valueListenable: switchController,
                 builder: (context, isOn, child) {
+                  // Block switch state if test run is required
+                  final displayState = isTestRunRequired ? false : isOn;
                   return GestureDetector(
                     onTap: showTestRun
                         ? onTestRunTap
@@ -129,11 +127,13 @@ class MotorControlsRow extends StatelessWidget {
                     child: AbsorbPointer(
                       absorbing: true,
                       child: Opacity(
-                        opacity: !isSwitchDisabled ? 1.0 : 0.4,
+                        opacity: (!isSwitchDisabled && !isTestRunRequired)
+                            ? 1.0
+                            : 0.4,
                         child: AdvancedSwitch(
-                          key: ValueKey('switch_${motor.id}_$isOn'),
+                          key: ValueKey('switch_${motor.id}_$displayState'),
                           controller: switchController,
-                          initialValue: isOn,
+                          initialValue: displayState,
                           activeColor: Colors.green,
                           inactiveColor: Colors.red.shade500,
                           activeChild: const Text(
@@ -156,7 +156,7 @@ class MotorControlsRow extends StatelessWidget {
                               const BorderRadius.all(Radius.circular(15)),
                           width: 55,
                           height: 25,
-                          enabled: !isSwitchDisabled,
+                          enabled: !isSwitchDisabled && !isTestRunRequired,
                           disabledOpacity: 0.9,
                         ),
                       ),

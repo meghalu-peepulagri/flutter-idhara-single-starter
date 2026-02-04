@@ -23,9 +23,22 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   Timer? countdownTimer;
   int remainingSeconds = 0;
   int selectedTimeoutMinutes = 3;
+  bool isTestRunning = false;
 
   final ValueNotifier<int> countdownNotifier = ValueNotifier(0);
   bool isDialogOpen = false;
+
+  /// Check if data should be blocked (test run not started and not completed)
+  bool get isTestRunRequired {
+    final motorId = motor.id;
+    if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
+      return false; // Test run completed, show data
+    }
+    if (isTestRunning) {
+      return false; // Test run in progress, show data
+    }
+    return true; // Block data until test run starts
+  }
 
   late ValueNotifier<bool> localSwitchController;
   late ValueNotifier<int> localModeController;
@@ -203,6 +216,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     setState(() {
       isFailed = false;
       failureMessage = '';
+      isTestRunning = true;
     });
 
     testStartTime = DateTime.now();
@@ -234,6 +248,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       setState(() {
         isFailed = true;
         failureMessage = 'Failed to send command';
+        isTestRunning = false;
       });
       mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
     }
@@ -351,6 +366,9 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
     closeLoadingDialog();
+    setState(() {
+      isTestRunning = false;
+    });
   }
 
   void closeLoadingDialog() {
@@ -427,6 +445,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
     setState(() {
       isFailed = true;
+      isTestRunning = false;
       failureMessage =
           'No response received after $selectedTimeoutMinutes min. Please check device connection.';
     });

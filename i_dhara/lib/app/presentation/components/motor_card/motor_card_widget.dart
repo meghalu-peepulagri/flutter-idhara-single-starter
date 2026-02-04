@@ -303,33 +303,13 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _navigateToTestRunScreen();
   }
 
-  /// Check if this is a new device that hasn't received ACK yet
+  /// Check if test run is required (not completed yet)
   bool _isNewDeviceWithoutAck(MotorData? motorData) {
-    // Check if motor has completed test run (persisted in SharedPreferences)
     final motorId = widget.motor.id;
     if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
-      return false; // Test run completed, hide the button
+      return false; // Test run completed, allow control
     }
-
-    // Check if motor has received MQTT data
-    if (motorData != null && motorData.hasReceivedData) {
-      return false; // Has MQTT data, not a new device
-    }
-
-    // Check if motor has existing API data (starterParameters)
-    final starterParams = widget.motor.starter?.starterParameters;
-    if (starterParams != null && starterParams.isNotEmpty) {
-      return false; // Has API data, not a new device
-    }
-
-    // Check if motor has signal quality from API (indicates previous communication)
-    final signalQuality = widget.motor.starter?.signalQuality;
-    if (signalQuality != null && signalQuality > 0) {
-      return false; // Has signal data, not a new device
-    }
-
-    // This is a new device without any ACK data
-    return true;
+    return true; // Test run not completed, block control
   }
 
   /// Determine if Test Run button should be enabled
@@ -403,8 +383,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         }
 
         final isManualMode = _localModeController.value == 0;
+        final isTestRunBlocked = _isNewDeviceWithoutAck(motorData);
         final isSwitchDisabled =
-            _isWaitingForSwitchAck || !(canControl && isManualMode);
+            isTestRunBlocked || _isWaitingForSwitchAck || !(canControl && isManualMode);
 
         return Container(
           decoration: BoxDecoration(
@@ -423,6 +404,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   onTestRun: _navigateToTestRun,
                   isTestRunEnabled: _shouldShowTestRun(motorData),
                   showTestRun: _isNewDeviceWithoutAck(motorData),
+                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                 ),
                 const Divider(
                     height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
@@ -438,6 +420,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       child: VoltageCurrentValuesCard(
                         motor: widget.motor,
                         mqttService: widget.mqttService,
+                        isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                       ),
                     ),
                   ),
@@ -454,14 +437,13 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     //  logic
                   },
                   isSwitchDisabled: isSwitchDisabled,
-                  // isSwitchDisabled: _isWaitingForSwitchAck ||
-                  //     !(canControl && _localModeController.value == 0),
-                  isModeDisabled: _isWaitingForModeAck || !canChangeMode,
+                  isModeDisabled: isTestRunBlocked || _isWaitingForModeAck || !canChangeMode,
                   onNavigateToDetails: _isNewDeviceWithoutAck(motorData)
                       ? _navigateToTestRun
                       : _navigateToDetails,
                   onTestRunTap: _navigateToTestRun,
                   showTestRun: _isNewDeviceWithoutAck(motorData),
+                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),

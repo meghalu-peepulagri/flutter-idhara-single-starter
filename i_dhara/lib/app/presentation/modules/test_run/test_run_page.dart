@@ -93,6 +93,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
               child: VoltageCurrentValuesCard(
                 motor: motor,
                 mqttService: mqttService,
+                isTestRunRequired: isTestRunRequired,
               ),
             ),
             const Divider(height: 2, thickness: 1.0, color: Color(0xFFECECEC)),
@@ -107,6 +108,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
               isModeDisabled: true,
               onNavigateToDetails: () {},
               showTestRun: false,
+              isTestRunRequired: isTestRunRequired,
             ),
           ].divide(const SizedBox(height: 4.0)),
         ),
@@ -159,7 +161,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
               _buildPowerIcon(),
               const SizedBox(width: 8.0),
               _buildSignalIcon(motorData),
-              if (faultValue > 0) ...[
+              if (faultValue > 0 && !isTestRunRequired) ...[
                 const SizedBox(width: 8.0),
                 _buildFaultIndicator(),
               ],
@@ -183,7 +185,11 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
     return ClipRRect(
       borderRadius: BorderRadius.circular(0.0),
       child: SvgPicture.asset(
-        isPowerOn ? 'assets/images/power.svg' : 'assets/images/Power_red.svg',
+        isTestRunRequired
+            ? 'assets/images/Power_red.svg'
+            : (isPowerOn
+                ? 'assets/images/power.svg'
+                : 'assets/images/Power_red.svg'),
         width: 17,
         height: 17,
         fit: BoxFit.cover,
@@ -192,7 +198,8 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
   }
 
   Widget _buildSignalIcon(MotorData? motorData) {
-    int bars = getSignalBars(motorData);
+    // Block signal display if test run is required
+    int bars = isTestRunRequired ? 0 : getSignalBars(motorData);
     String assetPath;
     double iconWidth = 16;
     double iconHeight = 16;
@@ -311,7 +318,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         // Cancel button (left)
         Expanded(
           child: SizedBox(
-            height: 50,
+            height: 45,
             child: OutlinedButton(
               onPressed: goBack,
               style: OutlinedButton.styleFrom(
@@ -337,7 +344,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         const SizedBox(width: 12),
         Expanded(
           child: Container(
-            height: 50,
+            height: 45,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF004E7E), Color(0xFF3686AF)],

@@ -13,6 +13,7 @@ class MotorHeader extends StatelessWidget {
   final VoidCallback? onTestRun;
   final bool isTestRunEnabled;
   final bool showTestRun;
+  final bool isTestRunRequired;
 
   const MotorHeader({
     super.key,
@@ -22,6 +23,7 @@ class MotorHeader extends StatelessWidget {
     this.onTestRun,
     this.isTestRunEnabled = true,
     this.showTestRun = false,
+    this.isTestRunRequired = false,
   });
 
   bool get _isPowerOn {
@@ -132,17 +134,23 @@ class MotorHeader extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(0.0),
                       child: SvgPicture.asset(
-                        _isPowerOn
-                            ? 'assets/images/power.svg'
-                            : 'assets/images/Power_red.svg',
+                        isTestRunRequired
+                            ? 'assets/images/Power_red.svg'
+                            : (_isPowerOn
+                                ? 'assets/images/power.svg'
+                                : 'assets/images/Power_red.svg'),
                         width: 17,
                         height: 17,
                         fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(width: 8.0),
-                    _SignalIcon(motor: motor, motorData: motorData),
-                    if (_faultValue > 0) ...[
+                    _SignalIcon(
+                      motor: motor,
+                      motorData: motorData,
+                      isTestRunRequired: isTestRunRequired,
+                    ),
+                    if (_faultValue > 0 && !isTestRunRequired) ...[
                       const SizedBox(width: 8.0),
                       Container(
                         decoration: BoxDecoration(
@@ -184,13 +192,22 @@ class MotorHeader extends StatelessWidget {
 class _SignalIcon extends StatelessWidget {
   final Motor motor;
   final MotorData? motorData;
+  final bool isTestRunRequired;
 
-  const _SignalIcon({required this.motor, required this.motorData});
+  const _SignalIcon({
+    required this.motor,
+    required this.motorData,
+    this.isTestRunRequired = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     int bars = 0;
-    if (motorData != null &&
+
+    // Block signal display if test run is required
+    if (isTestRunRequired) {
+      bars = 0;
+    } else if (motorData != null &&
         motorData!.hasReceivedData &&
         !motorData!.isSignalStale()) {
       bars = motorData!.signalBars;
