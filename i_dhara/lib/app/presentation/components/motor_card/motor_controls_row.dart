@@ -48,18 +48,13 @@ class MotorControlsRow extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.max,
               children: [
-                Builder(
-                  builder: (context) {
-                    // Block mode display if test run is required
-                    final mode = isTestRunRequired
-                        ? 'auto'
-                        : (motor.mode?.toLowerCase() ?? 'manual');
-                    final isAuto = mode == 'auto';
-
-                    final String modeText = mode.replaceFirstMapped(
-                      RegExp(r'^[a-z]'),
-                      (m) => m.group(0)!.toUpperCase(),
-                    );
+                ValueListenableBuilder<int>(
+                  valueListenable: modeController,
+                  builder: (context, modeIndex, _) {
+                    // Use modeController value (synced with MQTT/API)
+                    // modeIndex: 0 = Manual, 1 = Auto
+                    final isAuto = modeIndex == 1;
+                    final String modeText = isAuto ? 'Auto' : 'Manual';
 
                     return Container(
                       decoration: BoxDecoration(

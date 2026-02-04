@@ -303,13 +303,27 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _navigateToTestRunScreen();
   }
 
-  /// Check if test run is required (not completed yet)
   bool _isNewDeviceWithoutAck(MotorData? motorData) {
     final motorId = widget.motor.id;
+
+    // Check if test run was completed locally
     if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
       return false; // Test run completed, allow control
     }
-    return true; // Test run not completed, block control
+
+    // Check if device has existing ACK data from API (starterParameters)
+    final starterParams = widget.motor.starter?.starterParameters;
+    if (starterParams != null && starterParams.isNotEmpty) {
+      // Device has previous ACK data from API, not a new device
+      return false;
+    }
+
+    // Check if device has MQTT data
+    if (motorData != null && motorData.hasReceivedData) {
+      return false; // Has MQTT data, not a new device
+    }
+
+    return true; // Truly new device without any prior data
   }
 
   /// Determine if Test Run button should be enabled
@@ -384,8 +398,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
         final isManualMode = _localModeController.value == 0;
         final isTestRunBlocked = _isNewDeviceWithoutAck(motorData);
-        final isSwitchDisabled =
-            isTestRunBlocked || _isWaitingForSwitchAck || !(canControl && isManualMode);
+        final isSwitchDisabled = isTestRunBlocked ||
+            _isWaitingForSwitchAck ||
+            !(canControl && isManualMode);
 
         return Container(
           decoration: BoxDecoration(
@@ -437,7 +452,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     //  logic
                   },
                   isSwitchDisabled: isSwitchDisabled,
-                  isModeDisabled: isTestRunBlocked || _isWaitingForModeAck || !canChangeMode,
+                  isModeDisabled: isTestRunBlocked ||
+                      _isWaitingForModeAck ||
+                      !canChangeMode,
                   onNavigateToDetails: _isNewDeviceWithoutAck(motorData)
                       ? _navigateToTestRun
                       : _navigateToDetails,

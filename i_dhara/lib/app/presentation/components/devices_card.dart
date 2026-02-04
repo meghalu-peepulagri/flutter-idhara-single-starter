@@ -75,6 +75,10 @@ class DevicesCard extends StatelessWidget {
             Navigator.pop(context);
             _showDeleteDialog(context);
           },
+          onTestRun: () {
+            Navigator.pop(context);
+            Get.toNamed(Routes.addDevices);
+          },
         );
       },
     );
