@@ -5,7 +5,14 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 
 class TemperaturePopup extends StatelessWidget {
-  const TemperaturePopup({super.key});
+  final dynamic Function() onSaved;
+  final String oldVal;
+  final String newVal;
+  const TemperaturePopup(
+      {super.key,
+      required this.onSaved,
+      required this.oldVal,
+      required this.newVal});
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +139,7 @@ class TemperaturePopup extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Column(
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.start,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +154,7 @@ class TemperaturePopup extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   spacing: 71,
                                   children: [
-                                    Text(
+                                    const Text(
                                       'Max Threshold',
                                       style: TextStyle(
                                         color: Color(0xFFF97316),
@@ -166,8 +173,8 @@ class TemperaturePopup extends StatelessWidget {
                                       spacing: 5,
                                       children: [
                                         Text(
-                                          '150°c',
-                                          style: TextStyle(
+                                          '$oldVal°c',
+                                          style: const TextStyle(
                                             color: Color(0xFF90A1B8),
                                             fontSize: 14,
                                             fontFamily: 'DM Sans',
@@ -175,7 +182,7 @@ class TemperaturePopup extends StatelessWidget {
                                             height: 1,
                                           ),
                                         ),
-                                        Text(
+                                        const Text(
                                           '→',
                                           style: TextStyle(
                                             color: Color(0xFFCAD5E2),
@@ -186,8 +193,8 @@ class TemperaturePopup extends StatelessWidget {
                                           ),
                                         ),
                                         Text(
-                                          '75°c',
-                                          style: TextStyle(
+                                          '$newVal°c',
+                                          style: const TextStyle(
                                             color: Color(0xFF314157),
                                             fontSize: 14,
                                             fontFamily: 'DM Sans',
@@ -232,33 +239,38 @@ class TemperaturePopup extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 spacing: 24,
                 children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 8),
-                      decoration: ShapeDecoration(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          side: const BorderSide(width: 1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        spacing: 10,
-                        children: [
-                          Text(
-                            'Cancel',
-                            style: TextStyle(
-                              color: Color(0xFF828282),
-                              fontSize: 16,
-                              fontFamily: 'DM Sans',
-                              fontWeight: FontWeight.w500,
-                            ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    child: Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 8),
+                        decoration: ShapeDecoration(
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            side: const BorderSide(width: 1),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          spacing: 10,
+                          children: [
+                            Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Color(0xFF828282),
+                                fontSize: 16,
+                                fontFamily: 'DM Sans',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -267,6 +279,7 @@ class TemperaturePopup extends StatelessWidget {
                       showLoadingIndicator: true,
                       onPressed: () {
                         Navigator.pop(context);
+                        onSaved();
                       },
                       text: 'Save',
                       options: FFButtonOptions(

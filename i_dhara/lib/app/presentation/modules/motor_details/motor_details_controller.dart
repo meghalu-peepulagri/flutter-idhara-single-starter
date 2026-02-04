@@ -61,6 +61,8 @@ class AnalyticsController extends GetxController {
   var faultMessage = ''.obs;
   var motortotalRuntime = ''.obs;
   var powerTotalRuntime = ''.obs;
+  var pcbNumber = ''.obs;
+  var macAddress = ''.obs;
 
   // --- Helpers / Controllers ---
   TextEditingController controller = TextEditingController();
@@ -90,6 +92,9 @@ class AnalyticsController extends GetxController {
   var signalQuality = 0.obs;
   final bool _isUsingExistingMqttInstance = false;
   StreamSubscription? _mqttUpdateSubscription;
+
+  final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
+
 
   @override
   void onInit() {
@@ -162,4 +167,7 @@ class AnalyticsController extends GetxController {
     controller.dispose();
     super.onClose();
   }
+
+
+  
 }

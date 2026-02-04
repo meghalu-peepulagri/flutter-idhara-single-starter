@@ -110,7 +110,6 @@ void showThresholdBottomSheet(
                     min: 0,
                     max: 150,
                     onChanged: (v) {
-                      print("line 113 $v");
                       setState(() => value = v);
                     },
                   ),
@@ -119,205 +118,214 @@ void showThresholdBottomSheet(
                 const SizedBox(height: 20),
 
                 /// Buttons
-                Container(
-                  padding: const EdgeInsets.only(
-                    top: 12,
-                    left: 16,
-                    right: 16,
-                    bottom: 16,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  decoration: const ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(8),
-                        topRight: Radius.circular(8),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  child: Container(
+                    padding: const EdgeInsets.only(
+                      top: 12,
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
                     ),
-                    shadows: [
-                      BoxShadow(
-                        color: Color(0x1E000000),
-                        blurRadius: 6,
-                        offset: Offset(0, -1),
-                        spreadRadius: 0,
-                      )
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 10,
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          spacing: 16,
-                          children: [
-                            Expanded(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                spacing: 12,
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 14),
-                                        decoration: ShapeDecoration(
-                                          shape: RoundedRectangleBorder(
-                                            side: BorderSide(
-                                              width: 1,
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.10),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: const ShapeDecoration(
+                      color: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      shadows: [
+                        BoxShadow(
+                          color: Color(0x1E000000),
+                          blurRadius: 6,
+                          offset: Offset(0, -1),
+                          spreadRadius: 0,
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 10,
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 16,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  spacing: 12,
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 14),
+                                          decoration: ShapeDecoration(
+                                            shape: RoundedRectangleBorder(
+                                              side: BorderSide(
+                                                width: 1,
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.10),
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
                                             ),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
                                           ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          spacing: 12,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.start,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              spacing: 4,
-                                              children: [
-                                                Container(
-                                                  width: 16,
-                                                  height: 16,
-                                                  clipBehavior: Clip.antiAlias,
-                                                  decoration:
-                                                      const BoxDecoration(),
-                                                  child: const Stack(),
-                                                ),
-                                                const Text(
-                                                  'Cancel',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    color: Colors.black,
-                                                    fontSize: 16,
-                                                    fontFamily: 'DM Sans',
-                                                    fontWeight: FontWeight.w500,
-                                                    height: 1,
-                                                    letterSpacing: -0.41,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            spacing: 12,
+                                            children: [
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                spacing: 4,
+                                                children: [
+                                                  Container(
+                                                    width: 16,
+                                                    height: 16,
+                                                    clipBehavior:
+                                                        Clip.antiAlias,
+                                                    decoration:
+                                                        const BoxDecoration(),
+                                                    child: const Stack(),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
+                                                  const Text(
+                                                    'Cancel',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: Colors.black,
+                                                      fontSize: 16,
+                                                      fontFamily: 'DM Sans',
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      height: 1,
+                                                      letterSpacing: -0.41,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  Expanded(
-                                    child: FFButtonWidget(
-                                      showLoadingIndicator: true,
-                                      onPressed: () {
-                                        onSaved!(value);
-                                      },
-                                      text: 'Save',
-                                      options: FFButtonOptions(
-                                        height: 40,
-                                        padding: const EdgeInsetsDirectional
-                                            .fromSTEB(16, 0, 16, 0),
-                                        iconPadding: const EdgeInsetsDirectional
-                                            .fromSTEB(0, 0, 0, 0),
-                                        color: const Color(0xFF004E7E),
-                                        textStyle: FlutterFlowTheme.of(context)
-                                            .titleSmall
-                                            .override(
-                                              font: GoogleFonts.duruSans(
+                                    Expanded(
+                                      child: FFButtonWidget(
+                                        showLoadingIndicator: true,
+                                        onPressed: () {
+                                          onSaved!(value);
+                                        },
+                                        text: 'Save',
+                                        options: FFButtonOptions(
+                                          height: 40,
+                                          padding: const EdgeInsetsDirectional
+                                              .fromSTEB(16, 0, 16, 0),
+                                          iconPadding:
+                                              const EdgeInsetsDirectional
+                                                  .fromSTEB(0, 0, 0, 0),
+                                          color: const Color(0xFF004E7E),
+                                          textStyle: FlutterFlowTheme.of(
+                                                  context)
+                                              .titleSmall
+                                              .override(
+                                                font: GoogleFonts.duruSans(
+                                                  fontWeight: FontWeight.w500,
+                                                  fontStyle:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .titleSmall
+                                                          .fontStyle,
+                                                ),
+                                                color: Colors.white,
+                                                letterSpacing: 0.0,
                                                 fontWeight: FontWeight.w500,
                                                 fontStyle:
                                                     FlutterFlowTheme.of(context)
                                                         .titleSmall
                                                         .fontStyle,
                                               ),
-                                              color: Colors.white,
-                                              letterSpacing: 0.0,
-                                              fontWeight: FontWeight.w500,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleSmall
-                                                      .fontStyle,
-                                            ),
-                                        elevation: 0,
-                                        borderRadius: BorderRadius.circular(12),
+                                          elevation: 0,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
                                       ),
+                                      // child: Container(
+                                      //   padding: const EdgeInsets.symmetric(
+                                      //       horizontal: 24, vertical: 14),
+                                      //   decoration: ShapeDecoration(
+                                      //     gradient: const LinearGradient(
+                                      //       begin: Alignment(1.13, 0.40),
+                                      //       end: Alignment(-2.66, 3.01),
+                                      //       colors: [
+                                      //         Color(0xFF3686AE),
+                                      //         Color(0xFF004E7E)
+                                      //       ],
+                                      //     ),
+                                      //     shape: RoundedRectangleBorder(
+                                      //       borderRadius:
+                                      //           BorderRadius.circular(12),
+                                      //     ),
+                                      //   ),
+                                      //   child: Row(
+                                      //     mainAxisSize: MainAxisSize.min,
+                                      //     mainAxisAlignment:
+                                      //         MainAxisAlignment.center,
+                                      //     crossAxisAlignment:
+                                      //         CrossAxisAlignment.center,
+                                      //     spacing: 4,
+                                      //     children: [
+                                      //       Container(
+                                      //         width: 16,
+                                      //         height: 16,
+                                      //         clipBehavior: Clip.antiAlias,
+                                      //         decoration: const BoxDecoration(),
+                                      //         child: const Stack(),
+                                      //       ),
+                                      //       const Text(
+                                      //         'Save Changes',
+                                      //         textAlign: TextAlign.center,
+                                      //         style: TextStyle(
+                                      //           color: Colors.white,
+                                      //           fontSize: 16,
+                                      //           fontFamily: 'DM Sans',
+                                      //           fontWeight: FontWeight.w500,
+                                      //           height: 1,
+                                      //           letterSpacing: -0.41,
+                                      //         ),
+                                      //       ),
+                                      //     ],
+                                      //   ),
+                                      // ),
                                     ),
-                                    // child: Container(
-                                    //   padding: const EdgeInsets.symmetric(
-                                    //       horizontal: 24, vertical: 14),
-                                    //   decoration: ShapeDecoration(
-                                    //     gradient: const LinearGradient(
-                                    //       begin: Alignment(1.13, 0.40),
-                                    //       end: Alignment(-2.66, 3.01),
-                                    //       colors: [
-                                    //         Color(0xFF3686AE),
-                                    //         Color(0xFF004E7E)
-                                    //       ],
-                                    //     ),
-                                    //     shape: RoundedRectangleBorder(
-                                    //       borderRadius:
-                                    //           BorderRadius.circular(12),
-                                    //     ),
-                                    //   ),
-                                    //   child: Row(
-                                    //     mainAxisSize: MainAxisSize.min,
-                                    //     mainAxisAlignment:
-                                    //         MainAxisAlignment.center,
-                                    //     crossAxisAlignment:
-                                    //         CrossAxisAlignment.center,
-                                    //     spacing: 4,
-                                    //     children: [
-                                    //       Container(
-                                    //         width: 16,
-                                    //         height: 16,
-                                    //         clipBehavior: Clip.antiAlias,
-                                    //         decoration: const BoxDecoration(),
-                                    //         child: const Stack(),
-                                    //       ),
-                                    //       const Text(
-                                    //         'Save Changes',
-                                    //         textAlign: TextAlign.center,
-                                    //         style: TextStyle(
-                                    //           color: Colors.white,
-                                    //           fontSize: 16,
-                                    //           fontFamily: 'DM Sans',
-                                    //           fontWeight: FontWeight.w500,
-                                    //           height: 1,
-                                    //           letterSpacing: -0.41,
-                                    //         ),
-                                    //       ),
-                                    //     ],
-                                    //   ),
-                                    // ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],

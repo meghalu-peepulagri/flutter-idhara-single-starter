@@ -271,6 +271,32 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  Future<void> publishMotorTemperature(
+      String pcb, Map<String, dynamic> payload) async {
+    if (_mqttClient == null || !isConnected) {
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      return;
+    }
+    final seq = _random.nextInt(251);
+
+    try {
+      await _publishMotorTemperatureInternal(
+        payload,
+        pcb,
+        sequenceNumber: seq,
+      );
+      statusMessage = 'Device Temperature command sent successfully';
+      _registerPendingCommand('', 50, payload, seq, pcbnumber: pcb);
+    } catch (e) {
+      statusMessage = 'Failed to publish Motor Temperature command: $e';
+      // _lastCommandTimes.remove();
+      _dataUpdateNotifier.value++;
+      rethrow;
+    }
+    _dataUpdateNotifier.value++;
+  }
+
   Future<void> publishUpdateSettings(
       String pcb, Map<String, dynamic> payload) async {
     if (_mqttClient == null || !isConnected) {
@@ -295,6 +321,27 @@ class MqttService {
       rethrow;
     }
     _dataUpdateNotifier.value++;
+  }
+
+  Future<void> _publishMotorTemperatureInternal(
+      dynamic commandData, String pcbnumber,
+      {int? sequenceNumber, bool isRetry = false}) async {
+    if (_mqttClient == null || !isConnected) {
+      throw Exception('MQTT not connected');
+    }
+    final topic = 'peepul/$pcbnumber/cmd';
+
+    final seq = sequenceNumber ?? _random.nextInt(251);
+
+    final payload = {"T": 19, "S": seq, "D": commandData};
+
+    final message = jsonEncode(payload);
+    final builder = MqttClientPayloadBuilder();
+    builder.addString(message);
+    _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    if (!isRetry) {
+      debugPrint('✓ Published Temperature Command: $message');
+    }
   }
 
   Future<void> _publishDefaultSettingCommandInternal(
@@ -435,7 +482,8 @@ class MqttService {
     debugPrint('   Motors count: ${_motors.length}');
     debugPrint('   MotorDataMap count: ${_motorDataMap.length}');
     // Use Future.delayed to ensure listener is attached before subscribing
-    Future.delayed(const Duration(milliseconds: 500), () => _subscribeToAllTopics());
+    Future.delayed(
+        const Duration(milliseconds: 500), () => _subscribeToAllTopics());
     _dataUpdateNotifier.value++;
   }
 
@@ -471,7 +519,8 @@ class MqttService {
     statusMessage = 'Reconnected';
     debugPrint('✓ MQTT Auto-reconnected');
     // Use Future.delayed to ensure listener is attached before subscribing
-    Future.delayed(const Duration(milliseconds: 500), () => _subscribeToAllTopics());
+    Future.delayed(
+        const Duration(milliseconds: 500), () => _subscribeToAllTopics());
     _dataUpdateNotifier.value++;
   }
 
@@ -569,6 +618,9 @@ class MqttService {
             break;
           case 40:
             _handleHeartbeat(identifier, payloadData);
+            break;
+          case 50:
+            _handlemotorTemperature(identifier, payloadData);
             break;
           default:
             debugPrint('   Unknown message type: $type');
@@ -763,6 +815,26 @@ class MqttService {
     } else {
       debugPrint(
           '✓ Settings ACK received from $identifier: $type (No pending command)');
+    }
+
+    defaultSettingsController.add(map);
+  }
+
+  void _handlemotorTemperature(String identifier, dynamic payloadData) {
+    final type = payloadData as int;
+    final map = {"D": type, "topic": identifier};
+
+    // Clear pending settings command to stop retries immediately upon ACK
+    final command = _pendingCommands['_50'];
+    if (command != null) {
+      // Cancel the retry timer and remove the pending command
+      command.cancelTimer();
+      _clearPendingCommand('', 50);
+      debugPrint(
+          '✓ Temperature ACK received from $identifier: $type (Retries stopped)');
+    } else {
+      debugPrint(
+          '✓ Temperature ACK received from $identifier: $type (No pending command)');
     }
 
     defaultSettingsController.add(map);
@@ -965,6 +1037,13 @@ class MqttService {
             );
             debugPrint(
                 '🔄 Retry ${command.retryCount}: Settings (${command.pcbnumber})');
+          } else if (command.commandType == 50 && command.pcbnumber != null) {
+            await _publishMotorTemperatureInternal(
+              command.commandData,
+              command.pcbnumber!,
+              sequenceNumber: command.sequenceNumber,
+              isRetry: true,
+            );
           } else {
             // Motor control or mode change command
             await _publishCommand(

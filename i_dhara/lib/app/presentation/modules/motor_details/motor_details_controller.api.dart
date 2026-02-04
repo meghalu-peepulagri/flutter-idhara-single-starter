@@ -214,6 +214,8 @@ extension AnalyticsControllerApi on AnalyticsController {
       if (response != null && response.data != null) {
         motorDetails.value = response.data;
         final data = response.data!;
+        pcbNumber.value =
+            data.starter?.pcbNumber ?? data.starter!.macAddress.toString();
 
         motorName.value = (data.aliasName != null && data.aliasName!.isNotEmpty)
             ? data.aliasName!
@@ -405,6 +407,8 @@ extension AnalyticsControllerApi on AnalyticsController {
       isLoadingtemperature.value = false;
     }
   }
+
+  
 }
 
 class TimeSegment {

@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+import '../../../core/utils/snackbars/success_snackbar.dart';
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
 import '../bottomsheets/temperature_update_bottomsheet.dart';
+import '../popups/temperature_popup.dart';
 
 class MotorTemperatureWidget extends StatefulWidget {
   final List<DateTime?> selectedDateRange;
@@ -31,6 +35,9 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
   static const double _yAxisMin = 0;
   static const double _yAxisMax = 150;
   final GlobalKey _chartStackKey = GlobalKey();
+  late MqttService mqttService;
+  bool _ackInProgress = false;
+  bool isSnackbarShown = false;
 
   @override
   void initState() {
@@ -47,6 +54,35 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
       zoomMode: ZoomMode.x,
       enableDoubleTapZooming: true,
     );
+    mqttService = MqttService();
+    mqttConnection();
+
+    mqttService.settingstream.listen((data) async {
+      final type = data["D"];
+      final topic = data["topic"];
+      final pcbNumber = analyticsController.pcbNumber.value;
+      if (type == 1 && !_ackInProgress && (topic == pcbNumber)) {
+        isSnackbarShown = true;
+        _ackInProgress = true;
+        getsuccessSnackBar("Motor Temperature updated successfully");
+        await analyticsController
+            .fetchMotorTemperature(analyticsController.daterange);
+        await Future.delayed(const Duration(seconds: 5), () {
+          _ackInProgress = false;
+        });
+      }
+    });
+  }
+
+  mqttConnection() async {
+    await mqttService.initializeMqttClient();
+  }
+
+  Future<void> publishTempLimits(String val) async {
+    final doubleVal = double.parse(val);
+    Map<String, dynamic> payload = {"limit": doubleVal};
+    await mqttService.publishMotorTemperature(
+        analyticsController.pcbNumber.value, payload);
   }
 
   @override
@@ -120,48 +156,127 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                           ),
                         ]),
                         const SizedBox(width: 6),
-                        Row(
-                          spacing: 10,
-                          children: [
-                            SizedBox(
-                              height: 30,
-                              child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xffF2994A),
+                        _thresholdValue == 45.0
+                            ? Row(
+                                spacing: 10,
+                                children: [
+                                  SizedBox(
+                                    height: 30,
+                                    child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xffF2994A),
+                                        ),
+                                        onPressed: () {},
+                                        child: const Text(
+                                          'Default',
+                                          style: TextStyle(
+                                              fontFamily: 'DM Sans',
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 14,
+                                              height: 1.0,
+                                              letterSpacing: 0),
+                                        )),
                                   ),
-                                  onPressed: () {},
-                                  child: const Text(
-                                    'Default',
-                                    style: TextStyle(
-                                        fontFamily: 'DM Sans',
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                        height: 1.0,
-                                        letterSpacing: 0),
-                                  )),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                showThresholdBottomSheet(context, (val) {
-                                  print("line 146 $val");
-                                });
-                                // showDialog(
-                                //   context: context,
-                                //   barrierDismissible: false,
-                                //   builder: (BuildContext context) {
-                                //     return const TemperaturePopup();
-                                //   },
-                                // );
-                              },
-                              child: SizedBox(
-                                child: SvgPicture.asset(
-                                    width: 28,
-                                    height: 28,
-                                    'assets/images/edit_button2.svg'),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showThresholdBottomSheet(context,
+                                          (newval) {
+                                        Navigator.pop(context);
+                                        showDialog(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          builder: (BuildContext context) {
+                                            return TemperaturePopup(
+                                              newVal: newval.toStringAsFixed(2),
+                                              oldVal: analyticsController
+                                                  .temperaturePoints
+                                                  .last
+                                                  .temperature
+                                                  .toStringAsFixed(2),
+                                              onSaved: () async {
+                                                await publishTempLimits(
+                                                    newval.toStringAsFixed(2));
+                                              },
+                                            );
+                                          },
+                                        );
+                                      });
+                                    },
+                                    child: SizedBox(
+                                      child: SvgPicture.asset(
+                                          width: 28,
+                                          height: 28,
+                                          'assets/images/edit_button2.svg'),
+                                    ),
+                                  )
+                                ],
+                              )
+                            : Row(
+                                spacing: 10,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _thresholdValue = 45.0;
+                                      });
+                                    },
+                                    child: Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: const BoxDecoration(
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(5.5)),
+                                            color: Color(0xffF1F5F9)),
+                                        child: const Icon(
+                                          Icons.close_outlined,
+                                          color: Color(0xff62748E),
+                                        )),
+                                  ),
+                                  SizedBox(
+                                    height: 32,
+                                    child: FFButtonWidget(
+                                        icon: const Icon(
+                                          Icons.check,
+                                          size: 22,
+                                        ),
+                                        text: 'Save',
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (BuildContext context) {
+                                              return TemperaturePopup(
+                                                newVal: _thresholdValue
+                                                    .toStringAsFixed(2),
+                                                oldVal: analyticsController
+                                                    .temperaturePoints
+                                                    .last
+                                                    .temperature
+                                                    .toStringAsFixed(2),
+                                                onSaved: () async {
+                                                  await publishTempLimits(
+                                                      _thresholdValue
+                                                          .toStringAsFixed(2));
+                                                },
+                                              );
+                                            },
+                                          );
+                                        },
+                                        options: const FFButtonOptions(
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(5)),
+                                            textStyle: TextStyle(
+                                              fontFamily: 'DM Sans',
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.0,
+                                              letterSpacing: 0,
+                                            ),
+                                            color: Color(0xff00BC7D))),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        )
                       ],
                     ),
                   ),
@@ -262,7 +377,7 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                           ],
                                         ),
                                         series: <CartesianSeries>[
-                                          SplineSeries<TemperatureDataPoint,
+                                          SplineAreaSeries<TemperatureDataPoint,
                                               String>(
                                             dataSource: analyticsController
                                                 .temperaturePoints,
@@ -270,8 +385,17 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                                 data.hour,
                                             yValueMapper: (data, _) =>
                                                 data.temperature,
-                                            color: const Color(0xffF2994A),
-                                            width: 2.5,
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Color(0x80F2994A),
+                                                Color(0x00F2994A),
+                                              ],
+                                            ),
+                                            borderColor:
+                                                const Color(0xffF2994A),
+                                            borderWidth: 2.5,
                                             markerSettings:
                                                 const MarkerSettings(
                                               isVisible: true,
@@ -315,6 +439,11 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                             setState(() {
                                               _thresholdValue = newValue.clamp(
                                                   _yAxisMin, _yAxisMax);
+                                              double result = _thresholdValue
+                                                  .floorToDouble();
+                                              _thresholdValue = result;
+                                              print(
+                                                  "line 376 ------> $_thresholdValue");
                                             });
                                           },
                                           child: SizedBox(
@@ -346,7 +475,7 @@ class _MotorTemperatureWidgetState extends State<MotorTemperatureWidget> {
                                                             4),
                                                   ),
                                                   child: Text(
-                                                    '${_thresholdValue.toInt()}°C',
+                                                    'MAX ${_thresholdValue.toInt()}°C',
                                                     style: const TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 10,
