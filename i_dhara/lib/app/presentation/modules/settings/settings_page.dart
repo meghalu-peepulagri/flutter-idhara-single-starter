@@ -355,8 +355,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   _defaultSettingsPopUp(BuildContext context) async {
     showDeviceSettingConfirmDialog(
       context,
-      title: 'Confirm Default Settings',
-      message: 'Are you sure you want to fetch the default settings?',
+      title: 'Restore Default Settings',
+      message:
+          'Restore Voltage and Current faults to default settings? Custom changes will be lost',
+      svgPath: 'assets/images/default_settings.svg',
       onConfirm: () async {
         // Store original user settings BEFORE loading defaults
         _originalVoltageLow = controller.userSettings2.value?.lvf?.toInt();
@@ -596,7 +598,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             child: SingleChildScrollView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 12.0),
+                                  horizontal: 16.0, vertical: 4.0),
                               child: Column(
                                 children: [
                                   SettingsVoltageCard(
@@ -619,7 +621,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       _checkForChanges();
                                     },
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
                                   SettingsCurrentCard(
                                     key: currentCardKey,
                                     initialLowCurrent:
