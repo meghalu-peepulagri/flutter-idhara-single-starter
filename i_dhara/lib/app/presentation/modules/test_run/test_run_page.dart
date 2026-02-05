@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
@@ -52,24 +53,31 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: ValueListenableBuilder(
-          valueListenable: mqttService.dataUpdateNotifier,
-          builder: (context, _, __) {
-            final motorData = getMotorData();
+        child: isLoadingApiData && fromDevices
+            ? const Padding(
+                padding: EdgeInsets.only(right: 50),
+                child: Center(
+                  child: AppLottieLoading(),
+                ),
+              )
+            : ValueListenableBuilder(
+                valueListenable: mqttService.dataUpdateNotifier,
+                builder: (context, _, __) {
+                  final motorData = getMotorData();
 
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  _buildMotorCard(motorData),
-                  const Spacer(),
-                  if (isFailed) _buildFailureMessage(),
-                  _buildBottomButtons(),
-                ],
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        _buildMotorCard(motorData),
+                        const Spacer(),
+                        if (isFailed) _buildFailureMessage(),
+                        _buildBottomButtons(),
+                      ],
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
@@ -16,6 +17,9 @@ import 'test_run_page.dart';
 mixin TestRunLogicMixin on State<TestRunPage> {
   late Motor motor;
   late MqttService mqttService;
+  bool fromDevices =
+      false; // Flag to show API data when coming from devices page
+  bool isLoadingApiData = false; // Loading state for API data fetch
 
   bool isFailed = false;
   String failureMessage = '';
@@ -30,6 +34,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   /// Check if data should be blocked (test run not started and not completed)
   bool get isTestRunRequired {
+    // If coming from devices page, show API data without blocking
+    if (fromDevices) {
+      return false;
+    }
     final motorId = motor.id;
     if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
       return false; // Test run completed, show data
@@ -51,6 +59,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     final args = Get.arguments as Map<String, dynamic>;
     motor = args['motor'] as Motor;
     mqttService = args['mqttService'] as MqttService;
+    fromDevices = args['fromDevices'] as bool? ?? false;
 
     final motorData = getMotorData();
     bool initialState;
@@ -67,6 +76,75 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
     localSwitchController = ValueNotifier(initialState);
     localModeController = ValueNotifier(initialMode);
+
+    // Fetch motor details with starterParameters when coming from devices
+    if (fromDevices && motor.id != null) {
+      _fetchMotorDetails();
+    }
+  }
+
+  /// Fetch motor details from API to get starterParameters (voltage/current data)
+  Future<void> _fetchMotorDetails() async {
+    setState(() {
+      isLoadingApiData = true;
+    });
+
+    SharedPreference.setMotorId(motor.id!);
+    final response = await MotorsRepositoryImpl().getMotorDetails();
+
+    if (response?.data != null && mounted) {
+      final details = response!.data!;
+      // Update motor with starterParameters from API
+      motor = Motor(
+        id: details.id,
+        name: details.name,
+        hp: details.hp,
+        mode: details.mode,
+        state: details.state,
+        aliasName: details.aliasName,
+        location: details.location != null
+            ? Location(
+                id: details.location!.id,
+                name: details.location!.name,
+              )
+            : null,
+        starter: details.starter != null
+            ? Starter(
+                id: details.starter!.id,
+                name: details.starter!.name,
+                status: details.starter!.status,
+                macAddress: details.starter!.macAddress,
+                pcbNumber: details.starter!.pcbNumber,
+                signalQuality: details.starter!.signalQuality,
+                power: details.starter!.power,
+                networkType: details.starter!.networkType,
+                starterParameters: details.starter!.starterParameters
+                    ?.map((p) => StarterParameter(
+                          id: p.id,
+                          timeStamp: p.timeStamp,
+                          fault: p.fault,
+                          faultDescription: p.faultDescription,
+                          lineVoltageR: p.lineVoltageR,
+                          lineVoltageY: p.lineVoltageY,
+                          lineVoltageB: p.lineVoltageB,
+                          currentR: p.currentR,
+                          currentY: p.currentY,
+                          currentB: p.currentB,
+                        ))
+                    .toList(),
+              )
+            : null,
+      );
+      setState(() {
+        isLoadingApiData = false;
+      });
+    } else {
+      if (mounted) {
+        setState(() {
+          isLoadingApiData = false;
+        });
+      }
+    }
   }
 
   void disposeLogic() {
@@ -288,14 +366,14 @@ mixin TestRunLogicMixin on State<TestRunPage> {
                         color: const Color(0xFF1E1E1E),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Waiting for response...',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        color: const Color(0xFF6B7280),
-                      ),
-                    ),
+                    // const SizedBox(height: 8),
+                    // Text(
+                    //   'Waiting for response...',
+                    //   style: GoogleFonts.dmSans(
+                    //     fontSize: 14,
+                    //     color: const Color(0xFF6B7280),
+                    //   ),
+                    // ),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(

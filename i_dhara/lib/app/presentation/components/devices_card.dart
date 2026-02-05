@@ -8,7 +8,8 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
-import 'package:i_dhara/app/data/models/devices/motor_model.dart' as motor_model;
+import 'package:i_dhara/app/data/models/devices/motor_model.dart'
+    as motor_model;
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
@@ -161,9 +162,9 @@ class DevicesCard extends StatelessWidget {
   }
 
   void _navigateToTestRun(Motor? motor) {
-    if (motor == null) return;
+    if (motor == null || motor.id == null) return;
 
-    // Convert devices_model.Motor to motor_model.Motor with starter info
+    // Navigate immediately with basic motor data
     final motorModelMotor = motor_model.Motor(
       id: motor.id,
       name: motor.name,
@@ -193,6 +194,7 @@ class DevicesCard extends StatelessWidget {
       arguments: {
         'motor': motorModelMotor,
         'mqttService': MqttService(),
+        'fromDevices': true, // Show API data without blocking
       },
     );
   }
@@ -202,34 +204,37 @@ class DevicesCard extends StatelessWidget {
     final motor =
         device.motors?.isNotEmpty == true ? device.motors!.first : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F3F3),
-                borderRadius: BorderRadius.circular(6.0),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    _buildHeader(context, motor),
-                    _buildPcbAndPowerStatus(context, motor),
-                  ].divide(const SizedBox(height: 12.0)),
+    return GestureDetector(
+      // onTap: () => _navigateToTestRun(motor),
+      child: Container(
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F3F3),
+                  borderRadius: BorderRadius.circular(6.0),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      _buildHeader(context, motor),
+                      _buildPcbAndPowerStatus(context, motor),
+                    ].divide(const SizedBox(height: 12.0)),
+                  ),
                 ),
               ),
-            ),
-            _buildLocationRow(context, motor),
-          ].divide(const SizedBox(height: 8.0)),
+              _buildLocationRow(context, motor),
+            ].divide(const SizedBox(height: 8.0)),
+          ),
         ),
       ),
     );
