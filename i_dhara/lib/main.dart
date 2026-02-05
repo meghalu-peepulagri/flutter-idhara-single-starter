@@ -19,7 +19,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
 
-
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -57,8 +56,8 @@ void _handleNotificationTap(String? payload) {
   print("line --->");
   if (payload == null || payload.isEmpty) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Get.offAllNamed(
-      //     Routes.dashboard); // Changed: Use offAllNamed to clear stack
+      Get.offAllNamed(
+          Routes.dashboard); // Changed: Use offAllNamed to clear stack
     });
     return;
   }
@@ -66,7 +65,6 @@ void _handleNotificationTap(String? payload) {
     Map<String, dynamic> data = json.decode(payload);
     String? title = data['title'];
     String? body = data['body'];
-    print("line 67 $title payload $data");
     String motorId = data['motor_id'];
     int motorId0 = int.parse(motorId);
 
@@ -82,7 +80,6 @@ void _handleNotificationTap(String? payload) {
     } else if (title.toLowerCase().contains("fault") ||
         title.toLowerCase().contains("alert")) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        
         SharedPreference.setMotorId(motorId0);
         Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 2});
       });
