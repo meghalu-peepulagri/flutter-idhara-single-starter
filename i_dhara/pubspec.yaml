@@ -95,6 +95,7 @@ dependencies:
   firebase_messaging: ^15.2.1
   firebase_core: ^3.10.1
   device_info_plus: ^11.3.0
+  hive_flutter: ^1.1.0
 
 dependency_overrides:
   http: 1.4.0

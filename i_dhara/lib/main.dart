@@ -10,6 +10,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
@@ -63,7 +64,6 @@ void _handleNotificationTap(String? payload) {
   }
   try {
     Map<String, dynamic> data = json.decode(payload);
-    print("line 66 $payload");
     String title = data['title'] ?? "";
     String? body = data['body'];
     String motorId = data['motor_id'];
@@ -82,7 +82,6 @@ void _handleNotificationTap(String? payload) {
         title.toLowerCase().contains("alert") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         SharedPreference.setMotorId(motorId0);
-
         Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 2});
       });
     } else {
@@ -131,6 +130,7 @@ void main() async {
     runApp(const MyWebApp());
   } else {
     await dotenv.load(fileName: '.env');
+    await Hive.initFlutter();
     AppEnvironment.setup();
     WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp();
