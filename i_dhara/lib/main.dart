@@ -112,7 +112,7 @@ void _handleNotificationTap(String? payload) {
 
 Future<void> _setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+      AndroidInitializationSettings('@mipmap/launcher_icon');
   const DarwinInitializationSettings initializationSettingsIOS =
       DarwinInitializationSettings();
   const InitializationSettings initializationSettings = InitializationSettings(
@@ -263,6 +263,7 @@ class _MyAppState extends State<MyApp> {
                 priority: Priority.high,
                 showWhen: false,
                 icon: '@mipmap/launcher_icon',
+                color: Color(0xFF1B5E8A),
               ),
             ),
             payload: json.encode(fullData),
