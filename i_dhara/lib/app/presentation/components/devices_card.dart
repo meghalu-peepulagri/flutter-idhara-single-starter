@@ -8,6 +8,8 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart' as motor_model;
+import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
@@ -77,7 +79,7 @@ class DevicesCard extends StatelessWidget {
           },
           onTestRun: () {
             Navigator.pop(context);
-            Get.toNamed(Routes.addDevices);
+            _navigateToTestRun(motor);
           },
         );
       },
@@ -155,6 +157,43 @@ class DevicesCard extends StatelessWidget {
           }
         },
       ),
+    );
+  }
+
+  void _navigateToTestRun(Motor? motor) {
+    if (motor == null) return;
+
+    // Convert devices_model.Motor to motor_model.Motor with starter info
+    final motorModelMotor = motor_model.Motor(
+      id: motor.id,
+      name: motor.name,
+      hp: motor.hp,
+      mode: motor.mode,
+      state: motor.state,
+      aliasName: motor.aliasName,
+      location: motor.location != null
+          ? motor_model.Location(
+              id: motor.location!.id,
+              name: motor.location!.name,
+            )
+          : null,
+      starter: motor_model.Starter(
+        id: device.id,
+        name: device.name,
+        macAddress: device.starterNumber,
+        pcbNumber: device.pcbNumber,
+        signalQuality: device.signalQuality,
+        power: device.power,
+        networkType: device.networkType,
+      ),
+    );
+
+    Get.toNamed(
+      Routes.testRun,
+      arguments: {
+        'motor': motorModelMotor,
+        'mqttService': MqttService(),
+      },
     );
   }
 
