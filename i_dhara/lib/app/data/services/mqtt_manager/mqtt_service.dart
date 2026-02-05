@@ -752,13 +752,17 @@ class MqttService {
     }
 
     // Force notify listeners
-    debugPrint('📢 Notifying listeners: dataUpdateNotifier=${_dataUpdateNotifier.value + 1}');
+    debugPrint(
+        '📢 Notifying listeners: dataUpdateNotifier=${_dataUpdateNotifier.value + 1}');
     _dataUpdateNotifier.value++;
   }
 
   void handleDefaultSettings(String identifier, dynamic payloadData) {
     final type = payloadData as int;
     final map = {"D": type, "topic": identifier};
+
+    // Clear any "No response from device" message since ACK was received
+    commandStatusNotifier.value = null;
 
     // Clear pending settings command to stop retries immediately upon ACK
     final command = _pendingCommands['_4'];

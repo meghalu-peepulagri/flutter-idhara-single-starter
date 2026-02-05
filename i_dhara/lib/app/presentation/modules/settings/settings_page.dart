@@ -70,14 +70,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       final pcbNumber = controller.pcbNumber.value;
       final macAddress = controller.macAddress.value;
 
-      if (type == 1 &&
-          !_ackInProgress &&
-          (topic == pcbNumber || topic == macAddress)) {
-        // Set flag BEFORE showing snackbar to prevent duplicates
+      // Only process if topic matches this device
+      if (topic != pcbNumber && topic != macAddress) return;
+
+      if (type == 1 && !_ackInProgress) {
+        // ACK = 1: Success
         _ackInProgress = true;
         isSnackbarShown = true;
 
-        // Show success snackbar only once
         getsuccessSnackBar("Settings updated successfully");
 
         controller.isLoading.value = true;
@@ -89,6 +89,43 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _originalVoltageHigh = null;
         _originalCurrentLow = null;
         _originalCurrentHigh = null;
+
+        // Reset flag after 5 seconds
+        await Future.delayed(const Duration(seconds: 5), () {
+          _ackInProgress = false;
+          isSnackbarShown = false;
+        });
+      } else if (type == 0 && !_ackInProgress) {
+        // ACK = 0: Update failed
+        _ackInProgress = true;
+        isSnackbarShown = true;
+
+        geterrorSnackBar("Settings update failed");
+
+        // Call GET API to refresh data
+        controller.isLoading.value = true;
+        await controller.fetchUserSettings2();
+        controller.isLoading.value = false;
+
+        // Reset form values
+        _currentVoltageLow = null;
+        _currentVoltageHigh = null;
+        _currentCurrentLow = null;
+        _currentCurrentHigh = null;
+
+        // Reset original values
+        _originalVoltageLow = null;
+        _originalVoltageHigh = null;
+        _originalCurrentLow = null;
+        _originalCurrentHigh = null;
+
+        // Reset cards to show actual values
+        voltageCardKey.currentState?.resetValues();
+        currentCardKey.currentState?.resetValues();
+
+        setState(() {
+          isbuttonActive = false;
+        });
 
         // Reset flag after 5 seconds
         await Future.delayed(const Duration(seconds: 5), () {
@@ -252,11 +289,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                       svg: 'assets/images/Voltage.svg',
                       title: "Voltage Fault",
                       lowOld:
-                          "${(_originalVoltageLow ?? controller.userSettings2.value!.lvf?.toInt()).toString()}V",
-                      lowNew: "${controller.lvf.value.toString()}V",
+                          "${(_originalVoltageLow ?? controller.userSettings2.value!.lvf?.toInt()).toString()} V",
+                      lowNew: "${controller.lvf.value.toString()} V",
                       highOld:
-                          "${(_originalVoltageHigh ?? controller.userSettings2.value!.hvf?.toInt()).toString()}V",
-                      highNew: "${controller.hvf.value.toString()}V",
+                          "${(_originalVoltageHigh ?? controller.userSettings2.value!.hvf?.toInt()).toString()} V",
+                      highNew: "${controller.hvf.value.toString()} V",
                       valueColor: const Color(0xFF2563EB),
                       vmin: vmin,
                       vmax: vmax,
@@ -270,11 +307,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                       svg: 'assets/images/Current.svg',
                       title: "Current Fault",
                       lowOld:
-                          "${(_originalCurrentLow ?? controller.userSettings2.value?.drf?.toInt()).toString()}A",
-                      lowNew: "${controller.drf.value.toInt()}A",
+                          "${(_originalCurrentLow ?? controller.userSettings2.value?.drf?.toInt()).toString()} A",
+                      lowNew: "${controller.drf.value.toInt()} A",
                       highOld:
-                          "${(_originalCurrentHigh ?? controller.userSettings2.value?.olf?.toInt()).toString()}A",
-                      highNew: "${controller.olf.value.toString()}A",
+                          "${(_originalCurrentHigh ?? controller.userSettings2.value?.olf?.toInt()).toString()} A",
+                      highNew: "${controller.olf.value.toString()} A",
                       valueColor: const Color(0xFFF97316),
                       vmin: false,
                       vmax: false,
@@ -355,8 +392,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   _defaultSettingsPopUp(BuildContext context) async {
     showDeviceSettingConfirmDialog(
       context,
-      title: 'Confirm Default Settings',
-      message: 'Are you sure you want to fetch the default settings?',
+      title: 'Restore Default Settings',
+      message:
+          'Restore Voltage and Current faults to default settings? Custom changes will be lost',
+      svgPath: 'assets/images/default_settings.svg',
       onConfirm: () async {
         // Store original user settings BEFORE loading defaults
         _originalVoltageLow = controller.userSettings2.value?.lvf?.toInt();
@@ -596,7 +635,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             child: SingleChildScrollView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 12.0),
+                                  horizontal: 16.0, vertical: 4.0),
                               child: Column(
                                 children: [
                                   SettingsVoltageCard(
@@ -619,7 +658,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       _checkForChanges();
                                     },
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
                                   SettingsCurrentCard(
                                     key: currentCardKey,
                                     initialLowCurrent:

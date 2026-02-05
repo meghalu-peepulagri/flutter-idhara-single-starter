@@ -93,7 +93,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
           lowMaxLimit: lowMax,
           highMinLimit: highMin,
           highMaxLimit: highMax,
-          unit: 'A',
+          unit: ' A',
           lowColor: const Color(0XFF9F0712),
           highColor: const Color(0XFF9F0712),
           lowThumbColor: const Color(0XFF9F0712),

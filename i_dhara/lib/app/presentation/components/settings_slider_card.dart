@@ -204,7 +204,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                       'Low : ',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w400,
                         color: widget.lowColor,
                       ),
                     ),
@@ -215,7 +215,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                           : '$temp${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w400,
                         color: widget.lowColor,
                       ),
                     ),
@@ -239,7 +239,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                       'High : ',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w400,
                         color: widget.lowColor,
                       ),
                     ),
@@ -250,7 +250,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                           : '$temp${widget.unit}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w400,
                         color: widget.highColor,
                       ),
                     ),
@@ -524,7 +524,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
               label,
               style: GoogleFonts.dmSans(
                 fontSize: 16,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w400,
                 color: const Color(0XFF9F0712),
               ),
             ),
