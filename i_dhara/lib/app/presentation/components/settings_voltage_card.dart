@@ -43,8 +43,10 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
     final highMax = controller.data.value?.hvfMax?.toDouble() ?? 550.0;
 
     // Read directly from controller for most up-to-date values
-    final initialLow = controller.userSettings2.value?.lvf?.toDouble() ?? widget.initialLowVoltage;
-    final initialHigh = controller.userSettings2.value?.hvf?.toDouble() ?? widget.initialHighVoltage;
+    final initialLow = controller.userSettings2.value?.lvf?.toDouble() ??
+        widget.initialLowVoltage;
+    final initialHigh = controller.userSettings2.value?.hvf?.toDouble() ??
+        widget.initialHighVoltage;
 
     print("line 41 ------> $initialLow $initialHigh");
 
@@ -91,7 +93,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
           lowMaxLimit: lowMax,
           highMinLimit: highMin,
           highMaxLimit: highMax,
-          unit: 'V',
+          unit: ' V',
           lowColor: const Color(0XFF9F0712),
           highColor: const Color(0XFF9F0712),
           lowThumbColor: const Color(0XFF9F0712),
