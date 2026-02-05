@@ -14,6 +14,7 @@ class SharedPreference {
   static String starterid = 'starterid';
   static String locationName = 'locationName';
   static String devicesettings = 'devicesettings';
+  static String fcmToken = 'fcmToken';
 
   static Future<SharedPreferences> init() async {
     preferences = await SharedPreferences.getInstance();
@@ -87,6 +88,9 @@ class SharedPreference {
       preferences.setInt(userId, value!);
 
   static int? getUserId() => preferences.getInt(userId);
+  static Future<bool> setFcmToken(String value) async =>
+      preferences.setString(fcmToken, value);
 
+  static String? getFcmToken() => preferences.getString(fcmToken);
   static Future<void> clear() async => await preferences.clear();
 }

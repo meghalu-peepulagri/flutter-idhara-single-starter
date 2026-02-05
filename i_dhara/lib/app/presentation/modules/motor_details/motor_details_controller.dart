@@ -1,9 +1,9 @@
 import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
@@ -14,6 +14,7 @@ import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 part 'motor_details_controller.api.dart';
@@ -93,6 +94,9 @@ class AnalyticsController extends GetxController {
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
       motorId.value = args['motorId'];
+      if (args['tabIndex'] != null) {
+        selectedTabIndex.value = args['tabIndex'];
+      }
     }
 
     if (motorId.value != null) {

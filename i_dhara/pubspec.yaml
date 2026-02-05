@@ -3,7 +3,7 @@ description: A new Flutter project.
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -91,6 +91,10 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   video_player: ^2.10.0
   geocoding: ^4.0.0
+  flutter_local_notifications: ^18.0.1
+  firebase_messaging: ^15.2.1
+  firebase_core: ^3.10.1
+  device_info_plus: ^11.3.0
 
 dependency_overrides:
   http: 1.4.0
@@ -114,7 +118,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -137,7 +140,6 @@ flutter:
     - assets/lottie_animations/Graph.json
     - assets/videos/splash.mp4
     - .env
-
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
@@ -164,4 +166,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
-

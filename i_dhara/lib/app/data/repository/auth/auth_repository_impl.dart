@@ -3,6 +3,7 @@ import 'package:i_dhara/app/data/models/auth/login_model.dart';
 import 'package:i_dhara/app/data/models/auth/otp_model.dart';
 import 'package:i_dhara/app/data/models/auth/register_model.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 class AuthRepositoryImpl extends AuthRepository {
   @override
@@ -23,12 +24,8 @@ class AuthRepositoryImpl extends AuthRepository {
 
   @override
   Future<OtpResponse?> verifyOtp(String phone, String otp) async {
-    // final fcmtoken = await SharedPreferenceHelper.getFcmToken() ?? "";
-    final body = {
-      'phone': phone,
-      'otp': otp,
-      // 'fcm_token': fcmtoken
-    };
+    final fcmtoken = SharedPreference.getFcmToken() ?? "";
+    final body = {'phone': phone, 'otp': otp, 'fcm_token': fcmtoken};
     final response =
         await NetworkManager().post('/auth/verify-otp', data: body, {});
     if (response.statusCode == 200 || response.statusCode == 422) {

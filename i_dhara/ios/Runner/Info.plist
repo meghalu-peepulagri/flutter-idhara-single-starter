@@ -35,6 +35,7 @@
 			</array>
 		</dict>
 	</array>
+	
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FlutterDeepLinkingEnabled</key>

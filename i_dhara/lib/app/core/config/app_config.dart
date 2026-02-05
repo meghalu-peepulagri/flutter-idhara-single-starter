@@ -9,7 +9,7 @@ class NetworkManager {
   final Dio _dio;
   NetworkManager() : _dio = Dio() {
     _dio.options.baseUrl = baseUrl;
-    _dio.interceptors.add(PrettyDioLogger());
+    _dio.interceptors.add(PrettyDioLogger(enabled: true, requestBody: true));
     _dio.interceptors.add(InterceptorsWrapper(
         onRequest: _onRequest, onError: _onError, onResponse: _onResponse));
   }
