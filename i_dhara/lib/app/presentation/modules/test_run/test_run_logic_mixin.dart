@@ -9,6 +9,7 @@ import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
+import 'package:i_dhara/app/presentation/modules/test_run/test_run_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:lottie/lottie.dart';
 
@@ -17,9 +18,8 @@ import 'test_run_page.dart';
 mixin TestRunLogicMixin on State<TestRunPage> {
   late Motor motor;
   late MqttService mqttService;
-  bool fromDevices =
-      false; // Flag to show API data when coming from devices page
-  bool isLoadingApiData = false; // Loading state for API data fetch
+  bool fromDevices = false;
+  bool isLoadingApiData = false;
 
   bool isFailed = false;
   String failureMessage = '';
@@ -29,10 +29,12 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   int selectedTimeoutMinutes = 3;
   bool isTestRunning = false;
 
+  // Test run controller for API calls
+  final TestRunController testRunController = TestRunController();
+
   final ValueNotifier<int> countdownNotifier = ValueNotifier(0);
   bool isDialogOpen = false;
 
-  /// Check if data should be blocked (test run not started and not completed)
   bool get isTestRunRequired {
     // If coming from devices page, show API data without blocking
     if (fromDevices) {
@@ -77,13 +79,11 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     localSwitchController = ValueNotifier(initialState);
     localModeController = ValueNotifier(initialMode);
 
-    // Fetch motor details with starterParameters when coming from devices
     if (fromDevices && motor.id != null) {
       _fetchMotorDetails();
     }
   }
 
-  /// Fetch motor details from API to get starterParameters (voltage/current data)
   Future<void> _fetchMotorDetails() async {
     setState(() {
       isLoadingApiData = true;
@@ -297,6 +297,22 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       isTestRunning = true;
     });
 
+    // Step 1: Call PATCH API with IN_TEST status first
+    final apiSuccess = await testRunController.startTestRun(motor.id!);
+
+    if (!apiSuccess) {
+      // API call failed - don't publish payload
+      setState(() {
+        isFailed = true;
+        failureMessage = testRunController.errorMessage.value.isNotEmpty
+            ? testRunController.errorMessage.value
+            : 'Failed to start test run';
+        isTestRunning = false;
+      });
+      return;
+    }
+
+    // Step 2: API successful - now publish the payload
     testStartTime = DateTime.now();
     remainingSeconds = timeoutMinutes * 60;
     countdownNotifier.value = remainingSeconds;
@@ -323,6 +339,8 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     } catch (e) {
       debugPrint('Test run command failed: $e');
       closeLoadingDialog();
+      // Call PATCH API with FAILED status since publish failed
+      await testRunController.failTestRun(motor.id!);
       setState(() {
         isFailed = true;
         failureMessage = 'Failed to send command';
@@ -486,10 +504,13 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
   }
 
-  void onAckReceived() {
+  void onAckReceived() async {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
+
+    // Call PATCH API with COMPLETED status since ACK received
+    await testRunController.completeTestRun(motor.id!);
 
     if (motor.id != null) {
       SharedPreference.addCompletedTestRunMotor(motor.id!);
@@ -498,9 +519,16 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     turnOffMotor();
     closeLoadingDialog();
 
-    successSnackBar(context, 'Test Run completed successfully');
+    if (mounted) {
+      successSnackBar(context, 'Test Run completed successfully');
+    }
 
-    goToDashboard();
+    // Navigate based on level: device level -> devices screen, motor level -> dashboard
+    if (fromDevices) {
+      goToDevices();
+    } else {
+      goToDashboard();
+    }
   }
 
   Future<void> turnOffMotor() async {
@@ -514,12 +542,15 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
   }
 
-  void onAckTimeout() {
+  void onAckTimeout() async {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
 
     closeLoadingDialog();
+
+    // Call PATCH API with FAILED status since no ACK received
+    await testRunController.failTestRun(motor.id!);
 
     setState(() {
       isFailed = true;
@@ -532,4 +563,6 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   void goBack() => Get.back();
 
   void goToDashboard() => Get.offAllNamed(Routes.dashboard);
+
+  void goToDevices() => Get.offAllNamed(Routes.devices);
 }

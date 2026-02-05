@@ -5,6 +5,7 @@ import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/models/devices/location_replace_model.dart';
 import 'package:i_dhara/app/data/models/devices/rename_devices_model.dart';
 import 'package:i_dhara/app/data/models/motors/delete_motor_model.dart';
+import 'package:i_dhara/app/data/models/test_run/test_run_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repository.dart';
 
 class DevicesRepositoryImpl extends DevicesRepository {
@@ -90,6 +91,23 @@ class DevicesRepositoryImpl extends DevicesRepository {
         response.statusCode == 422 ||
         response.statusCode == 201) {
       final res = LocationReplaceResponse.fromJson(response.data);
+      return res;
+    } else {
+      return null;
+    }
+  }
+
+  @override
+  Future<TestRunResponse?> testRun(int motorId, TestRunStatus status) async {
+    final body = {"test_run_status": status.value};
+    final response = await NetworkManager().patch(
+      '/motors/$motorId/test-run-status',
+      data: body,
+    );
+    if (response.statusCode == 200 ||
+        response.statusCode == 422 ||
+        response.statusCode == 201) {
+      final res = TestRunResponse.fromJson(response.data);
       return res;
     } else {
       return null;
