@@ -699,7 +699,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                           children: [
                             Expanded(
                               child: FFButtonWidget(
-                                onPressed: _handleCancel,
+                                onPressed:
+                                    !isbuttonActive ? null : _handleCancel,
                                 text: 'Cancel',
                                 options: FFButtonOptions(
                                   height: 45.0,
@@ -713,12 +714,16 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       .titleSmall
                                       .override(
                                         fontFamily: 'Manrope',
-                                        color: Colors.black,
+                                        color: !isbuttonActive
+                                            ? Colors.grey.shade400
+                                            : Colors.black,
                                         fontWeight: FontWeight.w500,
                                       ),
                                   elevation: 0.0,
-                                  borderSide: const BorderSide(
-                                      color: Color(0x38000000)),
+                                  borderSide: BorderSide(
+                                      color: !isbuttonActive
+                                          ? Colors.grey.shade100
+                                          : const Color(0x38000000)),
                                   borderRadius: BorderRadius.circular(12.0),
                                 ),
                               ),
@@ -776,16 +781,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               "olf": controller.olf.value,
                                             },
                                           };
-                                          print(
-                                              "line 610 ---> $updatedpayload ${controller.payload}");
                                           updatedpayload = diffNestedPayload(
                                             newPayload: updatedpayload,
                                             oldPayload: controller.payload,
                                             key: "dvc_c",
                                           );
-
-                                          print("line 610 $updatedpayload");
-
                                           if (updatedpayload["dvc_c"]
                                               .containsKey("drf")) {
                                             final calculatedDrf = calculatedFlc(

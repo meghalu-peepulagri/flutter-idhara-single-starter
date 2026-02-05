@@ -181,6 +181,28 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     color: const Color(0xFf0A0A0A),
                   ),
                 ),
+                // const Spacer(),
+                // // Matched indicator when low == high
+                // if (activeThumb == 'none' &&
+                //     lowValue.toInt() == highValue.toInt())
+                //   Container(
+                //     padding: const EdgeInsets.symmetric(
+                //         horizontal: 8, vertical: 3),
+                //     decoration: BoxDecoration(
+                //       color: const Color(0xFFE8F5E9),
+                //       border: Border.all(
+                //           color: const Color(0xFF66BB6A), width: 1),
+                //       borderRadius: BorderRadius.circular(6),
+                //     ),
+                //     child: Text(
+                //       'Matched : ${lowValue.toInt()}${widget.unit}',
+                //       style: GoogleFonts.dmSans(
+                //         fontSize: 11,
+                //         fontWeight: FontWeight.w500,
+                //         color: const Color(0xFF2E7D32),
+                //       ),
+                //     ),
+                //   ),
               ],
             ),
           ),
@@ -265,6 +287,30 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
           SizedBox(
             height: 60,
             child: LayoutBuilder(builder: (context, constraints) {
+              // Calculate pixel positions to detect overlap
+              const thumbWidth = 32.0;
+              final availableWidth = constraints.maxWidth - thumbWidth;
+              final range = displayMax - displayMin;
+              double lowOffset = 0;
+              double highOffset = 0;
+              if (activeThumb == 'none' && range > 0) {
+                final lowPos =
+                    ((lowValue - displayMin) / range) * availableWidth;
+                final highPos =
+                    ((highValue - displayMin) / range) * availableWidth;
+                final gap = (highPos - lowPos).abs();
+                if (gap < thumbWidth) {
+                  final shift = (thumbWidth - gap) / 2 + 2;
+                  if (lowValue <= highValue) {
+                    lowOffset = -shift;
+                    highOffset = shift;
+                  } else {
+                    lowOffset = shift;
+                    highOffset = -shift;
+                  }
+                }
+              }
+
               return Stack(
                 children: [
                   // Track Background with Color Zones
@@ -305,6 +351,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     color: widget.lowThumbColor,
                     isActive: activeThumb == 'low',
                     label: "L",
+                    pixelOffset: lowOffset,
                     onDragStart: () {
                       print("line 252 $displayMin $displayMax");
                       setState(() {
@@ -355,6 +402,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                     color: widget.highThumbColor,
                     isActive: activeThumb == 'high',
                     label: "H",
+                    pixelOffset: highOffset,
                     onDragStart: () {
                       setState(() {
                         activeThumb = 'high';
@@ -482,12 +530,14 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
     required Function(double deltaPct) onDragUpdate,
     required VoidCallback onDragEnd,
     required double? maxWidth,
+    double pixelOffset = 0,
   }) {
     // Calculate fractional position
     final fraction = (value - min) / (max - min);
 
     final availableWidth = (maxWidth ?? 0) - 32;
-    final leftPos = availableWidth > 0 ? (fraction * availableWidth) : 0.0;
+    final leftPos =
+        (availableWidth > 0 ? (fraction * availableWidth) : 0.0) + pixelOffset;
 
     return Positioned(
       left: leftPos,
