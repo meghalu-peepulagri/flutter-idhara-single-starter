@@ -174,10 +174,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     _originalCurrentLow = null;
     _originalCurrentHigh = null;
 
-    // Reload actual user settings (not default settings)
     await controller.fetchUserSettings2();
 
-    // Small delay to ensure controller state is updated
     await Future.delayed(const Duration(milliseconds: 100));
 
     // Reset cards to show actual user values after data is loaded
@@ -526,7 +524,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                     children: [
                       Padding(
                         padding:
-                            const EdgeInsets.fromLTRB(16.0, 16.0, 25.0, 0.0),
+                            const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -565,11 +563,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               ],
                             ),
                             Container(
-                              height: 38,
-                              width: 90,
+                              height: 32,
+                              width: 70,
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF2994A),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: FFButtonWidget(
                                 onPressed: () {
@@ -577,9 +575,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                 },
                                 text: 'Default',
                                 options: FFButtonOptions(
-                                  height: 40.0,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20.0),
+                                  // height: 40.0,
+                                  // padding: const EdgeInsets.symmetric(
+                                  //     horizontal: 20.0),
                                   color: Colors.transparent,
                                   textStyle: FlutterFlowTheme.of(context)
                                       .titleSmall

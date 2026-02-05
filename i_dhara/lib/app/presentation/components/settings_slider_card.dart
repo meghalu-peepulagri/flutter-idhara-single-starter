@@ -177,7 +177,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                   widget.heading,
                   style: GoogleFonts.dmSans(
                     fontSize: 18,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                     color: const Color(0xFf0A0A0A),
                   ),
                 ),
