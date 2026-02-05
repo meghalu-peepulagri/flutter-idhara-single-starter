@@ -10,7 +10,8 @@ import 'package:i_dhara/app/presentation/components/tabs/widgets/pump_logs_list_
 import 'package:skeletonizer/skeletonizer.dart';
 
 class MotorLogsTab extends StatefulWidget {
-  const MotorLogsTab({super.key});
+  final String? initialFilter;
+  const MotorLogsTab({super.key, this.initialFilter});
 
   @override
   State<MotorLogsTab> createState() => _MotorLogsTabState();
@@ -23,8 +24,14 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
   @override
   void initState() {
     super.initState();
-    selectedFilter = 'Faults';
-    logsController.currentFilter.value = 'Faults';
+    selectedFilter = widget.initialFilter ?? 'Faults';
+    logsController.currentFilter.value = selectedFilter!;
+    logsController.resetPagination();
+    if (selectedFilter == 'Alerts') {
+      logsController.fetchMotorAlerts();
+    } else {
+      logsController.fetchMotorFaults();
+    }
   }
 
   @override

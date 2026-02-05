@@ -118,7 +118,6 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
 
   @override
   Widget build(BuildContext context) {
-    print("line 84 ------> $lowValue $highValue");
     double displayMin;
     double displayMax;
 

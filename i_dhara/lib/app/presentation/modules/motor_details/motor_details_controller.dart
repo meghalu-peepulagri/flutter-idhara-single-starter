@@ -42,6 +42,7 @@ class AnalyticsController extends GetxController {
   var isRefreshing = false.obs;
   var isModalOpen = false.obs;
   var selectedTabIndex = 0.obs;
+  var logFilter = Rxn<String>();
   var hasInternet = true.obs;
 
   // --- Display Values ---
@@ -96,6 +97,9 @@ class AnalyticsController extends GetxController {
       motorId.value = args['motorId'];
       if (args['tabIndex'] != null) {
         selectedTabIndex.value = args['tabIndex'];
+      }
+      if (args['logFilter'] != null) {
+        logFilter.value = args['logFilter'];
       }
     }
 

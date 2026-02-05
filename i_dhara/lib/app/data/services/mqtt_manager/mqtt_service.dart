@@ -174,7 +174,6 @@ class MqttService {
     const username = 'ss_user';
     const password = '123456';
     final clientId = 'idhara_${const Uuid().v4()}';
-
     _mqttClient = MqttServerClient(broker, clientId)
       ..logging(on: false)
       ..keepAlivePeriod = 60

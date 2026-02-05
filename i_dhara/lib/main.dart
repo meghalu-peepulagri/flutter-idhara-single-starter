@@ -69,6 +69,12 @@ void _handleNotificationTap(String? payload) {
     String motorId = data['motor_id'];
     String starterId = data['starter_id'];
     int motorId0 = int.parse(motorId);
+    int starterId0 = int.parse(starterId);
+    if (starterId.isNotEmpty) {
+      SharedPreference.setStarterId(starterId0);
+      print("line 75 starter $starterId0");
+    }
+
     if (title.toLowerCase().contains("state") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.offAllNamed(Routes.dashboard);
@@ -78,12 +84,17 @@ void _handleNotificationTap(String? payload) {
         SharedPreference.setMotorId(motorId0);
         Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 0});
       });
-    } else if (title.toLowerCase().contains("fault") && title.isNotEmpty ||
-        title.toLowerCase().contains("alert") && title.isNotEmpty) {
+    } else if (title.toLowerCase().contains("fault") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         SharedPreference.setMotorId(motorId0);
-
-        Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 2});
+        Get.offAllNamed(Routes.motorDetails,
+            arguments: {'tabIndex': 2, 'logFilter': 'Faults'});
+      });
+    } else if (title.toLowerCase().contains("alert") && title.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        SharedPreference.setMotorId(motorId0);
+        Get.offAllNamed(Routes.motorDetails,
+            arguments: {'tabIndex': 2, 'logFilter': 'Alerts'});
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
