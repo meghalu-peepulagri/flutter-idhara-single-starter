@@ -299,6 +299,49 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
+  void _navigateToTestRun() {
+    _navigateToTestRunScreen();
+  }
+
+  bool _isNewDeviceWithoutAck(MotorData? motorData) {
+    final motorId = widget.motor.id;
+
+    // Check if test run was completed locally
+    if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
+      return false; // Test run completed, allow control
+    }
+
+    // Check if device has existing ACK data from API (starterParameters)
+    final starterParams = widget.motor.starter?.starterParameters;
+    if (starterParams != null && starterParams.isNotEmpty) {
+      // Device has previous ACK data from API, not a new device
+      return false;
+    }
+
+    // Check if device has MQTT data
+    if (motorData != null && motorData.hasReceivedData) {
+      return false; // Has MQTT data, not a new device
+    }
+
+    return true; // Truly new device without any prior data
+  }
+
+  /// Determine if Test Run button should be enabled
+  bool _shouldShowTestRun(MotorData? motorData) {
+    // Enable only if it's a new device without ACK and motor is available
+    return _isNewDeviceWithoutAck(motorData) && _isMotorAvailable();
+  }
+
+  void _navigateToTestRunScreen() {
+    Get.toNamed(
+      Routes.testRun,
+      arguments: {
+        'motor': widget.motor,
+        'mqttService': widget.mqttService,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
@@ -354,8 +397,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         }
 
         final isManualMode = _localModeController.value == 0;
-        final isSwitchDisabled =
-            _isWaitingForSwitchAck || !(canControl && isManualMode);
+        final isTestRunBlocked = _isNewDeviceWithoutAck(motorData);
+        final isSwitchDisabled = isTestRunBlocked ||
+            _isWaitingForSwitchAck ||
+            !(canControl && isManualMode);
 
         return Container(
           decoration: BoxDecoration(
@@ -371,12 +416,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   motor: widget.motor,
                   motorData: motorData,
                   onTap: _navigateToDetails,
+                  onTestRun: _navigateToTestRun,
+                  isTestRunEnabled: _shouldShowTestRun(motorData),
+                  showTestRun: _isNewDeviceWithoutAck(motorData),
+                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                 ),
                 const Divider(
                     height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _navigateToDetails,
+                  onTap: _isNewDeviceWithoutAck(motorData)
+                      ? _navigateToTestRun
+                      : _navigateToDetails,
                   child: AbsorbPointer(
                     child: Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -384,6 +435,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       child: VoltageCurrentValuesCard(
                         motor: widget.motor,
                         mqttService: widget.mqttService,
+                        isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                       ),
                     ),
                   ),
@@ -400,10 +452,15 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     //  logic
                   },
                   isSwitchDisabled: isSwitchDisabled,
-                  // isSwitchDisabled: _isWaitingForSwitchAck ||
-                  //     !(canControl && _localModeController.value == 0),
-                  isModeDisabled: _isWaitingForModeAck || !canChangeMode,
-                  onNavigateToDetails: _navigateToDetails,
+                  isModeDisabled: isTestRunBlocked ||
+                      _isWaitingForModeAck ||
+                      !canChangeMode,
+                  onNavigateToDetails: _isNewDeviceWithoutAck(motorData)
+                      ? _navigateToTestRun
+                      : _navigateToDetails,
+                  onTestRunTap: _navigateToTestRun,
+                  showTestRun: _isNewDeviceWithoutAck(motorData),
+                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),

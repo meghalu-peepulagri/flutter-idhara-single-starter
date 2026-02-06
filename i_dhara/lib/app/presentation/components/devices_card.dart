@@ -8,6 +8,9 @@ import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/device_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart'
+    as motor_model;
+import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
@@ -74,6 +77,10 @@ class DevicesCard extends StatelessWidget {
           onDelete: () {
             Navigator.pop(context);
             _showDeleteDialog(context);
+          },
+          onTestRun: () {
+            Navigator.pop(context);
+            _navigateToTestRun(motor);
           },
         );
       },
@@ -154,39 +161,80 @@ class DevicesCard extends StatelessWidget {
     );
   }
 
+  void _navigateToTestRun(Motor? motor) {
+    if (motor == null || motor.id == null) return;
+
+    // Navigate immediately with basic motor data
+    final motorModelMotor = motor_model.Motor(
+      id: motor.id,
+      name: motor.name,
+      hp: motor.hp,
+      mode: motor.mode,
+      state: motor.state,
+      aliasName: motor.aliasName,
+      location: motor.location != null
+          ? motor_model.Location(
+              id: motor.location!.id,
+              name: motor.location!.name,
+            )
+          : null,
+      starter: motor_model.Starter(
+        id: device.id,
+        name: device.name,
+        macAddress: device.starterNumber,
+        pcbNumber: device.pcbNumber,
+        signalQuality: device.signalQuality,
+        power: device.power,
+        networkType: device.networkType,
+      ),
+    );
+
+    Get.toNamed(
+      Routes.testRun,
+      arguments: {
+        'motor': motorModelMotor,
+        'mqttService': MqttService(),
+        'fromDevices': true, // Show API data without blocking
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final motor =
         device.motors?.isNotEmpty == true ? device.motors!.first : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F3F3),
-                borderRadius: BorderRadius.circular(6.0),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    _buildHeader(context, motor),
-                    _buildPcbAndPowerStatus(context, motor),
-                  ].divide(const SizedBox(height: 12.0)),
+    return GestureDetector(
+      // onTap: () => _navigateToTestRun(motor),
+      child: Container(
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F3F3),
+                  borderRadius: BorderRadius.circular(6.0),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      _buildHeader(context, motor),
+                      _buildPcbAndPowerStatus(context, motor),
+                    ].divide(const SizedBox(height: 12.0)),
+                  ),
                 ),
               ),
-            ),
-            _buildLocationRow(context, motor),
-          ].divide(const SizedBox(height: 8.0)),
+              _buildLocationRow(context, motor),
+            ].divide(const SizedBox(height: 8.0)),
+          ),
         ),
       ),
     );

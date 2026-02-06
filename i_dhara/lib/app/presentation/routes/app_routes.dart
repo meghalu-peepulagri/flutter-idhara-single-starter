@@ -12,4 +12,5 @@ class Routes {
   static const String motorDetails = '/motordetails';
   static const String userprofile = '/userprofile';
   static const String usersettings = '/usersettings';
+  static const String testRun = '/test-run';
 }

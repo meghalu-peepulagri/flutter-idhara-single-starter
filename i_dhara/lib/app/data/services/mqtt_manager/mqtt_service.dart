@@ -270,6 +270,31 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  Future<void> publishTestRunCommand(String motorId, int state) async {
+    if (_mqttClient == null || !isConnected) {
+      debugPrint('Cannot publish test run: MQTT not connected');
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+
+    _lastAckTimes.remove(motorId);
+
+    final seq = _random.nextInt(251);
+
+    try {
+      await _publishCommand(motorId, 1, 2, seq);
+      statusMessage = 'Test run command sent';
+      debugPrint('Test run command published for $motorId (state=$state)');
+    } catch (e) {
+      debugPrint('Failed to publish test run command: $e');
+      statusMessage = 'Failed to publish test run: $e';
+      _dataUpdateNotifier.value++;
+      rethrow;
+    }
+    _dataUpdateNotifier.value++;
+  }
+
   Future<void> publishUpdateSettings(
       String pcb, Map<String, dynamic> payload) async {
     if (_mqttClient == null || !isConnected) {
