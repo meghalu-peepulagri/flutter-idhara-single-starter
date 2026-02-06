@@ -13,6 +13,23 @@ class MotorCardDialogs {
     return formatted;
   }
 
+  static String _formatMotorNameShort(Motor motor) {
+    final aliasName = motor.aliasName?.trim();
+    final motorName = motor.name?.trim();
+    String? name;
+    if (aliasName != null && aliasName.isNotEmpty) {
+      name = aliasName;
+    } else {
+      name = motorName;
+    }
+    if (name == null || name.isEmpty) return 'Unknown';
+    final formatted = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (formatted.length > 16) {
+      return '${formatted.substring(0, 16)}...';
+    }
+    return formatted.capitalizeFirst ?? formatted;
+  }
+
   static String _getMotorDisplayName(Motor motor) {
     final aliasName = motor.aliasName?.trim();
     final motorName = motor.name?.trim();
@@ -381,154 +398,186 @@ class MotorCardDialogs {
     Function(int timeoutMinutes) onConfirm,
   ) {
     int selectedTimeout = 3;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = screenWidth < 400 ? screenWidth * 0.9 : 340.0;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Confirm Test Run',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF101828),
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: screenWidth < 400 ? 16 : 40,
+                vertical: 24,
+              ),
+              child: Container(
+                width: dialogWidth,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Confirm Test Run',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF101828),
+                      ),
                     ),
-                  ),
-                  // const SizedBox(height: 8),
-                  // Text(
-                  //   'This will send a command to the motor to verify the connection. The motor will turn ON briefly and then turn OFF automatically.',
-                  //   style: GoogleFonts.dmSans(
-                  //     fontSize: 14,
-                  //     color: const Color(0xFF6B7280),
-                  //   ),
-                  // ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF3FE),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Motor: ',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: const Color(0xFF004E7E),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEBF3FE),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Motor: ',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: const Color(0xFF004E7E),
+                                ),
                               ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                _getMotorDisplayName(motor),
+                              Text(
+                                _formatMotorNameShort(motor),
                                 style: GoogleFonts.dmSans(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   color: Colors.black,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Text(
-                              'Time: ',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: const Color(0xFF004E7E),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Text(
+                                'Time: ',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: const Color(0xFF004E7E),
+                                ),
+                              ),
+                              // const Spacer(),
+                              _buildTimeChip(
+                                context,
+                                1,
+                                selectedTimeout,
+                                (value) =>
+                                    setState(() => selectedTimeout = value),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildTimeChip(
+                                context,
+                                2,
+                                selectedTimeout,
+                                (value) =>
+                                    setState(() => selectedTimeout = value),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildTimeChip(
+                                context,
+                                3,
+                                selectedTimeout,
+                                (value) =>
+                                    setState(() => selectedTimeout = value),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildTimeChip(
+                                context,
+                                4,
+                                selectedTimeout,
+                                (value) =>
+                                    setState(() => selectedTimeout = value),
+                              ),
+                              // const SizedBox(width: 6),
+                              // _buildTimeChip(
+                              //   context,
+                              //   5,
+                              //   selectedTimeout,
+                              //   (value) =>
+                              //       setState(() => selectedTimeout = value),
+                              // ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: Color(0xFFDCDCDC)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            const Spacer(),
-                            _buildTimeChip(
-                              context,
-                              2,
-                              selectedTimeout,
-                              (value) =>
-                                  setState(() => selectedTimeout = value),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.dmSans(
+                                color: const Color(0xFF6B7280),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            _buildTimeChip(
-                              context,
-                              3,
-                              selectedTimeout,
-                              (value) =>
-                                  setState(() => selectedTimeout = value),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(width: 8),
-                            _buildTimeChip(
-                              context,
-                              4,
-                              selectedTimeout,
-                              (value) =>
-                                  setState(() => selectedTimeout = value),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  onConfirm(selectedTimeout);
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  child: Center(
+                                    child: Text(
+                                      'Confirm',
+                                      style: GoogleFonts.dmSans(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.dmSans(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        onConfirm(selectedTimeout);
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        child: Text(
-                          'Confirm',
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             );
           },
         );
@@ -549,11 +598,17 @@ class MotorCardDialogs {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF004E7E) : Colors.white,
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected ? null : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color:
-                isSelected ? const Color(0xFF004E7E) : const Color(0xFFDCDCDC),
+            color: isSelected ? Colors.transparent : const Color(0xFFDCDCDC),
           ),
         ),
         child: Text(

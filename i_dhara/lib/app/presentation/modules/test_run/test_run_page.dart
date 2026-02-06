@@ -65,16 +65,16 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
                 builder: (context, _, __) {
                   final motorData = getMotorData();
 
-                  return Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        _buildMotorCard(motorData),
-                        const Spacer(),
-                        // if (isFailed) _buildFailureMessage(),
-                        _buildBottomButtons(),
-                      ],
-                    ),
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildMotorCard(motorData),
+                      ),
+                      const Spacer(),
+                      // if (isFailed) _buildFailureMessage(),
+                      _buildBottomButtons(),
+                    ],
                   );
                 },
               ),
@@ -268,66 +268,83 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
   }
 
   Widget _buildBottomButtons() {
-    return Row(
-      children: [
-        // Cancel button (left)
-        Expanded(
-          child: SizedBox(
-            height: 45,
-            child: OutlinedButton(
-              onPressed: goBack,
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(
-                  color: Color(0xFF6B7280),
-                  width: 1,
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Cancel button (left)
+          Expanded(
+            child: SizedBox(
+              height: 45,
+              child: OutlinedButton(
+                onPressed: goBack,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(
+                    color: Color(0xFF6B7280),
+                    width: 1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.dmSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF6B7280),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF6B7280),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            height: 45,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: showTestRunConfirmDialog,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              height: 45,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(12),
-                child: Center(
-                  child: Text(
-                    isFailed ? 'Retry Test' : 'Test Run',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: showTestRunConfirmDialog,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Center(
+                    child: Text(
+                      isFailed ? 'Retry Test' : 'Test Run',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

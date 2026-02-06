@@ -217,12 +217,13 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     return null;
   }
 
-  String getMotorDisplayName() {
+  String getMotorDisplayName({int maxLength = 16}) {
     final aliasName = normalizeMotorName(motor.aliasName);
     final motorName = normalizeMotorName(motor.name);
     final displayName = aliasName.isNotEmpty ? aliasName : motorName;
-    return displayName.length > 16
-        ? '${displayName.substring(0, 16)}...'
+    if (displayName.isEmpty) return 'Unknown';
+    return displayName.length > maxLength
+        ? '${displayName.substring(0, maxLength)}...'
         : displayName;
   }
 
@@ -357,104 +358,108 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   void showLoadingDialog(int timeoutMinutes) {
     isDialogOpen = true;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = screenWidth < 400 ? screenWidth * 0.85 : 300.0;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
         return PopScope(
           canPop: false,
-          child: AlertDialog(
+          child: Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            content: ValueListenableBuilder<int>(
-              valueListenable: countdownNotifier,
-              builder: (context, remainingSeconds, _) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Lottie.asset(
-                      'assets/lottie_animations/loading.json',
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.contain,
-                      repeat: true,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      getMotorDisplayName(),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF101828),
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: screenWidth < 400 ? 20 : 40,
+              vertical: 24,
+            ),
+            child: Container(
+              width: dialogWidth,
+              padding: const EdgeInsets.all(20),
+              child: ValueListenableBuilder<int>(
+                valueListenable: countdownNotifier,
+                builder: (context, remainingSeconds, _) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Lottie.asset(
+                        'assets/lottie_animations/loading.json',
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.contain,
+                        repeat: true,
                       ),
-                    ),
-                    // const SizedBox(height: 8),
-                    // Text(
-                    //   'Waiting for response...',
-                    //   style: GoogleFonts.dmSans(
-                    //     fontSize: 14,
-                    //     color: const Color(0xFF6B7280),
-                    //   ),
-                    // ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                      const SizedBox(height: 16),
+                      Text(
+                        getMotorDisplayName(maxLength: 10),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF101828),
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEBF3FE),
-                        borderRadius: BorderRadius.circular(24),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEBF3FE),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.timer_outlined,
+                              size: 20,
+                              color: Color(0xFF004E7E),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              formatTime(remainingSeconds),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF004E7E),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.timer_outlined,
-                            size: 20,
-                            color: Color(0xFF004E7E),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            formatTime(remainingSeconds),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF004E7E),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed: cancelTestRun,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: Color(0xFF6B7280),
+                              width: 1,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: OutlinedButton(
-                        onPressed: cancelTestRun,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: Color(0xFF6B7280),
-                            width: 1,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF6B7280),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF6B7280),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         );
@@ -556,8 +561,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
     // Show error snackbar
     if (mounted) {
-      errorSnackBar(
-          context, 'ACK not received. Please check device connection.');
+      errorSnackBar(context, 'No response from the device.');
     }
 
     // Call PATCH API with FAILED status in background (don't wait)
