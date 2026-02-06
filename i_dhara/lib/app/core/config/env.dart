@@ -33,30 +33,30 @@ abstract class AppEnvironment {
     _environment = data;
     switch (data) {
       case Environment.dev:
-        baseApiUrl = dotenv.env["dev_url"]!;
+        baseApiUrl = dotenv.env["dev_url"] ?? "";
         title = "dev";
-        mqttBroker = dotenv.env["mqttBroker_dev"]!;
-        mqttPort = int.parse(dotenv.env["PORT"]!);
-        mqttUsername = dotenv.env["mqttUsername_dev"]!;
-        mqttPassword = dotenv.env["mqttPassword_dev"]!;
+        mqttBroker = dotenv.env["mqttBroker_dev"] ?? "";
+        mqttPort = int.tryParse(dotenv.env["PORT"] ?? "0") ?? 0;
+        mqttUsername = dotenv.env["mqttUsername_dev"] ?? "";
+        mqttPassword = dotenv.env["mqttPassword_dev"] ?? "";
         break;
 
       case Environment.staging:
-        baseApiUrl = dotenv.env["staging_url"]!;
+        baseApiUrl = dotenv.env["staging_url"] ?? "";
         title = "staging";
-        mqttBroker = dotenv.env["mqttBroker_staging"]!;
-        mqttPort = int.parse(dotenv.env["PORT"]!);
-        mqttUsername = dotenv.env["mqttUsername_staging"]!;
-        mqttPassword = dotenv.env["mqttPassword_staging"]!;
+        mqttBroker = dotenv.env["mqttBroker_staging"] ?? "";
+        mqttPort = int.tryParse(dotenv.env["PORT"] ?? "0") ?? 0;
+        mqttUsername = dotenv.env["mqttUsername_staging"] ?? "";
+        mqttPassword = dotenv.env["mqttPassword_staging"] ?? "";
         break;
 
       case Environment.live:
-        baseApiUrl = dotenv.env["live_url"]!;
+        baseApiUrl = dotenv.env["live_url"] ?? "";
         title = "live";
-        mqttBroker = dotenv.env["mqttBroker_live"]!;
-        mqttPort = int.parse(dotenv.env["PORT"]!);
-        mqttUsername = dotenv.env["mqttUsername_live"]!;
-        mqttPassword = dotenv.env["mqttPassword_live"]!;
+        mqttBroker = dotenv.env["mqttBroker_live"] ?? "";
+        mqttPort = int.tryParse(dotenv.env["PORT"] ?? "0") ?? 0;
+        mqttUsername = dotenv.env["mqttUsername_live"] ?? "";
+        mqttPassword = dotenv.env["mqttPassword_live"] ?? "";
         break;
     }
   }

@@ -70,21 +70,24 @@ Future<void> _requestFCMPermission() async {
 }
 
 Future<void> _requestNotificationPermission() async {
-  var status = await Permission.notification.status;
-  if (status.isDenied) {
-    final result = await Permission.notification.request();
-    if (result.isDenied) {
-      await _requestNotificationPermission();
-    } else if (result.isPermanentlyDenied) {
+  try {
+    var status = await Permission.notification.status;
+    if (status.isDenied) {
+      final result = await Permission.notification.request();
+      if (result.isPermanentlyDenied) {
+        openAppSettings();
+      }
+      // Removed recursive call that caused infinite loop in release builds
+    } else if (status.isPermanentlyDenied) {
       openAppSettings();
     }
-  } else if (status.isPermanentlyDenied) {
-    openAppSettings();
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+  } catch (e) {
+    debugPrint('Error requesting notification permission: $e');
   }
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>()
-      ?.requestPermissions(alert: true, badge: true, sound: true);
 }
 
 void _handleNotificationTap(String? payload) {
@@ -166,8 +169,9 @@ Future<void> _setupLocalNotifications() async {
 }
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   if (kIsWeb) {
-    WidgetsFlutterBinding.ensureInitialized();
     await SharedPreference.init();
     usePathUrlStrategy();
     await FlutterFlowTheme.initialize();
@@ -176,22 +180,34 @@ void main() async {
     };
     runApp(const MyWebApp());
   } else {
-    await dotenv.load(fileName: '.env');
-    AppEnvironment.setup();
-    WidgetsFlutterBinding.ensureInitialized();
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebasemessageBackgroundHandler);
-    RemoteMessage? initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-    await _requestFCMPermission();
-    await _setupLocalNotifications();
-    await _requestNotificationPermission();
-    FirebaseMessaging.instance.getToken().then((value) {
-      SharedPreference.setFcmToken(value.toString());
-    });
+    // Load environment variables with error handling
+    try {
+      await dotenv.load(fileName: '.env');
+      AppEnvironment.setup();
+    } catch (e) {
+      debugPrint('Error loading .env file: $e');
+    }
+
+    // Initialize SharedPreference BEFORE Firebase to ensure FCM token can be saved
+    await SharedPreference.init();
+
+    // Initialize Firebase with error handling
+    RemoteMessage? initialMessage;
+    try {
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(_firebasemessageBackgroundHandler);
+      initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      await _requestFCMPermission();
+      await _setupLocalNotifications();
+      await _requestNotificationPermission();
+      FirebaseMessaging.instance.getToken().then((value) {
+        SharedPreference.setFcmToken(value.toString());
+      });
+    } catch (e) {
+      debugPrint('Error initializing Firebase: $e');
+    }
 
     GoRouter.optionURLReflectsImperativeAPIs = true;
-    await SharedPreference.init();
     usePathUrlStrategy();
 
     await FlutterFlowTheme.initialize();
