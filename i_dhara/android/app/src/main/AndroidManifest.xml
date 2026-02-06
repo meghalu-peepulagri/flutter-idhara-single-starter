@@ -12,14 +12,14 @@
     <application
         android:label="iDhara"
         tools:replace="android:label"
-        android:icon="@drawable/idhara_logo"
+        android:icon="@mipmap/launcher_icon"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="false"
         android:fullBackupContent="false">
         <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyDqUxrYmR3T1ZzxwkxGGL1YdBXt-SZLqyo"/>
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
+            android:resource="@drawable/idhara_logo" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
