@@ -24,6 +24,41 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 Future<void> _firebasemessageBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+
+  // Show local notification with iDhara logo in background
+  final FlutterLocalNotificationsPlugin bgPlugin =
+      FlutterLocalNotificationsPlugin();
+  const AndroidInitializationSettings androidInit =
+      AndroidInitializationSettings('@drawable/ic_notification');
+  const DarwinInitializationSettings iosInit = DarwinInitializationSettings();
+  const InitializationSettings initSettings =
+      InitializationSettings(android: androidInit, iOS: iosInit);
+  await bgPlugin.initialize(initSettings);
+
+  final notification = message.notification;
+  if (notification != null) {
+    Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
+    fullData['title'] = notification.title ?? '';
+    fullData['body'] = notification.body ?? '';
+
+    await bgPlugin.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: false,
+          icon: '@drawable/idhara_logo',
+          color: Color(0xFF1B5E8A),
+        ),
+      ),
+      payload: json.encode(fullData),
+    );
+  }
 }
 
 Future<void> _requestFCMPermission() async {
@@ -112,7 +147,7 @@ void _handleNotificationTap(String? payload) {
 
 Future<void> _setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/launcher_icon');
+      AndroidInitializationSettings('@drawable/ic_notification');
   const DarwinInitializationSettings initializationSettingsIOS =
       DarwinInitializationSettings();
   const InitializationSettings initializationSettings = InitializationSettings(
@@ -262,7 +297,7 @@ class _MyAppState extends State<MyApp> {
                 importance: Importance.max,
                 priority: Priority.high,
                 showWhen: false,
-                icon: '@mipmap/launcher_icon',
+                icon: '@drawable/idhara_logo',
                 color: Color(0xFF1B5E8A),
               ),
             ),

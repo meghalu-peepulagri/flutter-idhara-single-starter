@@ -108,6 +108,7 @@ class AnalyticsController extends GetxController {
     }
     resetDateToToday();
     fetchallApis();
+    fetchMotorDetails();
   }
 
   Future<void> _initializeSequentially() async {

@@ -1,5 +1,6 @@
 import 'package:i_dhara/app/core/config/app_config.dart';
 import 'package:i_dhara/app/data/models/auth/login_model.dart';
+import 'package:i_dhara/app/data/models/auth/logout_model.dart';
 import 'package:i_dhara/app/data/models/auth/otp_model.dart';
 import 'package:i_dhara/app/data/models/auth/register_model.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository.dart';
@@ -9,7 +10,6 @@ class AuthRepositoryImpl extends AuthRepository {
   @override
   Future<PhoneResponse?> login(String phone, String signId) async {
     final body = {"phone": phone, "signature_id": signId};
-    print("line 11 --> $body");
     final response =
         await NetworkManager().post('/auth/signin-phone', data: body, {});
     if (response.statusCode == 200 ||
@@ -22,9 +22,29 @@ class AuthRepositoryImpl extends AuthRepository {
     }
   }
 
+  Future<UserLogoutResponse?> fetchlogout() async {
+    final token = SharedPreference.getFcmToken();
+    final body = {"fcm_token": token};
+    final response = await NetworkManager()
+        .post('/users/${SharedPreference.getUserId()}/log-out', data: body, {});
+    try {
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 422) {
+        final res = UserLogoutResponse.fromJson(response.data);
+        return res;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
   @override
   Future<OtpResponse?> verifyOtp(String phone, String otp) async {
     final fcmtoken = SharedPreference.getFcmToken() ?? "";
+    print("line 42 $fcmtoken");
     final body = {'phone': phone, 'otp': otp, 'fcm_token': fcmtoken};
     final response =
         await NetworkManager().post('/auth/verify-otp', data: body, {});

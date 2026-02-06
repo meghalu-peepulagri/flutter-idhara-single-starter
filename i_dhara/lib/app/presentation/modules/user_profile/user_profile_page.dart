@@ -5,11 +5,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/user_profile_card.dart';
-import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
-import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
-import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -285,21 +281,7 @@ class ProfileWidget extends StatelessWidget {
                                   // const SettingsButtonCard(),
                                   FFButtonWidget(
                                     onPressed: () async {
-                                      await SharedPreference.clear();
-                                      Get.deleteAll(force: true);
-                                      if (Get.isRegistered<
-                                          DashboardController>()) {
-                                        Get.delete<DashboardController>(
-                                            force: true);
-                                      }
-                                      Get.delete<LocationsController>(
-                                          force: true);
-                                      Get.delete<DevicesController>(
-                                          force: true);
-                                      Get.offAllNamed(Routes.loginwithmobile);
-                                      SharedPreference.clear();
-                                      print(
-                                          "line 260 -----------> ${Get.isRegistered<DashboardController>}");
+                                      await controller.fetchFcmToken();
                                     },
                                     text: 'Logout',
                                     icon: const Icon(
