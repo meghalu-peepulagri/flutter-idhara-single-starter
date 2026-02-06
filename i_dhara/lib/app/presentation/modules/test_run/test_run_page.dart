@@ -7,6 +7,7 @@ import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:lottie/lottie.dart';
 
 import 'test_run_logic_mixin.dart';
@@ -53,31 +54,64 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: isLoadingApiData && fromDevices
-            ? const Padding(
+        child: ValueListenableBuilder<bool>(
+          valueListenable: hasInternet,
+          builder: (context, hasInternetValue, child) {
+            if (isLoadingApiData && fromDevices) {
+              return const Padding(
                 padding: EdgeInsets.only(right: 50),
                 child: Center(
                   child: AppLottieLoading(),
                 ),
-              )
-            : ValueListenableBuilder(
-                valueListenable: mqttService.dataUpdateNotifier,
-                builder: (context, _, __) {
-                  final motorData = getMotorData();
+              );
+            } else if (!hasInternetValue) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 70),
+                child: Center(child: NoInternetWidget()),
+              );
+            }
 
+            return ValueListenableBuilder(
+              valueListenable: mqttService.dataUpdateNotifier,
+              builder: (context, _, __) {
+                final motorData = getMotorData();
+
+                // CRITICAL: Validate motor data is from allowed groups only
+                final isValidData = motorData == null ||
+                    motorData.groupId == null ||
+                    ['G01', 'G02'].contains(motorData.groupId);
+
+                if (!isValidData) {
+                  // If data is from G03/G04, ignore it completely
+                  debugPrint(
+                      '⚠️ Test Run Page: Blocking data from group ${motorData.groupId}');
                   return Column(
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: _buildMotorCard(motorData),
+                        child: _buildMotorCard(null),
                       ),
                       const Spacer(),
-                      // if (isFailed) _buildFailureMessage(),
                       _buildBottomButtons(),
                     ],
                   );
-                },
-              ),
+                }
+
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: _buildMotorCard(motorData),
+                    ),
+                    const Spacer(),
+                    // if (isFailed) _buildFailureMessage(),
+                    _buildBottomButtons(),
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

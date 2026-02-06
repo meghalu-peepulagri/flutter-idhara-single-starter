@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repository.dart';
@@ -7,6 +8,31 @@ class TestRunController extends GetxController {
 
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+
+  final connectivity = Connectivity();
+  var hasInternet = true.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _initConnectivity();
+  }
+
+  void _initConnectivity() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (connectivityResult.isNotEmpty) {
+      _updateConnectionStatus(connectivityResult.first);
+    }
+    connectivity.onConnectivityChanged.listen((results) {
+      if (results.isNotEmpty) {
+        _updateConnectionStatus(results.first);
+      }
+    });
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    hasInternet.value = result != ConnectivityResult.none;
+  }
 
   Future<bool> updateTestRunStatus(int motorId, TestRunStatus status) async {
     try {

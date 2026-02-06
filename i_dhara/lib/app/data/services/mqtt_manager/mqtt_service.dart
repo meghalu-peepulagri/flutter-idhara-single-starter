@@ -141,6 +141,9 @@ class MqttService {
   final Map<String, DateTime> _lastCommandTimes = {};
   final Map<String, DateTime> _lastAckTimes = {};
 
+  // Test run tracking - motors in test run mode should ignore type 31 and 32
+  final Set<String> _testRunMotors = {};
+
   // Retry settings
   static const int _maxRetries = 2;
   static const Duration _firstRetryDelay = Duration(seconds: 5);
@@ -162,6 +165,21 @@ class MqttService {
 
   /// Get last ack time for a motor
   DateTime? getLastAckTime(String motorId) => _lastAckTimes[motorId];
+
+  /// Add motor to test run mode (will ignore type 31 and 32)
+  void addTestRunMotor(String motorId) {
+    _testRunMotors.add(motorId);
+    debugPrint('✓ Motor added to test run mode: $motorId');
+  }
+
+  /// Remove motor from test run mode
+  void removeTestRunMotor(String motorId) {
+    _testRunMotors.remove(motorId);
+    debugPrint('✓ Motor removed from test run mode: $motorId');
+  }
+
+  /// Check if motor is in test run mode
+  bool isMotorInTestRun(String motorId) => _testRunMotors.contains(motorId);
 
   /// Initialize MQTT connection
   Future<void> initializeMqttClient() async {
@@ -285,7 +303,8 @@ class MqttService {
     try {
       await _publishCommand(motorId, 1, 2, seq);
       statusMessage = 'Test run command sent';
-      debugPrint('Test run command published for $motorId (state=$state)');
+      debugPrint(
+          'Test run command published for $motorId (state=$state) - No retries');
     } catch (e) {
       debugPrint('Failed to publish test run command: $e');
       statusMessage = 'Failed to publish test run: $e';
@@ -637,6 +656,15 @@ class MqttService {
     final motorId = _findMotorWithPendingCommand(identifier, 1);
 
     if (motorId != null) {
+      // Check if motor is in test run mode - if yes, skip updating state/mode
+      if (_testRunMotors.contains(motorId)) {
+        debugPrint(
+            '   ⚠️ Motor $motorId is in test run mode - skipping type 31 ACK');
+        _lastAckTimes[motorId] = DateTime.now();
+        _clearPendingCommand(motorId, 1);
+        return;
+      }
+
       final motorData = _motorDataMap[motorId];
       if (motorData != null) {
         motorData.state = newState;
@@ -651,6 +679,14 @@ class MqttService {
       // No pending command - update any matching motor
       final fallbackId = _findAnyMotorWithIdentifier(identifier);
       if (fallbackId != null) {
+        // Check if motor is in test run mode - if yes, skip updating state/mode
+        if (_testRunMotors.contains(fallbackId)) {
+          debugPrint(
+              '   ⚠️ Motor $fallbackId is in test run mode - skipping type 31 ACK');
+          _lastAckTimes[fallbackId] = DateTime.now();
+          return;
+        }
+
         final motorData = _motorDataMap[fallbackId];
         if (motorData != null) {
           motorData.state = newState;
@@ -698,6 +734,15 @@ class MqttService {
     final motorId = _findMotorWithPendingCommand(identifier, 2);
 
     if (motorId != null) {
+      // Check if motor is in test run mode - if yes, skip updating state/mode
+      if (_testRunMotors.contains(motorId)) {
+        debugPrint(
+            '   ⚠️ Motor $motorId is in test run mode - skipping type 32 ACK');
+        _lastAckTimes[motorId] = DateTime.now();
+        _clearPendingCommand(motorId, 2);
+        return;
+      }
+
       final motorData = _motorDataMap[motorId];
       if (motorData != null) {
         motorData.modeIndex = newMode;
@@ -713,6 +758,14 @@ class MqttService {
       // No pending command - update any matching motor
       final fallbackId = _findAnyMotorWithIdentifier(identifier);
       if (fallbackId != null) {
+        // Check if motor is in test run mode - if yes, skip updating state/mode
+        if (_testRunMotors.contains(fallbackId)) {
+          debugPrint(
+              '   ⚠️ Motor $fallbackId is in test run mode - skipping type 32 ACK');
+          _lastAckTimes[fallbackId] = DateTime.now();
+          return;
+        }
+
         final motorData = _motorDataMap[fallbackId];
         if (motorData != null) {
           motorData.modeIndex = newMode;
@@ -941,7 +994,13 @@ class MqttService {
       throw Exception('Invalid motorId format: $motorId');
     }
 
-    final identifier = motorId.substring(0, lastDashIndex);
+    // Get PCB number from motor data instead of using MAC address
+    final motorData = _motorDataMap[motorId];
+    if (motorData == null || motorData.pcbNumber == null) {
+      throw Exception('Motor data or PCB number not found for: $motorId');
+    }
+
+    final identifier = motorData.pcbNumber!;
     final topic = 'peepul/$identifier/cmd';
 
     final payload = jsonEncode({"T": type, "S": seq, "D": data});
@@ -949,7 +1008,8 @@ class MqttService {
 
     _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
 
-    debugPrint(' Published: $motorId (T=$type, D=$data) -> $topic');
+    debugPrint(
+        ' Published: $motorId (T=$type, D=$data) -> $topic (PCB: $identifier)');
   }
 
   void _registerPendingCommand(String motorId, int type, dynamic data, int seq,

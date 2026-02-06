@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,6 +36,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   final ValueNotifier<int> countdownNotifier = ValueNotifier(0);
   bool isDialogOpen = false;
+
+  // Connectivity
+  final connectivity = Connectivity();
+  final ValueNotifier<bool> hasInternet = ValueNotifier(true);
 
   bool get isTestRunRequired {
     // If coming from devices page, show API data without blocking
@@ -80,8 +85,28 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     localSwitchController = ValueNotifier(initialState);
     localModeController = ValueNotifier(initialMode);
 
+    _initConnectivity();
+
     if (fromDevices && motor.id != null) {
       _fetchMotorDetails();
+    }
+  }
+
+  void _initConnectivity() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (connectivityResult.isNotEmpty) {
+      _updateConnectionStatus(connectivityResult.first);
+    }
+    connectivity.onConnectivityChanged.listen((results) {
+      if (results.isNotEmpty) {
+        _updateConnectionStatus(results.first);
+      }
+    });
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    if (mounted) {
+      hasInternet.value = result != ConnectivityResult.none;
     }
   }
 
@@ -154,6 +179,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     countdownNotifier.dispose();
     localSwitchController.dispose();
     localModeController.dispose();
+    hasInternet.dispose();
   }
 
   int? getSimplifiedModeIndex(String motorMode) {
@@ -175,21 +201,53 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     final identifier = getMotorIdentifier();
     if (identifier.isEmpty) return '';
 
+    // ONLY search in allowed groups (G01, G02) - never check G03, G04
     for (final groupId in allowedGroups) {
       final motorData = mqttService.motorDataMap['$identifier-$groupId'];
-      if (motorData != null) return groupId;
+      // Verify the motor data's groupId also matches allowed groups
+      if (motorData != null &&
+          (motorData.groupId == null ||
+              allowedGroups.contains(motorData.groupId))) {
+        return groupId;
+      }
     }
     return 'G01';
   }
 
   bool isGroupAllowed() {
     final identifier = getMotorIdentifier();
-    if (identifier.isEmpty) return false;
+    if (identifier.isEmpty) {
+      debugPrint('❌ isGroupAllowed: identifier is empty');
+      return false;
+    }
 
+    // Check if motor has data in blocked groups (G03, G04)
     for (final groupId in ['G03', 'G04']) {
       final motorData = mqttService.motorDataMap['$identifier-$groupId'];
-      if (motorData != null && motorData.hasReceivedData) return false;
+      if (motorData != null && motorData.hasReceivedData) {
+        debugPrint(
+            '❌ isGroupAllowed: Motor $identifier has data in blocked group $groupId - TEST RUN NOT ALLOWED');
+        return false;
+      }
     }
+
+    // Verify motor has data in allowed groups (G01, G02)
+    bool hasAllowedGroupData = false;
+    for (final groupId in allowedGroups) {
+      final motorData = mqttService.motorDataMap['$identifier-$groupId'];
+      if (motorData != null) {
+        hasAllowedGroupData = true;
+        debugPrint(
+            '✓ isGroupAllowed: Motor $identifier found in allowed group $groupId');
+        break;
+      }
+    }
+
+    if (!hasAllowedGroupData) {
+      debugPrint(
+          '⚠️ isGroupAllowed: Motor $identifier has no data in allowed groups (G01, G02)');
+    }
+
     return true;
   }
 
@@ -205,15 +263,32 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     final identifier = getMotorIdentifier();
     if (identifier.isEmpty) return null;
 
+    // ONLY check allowed groups (G01, G02) - completely ignore G03, G04
     for (final groupId in allowedGroups) {
-      final data = mqttService.motorDataMap['$identifier-$groupId'];
-      if (data?.hasReceivedData == true) return data;
+      final motorId = '$identifier-$groupId';
+      final data = mqttService.motorDataMap[motorId];
+
+      // Extra validation: ensure the data's groupId matches allowed groups
+      if (data != null &&
+          data.hasReceivedData == true &&
+          data.groupId != null &&
+          allowedGroups.contains(data.groupId!)) {
+        return data;
+      }
     }
 
+    // Fallback: check for non-received data only from allowed groups
     for (final groupId in allowedGroups) {
-      final data = mqttService.motorDataMap['$identifier-$groupId'];
-      if (data != null) return data;
+      final motorId = '$identifier-$groupId';
+      final data = mqttService.motorDataMap[motorId];
+
+      // Extra validation: ensure the data's groupId matches allowed groups
+      if (data != null &&
+          (data.groupId == null || allowedGroups.contains(data.groupId!))) {
+        return data;
+      }
     }
+
     return null;
   }
 
@@ -234,7 +309,11 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   bool get isPowerOn {
     final motorData = getMotorData();
-    if (motorData != null && motorData.hasReceivedData) {
+    // CRITICAL: Only use power status from allowed groups (G01, G02)
+    if (motorData != null &&
+        motorData.hasReceivedData &&
+        motorData.groupId != null &&
+        allowedGroups.contains(motorData.groupId!)) {
       return motorData.power == 1;
     }
     return (motor.starter?.power ?? 0) == 1;
@@ -242,16 +321,23 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   int get faultValue {
     final motorData = getMotorData();
-    if (motorData != null && motorData.hasReceivedData) {
+    // CRITICAL: Only use fault value from allowed groups (G01, G02)
+    if (motorData != null &&
+        motorData.hasReceivedData &&
+        motorData.groupId != null &&
+        allowedGroups.contains(motorData.groupId!)) {
       return motorData.fault;
     }
     return motor.starter?.starterParameters?.firstOrNull?.fault ?? 0;
   }
 
   int getSignalBars(MotorData? motorData) {
+    // CRITICAL: Only use signal from allowed groups (G01, G02)
     if (motorData != null &&
         motorData.hasReceivedData &&
-        !motorData.isSignalStale()) {
+        !motorData.isSignalStale() &&
+        motorData.groupId != null &&
+        allowedGroups.contains(motorData.groupId!)) {
       return motorData.signalBars;
     }
     final signalStrength = motor.starter?.signalQuality;
@@ -278,6 +364,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   Future<void> startTestRun(int timeoutMinutes) async {
     final mqttMotorId = getMotorId();
     if (mqttMotorId.isEmpty) {
+      debugPrint('❌ Test Run: Motor ID is empty, cannot start test run');
       setState(() {
         isFailed = true;
       });
@@ -285,6 +372,8 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     if (!isGroupAllowed()) {
+      debugPrint(
+          '❌ Test Run: Motor is in G03/G04 group, test run not allowed');
       setState(() {
         isFailed = true;
         failureMessage = 'Test run is only supported for G01 and G02 motors';
@@ -292,11 +381,19 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       return;
     }
 
+    debugPrint(
+        '🚀 Test Run: Starting test run for motor: $mqttMotorId (allowed groups: $allowedGroups)');
+
     setState(() {
       isFailed = false;
       failureMessage = '';
       isTestRunning = true;
     });
+
+    // Add motor to test run mode (will ignore type 31 and 32)
+    mqttService.addTestRunMotor(mqttMotorId);
+    debugPrint(
+        '✓ Test Run: Motor $mqttMotorId added to test run mode - types 31 and 32 will be ignored');
 
     // Show loading dialog IMMEDIATELY
     testStartTime = DateTime.now();
@@ -322,6 +419,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       // API call failed - close dialog and show error
       closeLoadingDialog();
       countdownTimer?.cancel();
+
+      // Remove motor from test run mode
+      mqttService.removeTestRunMotor(mqttMotorId);
+
       setState(() {
         isFailed = true;
         failureMessage = testRunController.errorMessage.value.isNotEmpty
@@ -345,6 +446,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       debugPrint('Test run command failed: $e');
       closeLoadingDialog();
       countdownTimer?.cancel();
+
+      // Remove motor from test run mode
+      mqttService.removeTestRunMotor(mqttMotorId);
+
       // Call PATCH API with FAILED status since publish failed
       await testRunController.failTestRun(motor.id!);
       setState(() {
@@ -471,6 +576,14 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
+
+    // Remove motor from test run mode
+    final mqttMotorId = getMotorId();
+    if (mqttMotorId.isNotEmpty) {
+      mqttService.removeTestRunMotor(mqttMotorId);
+      debugPrint('✓ Test Run: Motor $mqttMotorId removed from test run mode');
+    }
+
     closeLoadingDialog();
     setState(() {
       isTestRunning = false;
@@ -493,21 +606,40 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   void onDataUpdate() {
     if (!isDialogOpen || testStartTime == null) return;
 
-    final identifier = getMotorIdentifier();
-    if (identifier.isEmpty) return;
+    if (motor.starter == null) return;
 
-    for (final groupId in allowedGroups) {
-      final motorId = '$identifier-$groupId';
-      final motorData = mqttService.motorDataMap[motorId];
+    final mac = motor.starter!.macAddress;
+    final pcb = motor.starter!.pcbNumber;
 
-      if (motorData == null) continue;
+    // Check all motors that match this motor's MAC or PCB
+    for (final entry in mqttService.motorDataMap.entries) {
+      final motorData = entry.value;
+      final motorId = entry.key;
 
+      // CRITICAL: Block G03 and G04 groups completely in test run
+      final groupId = motorData.groupId;
+      if (groupId == null || !allowedGroups.contains(groupId)) {
+        // Explicitly skip G03, G04, and any other non-allowed groups
+        continue;
+      }
+
+      // Check if this motor matches our motor (by MAC or PCB)
+      final matchesMac = mac != null &&
+          mac.isNotEmpty &&
+          (motorData.macAddress == mac || motorData.pcbNumber == mac);
+      final matchesPcb = pcb != null &&
+          pcb.isNotEmpty &&
+          (motorData.macAddress == pcb || motorData.pcbNumber == pcb);
+
+      if (!matchesMac && !matchesPcb) continue;
+
+      // Check if ACK was received after test started
       final lastAckTime = mqttService.getLastAckTime(motorId);
       if (lastAckTime != null &&
           lastAckTime.isAfter(testStartTime!) &&
           motorData.hasReceivedData) {
         debugPrint(
-            'Test Run: Live data (type 35/41) received for $motorId at $lastAckTime');
+            'Test Run: ACK received for $motorId at $lastAckTime (mac=$mac, pcb=$pcb, group=$groupId)');
         onAckReceived();
         return;
       }
@@ -518,6 +650,14 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
+
+    // Remove motor from test run mode
+    final mqttMotorId = getMotorId();
+    if (mqttMotorId.isNotEmpty) {
+      mqttService.removeTestRunMotor(mqttMotorId);
+      debugPrint(
+          '✓ Test Run: ACK received - Motor $mqttMotorId removed from test run mode');
+    }
 
     if (motor.id != null) {
       SharedPreference.addCompletedTestRunMotor(motor.id!);
@@ -556,6 +696,14 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
+
+    // Remove motor from test run mode
+    final mqttMotorId = getMotorId();
+    if (mqttMotorId.isNotEmpty) {
+      mqttService.removeTestRunMotor(mqttMotorId);
+      debugPrint(
+          '⚠️ Test Run: Timeout - Motor $mqttMotorId removed from test run mode');
+    }
 
     closeLoadingDialog();
 
