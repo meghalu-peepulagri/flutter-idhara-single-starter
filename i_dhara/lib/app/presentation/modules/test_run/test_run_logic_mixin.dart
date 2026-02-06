@@ -663,7 +663,15 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       SharedPreference.addCompletedTestRunMotor(motor.id!);
     }
 
-    turnOffMotor();
+    // CRITICAL: Clear any existing pending commands to prevent any retries
+    if (mqttMotorId.isNotEmpty) {
+      mqttService.clearAllPendingCommandsForMotor(mqttMotorId);
+      debugPrint('✓ Test Run: Cleared all pending commands for $mqttMotorId - NO turn-off command will be sent');
+    }
+
+    // NOTE: We do NOT send turn-off command after test run completion
+    // The motor state is managed by the device itself after test run
+
     closeLoadingDialog();
 
     if (mounted) {

@@ -181,6 +181,47 @@ class MqttService {
   /// Check if motor is in test run mode
   bool isMotorInTestRun(String motorId) => _testRunMotors.contains(motorId);
 
+  /// Check if any motor with the given identifier (MAC/PCB) is in test run mode
+  /// CRITICAL: This checks BOTH MAC and PCB across all groups
+  bool isIdentifierInTestRun(String identifier) {
+    debugPrint('   🔍 Checking if identifier "$identifier" is in test run...');
+    debugPrint('   🔍 Test run motors: ${_testRunMotors.toList()}');
+
+    if (_testRunMotors.isEmpty) {
+      debugPrint('   ⚠️ No motors in test run');
+      return false;
+    }
+
+    // Check 1: Direct match - motor ID starts with identifier
+    for (final testRunMotorId in _testRunMotors) {
+      if (testRunMotorId.startsWith('$identifier-')) {
+        debugPrint('   ✅ DIRECT MATCH: $identifier = $testRunMotorId');
+        return true;
+      }
+    }
+
+    // Check 2: Cross-reference MAC/PCB - check motorDataMap
+    debugPrint('   🔍 No direct match, checking MAC/PCB cross-reference...');
+    for (final testRunMotorId in _testRunMotors) {
+      final motorData = _motorDataMap[testRunMotorId];
+      if (motorData != null) {
+        final mac = motorData.macAddress;
+        final pcb = motorData.pcbNumber;
+        debugPrint(
+            '   🔍 Motor $testRunMotorId: mac=$mac, pcb=$pcb vs identifier=$identifier');
+
+        if (mac == identifier || pcb == identifier) {
+          debugPrint(
+              '   ✅ CROSS-MATCH: identifier=$identifier matches motor $testRunMotorId');
+          return true;
+        }
+      }
+    }
+
+    debugPrint('   ❌ NO MATCH: identifier=$identifier not in test run');
+    return false;
+  }
+
   /// Initialize MQTT connection
   Future<void> initializeMqttClient() async {
     if (_mqttClient != null && isConnected) {
@@ -629,8 +670,18 @@ class MqttService {
 
   /// Handle motor ON/OFF acknowledgment (type 31)
   void _handleMotorControlAck(String identifier, dynamic payloadData) {
-    debugPrint(
-        '🔧 _handleMotorControlAck called: identifier=$identifier, payloadData=$payloadData (${payloadData.runtimeType})');
+    debugPrint('🔧 TYPE 31 received: identifier=$identifier');
+
+    // ========== CRITICAL: COMPLETELY IGNORE TYPE 31 IN TEST RUN ==========
+    // If in test run, IGNORE COMPLETELY - no ACK time, no state, NOTHING
+    if (isIdentifierInTestRun(identifier)) {
+      debugPrint('   🚫🚫🚫 COMPLETELY IGNORING TYPE 31 - Test run active');
+      debugPrint('   → NOT recording ACK time');
+      debugPrint('   → NOT updating state');
+      debugPrint('   → Test run will NOT complete from this message');
+      return; // EXIT - do NOTHING
+    }
+    debugPrint('   ✓ Not in test run - processing normally');
 
     // Parse state from various formats
     int? newState;
@@ -706,8 +757,19 @@ class MqttService {
 
   /// Handle mode change acknowledgment (type 32)
   void _handleModeChangeAck(String identifier, dynamic payloadData) {
-    debugPrint(
-        '🔧 _handleModeChangeAck called: identifier=$identifier, payloadData=$payloadData (${payloadData.runtimeType})');
+    debugPrint('🔧 TYPE 32 received: identifier=$identifier');
+
+    // ========== CRITICAL: BLOCK TYPE 32 FOR TEST RUN MOTORS ==========
+    // ========== CRITICAL: COMPLETELY IGNORE TYPE 32 IN TEST RUN ==========
+    // If in test run, IGNORE COMPLETELY - no ACK time, no mode change, NOTHING
+    if (isIdentifierInTestRun(identifier)) {
+      debugPrint('   🚫🚫🚫 COMPLETELY IGNORING TYPE 32 - Test run active');
+      debugPrint('   → NOT recording ACK time');
+      debugPrint('   → NOT updating mode');
+      debugPrint('   → Test run will NOT complete from this message');
+      return; // EXIT - do NOTHING
+    }
+    debugPrint('   ✓ Not in test run - processing normally');
 
     // Parse mode from various formats
     int? newMode;
@@ -1110,6 +1172,33 @@ class MqttService {
       command.cancelTimer();
       _pendingCommands.remove(key);
       debugPrint('   Cleared pending: $key');
+    }
+  }
+
+  /// Clear all pending commands for a specific motor (used after test run completion)
+  void clearAllPendingCommandsForMotor(String motorId) {
+    final keysToRemove = <String>[];
+
+    // Find all pending commands for this motor
+    for (var key in _pendingCommands.keys) {
+      if (key.startsWith('${motorId}_')) {
+        keysToRemove.add(key);
+      }
+    }
+
+    // Cancel timers and remove commands
+    for (var key in keysToRemove) {
+      final command = _pendingCommands[key];
+      if (command != null) {
+        command.cancelTimer();
+        _pendingCommands.remove(key);
+        debugPrint('✓ Cleared pending command after test run: $key');
+      }
+    }
+
+    if (keysToRemove.isNotEmpty) {
+      debugPrint(
+          '✓ Stopped ${keysToRemove.length} pending command(s) for $motorId to prevent retries');
     }
   }
 }
