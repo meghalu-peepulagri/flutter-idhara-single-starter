@@ -71,7 +71,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
                       children: [
                         _buildMotorCard(motorData),
                         const Spacer(),
-                        if (isFailed) _buildFailureMessage(),
+                        // if (isFailed) _buildFailureMessage(),
                         _buildBottomButtons(),
                       ],
                     ),
@@ -263,59 +263,6 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
           fit: BoxFit.contain,
           repeat: true,
         ),
-      ),
-    );
-  }
-
-  Widget _buildFailureMessage() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.error_outline,
-              size: 50,
-              color: Color(0xFFEF4444),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              failureMessage,
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFFEF4444),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
       ),
     );
   }

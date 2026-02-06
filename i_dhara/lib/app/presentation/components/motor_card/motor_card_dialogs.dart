@@ -398,9 +398,9 @@ class MotorCardDialogs {
                   Text(
                     'Confirm Test Run',
                     style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1E1E1E),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF101828),
                     ),
                   ),
                   // const SizedBox(height: 8),
@@ -426,7 +426,7 @@ class MotorCardDialogs {
                               'Motor: ',
                               style: GoogleFonts.dmSans(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w400,
                                 color: const Color(0xFF004E7E),
                               ),
                             ),
@@ -435,6 +435,7 @@ class MotorCardDialogs {
                                 _getMotorDisplayName(motor),
                                 style: GoogleFonts.dmSans(
                                   fontSize: 14,
+                                  fontWeight: FontWeight.w400,
                                   color: Colors.black,
                                 ),
                               ),
@@ -448,7 +449,7 @@ class MotorCardDialogs {
                               'Time: ',
                               style: GoogleFonts.dmSans(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w400,
                                 color: const Color(0xFF004E7E),
                               ),
                             ),

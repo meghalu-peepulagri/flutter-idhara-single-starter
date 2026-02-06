@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
@@ -274,11 +275,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   }
 
   Future<void> startTestRun(int timeoutMinutes) async {
-    final motorId = getMotorId();
-    if (motorId.isEmpty) {
+    final mqttMotorId = getMotorId();
+    if (mqttMotorId.isEmpty) {
       setState(() {
         isFailed = true;
-        failureMessage = 'Motor ID not available';
       });
       return;
     }
@@ -297,11 +297,30 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       isTestRunning = true;
     });
 
-    // Step 1: Call PATCH API with IN_TEST status first
+    // Show loading dialog IMMEDIATELY
+    testStartTime = DateTime.now();
+    remainingSeconds = timeoutMinutes * 60;
+    countdownNotifier.value = remainingSeconds;
+    showLoadingDialog(timeoutMinutes);
+
+    // Start countdown timer immediately
+    countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || !isDialogOpen) {
+        timer.cancel();
+        return;
+      }
+      remainingSeconds--;
+      countdownNotifier.value = remainingSeconds;
+      if (remainingSeconds <= 0) timer.cancel();
+    });
+
+    // Step 1: Call PATCH API with IN_TEST status
     final apiSuccess = await testRunController.startTestRun(motor.id!);
 
     if (!apiSuccess) {
-      // API call failed - don't publish payload
+      // API call failed - close dialog and show error
+      closeLoadingDialog();
+      countdownTimer?.cancel();
       setState(() {
         isFailed = true;
         failureMessage = testRunController.errorMessage.value.isNotEmpty
@@ -313,25 +332,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     // Step 2: API successful - now publish the payload
-    testStartTime = DateTime.now();
-    remainingSeconds = timeoutMinutes * 60;
-    countdownNotifier.value = remainingSeconds;
-
-    showLoadingDialog(timeoutMinutes);
     mqttService.dataUpdateNotifier.addListener(onDataUpdate);
 
     try {
-      await mqttService.publishTestRunCommand(motorId, 1);
-
-      countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!mounted || !isDialogOpen) {
-          timer.cancel();
-          return;
-        }
-        remainingSeconds--;
-        countdownNotifier.value = remainingSeconds;
-        if (remainingSeconds <= 0) timer.cancel();
-      });
+      await mqttService.publishTestRunCommand(mqttMotorId, 1);
 
       ackTimer = Timer(Duration(minutes: timeoutMinutes), () {
         if (mounted && isDialogOpen) onAckTimeout();
@@ -339,6 +343,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     } catch (e) {
       debugPrint('Test run command failed: $e');
       closeLoadingDialog();
+      countdownTimer?.cancel();
       // Call PATCH API with FAILED status since publish failed
       await testRunController.failTestRun(motor.id!);
       setState(() {
@@ -379,9 +384,9 @@ mixin TestRunLogicMixin on State<TestRunPage> {
                     Text(
                       getMotorDisplayName(),
                       style: GoogleFonts.dmSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1E1E1E),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF101828),
                       ),
                     ),
                     // const SizedBox(height: 8),
@@ -504,13 +509,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
   }
 
-  void onAckReceived() async {
+  void onAckReceived() {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
-
-    // Call PATCH API with COMPLETED status since ACK received
-    await testRunController.completeTestRun(motor.id!);
 
     if (motor.id != null) {
       SharedPreference.addCompletedTestRunMotor(motor.id!);
@@ -523,7 +525,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       successSnackBar(context, 'Test Run completed successfully');
     }
 
-    // Navigate based on level: device level -> devices screen, motor level -> dashboard
+    // Call PATCH API with COMPLETED status in background (don't wait)
+    testRunController.completeTestRun(motor.id!);
+
+    // Navigate IMMEDIATELY based on level
     if (fromDevices) {
       goToDevices();
     } else {
@@ -542,21 +547,26 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
   }
 
-  void onAckTimeout() async {
+  void onAckTimeout() {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
 
     closeLoadingDialog();
 
-    // Call PATCH API with FAILED status since no ACK received
-    await testRunController.failTestRun(motor.id!);
+    // Show error snackbar
+    if (mounted) {
+      errorSnackBar(
+          context, 'ACK not received. Please check device connection.');
+    }
+
+    // Call PATCH API with FAILED status in background (don't wait)
+    testRunController.failTestRun(motor.id!);
 
     setState(() {
       isFailed = true;
       isTestRunning = false;
-      failureMessage =
-          'No response received after $selectedTimeoutMinutes min. Please check device connection.';
+      // failureMessage = 'ACK not received. Please check device connection.';
     });
   }
 
