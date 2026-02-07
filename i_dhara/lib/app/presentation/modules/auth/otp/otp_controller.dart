@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository_impl.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 
 import '../../../routes/app_routes.dart';
@@ -24,7 +24,8 @@ class OtpController extends GetxController with CodeAutoFill {
   void onInit() {
     super.onInit();
     _startTimer();
-    String phone = SharedPreference.getPhone();
+    String phone = HiveHandler.getValue(Hivekeys.userPhone, '');
+
     if (phone.length >= 4) {
       maskedPhoneNumber.value =
           '*' * (phone.length - 4) + phone.substring(phone.length - 4);
@@ -53,9 +54,10 @@ class OtpController extends GetxController with CodeAutoFill {
       isLoading.value = true;
       error.value = false;
       errorInstance.value = '';
+
       FocusScope.of(context).unfocus();
       await fetchOtp(
-          phone: SharedPreference.getPhone(),
+          phone: HiveHandler.getValue(Hivekeys.userPhone, ''),
           otp: pinCodeController.text.trim());
     } catch (e) {
       debugPrint('Error during verification: $e');
@@ -70,10 +72,11 @@ class OtpController extends GetxController with CodeAutoFill {
     if (response?.data != null && response?.errors == null) {
       error.value = false;
       Get.offNamed(Routes.dashboard);
-      SharedPreference.setAccessToken(
-          response?.data?.accessToken.toString() ?? "");
       final userId = response!.data!.userDetails!.id;
-      SharedPreference.setUserId(userId!);
+
+      await HiveHandler.setValue(
+          Hivekeys.accessToken, response.data?.accessToken.toString());
+      HiveHandler.setValue(Hivekeys.userId, userId);
       await SmsAutoFill().unregisterListener();
       pinCodeController.text = '';
     } else {
@@ -97,7 +100,8 @@ class OtpController extends GetxController with CodeAutoFill {
     isTimerRunning.value = true;
     _startTimer();
     String id = await SmsAutoFill().getAppSignature;
-    await fetchResendOtp(phone: SharedPreference.getPhone(), sid: id);
+    await fetchResendOtp(
+        phone: HiveHandler.getValue(Hivekeys.userPhone, ''), sid: id);
   }
 
   Future<void> _listenSmsCode() async {

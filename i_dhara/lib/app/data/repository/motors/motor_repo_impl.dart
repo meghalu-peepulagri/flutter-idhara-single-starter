@@ -5,7 +5,7 @@ import 'package:i_dhara/app/data/models/motors/motor_alerts_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_logs_model.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repository.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 
 class MotorsRepositoryImpl implements MotorsRepository {
   @override
@@ -25,8 +25,8 @@ class MotorsRepositoryImpl implements MotorsRepository {
 
   @override
   Future<MotorDetailsResponse?> getMotorDetails() async {
-    final response =
-        await NetworkManager().get('/motors/${SharedPreference.getMotorId()}');
+    final motorId = HiveHandler.getValue(Hivekeys.motorId, '');
+    final response = await NetworkManager().get('/motors/$motorId');
     if (response.statusCode == 200) {
       final res = MotorDetailsResponse.fromJson(response.data);
       return res;
@@ -36,13 +36,16 @@ class MotorsRepositoryImpl implements MotorsRepository {
 
   @override
   Future<FaultsResponse?> getMotorFaults(int? page, int? limit) async {
+    final motorId = HiveHandler.getValue(Hivekeys.motorId, '');
+    final starterId = HiveHandler.getValue(Hivekeys.starterId, '');
+
     Map<String, dynamic> params = {
       'type': 'fault',
       'page': page,
       'page_size': 15,
     };
     final response = await NetworkManager().get(
-        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/alerts-faults',
+        '/starters/$starterId/motors/$motorId/alerts-faults',
         queryParameters: params);
     if (response.statusCode == 200) {
       final res = FaultsResponse.fromJson(response.data);
@@ -53,13 +56,16 @@ class MotorsRepositoryImpl implements MotorsRepository {
 
   @override
   Future<MotorAlertsResponse?> getMotorAlerts(int? page, int? limit) async {
+    final motorId = HiveHandler.getValue(Hivekeys.motorId, '');
+    final starterId = HiveHandler.getValue(Hivekeys.starterId, '');
+
     Map<String, dynamic> params = {
       'type': 'alert',
       'page': page,
       'page_size': 15,
     };
     final response = await NetworkManager().get(
-        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/alerts-faults',
+        '/starters/$starterId/motors/$motorId/alerts-faults',
         queryParameters: params);
     if (response.statusCode == 200) {
       final res = MotorAlertsResponse.fromJson(response.data);
@@ -71,9 +77,11 @@ class MotorsRepositoryImpl implements MotorsRepository {
   @override
   Future<MotorLogsResponse?> getMotorLogs(
       int? page, int? limit, String action) async {
+    final motorId = HiveHandler.getValue(Hivekeys.motorId, '');
+
     Map<String, dynamic> params = {
       'entity': 'MOTOR',
-      'entity_id': SharedPreference.getMotorId(),
+      'entity_id': motorId,
       'action': action,
       'page': page,
       'page_size': 15,

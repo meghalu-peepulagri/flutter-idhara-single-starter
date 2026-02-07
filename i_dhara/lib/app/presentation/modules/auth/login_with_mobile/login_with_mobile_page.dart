@@ -13,6 +13,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_textfield.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/auth/login_with_mobile/login_with_mobile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -51,7 +52,9 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
   }
 
   Future<void> _loadSavedPhoneNumber() async {
-    String? phoneNumber = SharedPreference.getPhone();
+    // String? phoneNumber = SharedPreference.getPhone();
+    String phoneNumber = HiveHandler.getValue(Hivekeys.userPhone, '');
+
     if (phoneNumber.isNotEmpty) {
       if (mounted) {
         setState(() {

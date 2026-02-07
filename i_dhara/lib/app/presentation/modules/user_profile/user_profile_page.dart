@@ -278,7 +278,6 @@ class ProfileWidget extends StatelessWidget {
                                     ),
                                   ),
                                   UserProfileCard(),
-                                  // const SettingsButtonCard(),
                                   FFButtonWidget(
                                     onPressed: () async {
                                       await controller.fetchFcmToken();

@@ -9,6 +9,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import '../../dto/device_setting_dto.dart';
 import '../../models/settings/update_user_settings_model.dart';
 import '../../models/settings/user_setting_limits2_model.dart';
+import '../../services/storages/hive_handler.dart';
 
 class SettingsRepositoryImpl extends SettingsRepository {
   @override
@@ -23,8 +24,9 @@ class SettingsRepositoryImpl extends SettingsRepository {
 
   @override
   Future<UserSettingsResponse?> getSettings() async {
-    final id = SharedPreference.getStarterId();
-    final response = await NetworkManager().get('/settings/acknowledged/$id');
+    final starterId = HiveHandler.getValue(Hivekeys.starterId, '');
+
+    final response = await NetworkManager().get('/settings/acknowledged/$starterId');
     if (response.statusCode == 200) {
       final res = UserSettingsResponse.fromJson(response.data);
       return res;
@@ -34,8 +36,9 @@ class SettingsRepositoryImpl extends SettingsRepository {
 
   @override
   Future<UserSettingsResponse2?> getSettings2() async {
-    final id = SharedPreference.getStarterId();
-    final response = await NetworkManager().get('/settings/starter/$id');
+    final starterId = HiveHandler.getValue(Hivekeys.starterId, '');
+
+    final response = await NetworkManager().get('/settings/starter/$starterId');
     if (response.statusCode == 200) {
       final res = UserSettingsResponse2.fromJson(response.data);
       return res;
@@ -49,9 +52,10 @@ class SettingsRepositoryImpl extends SettingsRepository {
       "columns": "drf_min,drf_max,olf_min,olf_max" // ✅ no spaces
     };
 
-    final id = SharedPreference.getStarterId();
+    final starterId = HiveHandler.getValue(Hivekeys.starterId, '');
+
     final response = await NetworkManager()
-        .get('/settings/limits-mobile/$id', queryParameters: query);
+        .get('/settings/limits-mobile/$starterId', queryParameters: query);
     try {
       if (response.statusCode == 200) {
         final res = UserSettingsLimitsResponse.fromJson(response.data);
@@ -67,10 +71,10 @@ class SettingsRepositoryImpl extends SettingsRepository {
   @override
   Future<UpdateUserSettingResponse?> updateSettings(
       UserUpdateSettingsDto dto) async {
-    final id = SharedPreference.getStarterId();
-    print("line 62 -----> \n${dto.toJson()}");
+    final starterId = HiveHandler.getValue(Hivekeys.starterId, '');
+
     final response = await NetworkManager().post(
-      '/settings/starter/$id',
+      '/settings/starter/$starterId',
       {},
       data: jsonEncode(dto.toJson()),
     );

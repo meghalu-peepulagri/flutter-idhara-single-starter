@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 
 class AddNewLocationController extends GetxController {
   FocusNode? textFieldFocusNode;
@@ -36,8 +36,9 @@ class AddNewLocationController extends GetxController {
           if (element.name == name) {
             final id = element.id;
             locationId = id.toString();
-            await SharedPreference.setLocationId(locationId);
-            await SharedPreference.setLocationName(name);
+            HiveHandler.setValue(Hivekeys.locationName, name);
+            HiveHandler.setValue(Hivekeys.locationId, locationId);
+
             print("line 33 loc id-----------> $locationId");
           }
         }

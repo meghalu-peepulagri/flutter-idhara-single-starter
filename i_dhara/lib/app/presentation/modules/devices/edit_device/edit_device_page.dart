@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_controller.dart';
 
@@ -41,7 +41,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
   }
 
   Future<void> _getLocationName() async {
-    String? motorname = SharedPreference.getMotorName();
+    String motorname = HiveHandler.getValue(Hivekeys.motorName, '');
     if (motorname.isNotEmpty) {
       setState(() {
         _model.textController!.text = motorname;

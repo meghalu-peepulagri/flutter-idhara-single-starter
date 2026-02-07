@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
@@ -291,8 +292,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _navigateToDetails() {
-    SharedPreference.setMotorId(widget.motor.id ?? 0);
-    SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
+    // SharedPreference.setMotorId(widget.motor.id ?? 0);
+    HiveHandler.setValue(Hivekeys.motorId, widget.motor.id.toString());
+    HiveHandler.setValue(
+        Hivekeys.starterId, widget.motor.starter?.id.toString());
     Get.toNamed(
       Routes.motorDetails,
       arguments: {'motorId': widget.motor.id},

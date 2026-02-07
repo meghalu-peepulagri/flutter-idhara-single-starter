@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/user_profile/user_profile_model.dart';
 import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../data/repository/auth/auth_repository_impl.dart';
@@ -42,10 +43,15 @@ class UserProfileController extends GetxController {
   Future<void> fetchFcmToken() async {
     final response = await AuthRepositoryImpl().fetchlogout();
     if (response?.status == 200 || response?.status == 201) {
-      await SharedPreference.clear();
-      FirebaseMessaging.instance.getToken().then((value) {
-        SharedPreference.setFcmToken(value!);
-      });
+      await HiveHandler.clearHive();
+      final String? token = await FirebaseMessaging.instance.getToken();
+      // 4️⃣ Store token safely
+      if (token != null && token.isNotEmpty) {
+        await HiveHandler.setValue(
+          Hivekeys.fcmToken,
+          token,
+        );
+      }
       Get.deleteAll(force: true);
       if (Get.isRegistered<DashboardController>()) {
         Get.delete<DashboardController>(force: true);
@@ -53,7 +59,6 @@ class UserProfileController extends GetxController {
       Get.delete<LocationsController>(force: true);
       Get.delete<DevicesController>(force: true);
       Get.offAllNamed(Routes.loginwithmobile);
-      SharedPreference.clear();
     }
   }
 }

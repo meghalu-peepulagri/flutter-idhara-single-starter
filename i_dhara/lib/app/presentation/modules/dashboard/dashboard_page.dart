@@ -4,11 +4,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
-import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
-import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_widget.dart';
 import 'package:i_dhara/app/presentation/components/weather_card.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
+import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
@@ -30,7 +30,6 @@ class DashboardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Add scroll listener for pagination
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
@@ -154,7 +153,7 @@ class DashboardWidget extends StatelessWidget {
         showModalBottomSheet(
           context: context,
           backgroundColor: Colors.transparent,
-          builder: (_) => LocationBottomSheet(),
+          builder: (_) => const LocationBottomSheet(),
         );
       },
       child: Obx(() {

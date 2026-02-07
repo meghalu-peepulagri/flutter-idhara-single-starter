@@ -4,7 +4,7 @@ import 'package:i_dhara/app/data/models/auth/logout_model.dart';
 import 'package:i_dhara/app/data/models/auth/otp_model.dart';
 import 'package:i_dhara/app/data/models/auth/register_model.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 
 class AuthRepositoryImpl extends AuthRepository {
   @override
@@ -23,10 +23,11 @@ class AuthRepositoryImpl extends AuthRepository {
   }
 
   Future<UserLogoutResponse?> fetchlogout() async {
-    final token = SharedPreference.getFcmToken();
+    final token = HiveHandler.getValue(Hivekeys.fcmToken, '');
+    final userId = HiveHandler.getValue(Hivekeys.userId, 0);
     final body = {"fcm_token": token};
-    final response = await NetworkManager()
-        .post('/users/${SharedPreference.getUserId()}/log-out', data: body, {});
+    final response =
+        await NetworkManager().post('/users/$userId/log-out', data: body, {});
     try {
       if (response.statusCode == 200 ||
           response.statusCode == 201 ||
@@ -43,8 +44,7 @@ class AuthRepositoryImpl extends AuthRepository {
 
   @override
   Future<OtpResponse?> verifyOtp(String phone, String otp) async {
-    final fcmtoken = SharedPreference.getFcmToken() ?? "";
-    print("line 42 $fcmtoken");
+    final fcmtoken = HiveHandler.getValue(Hivekeys.fcmToken, '');
     final body = {'phone': phone, 'otp': otp, 'fcm_token': fcmtoken};
     final response =
         await NetworkManager().post('/auth/verify-otp', data: body, {});

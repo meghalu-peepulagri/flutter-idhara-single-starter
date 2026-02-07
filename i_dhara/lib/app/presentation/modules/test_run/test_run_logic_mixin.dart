@@ -15,6 +15,7 @@ import 'package:i_dhara/app/presentation/modules/test_run/test_run_controller.da
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../data/services/storages/hive_handler.dart';
 import 'test_run_page.dart';
 
 mixin TestRunLogicMixin on State<TestRunPage> {
@@ -114,10 +115,8 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     setState(() {
       isLoadingApiData = true;
     });
-
-    SharedPreference.setMotorId(motor.id!);
+    HiveHandler.setValue(Hivekeys.motorId, motor.id.toString());
     final response = await MotorsRepositoryImpl().getMotorDetails();
-
     if (response?.data != null && mounted) {
       final details = response!.data!;
       // Update motor with starterParameters from API
@@ -372,8 +371,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     if (!isGroupAllowed()) {
-      debugPrint(
-          '❌ Test Run: Motor is in G03/G04 group, test run not allowed');
+      debugPrint('❌ Test Run: Motor is in G03/G04 group, test run not allowed');
       setState(() {
         isFailed = true;
         failureMessage = 'Test run is only supported for G01 and G02 motors';
@@ -660,13 +658,15 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     if (motor.id != null) {
+      HiveHandler.setValue(Hivekeys.testrunStatus, motor.id);
       SharedPreference.addCompletedTestRunMotor(motor.id!);
     }
 
     // CRITICAL: Clear any existing pending commands to prevent any retries
     if (mqttMotorId.isNotEmpty) {
       mqttService.clearAllPendingCommandsForMotor(mqttMotorId);
-      debugPrint('✓ Test Run: Cleared all pending commands for $mqttMotorId - NO turn-off command will be sent');
+      debugPrint(
+          '✓ Test Run: Cleared all pending commands for $mqttMotorId - NO turn-off command will be sent');
     }
 
     // NOTE: We do NOT send turn-off command after test run completion

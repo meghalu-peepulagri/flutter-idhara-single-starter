@@ -11,6 +11,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/config/env.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -77,7 +78,6 @@ Future<void> _requestNotificationPermission() async {
       if (result.isPermanentlyDenied) {
         openAppSettings();
       }
-      // Removed recursive call that caused infinite loop in release builds
     } else if (status.isPermanentlyDenied) {
       openAppSettings();
     }
@@ -91,7 +91,6 @@ Future<void> _requestNotificationPermission() async {
 }
 
 void _handleNotificationTap(String? payload) {
-  print("line --->");
   if (payload == null || payload.isEmpty) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.offAllNamed(
@@ -101,7 +100,6 @@ void _handleNotificationTap(String? payload) {
   }
   try {
     Map<String, dynamic> data = json.decode(payload);
-    print("line 66 $payload");
     String title = data['title'] ?? "";
     String? body = data['body'];
     String motorId = data['motor_id'];
@@ -109,8 +107,7 @@ void _handleNotificationTap(String? payload) {
     int motorId0 = int.parse(motorId);
     int starterId0 = int.parse(starterId);
     if (starterId.isNotEmpty) {
-      SharedPreference.setStarterId(starterId0);
-      print("line 75 starter $starterId0");
+      HiveHandler.setValue(Hivekeys.starterId, starterId0);
     }
 
     if (title.toLowerCase().contains("state") && title.isNotEmpty) {
@@ -119,18 +116,21 @@ void _handleNotificationTap(String? payload) {
       });
     } else if (title.toLowerCase().contains("mode") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SharedPreference.setMotorId(motorId0);
+        HiveHandler.setValue(Hivekeys.motorId, motorId0);
+
         Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 0});
       });
     } else if (title.toLowerCase().contains("fault") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SharedPreference.setMotorId(motorId0);
+        HiveHandler.setValue(Hivekeys.motorId, motorId0);
+
         Get.offAllNamed(Routes.motorDetails,
             arguments: {'tabIndex': 2, 'logFilter': 'Faults'});
       });
     } else if (title.toLowerCase().contains("alert") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SharedPreference.setMotorId(motorId0);
+        HiveHandler.setValue(Hivekeys.motorId, motorId0);
+
         Get.offAllNamed(Routes.motorDetails,
             arguments: {'tabIndex': 2, 'logFilter': 'Alerts'});
       });
@@ -170,6 +170,7 @@ Future<void> _setupLocalNotifications() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveHandler.init();
 
   if (kIsWeb) {
     await SharedPreference.init();
@@ -200,16 +201,14 @@ void main() async {
       await _requestFCMPermission();
       await _setupLocalNotifications();
       await _requestNotificationPermission();
-      FirebaseMessaging.instance.getToken().then((value) {
-        SharedPreference.setFcmToken(value.toString());
+      FirebaseMessaging.instance.getToken().then((value) async {
+        await HiveHandler.setValue(Hivekeys.fcmToken, value);
       });
     } catch (e) {
       debugPrint('Error initializing Firebase: $e');
     }
-
     GoRouter.optionURLReflectsImperativeAPIs = true;
     usePathUrlStrategy();
-
     await FlutterFlowTheme.initialize();
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -218,7 +217,6 @@ void main() async {
         statusBarBrightness: Brightness.light, // iOS
       ),
     );
-
     runApp(MyApp(
       initialMessage: initialMessage,
     ));
@@ -297,7 +295,6 @@ class _MyAppState extends State<MyApp> {
     RemoteNotification? notification = message.notification;
     AndroidNotification? android = message.notification?.android;
     if (notification != null && android != null) {
-      // Include title and body in payload for consistency
       Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
       fullData['title'] = notification.title ?? '';
       fullData['body'] = notification.body ?? '';
@@ -330,6 +327,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final token = HiveHandler.getValue(Hivekeys.accessToken, '');
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'I Dhara',
@@ -343,9 +341,7 @@ class _MyAppState extends State<MyApp> {
         brightness: Brightness.light,
         useMaterial3: false,
       ),
-      initialRoute: SharedPreference.getAccessToken().isNotEmpty
-          ? Routes.dashboard
-          : Routes.splash,
+      initialRoute: token.isNotEmpty ? Routes.dashboard : Routes.splash,
       getPages: AppPages.getPages,
     );
   }
@@ -363,7 +359,6 @@ class MyWebApp extends StatefulWidget {
 
 class _MyWebAppState extends State<MyWebApp> {
   ThemeMode _themeMode = FlutterFlowTheme.themeMode;
-
   @override
   void initState() {
     super.initState();
@@ -373,9 +368,9 @@ class _MyWebAppState extends State<MyWebApp> {
         _themeMode = mode;
         FlutterFlowTheme.saveThemeMode(mode);
       });
-
   @override
   Widget build(BuildContext context) {
+    final token = HiveHandler.getValue(Hivekeys.accessToken, '');
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Peepul Agri',
@@ -389,9 +384,7 @@ class _MyWebAppState extends State<MyWebApp> {
         brightness: Brightness.light,
         useMaterial3: false,
       ),
-      initialRoute: SharedPreference.getAccessToken().isNotEmpty
-          ? Routes.dashboard
-          : Routes.splash,
+      initialRoute: token.isNotEmpty ? Routes.dashboard : Routes.splash,
       getPages: AppPages.getPages,
     );
   }

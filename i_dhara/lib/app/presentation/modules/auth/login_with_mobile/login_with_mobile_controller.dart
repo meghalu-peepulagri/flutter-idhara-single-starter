@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository_impl.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
+import '../../../../data/services/storages/hive_handler.dart';
 
 class LoginwithmobileModel extends FlutterFlowModel {
   ///  State fields for stateful widgets in this page.
@@ -28,7 +28,7 @@ class LoginwithmobileModel extends FlutterFlowModel {
     if (response != null && response.errors == null) {
       // Navigate and save phone
       Get.offNamed(Routes.otp);
-      SharedPreference.setPhone(phone);
+      HiveHandler.setValue(Hivekeys.userPhone, phone);
     } else if (response?.errors != null) {
       errorInstance = response?.errors!.toJson();
       error = true;

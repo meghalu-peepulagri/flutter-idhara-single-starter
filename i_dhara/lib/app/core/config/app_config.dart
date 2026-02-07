@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:i_dhara/app/core/constants/app_constant.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class NetworkManager {
@@ -15,9 +15,8 @@ class NetworkManager {
   }
   void _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = SharedPreference.getAccessToken();
+    String token = HiveHandler.getValue(Hivekeys.accessToken, '');
     options.headers["Authorization"] = "Bearer $token";
-
     handler.next(options);
   }
 
