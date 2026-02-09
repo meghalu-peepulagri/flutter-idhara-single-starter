@@ -594,14 +594,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             _currentVoltageHigh = null;
                             _currentCurrentLow = null;
                             _currentCurrentHigh = null;
-
-                            // Reset original values (used for default settings comparison)
                             _originalVoltageLow = null;
                             _originalVoltageHigh = null;
                             _originalCurrentLow = null;
                             _originalCurrentHigh = null;
 
-                            // Fetch actual user settings (not default)
                             await controller.fetchUserSettings2();
 
                             // Small delay to ensure controller state is updated

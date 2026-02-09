@@ -290,11 +290,17 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(3),
                                 gradient: LinearGradient(
-                                  colors: [
-                                    Colors.red,
-                                    Color.lerp(Colors.red, Colors.green,
-                                        fillFraction)!,
-                                  ],
+                                  colors: scrollingThumb == 'high'
+                                      ? [
+                                          Colors.green,
+                                          Color.lerp(Colors.green, Colors.red,
+                                              fillFraction)!,
+                                        ]
+                                      : [
+                                          Colors.red,
+                                          Color.lerp(Colors.red, Colors.green,
+                                              fillFraction)!,
+                                        ],
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                 ),
@@ -372,11 +378,8 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                       });
                     },
                     onDragUpdate: (delta) {
-                      print("line 308 $displayMin $displayMax $lowValue");
-
                       setState(() {
                         lowValue = 0;
-
                         final range = displayMax - displayMin;
                         final pxChange = delta * range;
                         var newValue = highValue + pxChange;
