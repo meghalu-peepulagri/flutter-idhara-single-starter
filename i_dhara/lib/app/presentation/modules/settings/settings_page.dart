@@ -136,16 +136,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     });
   }
 
-  num calculatedFlc(int value) {
-    final flc = controller.userSettings2.value?.flc?.toInt() ?? 0;
-    final percantage = value / 100;
-    final result = flc * percantage;
-    final roundedResult = double.parse(result.toStringAsFixed(2));
-
-    print("line 77 --------> $flc $percantage  $result");
-    return roundedResult;
-  }
-
   @override
   void dispose() {
     // Cancel the MQTT stream subscription to prevent memory leaks
@@ -353,15 +343,15 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                   await mqttService.publishUpdateSettings(
                       pcbNumber, updatedpayload);
                   await controller.fetchupdateSettings();
-
-                  // Wait for MQTT service to complete all retries
                   Future.delayed(const Duration(seconds: 15), () {
                     final errorMessage =
                         mqttService.commandStatusNotifier.value;
                     if (errorMessage != null && !isSnackbarShown) {
                       isSnackbarShown = true;
                       geterrorSnackBar(errorMessage);
-                      _handleCancel();
+                      setState(() {
+                        isbuttonActive = false;
+                      });
                     }
                   });
                 },
@@ -697,8 +687,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                           children: [
                             Expanded(
                               child: FFButtonWidget(
-                                onPressed:
-                                    !isbuttonActive ? null : _handleCancel,
+                                onPressed: _handleCancel,
                                 text: 'Cancel',
                                 options: FFButtonOptions(
                                   height: 45.0,
@@ -712,16 +701,12 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       .titleSmall
                                       .override(
                                         fontFamily: 'Manrope',
-                                        color: !isbuttonActive
-                                            ? Colors.grey.shade400
-                                            : Colors.black,
+                                        color: Colors.black,
                                         fontWeight: FontWeight.w500,
                                       ),
                                   elevation: 0.0,
-                                  borderSide: BorderSide(
-                                      color: !isbuttonActive
-                                          ? Colors.grey.shade100
-                                          : const Color(0x38000000)),
+                                  borderSide: const BorderSide(
+                                      color: Color(0x38000000)),
                                   borderRadius: BorderRadius.circular(12.0),
                                 ),
                               ),
@@ -786,17 +771,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                           );
                                           if (updatedpayload["dvc_c"]
                                               .containsKey("drf")) {
-                                            final calculatedDrf = calculatedFlc(
-                                                controller.drf.value);
                                             updatedpayload["dvc_c"]['drf'] =
-                                                calculatedDrf;
+                                                controller.drf.value;
                                           }
                                           if (updatedpayload["dvc_c"]
                                               .containsKey('olf')) {
-                                            final calculatedOlf = calculatedFlc(
-                                                controller.olf.value);
                                             updatedpayload["dvc_c"]['olf'] =
-                                                calculatedOlf;
+                                                controller.olf.value;
                                           }
                                           final Map<String, dynamic> dvcMap =
                                               updatedpayload["dvc_c"] ?? {};
@@ -819,7 +800,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                                 isCurrentRange) {
                                               _handleSave(vmin, vmax, cmin,
                                                   cmax, pcbNumber);
-                                              isbuttonActive = false;
                                             } else {}
                                           });
                                         },
