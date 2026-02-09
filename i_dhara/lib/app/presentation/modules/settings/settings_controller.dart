@@ -35,13 +35,15 @@ class SettingsController extends GetxController {
   }
 
   String pcbnumberPass(Starter? starter) {
-    print("line 190");
-    print("line 191 ${starter!.toJson()}");
     try {
-      if (starter.pcbNumber != null) {
-        return starter.pcbNumber.toString();
-      } else if (starter.macAddress != null) {
-        return starter.macAddress.toString();
+      if (starter != null) {
+        if (starter.pcbNumber != null) {
+          return starter.pcbNumber.toString();
+        } else if (starter.macAddress != null) {
+          return starter.macAddress.toString();
+        } else {
+          return '';
+        }
       } else {
         return '';
       }
@@ -101,20 +103,15 @@ class SettingsController extends GetxController {
       if (response != null &&
           response.success == true &&
           response.data != null) {
-        print("line 90");
         userSettings2.value = response.data;
         pumpName.value = motorName();
         pumpHP.value = motorHP();
-
         pcbNumber.value = pcbnumberPass(response.data?.starter);
         macAddress.value = response.data?.starter?.macAddress ?? '';
-        print("line 101 pcb ${pcbNumber.value}");
-        print("line 102 mac ${macAddress.value}");
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
-
         payload = {
           "dvc_c": {
             "lvf": lvf.value,
@@ -123,13 +120,10 @@ class SettingsController extends GetxController {
             "olf": olf.value,
           },
         };
-        print("line 101 $payload");
 
         updateSettingDto.assignAll(response.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
-
-        print("line 185 ${updateSettingDto.toJson()}");
       } else {
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }

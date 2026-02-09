@@ -136,16 +136,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     });
   }
 
-  num calculatedFlc(int value) {
-    final flc = controller.userSettings2.value?.flc?.toInt() ?? 0;
-    final percantage = value / 100;
-    final result = flc * percantage;
-    final roundedResult = double.parse(result.toStringAsFixed(2));
-
-    print("line 77 --------> $flc $percantage  $result");
-    return roundedResult;
-  }
-
   @override
   void dispose() {
     // Cancel the MQTT stream subscription to prevent memory leaks
@@ -784,20 +774,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                             oldPayload: controller.payload,
                                             key: "dvc_c",
                                           );
-                                          if (updatedpayload["dvc_c"]
-                                              .containsKey("drf")) {
-                                            final calculatedDrf = calculatedFlc(
-                                                controller.drf.value);
-                                            updatedpayload["dvc_c"]['drf'] =
-                                                calculatedDrf;
-                                          }
-                                          if (updatedpayload["dvc_c"]
-                                              .containsKey('olf')) {
-                                            final calculatedOlf = calculatedFlc(
-                                                controller.olf.value);
-                                            updatedpayload["dvc_c"]['olf'] =
-                                                calculatedOlf;
-                                          }
                                           final Map<String, dynamic> dvcMap =
                                               updatedpayload["dvc_c"] ?? {};
                                           setState(() {
