@@ -304,6 +304,22 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   bool _isNewDeviceWithoutAck(MotorData? motorData) {
+    // Check test_run_status from API response first
+    final testRunStatus = widget.motor.testrunStatus?.toUpperCase();
+
+    if (testRunStatus == 'COMPLETED') {
+      return false; // Test run completed, allow control
+    }
+
+    if (testRunStatus == 'IN_TEST') {
+      return true; // Test run in progress, show test run
+    }
+
+    if (testRunStatus == 'FAILED') {
+      return true; // Test run failed, allow retry
+    }
+
+    // Fallback to existing logic if test_run_status is not available
     final motorId = widget.motor.id;
 
     // Check if test run was completed locally

@@ -42,17 +42,31 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   final ValueNotifier<bool> hasInternet = ValueNotifier(true);
 
   bool get isTestRunRequired {
+    // Check test_run_status from API response first
+    final testRunStatus = motor.testrunStatus?.toUpperCase();
+
+    if (testRunStatus == 'COMPLETED') {
+      return false; // Test run completed, show data
+    }
+
+    if (testRunStatus == 'IN_TEST' || testRunStatus == 'FAILED') {
+      return true; // Test run needed
+    }
+
     // If coming from devices page, show API data without blocking
     if (fromDevices) {
       return false;
     }
+
     final motorId = motor.id;
     if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
       return false; // Test run completed, show data
     }
+
     if (isTestRunning) {
       return false; // Test run in progress, show data
     }
+
     return true; // Block data until test run starts
   }
 
@@ -120,7 +134,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
     if (response?.data != null && mounted) {
       final details = response!.data!;
-      // Update motor with starterParameters from API
+      // Update motor with starterParameters from API - preserve existing testrunStatus
       motor = Motor(
         id: details.id,
         name: details.name,
@@ -128,6 +142,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
         mode: details.mode,
         state: details.state,
         aliasName: details.aliasName,
+        testrunStatus: motor.testrunStatus, // Preserve existing testrunStatus
         location: details.location != null
             ? Location(
                 id: details.location!.id,

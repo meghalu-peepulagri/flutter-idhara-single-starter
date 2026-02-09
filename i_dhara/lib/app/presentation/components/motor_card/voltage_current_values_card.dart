@@ -107,16 +107,9 @@ class VoltageCurrentValuesCard extends StatelessWidget {
         String currentR, currentY, currentB;
         int motorState;
 
-        // Block data display if test run is required
-        if (isTestRunRequired) {
-          voltageR = '0';
-          voltageY = '0';
-          voltageB = '0';
-          currentR = '0';
-          currentY = '0';
-          currentB = '0';
-          motorState = 0;
-        } else if (motorData?.hasReceivedData == true) {
+        // Priority: MQTT data > API data (starterParameters)
+        if (motorData?.hasReceivedData == true) {
+          // Use MQTT data if available
           voltageR = _formatValue(motorData!.voltageRed);
           voltageY = _formatValue(motorData.voltageYellow);
           voltageB = _formatValue(motorData.voltageBlue);
@@ -125,6 +118,7 @@ class VoltageCurrentValuesCard extends StatelessWidget {
           currentB = _formatValue(motorData.currentBlue);
           motorState = motorData.state;
         } else {
+          // Use API data from starterParameters (even if test run is required)
           voltageR =
               _formatValue(starterParameter?.lineVoltageR?.toString() ?? '0');
           voltageY =

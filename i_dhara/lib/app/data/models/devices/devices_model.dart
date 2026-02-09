@@ -158,6 +158,7 @@ class Motor {
   String? mode;
   String? aliasName;
   Location? location;
+  String? testrunStatus;
 
   Motor({
     this.id,
@@ -167,6 +168,7 @@ class Motor {
     this.mode,
     this.aliasName,
     this.location,
+    this.testrunStatus,
   });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
@@ -179,6 +181,7 @@ class Motor {
         location: json["location"] == null
             ? null
             : Location.fromJson(json["location"]),
+        testrunStatus: json["test_run_status"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -189,6 +192,7 @@ class Motor {
         "mode": mode,
         "alias_name": aliasName,
         "location": location?.toJson(),
+        "test_run_status": testrunStatus,
       };
 }
 
