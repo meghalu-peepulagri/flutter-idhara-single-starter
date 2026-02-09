@@ -18,6 +18,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../components/popups/default_setting_popup.dart';
 import '../../components/popups/setting_update.dart';
+import '../../widgets/no_internet_view.dart';
 
 class SettingsWidget extends StatefulWidget {
   const SettingsWidget({super.key});
@@ -89,6 +90,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _originalVoltageHigh = null;
         _originalCurrentLow = null;
         _originalCurrentHigh = null;
+        setState(() {
+          isbuttonActive = false;
+        });
 
         // Reset flag after 5 seconds
         await Future.delayed(const Duration(seconds: 5), () {
@@ -312,7 +316,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _handleCancel();
+                // _handleCancel();
               },
               child: Text(
                 'Cancel',
@@ -507,6 +511,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                       child: Center(
                         child: AppLottieLoading(),
                       ),
+                    );
+                  } else if (!controller.hasInternet.value) {
+                    return const Center(
+                      child: NoInternetWidget(),
                     );
                   }
                   final settings = controller.userSettings2.value;

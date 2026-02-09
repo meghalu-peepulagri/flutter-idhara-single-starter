@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
@@ -27,11 +28,27 @@ class SettingsController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   var data = Rxn<UserSettingsLimits>();
+  final connectivity = Connectivity();
+  var hasInternet = true.obs;
+  bool mqttInitialized = false;
 
   @override
   void onInit() {
     super.onInit();
     fetchdata();
+    _initConnectivity();
+  }
+
+  void _initConnectivity() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    _updateConnectionStatus(connectivityResult.first);
+    connectivity.onConnectivityChanged.listen((results) {
+      _updateConnectionStatus(results.first);
+    });
+  }
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    hasInternet.value = result != ConnectivityResult.none;
   }
 
   String pcbnumberPass(Starter? starter) {
