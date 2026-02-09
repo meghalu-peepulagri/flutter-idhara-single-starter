@@ -12,7 +12,6 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -136,12 +135,12 @@ void _handleNotificationTap(String? payload) {
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SharedPreference.clear();
+        HiveHandler.clearHive();
         Get.offAllNamed(Routes.loginwithmobile);
       });
     }
   } catch (e) {
-    SharedPreference.clear();
+    HiveHandler.clearHive();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.offAllNamed(Routes.loginwithmobile);
     });
@@ -173,7 +172,6 @@ void main() async {
   await HiveHandler.init();
 
   if (kIsWeb) {
-    await SharedPreference.init();
     usePathUrlStrategy();
     await FlutterFlowTheme.initialize();
     FlutterError.onError = (FlutterErrorDetails details) {
@@ -188,9 +186,6 @@ void main() async {
     } catch (e) {
       debugPrint('Error loading .env file: $e');
     }
-
-    // Initialize SharedPreference BEFORE Firebase to ensure FCM token can be saved
-    await SharedPreference.init();
 
     // Initialize Firebase with error handling
     RemoteMessage? initialMessage;

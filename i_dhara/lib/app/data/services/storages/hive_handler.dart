@@ -30,6 +30,40 @@ class HiveHandler {
   static Future<void> clearHive() async {
     await _box.clear();
   }
+
+  // Test Run completed motors storage
+
+  /// Add a motor ID to the list of completed test runs
+  static Future<void> addCompletedTestRunMotor(int motorId) async {
+    final List<dynamic> motors =
+        _box.get(Hivekeys.completedTestRunMotors, defaultValue: <String>[]);
+    final motorIdStr = motorId.toString();
+    if (!motors.contains(motorIdStr)) {
+      motors.add(motorIdStr);
+      await _box.put(Hivekeys.completedTestRunMotors, motors);
+    }
+  }
+
+  /// Get list of motor IDs that have completed test run
+  static List<String> getCompletedTestRunMotors() {
+    final List<dynamic> motors =
+        _box.get(Hivekeys.completedTestRunMotors, defaultValue: <String>[]);
+    return motors.cast<String>();
+  }
+
+  /// Check if a motor has completed test run
+  static bool hasCompletedTestRun(int motorId) {
+    final motors = getCompletedTestRunMotors();
+    return motors.contains(motorId.toString());
+  }
+
+  /// Remove a motor from completed test runs
+  static Future<void> removeCompletedTestRunMotor(int motorId) async {
+    final List<dynamic> motors =
+        _box.get(Hivekeys.completedTestRunMotors, defaultValue: <String>[]);
+    motors.remove(motorId.toString());
+    await _box.put(Hivekeys.completedTestRunMotors, motors);
+  }
 }
 
 class Hivekeys {
@@ -43,4 +77,5 @@ class Hivekeys {
   static String locationId = 'locationid';
   static String starterId = 'starterid';
   static String testrunStatus = 'testrunStatus';
+  static String completedTestRunMotors = 'completed_test_run_motors';
 }

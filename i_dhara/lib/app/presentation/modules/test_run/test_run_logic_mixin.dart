@@ -9,13 +9,12 @@ import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
 import 'package:i_dhara/app/presentation/modules/test_run/test_run_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../data/services/storages/hive_handler.dart';
 import 'test_run_page.dart';
 
 mixin TestRunLogicMixin on State<TestRunPage> {
@@ -48,7 +47,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       return false;
     }
     final motorId = motor.id;
-    if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
+    if (motorId != null && HiveHandler.hasCompletedTestRun(motorId)) {
       return false; // Test run completed, show data
     }
     if (isTestRunning) {
@@ -659,7 +658,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
     if (motor.id != null) {
       HiveHandler.setValue(Hivekeys.testrunStatus, motor.id);
-      SharedPreference.addCompletedTestRunMotor(motor.id!);
+      HiveHandler.addCompletedTestRunMotor(motor.id!);
     }
 
     // CRITICAL: Clear any existing pending commands to prevent any retries

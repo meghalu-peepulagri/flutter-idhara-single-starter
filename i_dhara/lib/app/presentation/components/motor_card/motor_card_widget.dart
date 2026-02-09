@@ -6,7 +6,6 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/hive_handler.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
@@ -310,7 +309,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     final motorId = widget.motor.id;
 
     // Check if test run was completed locally
-    if (motorId != null && SharedPreference.hasCompletedTestRun(motorId)) {
+    if (motorId != null && HiveHandler.hasCompletedTestRun(motorId)) {
       return false; // Test run completed, allow control
     }
 
