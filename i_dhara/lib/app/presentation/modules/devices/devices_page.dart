@@ -27,27 +27,6 @@ class DevicesPage extends StatelessWidget {
     scaffoldKey.currentState!.openEndDrawer();
   }
 
-  double _getCardAspectRatio(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
-    if (width <= 360) {
-      return 0.85; // Small phones
-    }
-
-    // Medium phones
-    if (width <= 400) {
-      return 0.85;
-    }
-
-    // Large phones
-    if (width <= 480) {
-      return 0.98;
-    }
-
-    // Tablets
-    return 0.9;
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(

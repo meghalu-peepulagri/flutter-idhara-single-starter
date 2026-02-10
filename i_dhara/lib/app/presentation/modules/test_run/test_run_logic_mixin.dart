@@ -24,6 +24,9 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   bool isLoadingApiData = false;
 
   bool isFailed = false;
+  var isShowSnackbar = false;
+  bool isCompleted = false;
+
   String failureMessage = '';
   Timer? ackTimer;
   Timer? countdownTimer;
@@ -82,16 +85,18 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     motor = args['motor'] as Motor;
     mqttService = args['mqttService'] as MqttService;
     fromDevices = args['fromDevices'] as bool? ?? false;
-
     final motorData = getMotorData();
     bool initialState;
     int initialMode;
-
     if (motorData != null && motorData.hasReceivedData) {
       initialState = motorData.state == 1;
       initialMode = motorData.modeIndex ?? 1;
     } else {
       final apiState = motor.state ?? 0;
+
+      isCompleted =
+          motor.testrunStatus?.toLowerCase() == "completed" ? true : false;
+      print("line 99 ----> ${motor.testrunStatus} $isCompleted");
       initialState = apiState == 1;
       initialMode = getSimplifiedModeIndex(motor.mode ?? 'AUTO') ?? 1;
     }
@@ -387,8 +392,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     if (!isGroupAllowed()) {
-      debugPrint(
-          '❌ Test Run: Motor is in G03/G04 group, test run not allowed');
+      debugPrint('❌ Test Run: Motor is in G03/G04 group, test run not allowed');
       setState(() {
         isFailed = true;
         failureMessage = 'Test run is only supported for G01 and G02 motors';
@@ -428,7 +432,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     });
 
     // Step 1: Call PATCH API with IN_TEST status
-    final apiSuccess = await testRunController.startTestRun(motor.id!);
+    final apiSuccess = await testRunController.processingTestRun(motor.id!);
 
     if (!apiSuccess) {
       // API call failed - close dialog and show error
@@ -600,6 +604,13 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     closeLoadingDialog();
+
+    if (isCompleted) {
+      testRunController.completeTestRun(motor.id!);
+    } else {
+      testRunController.startTestRun(motor.id!);
+    }
+
     setState(() {
       isTestRunning = false;
     });
@@ -662,9 +673,9 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   }
 
   void onAckReceived() {
-    ackTimer?.cancel();
-    countdownTimer?.cancel();
-    mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
+    // ackTimer?.cancel();
+    // countdownTimer?.cancel();
+    // mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
 
     // Remove motor from test run mode
     final mqttMotorId = getMotorId();
@@ -681,27 +692,32 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     // CRITICAL: Clear any existing pending commands to prevent any retries
     if (mqttMotorId.isNotEmpty) {
       mqttService.clearAllPendingCommandsForMotor(mqttMotorId);
-      debugPrint('✓ Test Run: Cleared all pending commands for $mqttMotorId - NO turn-off command will be sent');
+      debugPrint(
+          '✓ Test Run: Cleared all pending commands for $mqttMotorId - NO turn-off command will be sent');
     }
 
     // NOTE: We do NOT send turn-off command after test run completion
     // The motor state is managed by the device itself after test run
 
-    closeLoadingDialog();
+    // closeLoadingDialog();
 
-    if (mounted) {
+    // if (mounted) {
+    // }
+
+    if (!isShowSnackbar) {
       successSnackBar(context, 'Test Run completed successfully');
+      isShowSnackbar = true;
+      isCompleted = true;
     }
 
     // Call PATCH API with COMPLETED status in background (don't wait)
-    testRunController.completeTestRun(motor.id!);
-
+    // testRunController.completeTestRun(motor.id!);
     // Navigate IMMEDIATELY based on level
-    if (fromDevices) {
-      goToDevices();
-    } else {
-      goToDashboard();
-    }
+    // if (fromDevices) {
+    //   goToDevices();
+    // } else {
+    //   goToDashboard();
+    // }
   }
 
   Future<void> turnOffMotor() async {
@@ -731,12 +747,21 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     closeLoadingDialog();
 
     // Show error snackbar
-    if (mounted) {
-      errorSnackBar(context, 'No response from the device.');
+    if (mounted && !isShowSnackbar) {
+      if (isCompleted) {
+        errorSnackBar(context, 'No response from the device.');
+        testRunController.completeTestRun(motor.id!);
+      } else {
+        errorSnackBar(context, 'No response from the device.');
+        testRunController.startTestRun(motor.id!);
+      }
+    } else {
+      successSnackBar(context, 'Test Run completed successfully');
+      isShowSnackbar = false;
+      testRunController.completeTestRun(motor.id!);
     }
 
     // Call PATCH API with FAILED status in background (don't wait)
-    testRunController.failTestRun(motor.id!);
 
     setState(() {
       isFailed = true;

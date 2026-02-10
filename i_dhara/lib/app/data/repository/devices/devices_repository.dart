@@ -7,6 +7,7 @@ import 'package:i_dhara/app/data/models/motors/delete_motor_model.dart';
 import 'package:i_dhara/app/data/models/test_run/test_run_model.dart';
 
 enum TestRunStatus {
+  processing('PROCESSING'),
   inTest('IN_TEST'),
   completed('COMPLETED'),
   failed('FAILED');

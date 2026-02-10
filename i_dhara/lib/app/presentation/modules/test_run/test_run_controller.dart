@@ -38,9 +38,7 @@ class TestRunController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
-
       final response = await _repository.testRun(motorId, status);
-
       if (response != null && response.success == true) {
         return true;
       } else {
@@ -69,5 +67,10 @@ class TestRunController extends GetxController {
   /// Fail test run - calls API with FAILED status
   Future<bool> failTestRun(int motorId) async {
     return await updateTestRunStatus(motorId, TestRunStatus.failed);
+  }
+
+  /// Fail test run - calls API with FAILED status
+  Future<bool> processingTestRun(int motorId) async {
+    return await updateTestRunStatus(motorId, TestRunStatus.processing);
   }
 }

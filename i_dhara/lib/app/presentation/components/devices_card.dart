@@ -172,6 +172,7 @@ class DevicesCard extends StatelessWidget {
       mode: motor.mode,
       state: motor.state,
       aliasName: motor.aliasName,
+      testrunStatus: motor.testrunStatus,
       location: motor.location != null
           ? motor_model.Location(
               id: motor.location!.id,
