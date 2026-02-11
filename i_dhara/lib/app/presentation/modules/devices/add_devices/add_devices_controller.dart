@@ -76,7 +76,6 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
       locationId: locationId,
     );
 
-    print("line 28 -----------> $locationId");
     final response = await DevicesRepositoryImpl().deviceassign(dto);
 
     // if (response != null && response.errors == null) {
@@ -93,8 +92,6 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
       if (Get.isRegistered<DashboardController>()) {
         Get.find<DashboardController>().refreshMotors();
       }
-      print("line---> ${Get.offAllNamed(Routes.dashboard)}");
-
       Get.offAllNamed(Routes.dashboard);
     } else if (response?.errors != null) {
       errorInstance.clear();

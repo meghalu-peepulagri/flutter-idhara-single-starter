@@ -804,6 +804,39 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                                 dvcMap.containsKey("drf");
                                             bool cmax =
                                                 dvcMap.containsKey("olf");
+                                            if (vmin) {
+                                              try {
+                                                if (dvcMap['lvf'] >
+                                                        controller.payload[
+                                                            'dvc_c']['lvf'] ||
+                                                    dvcMap['lvf'] <
+                                                        controller.payload[
+                                                            'dvc_c']['lvf']) {
+                                                  updatedpayload["dvc_c"]
+                                                          ['lvr'] =
+                                                      dvcMap['lvf'] + 10;
+                                                  controller.lvr.value =
+                                                      dvcMap['lvf'] + 10;
+                                                }
+                                              } catch (e) {
+                                                print("error line 818 $e");
+                                              }
+                                            }
+                                            if (vmax) {
+                                              try {
+                                                if (dvcMap['hvf'] >
+                                                    controller.payload['dvc_c']
+                                                        ['hvf']) {
+                                                  updatedpayload["dvc_c"]
+                                                          ['hvr'] =
+                                                      dvcMap['hvf'] - 10;
+                                                  controller.hvr.value =
+                                                      dvcMap['hvf'] - 10;
+                                                }
+                                              } catch (e) {
+                                                print("error line 844 $e");
+                                              }
+                                            }
                                             if (isVoltageRange ||
                                                 isCurrentRange) {
                                               _handleSave(vmin, vmax, cmin,

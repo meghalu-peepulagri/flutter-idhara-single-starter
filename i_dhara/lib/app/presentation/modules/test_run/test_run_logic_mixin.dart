@@ -11,6 +11,7 @@ import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
+import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
 import 'package:i_dhara/app/presentation/modules/test_run/test_run_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:lottie/lottie.dart';
@@ -77,6 +78,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   late ValueNotifier<int> localModeController;
 
   DateTime? testStartTime;
+  String route = '/dashboard';
 
   static const List<String> allowedGroups = ['G01', 'G02'];
 
@@ -85,6 +87,10 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     motor = args['motor'] as Motor;
     mqttService = args['mqttService'] as MqttService;
     fromDevices = args['fromDevices'] as bool? ?? false;
+
+    route = args['route'] as String? ?? '/dashboard';
+
+    print("line 92 ---> $route");
     final motorData = getMotorData();
     bool initialState;
     int initialMode;
@@ -96,7 +102,6 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
       isCompleted =
           motor.testrunStatus?.toLowerCase() == "completed" ? true : false;
-      print("line 99 ----> ${motor.testrunStatus} $isCompleted");
       initialState = apiState == 1;
       initialMode = getSimplifiedModeIndex(motor.mode ?? 'AUTO') ?? 1;
     }
@@ -709,15 +714,9 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       isShowSnackbar = true;
       isCompleted = true;
     }
-
     // Call PATCH API with COMPLETED status in background (don't wait)
     // testRunController.completeTestRun(motor.id!);
     // Navigate IMMEDIATELY based on level
-    // if (fromDevices) {
-    //   goToDevices();
-    // } else {
-    //   goToDashboard();
-    // }
   }
 
   Future<void> turnOffMotor() async {
@@ -744,6 +743,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
           '⚠️ Test Run: Timeout - Motor $mqttMotorId removed from test run mode');
     }
 
+    // Close dialog and update state before navigating
     closeLoadingDialog();
 
     // Show error snackbar
@@ -759,20 +759,41 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       successSnackBar(context, 'Test Run completed successfully');
       isShowSnackbar = false;
       testRunController.completeTestRun(motor.id!);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (fromDevices) {
+          goToDevices();
+        } else {
+          goToDashboard();
+        }
+      });
     }
 
-    // Call PATCH API with FAILED status in background (don't wait)
+    if (mounted) {
+      setState(() {
+        isFailed = true;
+        isTestRunning = false;
+      });
+    }
 
-    setState(() {
-      isFailed = true;
-      isTestRunning = false;
-      // failureMessage = 'ACK not received. Please check device connection.';
-    });
+    // Navigate after dialog is fully closed to avoid navigator conflict
   }
 
-  void goBack() => Get.back();
+  void goBack() {
+    if (Get.isRegistered<DashboardController>()) {
+      print('line 782 Controller already created');
+    } else {
+      print('Controller not created yet');
+    }
 
-  void goToDashboard() => Get.offAllNamed(Routes.dashboard);
+    if (route == Routes.dashboard) {
+      Get.offAllNamed(route, arguments: {'refresh': true});
+    } else {
+      Get.offNamed(route);
+    }
+  }
+
+  void goToDashboard() =>
+      Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
 
   void goToDevices() => Get.offAllNamed(Routes.devices);
 }

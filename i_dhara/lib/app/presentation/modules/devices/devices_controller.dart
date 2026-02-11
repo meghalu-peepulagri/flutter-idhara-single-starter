@@ -66,12 +66,6 @@ class DevicesController extends GetxController {
     });
   }
 
-  @override
-  void dispose() {
-    controller1.dispose();
-    super.dispose();
-  }
-
   void _initConnectivity() async {
     final connectivityResult = await connectivity.checkConnectivity();
     _updateConnectionStatus(connectivityResult.first);
@@ -87,6 +81,7 @@ class DevicesController extends GetxController {
   @override
   void onClose() {
     controller1.dispose();
+    // scrollController.dispose();
     super.onClose();
   }
 

@@ -354,6 +354,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       arguments: {
         'motor': widget.motor,
         'mqttService': widget.mqttService,
+        'route': '/dashboard'
       },
     );
   }

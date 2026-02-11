@@ -19,6 +19,9 @@ class SettingsController extends GetxController {
   var hvf = 0.obs;
   var drf = 0.obs;
   var olf = 0.obs;
+  var lvr = 0.obs;
+  var hvr = 0.obs;
+
   Map<String, dynamic> payload = {};
   var isrefreshing = false.obs;
   var pumpName = ''.obs;
@@ -131,6 +134,8 @@ class SettingsController extends GetxController {
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+        lvr.value = userSettings2.value?.lvr?.toInt() ?? 0;
+        hvr.value = userSettings2.value?.hvr?.toInt() ?? 0;
 
         payload = {
           "dvc_c": {
@@ -174,6 +179,8 @@ class SettingsController extends GetxController {
       updateSettingDto['hvf'] = hvf.value;
       updateSettingDto['drf'] = drf.value;
       updateSettingDto['olf'] = olf.value;
+      updateSettingDto['lvr'] = lvr.value;
+      updateSettingDto['hvr'] = hvr.value;
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);
       final response = await SettingsRepositoryImpl().updateSettings(dto);
@@ -208,12 +215,10 @@ class SettingsController extends GetxController {
             "olf": olf.value,
           },
         };
-        print("line 101 $payload");
 
         updateSettingDto.assignAll(res!.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
-        print("line 185 ${updateSettingDto.toJson()}");
       }
     } catch (e) {
       print("error ---> $e");

@@ -196,6 +196,7 @@ class DevicesCard extends StatelessWidget {
         'motor': motorModelMotor,
         'mqttService': MqttService(),
         'fromDevices': true, // Show API data without blocking
+        "route": '/devices'
       },
     );
   }
