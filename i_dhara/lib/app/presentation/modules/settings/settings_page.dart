@@ -16,6 +16,7 @@ import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import '../../components/flc_card.dart';
 import '../../components/popups/default_setting_popup.dart';
 import '../../components/popups/setting_update.dart';
 import '../../widgets/no_internet_view.dart';
@@ -634,6 +635,28 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   horizontal: 16.0, vertical: 4.0),
                               child: Column(
                                 children: [
+                                  const SizedBox(
+                                    height: 10,
+                                  ),
+                                  FlcCard(
+                                    initialValue: controller
+                                            .userSettings2.value?.flc
+                                            ?.toDouble() ??
+                                        0.0,
+                                    minValue: controller.data.value?.flcMin
+                                            ?.toDouble() ??
+                                        0.0,
+                                    maxValue: controller.data.value?.flcMax
+                                            ?.toDouble() ??
+                                        0.0,
+                                    onValueChanged: (newValue) {
+                                      print('New value: $newValue');
+                                      controller.flc.value = newValue;
+                                    },
+                                  ),
+                                  const SizedBox(
+                                    height: 7,
+                                  ),
                                   SettingsVoltageCard(
                                     key: voltageCardKey,
                                     initialLowVoltage: controller

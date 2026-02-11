@@ -39,8 +39,6 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   }
 
   void _initializeValues() {
-    print(
-        "line 44 -----> ${widget.initialLowCurrent} ${widget.initialHighCurrent}");
     final lowMin = controller.data.value?.drfMin?.toDouble() ?? 0.0;
     final lowMax = controller.data.value?.drfMax?.toDouble() ?? 100.0;
     final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;

@@ -46,7 +46,8 @@ class SettingsRepositoryImpl extends SettingsRepository {
   @override
   Future<UserSettingsLimitsResponse?> getSettingsLimits() async {
     final Map<String, dynamic> query = {
-      "columns": "drf_min,drf_max,olf_min,olf_max" // ✅ no spaces
+      "columns":
+          "drf_min,drf_max,olf_min,olf_max,flc_min,flc_max" // ✅ no spaces
     };
 
     final id = SharedPreference.getStarterId();

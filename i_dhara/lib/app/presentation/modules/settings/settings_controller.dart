@@ -34,6 +34,7 @@ class SettingsController extends GetxController {
   final connectivity = Connectivity();
   var hasInternet = true.obs;
   bool mqttInitialized = false;
+  var flc = 0.0.obs;
 
   @override
   void onInit() {
@@ -117,19 +118,15 @@ class SettingsController extends GetxController {
     try {
       // errorMessage.value = '';
       final response = await SettingsRepositoryImpl().getSettings2();
-
       if (response != null &&
           response.success == true &&
           response.data != null) {
-        print("line 90");
         userSettings2.value = response.data;
         pumpName.value = motorName();
         pumpHP.value = motorHP();
 
         pcbNumber.value = pcbnumberPass(response.data?.starter);
         macAddress.value = response.data?.starter?.macAddress ?? '';
-        print("line 101 pcb ${pcbNumber.value}");
-        print("line 102 mac ${macAddress.value}");
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
@@ -145,13 +142,10 @@ class SettingsController extends GetxController {
             "olf": olf.value,
           },
         };
-        print("line 101 $payload");
 
         updateSettingDto.assignAll(response.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
-
-        print("line 185 ${updateSettingDto.toJson()}");
       } else {
         errorMessage.value = response?.message ?? 'Failed to load settings';
       }

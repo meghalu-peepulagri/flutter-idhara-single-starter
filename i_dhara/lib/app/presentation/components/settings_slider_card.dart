@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:syncfusion_flutter_core/theme.dart';
+import 'package:syncfusion_flutter_sliders/sliders.dart';
+
+import '../modules/settings/settings_controller.dart';
 
 class SettingsDualSlider extends StatefulWidget {
   final String heading;
@@ -57,20 +62,36 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
   late double lowValue;
   late double highValue;
   String activeThumb = 'none';
-  int temp = 0;
-  int lowtemp = 0;
 
-  bool isdragging = false;
-  bool islowdragging = false;
+  final controller = Get.find<SettingsController>();
 
-  // Color feedback tracking
-  bool isScrolling = false;
-  String? scrollingThumb; // 'low' or 'high'
+  // Temporary values for real-time display while dragging
+  late double tempLowValue;
+  late double tempHighValue;
+
+  late double calculatedLow;
+  late double calculatedHigh;
+
+  bool isDragging = false;
+
+  // Worker to listen to FLC changes
+  late Worker flcWorker;
 
   @override
   void initState() {
     super.initState();
     _resetValues();
+
+    // Listen to FLC value changes and recalculate
+    flcWorker = ever(controller.flc, (_) {
+      _recalculateFLC();
+    });
+  }
+
+  @override
+  void dispose() {
+    flcWorker.dispose();
+    super.dispose();
   }
 
   @override
@@ -85,6 +106,48 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
   void _resetValues() {
     lowValue = widget.initialLowValue.clamp(widget.minLimit, widget.maxLimit);
     highValue = widget.initialHighValue.clamp(widget.minLimit, widget.maxLimit);
+    tempLowValue = lowValue;
+    tempHighValue = highValue;
+
+    // Calculate initial FLC values without setState (for initState)
+    if (widget.unit.contains("A")) {
+      final percentLow = lowValue.toInt() / 100;
+      calculatedLow = percentLow * controller.flc.value;
+
+      final percentHigh = highValue.toInt() / 100;
+      calculatedHigh = percentHigh * controller.flc.value;
+    } else {
+      calculatedLow = lowValue;
+      calculatedHigh = highValue;
+    }
+  }
+
+  void _recalculateFLC() {
+    if (widget.unit.contains("A")) {
+      setState(() {
+        final percentLow = lowValue.toInt() / 100;
+        calculatedLow = percentLow * controller.flc.value;
+
+        final percentHigh = highValue.toInt() / 100;
+        calculatedHigh = percentHigh * controller.flc.value;
+      });
+    }
+  }
+
+  void calculatedFlc1(double currentLow) {
+    setState(() {
+      final percent = currentLow.toInt() / 100;
+      final res = percent * controller.flc.value;
+      calculatedLow = res;
+    });
+  }
+
+  void calculatedFlc2(double CurrentHigh) {
+    setState(() {
+      final percent = CurrentHigh.toInt() / 100;
+      final res = percent * controller.flc.value;
+      calculatedHigh = res;
+    });
   }
 
   @override
@@ -106,11 +169,11 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
@@ -119,299 +182,241 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                if (widget.leadingSvg != null)
-                  Container(
-                    child: SvgPicture.asset(
-                      widget.leadingSvg!,
-                      width: 24,
-                      height: 24,
-                      colorFilter: widget.leadingSvgColor != null
-                          ? ColorFilter.mode(
-                              widget.leadingSvgColor!,
-                              BlendMode.srcIn,
-                            )
-                          : null,
-                    ),
-                  ),
-                if (widget.leadingSvg != null) const SizedBox(width: 8),
-                Text(
-                  widget.heading,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFf0A0A0A),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Labels
+          // Header with Icon, Title, and Values
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Low Value Label
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0XFFFEF3C6),
-                  // widget.lowColor.withValues(alpha: 0.1),
-                  border: Border.all(color: const Color(0XFFFFD230), width: 1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Low : ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: widget.lowColor,
+              Row(
+                children: [
+                  if (widget.leadingSvg != null)
+                    Container(
+                      child: SvgPicture.asset(
+                        widget.leadingSvg!,
+                        width: 24,
+                        height: 24,
+                        colorFilter: widget.leadingSvgColor != null
+                            ? ColorFilter.mode(
+                                widget.leadingSvgColor!,
+                                BlendMode.srcIn,
+                              )
+                            : null,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      !isdragging
-                          ? '${lowValue.toInt()}${widget.unit}'
-                          : '$temp${widget.unit}',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: widget.lowColor,
+                  if (widget.leadingSvg != null) const SizedBox(width: 12),
+                  Text(
+                    widget.heading,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0A0A0A),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                spacing: 16,
+                children: [
+                  // Low Label and Value
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'LOW ${widget.unit.contains("A") ? "AMPS" : "VOLTS"}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF999999),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.unit.contains("A")
+                            ? '${calculatedLow.toStringAsFixed(2)}${widget.unit}'
+                            : '${(isDragging ? tempLowValue : lowValue).toInt()}${widget.unit}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFE5B800),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // High Label and Value
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'HIGH ${widget.unit.contains("A") ? "AMPS" : "VOLTS"}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF999999),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.unit.contains("A")
+                            ? '${calculatedHigh.toStringAsFixed(2)}${widget.unit}'
+                            : '${(isDragging ? tempHighValue : highValue).toInt()}${widget.unit}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFFFA2A2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Custom Slider with Tooltip Badges
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Slider
+              Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: SfRangeSliderTheme(
+                  data: const SfRangeSliderThemeData(
+                    thumbRadius: 18,
+                    overlayRadius: 0,
+                    activeTrackHeight: 3,
+                    inactiveTrackHeight: 3,
+                  ),
+                  child: SfRangeSlider(
+                    min: widget.minLimit,
+                    max: widget.maxLimit,
+                    values: SfRangeValues(lowValue, highValue),
+                    enableTooltip: false,
+                    inactiveColor: const Color(0xFFE8E8E8),
+                    activeColor: const Color(0xFFE8E8E8),
+                    trackShape: const SfTrackShape(),
+                    overlayShape: const SfOverlayShape(),
+                    startThumbIcon: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFEF3C6),
+                        border: Border.all(
+                            color: const Color(0xFFE5B800), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0XFFFFD230).withOpacity(0.2),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'L',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ],
+                    endThumbIcon: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFE2E2),
+                        border: Border.all(
+                            color: const Color(0xFFFFA2A2), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0XFFFFA2A2).withOpacity(0.4),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'H',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    onChanged: (SfRangeValues newValues) {
+                      double start = (newValues.start as double)
+                          .clamp(widget.lowMinLimit, widget.lowMaxLimit);
+                      double end = (newValues.end as double)
+                          .clamp(widget.highMinLimit, widget.highMaxLimit);
+                      setState(() {
+                        isDragging = true;
+                        tempLowValue = start;
+                        tempHighValue = end;
+                        lowValue = start;
+                        highValue = end;
+
+                        // Calculate FLC values in real-time during dragging
+                        final percentLow = start.toInt() / 100;
+                        calculatedLow = percentLow * controller.flc.value;
+
+                        final percentHigh = end.toInt() / 100;
+                        calculatedHigh = percentHigh * controller.flc.value;
+                      });
+                      widget.onChanged(start, end);
+                    },
+                    onChangeEnd: (SfRangeValues newValues) {
+                      double start = (newValues.start as double)
+                          .clamp(widget.lowMinLimit, widget.lowMaxLimit);
+                      double end = (newValues.end as double)
+                          .clamp(widget.highMinLimit, widget.highMaxLimit);
+                      setState(() {
+                        final percentLow = start.toInt() / 100;
+                        calculatedLow = percentLow * controller.flc.value;
+                        final percentHigh = end.toInt() / 100;
+                        calculatedHigh = percentHigh * controller.flc.value;
+                        isDragging = false;
+                      });
+                    },
+                  ),
                 ),
               ),
 
-              // High Value Label
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0XFFFFE2E2),
-                  border: Border.all(color: const Color(0XFFFFA2A2), width: 1),
-                  // widget.highColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+              // Tooltip-style badges above thumbs
+              Positioned(
+                left: 20 +
+                    _calculatePosition(isDragging ? tempLowValue : lowValue,
+                        widget.minLimit, widget.maxLimit),
+                top: 0,
+                child: _buildTooltipBadge(
+                  '${(isDragging ? tempLowValue : lowValue).toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
+                  const Color(0xFFE5B800),
                 ),
-                child: Row(
-                  children: [
-                    Text(
-                      'High : ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: widget.lowColor,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      !islowdragging
-                          ? '${highValue.toInt()}${widget.unit}'
-                          : '$temp${widget.unit}',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: widget.highColor,
-                      ),
-                    ),
-                  ],
+              ),
+              Positioned(
+                left: _calculatePosition(isDragging ? tempHighValue : highValue,
+                        widget.minLimit, widget.maxLimit) -
+                    20,
+                top: 0,
+                child: _buildTooltipBadge(
+                  '${(isDragging ? tempHighValue : highValue).toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
+                  const Color(0xFFFFA2A2),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 60,
-            child: LayoutBuilder(builder: (context, constraints) {
-              const thumbWidth = 32.0;
-              final availableWidth = constraints.maxWidth - thumbWidth;
-              final range = displayMax - displayMin;
-              double lowOffset = 0;
-              double highOffset = 0;
-              if (activeThumb == 'none' && range > 0) {
-                final lowPos =
-                    ((lowValue - displayMin) / range) * availableWidth;
-                final highPos =
-                    ((highValue - displayMin) / range) * availableWidth;
-                final gap = (highPos - lowPos).abs();
-                if (gap < thumbWidth) {
-                  final shift = (thumbWidth - gap) / 2 + 2;
-                  if (lowValue <= highValue) {
-                    lowOffset = -shift;
-                    highOffset = shift;
-                  } else {
-                    lowOffset = shift;
-                    highOffset = -shift;
-                  }
-                }
-              }
 
-              // Calculate fill fraction for the active thumb
-              double fillFraction = 0.0;
-              if (isScrolling && scrollingThumb == 'low' && range > 0) {
-                fillFraction =
-                    (lowValue - displayMin) / (displayMax - displayMin);
-              } else if (isScrolling && scrollingThumb == 'high' && range > 0) {
-                fillFraction =
-                    (highValue - displayMin) / (displayMax - displayMin);
-              }
-              fillFraction = fillFraction.clamp(0.0, 1.0);
-              return Stack(
-                children: [
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 27,
-                    child: Container(
-                      height: 6,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Stack(
-                        children: [
-                          // Default gray background
-                          Container(
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0E0E0),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                          // Dynamic gradient fill from minLimit up to the thumb position
-                          if (isScrolling)
-                            Container(
-                              height: 6,
-                              width: constraints.maxWidth * fillFraction,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(3),
-                                gradient: LinearGradient(
-                                  colors: scrollingThumb == 'high'
-                                      ? [
-                                          Colors.green,
-                                          Color.lerp(Colors.green, Colors.red,
-                                              fillFraction)!,
-                                        ]
-                                      : [
-                                          Colors.red,
-                                          Color.lerp(Colors.red, Colors.green,
-                                              fillFraction)!,
-                                        ],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                              ),
-                            )
-                        ],
-                      ),
-                    ),
-                  ),
+          const SizedBox(height: 8),
 
-                  _buildThumb(
-                    value: lowValue,
-                    min: displayMin,
-                    max: displayMax,
-                    color: widget.lowThumbColor,
-                    isActive: activeThumb == 'low',
-                    label: "L",
-                    pixelOffset: lowOffset,
-                    onDragStart: () {
-                      setState(() {
-                        isdragging = false;
-                        islowdragging = true;
-                        temp = highValue.toInt();
-                        highValue = displayMax + displayMax + 10;
-                        activeThumb = 'low';
-                        isScrolling = true;
-                        scrollingThumb = 'low';
-                      });
-                    },
-                    onDragUpdate: (delta) {
-                      setState(() {
-                        final range = displayMax - displayMin;
-                        final pxChange = delta * range;
-                        var newValue = lowValue + pxChange;
-                        newValue = newValue.clamp(
-                            widget.lowMinLimit, widget.lowMaxLimit);
-                        highValue = displayMax + displayMax + 10;
-                        newValue =
-                            newValue.clamp(widget.lowMinLimit, highValue - 1);
-                        lowValue = newValue;
-                        widget.onChanged(lowValue, highValue);
-                      });
-                    },
-                    onDragEnd: () {
-                      setState(() {
-                        activeThumb = 'none';
-                        isdragging = false;
-                        islowdragging = false;
-                        highValue = temp.toDouble();
-                        isScrolling = false;
-                        scrollingThumb = null;
-                        widget.onChanged(lowValue, highValue);
-                      });
-                    },
-                    maxWidth: constraints.maxWidth,
-                  ),
-                  // High Thumb
-                  _buildThumb(
-                    value: highValue,
-                    min: displayMin,
-                    max: displayMax,
-                    color: widget.highThumbColor,
-                    isActive: activeThumb == 'high',
-                    label: "H",
-                    pixelOffset: highOffset,
-                    onDragStart: () {
-                      setState(() {
-                        activeThumb = 'high';
-                        temp = lowValue.toInt();
-                        lowValue = 0;
-                        isdragging = true;
-                        islowdragging = false;
-                        isScrolling = true;
-                        scrollingThumb = 'high';
-                      });
-                    },
-                    onDragUpdate: (delta) {
-                      setState(() {
-                        lowValue = 0;
-                        final range = displayMax - displayMin;
-                        final pxChange = delta * range;
-                        var newValue = highValue + pxChange;
-                        newValue = newValue.clamp(
-                            widget.highMinLimit, widget.highMaxLimit);
-                        // Ensure high doesn't go below low
-                        newValue =
-                            newValue.clamp(lowValue + 1, widget.highMaxLimit);
-                        highValue = newValue;
-                        widget.onChanged(lowValue, highValue);
-                      });
-                    },
-                    onDragEnd: () {
-                      setState(() {
-                        activeThumb = 'none';
-                        isdragging = false;
-                        islowdragging = false;
-                        lowValue = temp.toDouble();
-                        isScrolling = false;
-                        scrollingThumb = null;
-                        widget.onChanged(lowValue, highValue);
-                      });
-                    },
-                    maxWidth: constraints.maxWidth,
-                  ),
-                ],
-              );
-            }),
-          ),
-          const SizedBox(height: 4),
+          // Min/Max Labels
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -419,16 +424,16 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
                   '${displayMin.toInt()}${widget.unit}',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4F4F4F),
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF999999),
                   ),
                 ),
                 Text(
                   '${displayMax.toInt()}${widget.unit}',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4F4F4F),
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF999999),
                   ),
                 ),
               ],
@@ -439,66 +444,32 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
     );
   }
 
-  Widget _buildThumb({
-    required double value,
-    required double min,
-    required double max,
-    required Color color,
-    required bool isActive,
-    required String label,
-    required VoidCallback onDragStart,
-    required Function(double deltaPct) onDragUpdate,
-    required VoidCallback onDragEnd,
-    required double? maxWidth,
-    double pixelOffset = 0,
-  }) {
-    // Calculate fractional position
-    final fraction = (value - min) / (max - min);
+  // Calculate position for tooltip badge
+  double _calculatePosition(double value, double min, double max) {
+    // Get the percentage position
+    double percentage = (value - min) / (max - min);
 
-    final availableWidth = (maxWidth ?? 0) - 32;
-    final leftPos =
-        (availableWidth > 0 ? (fraction * availableWidth) : 0.0) + pixelOffset;
+    // Calculate pixel position (assuming the slider width, account for padding)
+    // Subtract half the badge width (approximately 30) to center it
+    double sliderWidth =
+        MediaQuery.of(context).size.width - 80; // Account for container padding
+    return (percentage * sliderWidth) - 25;
+  }
 
-    return Positioned(
-      left: leftPos,
-      top: 10,
-      child: GestureDetector(
-        onHorizontalDragStart: (_) => onDragStart(),
-        onHorizontalDragUpdate: (details) {
-          if (availableWidth > 0) {
-            onDragUpdate(details.delta.dx / availableWidth);
-          }
-        },
-        onHorizontalDragEnd: (_) => onDragEnd(),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: label == "L"
-                ? const Color(0xFFFEF3C6)
-                : const Color(0xFFFFE2E2),
-            shape: BoxShape.circle,
-            border: label == "L"
-                ? Border.all(color: const Color(0xFFE5B800), width: 2)
-                : Border.all(color: const Color(0xFFFFA2A2), width: 2),
-            // boxShadow: [
-            //   BoxShadow(
-            //     color: color.withValues(alpha: 0.3),
-            //     blurRadius: 8,
-            //     offset: const Offset(0, 2),
-            //   ),
-            // ],
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                color: const Color(0XFF9F0712),
-              ),
-            ),
-          ),
+  // Build tooltip badge widget
+  Widget _buildTooltipBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.dmSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
     );
