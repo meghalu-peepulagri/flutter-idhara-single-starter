@@ -100,7 +100,7 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
             iconColor: Colors.red,
             onTap: widget.onDelete,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 50),
         ],
       ),
     );

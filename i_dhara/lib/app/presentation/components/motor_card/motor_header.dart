@@ -14,17 +14,18 @@ class MotorHeader extends StatelessWidget {
   final bool isTestRunEnabled;
   final bool showTestRun;
   final bool isTestRunRequired;
+  final Function()? ontapFault;
 
-  const MotorHeader({
-    super.key,
-    required this.motor,
-    required this.motorData,
-    required this.onTap,
-    this.onTestRun,
-    this.isTestRunEnabled = true,
-    this.showTestRun = false,
-    this.isTestRunRequired = false,
-  });
+  const MotorHeader(
+      {super.key,
+      required this.motor,
+      required this.motorData,
+      required this.onTap,
+      this.onTestRun,
+      this.isTestRunEnabled = true,
+      this.showTestRun = false,
+      this.isTestRunRequired = false,
+      this.ontapFault});
 
   bool get _isPowerOn {
     if (motorData != null && motorData!.hasReceivedData) {
@@ -152,28 +153,31 @@ class MotorHeader extends StatelessWidget {
                     ),
                     if (_faultValue > 0 && !isTestRunRequired) ...[
                       const SizedBox(width: 8.0),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24.0),
-                          border: Border.all(
-                            color: const Color(0xFFDCDCDC),
+                      GestureDetector(
+                        onTap: ontapFault,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24.0),
+                            border: Border.all(
+                              color: const Color(0xFFDCDCDC),
+                            ),
                           ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              8.0, 2.0, 8.0, 2.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.max,
-                            children: [
-                              Lottie.asset(
-                                'assets/lottie_animations/warning 1.json',
-                                width: 20,
-                                height: 20,
-                                fit: BoxFit.contain,
-                                repeat: true,
-                              )
-                            ],
+                          child: Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                8.0, 2.0, 8.0, 2.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.max,
+                              children: [
+                                Lottie.asset(
+                                  'assets/lottie_animations/warning 1.json',
+                                  width: 20,
+                                  height: 20,
+                                  fit: BoxFit.contain,
+                                  repeat: true,
+                                )
+                              ],
+                            ),
                           ),
                         ),
                       ),

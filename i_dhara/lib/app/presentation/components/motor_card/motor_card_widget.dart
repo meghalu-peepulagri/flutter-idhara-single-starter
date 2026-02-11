@@ -299,6 +299,18 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
+  void ontapFault() {
+    SharedPreference.setMotorId(widget.motor.id ?? 0);
+    SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
+    // Get.toNamed(
+    //   Routes.motorDetails,
+    //   arguments: {'motorId': widget.motor.id},
+    // );
+
+    Get.offAllNamed(Routes.motorDetails,
+        arguments: {'tabIndex': 2, 'logFilter': 'Faults'});
+  }
+
   void _navigateToTestRun() {
     _navigateToTestRunScreen();
   }
@@ -430,6 +442,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
               mainAxisSize: MainAxisSize.max,
               children: [
                 MotorHeader(
+                  ontapFault: ontapFault,
                   motor: widget.motor,
                   motorData: motorData,
                   onTap: _navigateToDetails,

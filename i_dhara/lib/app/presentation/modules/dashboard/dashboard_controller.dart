@@ -44,16 +44,6 @@ class DashboardController extends GetxController {
     _requestPermissionAndLoad();
   }
 
-  @override
-  void onReady() {
-    super.onReady();
-
-    final args = Get.arguments;
-    if (args != null && args['refresh'] == true) {
-      refreshDashboard();
-    }
-  }
-
   Future<void> refreshDashboard() async {
     isLoading.value = true;
     page.value = 1;

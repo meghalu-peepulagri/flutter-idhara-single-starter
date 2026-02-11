@@ -93,7 +93,7 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
                             ),
                           ),
                           Text(
-                            'Real-time monitoring for pumps, motors, voltage, and weather.',
+                            'Smart pump control and monitoring, at your fingertips',
                             textAlign: TextAlign.center,
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
