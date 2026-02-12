@@ -55,10 +55,10 @@ class SettingsDualSlider extends StatefulWidget {
   });
 
   @override
-  State<SettingsDualSlider> createState() => _SettingsDualSliderState();
+  State<SettingsDualSlider> createState() => SettingsDualSliderState();
 }
 
-class _SettingsDualSliderState extends State<SettingsDualSlider> {
+class SettingsDualSliderState extends State<SettingsDualSlider> {
   late double lowValue;
   late double highValue;
   String activeThumb = 'none';
@@ -132,6 +132,13 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
         calculatedHigh = percentHigh * controller.flc.value;
       });
     }
+  }
+
+  Map<String, double> getCalculatedValues() {
+    return {
+      'calculatedLow': calculatedLow,
+      'calculatedHigh': calculatedHigh,
+    };
   }
 
   void calculatedFlc1(double currentLow) {
@@ -390,7 +397,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
 
               // Tooltip-style badges above thumbs
               Positioned(
-                left: 20 +
+                left: 15 +
                     _calculatePosition(isDragging ? tempLowValue : lowValue,
                         widget.minLimit, widget.maxLimit),
                 top: 0,
@@ -402,7 +409,7 @@ class _SettingsDualSliderState extends State<SettingsDualSlider> {
               Positioned(
                 left: _calculatePosition(isDragging ? tempHighValue : highValue,
                         widget.minLimit, widget.maxLimit) -
-                    20,
+                    10,
                 top: 0,
                 child: _buildTooltipBadge(
                   '${(isDragging ? tempHighValue : highValue).toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',

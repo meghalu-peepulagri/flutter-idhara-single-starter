@@ -31,6 +31,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
   late double lowCurrentValue;
   late double highCurrentValue;
   int _resetVersion = 0;
+  final GlobalKey<SettingsDualSliderState> _sliderKey = GlobalKey();
 
   @override
   void initState() {
@@ -52,6 +53,8 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     setState(() {
       _resetVersion++;
       _initializeValues();
+      // Need to recreate the GlobalKey when resetting
+      // _sliderKey = GlobalKey();
     });
   }
 
@@ -60,6 +63,10 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
       'low': lowCurrentValue,
       'high': highCurrentValue,
     };
+  }
+
+  Map<String, double>? getCalculatedValues() {
+    return _sliderKey.currentState?.getCalculatedValues();
   }
 
   @override
@@ -78,7 +85,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
       children: [
         const SizedBox(height: 10),
         SettingsDualSlider(
-          key: ValueKey("current_slider_$_resetVersion"),
+          key: _sliderKey,
           heading: 'Current Faults',
           leadingSvg: 'assets/images/Current.svg',
           // leadingSvgBgColor: const Color(0xFFFFF3E0),

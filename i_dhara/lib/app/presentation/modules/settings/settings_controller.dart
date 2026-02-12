@@ -124,16 +124,15 @@ class SettingsController extends GetxController {
         userSettings2.value = response.data;
         pumpName.value = motorName();
         pumpHP.value = motorHP();
-
         pcbNumber.value = pcbnumberPass(response.data?.starter);
         macAddress.value = response.data?.starter?.macAddress ?? '';
+        flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
         lvr.value = userSettings2.value?.lvr?.toInt() ?? 0;
         hvr.value = userSettings2.value?.hvr?.toInt() ?? 0;
-
         payload = {
           "dvc_c": {
             "lvf": lvf.value,
@@ -175,6 +174,8 @@ class SettingsController extends GetxController {
       updateSettingDto['olf'] = olf.value;
       updateSettingDto['lvr'] = lvr.value;
       updateSettingDto['hvr'] = hvr.value;
+      updateSettingDto['flc'] = flc.value;
+
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);
       final response = await SettingsRepositoryImpl().updateSettings(dto);

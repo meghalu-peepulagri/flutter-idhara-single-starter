@@ -128,13 +128,9 @@ class _FlcCardState extends State<FlcCard> {
         children: [
           // Icon Container
           Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: widget.iconBgColor ?? const Color(0xFF3B82F6),
-              borderRadius: BorderRadius.circular(6),
-            ),
+            padding: const EdgeInsets.only(bottom: 30),
             child: SvgPicture.asset(
-              widget.iconAsset ?? 'assets/images/Voltage.svg',
+              widget.iconAsset ?? 'assets/images/flc_icon.svg',
               width: 40,
               height: 40,
               fit: BoxFit.contain,

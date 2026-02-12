@@ -210,6 +210,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     final initialVoltageHigh = settings.hvf?.toDouble() ?? 280.0;
     final initialCurrentLow = settings.drf?.toDouble() ?? 180.0;
     final initialCurrentHigh = settings.olf?.toDouble() ?? 280.0;
+    final initialFlc = settings.flc?.toDouble() ?? 0.0;
 
     final currentVoltageLow = _currentVoltageLow ?? initialVoltageLow;
     final currentVoltageHigh = _currentVoltageHigh ?? initialVoltageHigh;
@@ -767,6 +768,24 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                           final currentValues = currentCardKey
                                               .currentState
                                               ?.getValues();
+
+                                          // Get and print calculated current values (FLC-based)
+                                          final calculatedCurrentValues =
+                                              currentCardKey.currentState
+                                                  ?.getCalculatedValues();
+                                          if (calculatedCurrentValues != null) {
+                                            print(
+                                                '========================================');
+                                            print(
+                                                'FLC Calculated Current Values:');
+                                            print(
+                                                'Calculated Low Current: ${calculatedCurrentValues['calculatedLow']?.toStringAsFixed(2)} A');
+                                            print(
+                                                'Calculated High Current: ${calculatedCurrentValues['calculatedHigh']?.toStringAsFixed(2)} A');
+                                            print(
+                                                '========================================');
+                                          }
+
                                           controller.lvf.value =
                                               voltageValues?['low']?.toInt() ??
                                                   controller.userSettings2
@@ -859,6 +878,22 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               } catch (e) {
                                                 print("error line 844 $e");
                                               }
+                                            }
+                                            if (cmin) {
+                                              final strVal =
+                                                  calculatedCurrentValues![
+                                                          'calculatedLow']
+                                                      ?.toStringAsFixed(2);
+                                              updatedpayload["dvc_c"]['drf'] =
+                                                  double.parse(strVal ?? "0.0");
+                                            }
+                                            if (cmax) {
+                                              final strVal =
+                                                  calculatedCurrentValues![
+                                                          'calculatedHigh']
+                                                      ?.toStringAsFixed(2);
+                                              updatedpayload["dvc_c"]['olf'] =
+                                                  double.parse(strVal ?? "0.0");
                                             }
                                             if (isVoltageRange ||
                                                 isCurrentRange) {
