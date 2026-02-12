@@ -11,6 +11,7 @@ class FlcCard extends StatefulWidget {
   final String unit;
   final String label;
   final ValueChanged<double>? onValueChanged;
+  final ValueChanged<bool>? onOutOfRange;
   final double minValue;
   final double maxValue;
   final double step;
@@ -25,6 +26,7 @@ class FlcCard extends StatefulWidget {
     this.unit = 'AMPS',
     this.label = 'RATED CURRENT (FLC)',
     this.onValueChanged,
+    this.onOutOfRange,
     this.minValue = 1,
     this.maxValue = 45,
     this.step = 0.1,
@@ -77,9 +79,16 @@ class _FlcCardState extends State<FlcCard> {
 
   void _syncFromTextField() {
     final parsed = double.tryParse(_textController.text.trim());
-    if (parsed != null && parsed >= widget.minValue && parsed <= widget.maxValue) {
+    if (parsed != null &&
+        parsed >= widget.minValue &&
+        parsed <= widget.maxValue) {
       _currentValue = parsed;
     }
+  }
+
+  void _setOutOfRange(bool value) {
+    _isOutOfRange = value;
+    widget.onOutOfRange?.call(value);
   }
 
   void _increment() {
@@ -89,7 +98,7 @@ class _FlcCardState extends State<FlcCard> {
         _currentValue = _roundToStep(_currentValue + widget.step);
         _currentValue = _currentValue.clamp(widget.minValue, widget.maxValue);
         _textController.text = _formatValue(_currentValue);
-        _isOutOfRange = false;
+        _setOutOfRange(false);
       });
       _focusNode.unfocus();
       widget.onValueChanged?.call(_currentValue);
@@ -103,7 +112,7 @@ class _FlcCardState extends State<FlcCard> {
         _currentValue = _roundToStep(_currentValue - widget.step);
         _currentValue = _currentValue.clamp(widget.minValue, widget.maxValue);
         _textController.text = _formatValue(_currentValue);
-        _isOutOfRange = false;
+        _setOutOfRange(false);
       });
       _focusNode.unfocus();
       widget.onValueChanged?.call(_currentValue);
@@ -116,7 +125,7 @@ class _FlcCardState extends State<FlcCard> {
       setState(() {
         _currentValue = 0;
         _textController.text = _formatValue(0);
-        _isOutOfRange = true;
+        _setOutOfRange(true);
       });
       return;
     }
@@ -127,9 +136,10 @@ class _FlcCardState extends State<FlcCard> {
     if (value.isEmpty) return;
     final parsedValue = double.tryParse(value);
     if (parsedValue == null) return;
+    final outOfRange =
+        parsedValue < widget.minValue || parsedValue > widget.maxValue;
     setState(() {
-      _isOutOfRange =
-          parsedValue < widget.minValue || parsedValue > widget.maxValue;
+      _setOutOfRange(outOfRange);
     });
   }
 
@@ -138,7 +148,7 @@ class _FlcCardState extends State<FlcCard> {
       setState(() {
         _currentValue = 0;
         _textController.text = _formatValue(0);
-        _isOutOfRange = true;
+        _setOutOfRange(true);
       });
       return;
     }
@@ -148,7 +158,7 @@ class _FlcCardState extends State<FlcCard> {
       final outOfRange =
           parsedValue < widget.minValue || parsedValue > widget.maxValue;
       setState(() {
-        _isOutOfRange = outOfRange;
+        _setOutOfRange(outOfRange);
         if (!outOfRange) {
           _currentValue = parsedValue;
           _textController.text = _formatValue(_currentValue);
@@ -159,6 +169,12 @@ class _FlcCardState extends State<FlcCard> {
         }
       });
     }
+  }
+
+  // Max input length: integer digits of maxValue + 1 (dot) + 2 (decimals)
+  int get _maxInputLength {
+    final intDigits = widget.maxValue.toInt().toString().length;
+    return intDigits + 1 + 2; // e.g. 45 → 2+1+2=5, 100 → 3+1+2=6
   }
 
   @override
@@ -201,15 +217,21 @@ class _FlcCardState extends State<FlcCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Label
-                    Text(
-                      widget.label,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF999999),
-                        letterSpacing: 0.5,
-                      ),
+                    // Label with edit/check icon
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.label,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF999999),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     // Value Input and Unit
@@ -226,16 +248,17 @@ class _FlcCardState extends State<FlcCard> {
                             child: TextField(
                               controller: _textController,
                               focusNode: _focusNode,
-                              maxLength: 5,
+                              maxLength: _maxInputLength,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                 decimal: true,
                                 signed: false,
                               ),
                               inputFormatters: [
-                                LengthLimitingTextInputFormatter(5),
+                                LengthLimitingTextInputFormatter(
+                                    _maxInputLength),
                                 FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d*\.?\d*'),
+                                  RegExp(r'^\d*\.?\d{0,2}'),
                                 ),
                               ],
                               style: GoogleFonts.dmSans(
@@ -292,17 +315,50 @@ class _FlcCardState extends State<FlcCard> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 5),
-                        // Unit
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            widget.unit,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF666666),
-                              height: 1.0,
+                        const SizedBox(width: 0),
+                        // Unit + edit/check icon
+                        TextFieldTapRegion(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              if (_isEditing) {
+                                // Confirm: submit value and unfocus
+                                _onManualInput(_textController.text);
+                                _focusNode.unfocus();
+                              } else {
+                                // Start editing: focus the TextField
+                                _focusNode.requestFocus();
+                                _textController.selection = TextSelection(
+                                  baseOffset: 0,
+                                  extentOffset: _textController.text.length,
+                                );
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                spacing: 5,
+                                children: [
+                                  Text(
+                                    widget.unit,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF666666),
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                  Icon(
+                                    _isEditing
+                                        ? Icons.check_circle
+                                        : Icons.edit_square,
+                                    size: 14,
+                                    color: _isEditing
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFF999999),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -364,7 +420,7 @@ class _FlcCardState extends State<FlcCard> {
                   ],
                 ),
               ),
-              // Increment/Decrement Buttons
+              // Increment/Decrement Buttons 
             ],
           ),
           // Progress bar
@@ -391,7 +447,7 @@ class _FlcCardState extends State<FlcCard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Min ${widget.minValue.toStringAsFixed(widget.decimalPlaces)}",
+                "Min ${widget.minValue.toStringAsFixed(widget.decimalPlaces)} A",
                 style: GoogleFonts.dmSans(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
@@ -399,7 +455,7 @@ class _FlcCardState extends State<FlcCard> {
                 ),
               ),
               Text(
-                "Max ${widget.maxValue.toStringAsFixed(widget.decimalPlaces)}",
+                "Max ${widget.maxValue.toStringAsFixed(widget.decimalPlaces)} A",
                 style: GoogleFonts.dmSans(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,

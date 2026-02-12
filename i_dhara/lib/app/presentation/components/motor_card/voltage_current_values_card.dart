@@ -95,10 +95,13 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                 : null;
 
         // Debug: Log motor identifiers and found data
-        debugPrint('🔍 VoltageCard: motor=${motor.name}, mac=${motor.starter?.macAddress}, pcb=${motor.starter?.pcbNumber}');
+        debugPrint(
+            '🔍 VoltageCard: motor=${motor.name}, mac=${motor.starter?.macAddress}, pcb=${motor.starter?.pcbNumber}');
         if (motorData != null) {
-          debugPrint('  ✓ Found MQTT data: group=${motorData.groupId}, state=${motorData.state}, hasData=${motorData.hasReceivedData}');
-          debugPrint('  ✓ Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
+          debugPrint(
+              '  ✓ Found MQTT data: group=${motorData.groupId}, state=${motorData.state}, hasData=${motorData.hasReceivedData}');
+          debugPrint(
+              '  ✓ Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
         } else {
           debugPrint('  ✗ No MQTT data found, using API values');
         }
@@ -198,8 +201,8 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                         (double.tryParse(voltageR) ?? 0.0)
-                                .toStringAsFixed(voltageR.contains('.') ? 1 : 0),
+                        (double.tryParse(voltageR) ?? 0.0)
+                            .toStringAsFixed(voltageR.contains('.') ? 1 : 0),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -212,8 +215,8 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                             ),
                       ),
                       Text(
-                         (double.tryParse(currentR) ?? 0.0)
-                                .toStringAsFixed(currentR.contains('.') ? 1 : 0),
+                        (double.tryParse(currentR) ?? 0.0)
+                            .toStringAsFixed(currentR.contains('.') ? 1 : 0),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -238,8 +241,8 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                         (double.tryParse(voltageY) ?? 0.0)
-                                .toStringAsFixed(voltageY.contains('.') ? 1 : 0),
+                        (double.tryParse(voltageY) ?? 0.0)
+                            .toStringAsFixed(voltageY.contains('.') ? 1 : 0),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -252,8 +255,8 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                             ),
                       ),
                       Text(
-                         (double.tryParse(currentY) ?? 0.0)
-                                .toStringAsFixed(currentY.contains('.') ? 1 : 0),
+                        (double.tryParse(currentY) ?? 0.0)
+                            .toStringAsFixed(currentY.contains('.') ? 1 : 0),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -278,8 +281,8 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                         (double.tryParse(voltageB) ?? 0.0)
-                                .toStringAsFixed(voltageB.contains('.') ? 1 : 0),
+                        (double.tryParse(voltageB) ?? 0.0)
+                            .toStringAsFixed(voltageB.contains('.') ? 1 : 0),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,
@@ -292,8 +295,8 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                             ),
                       ),
                       Text(
-                         (double.tryParse(currentB) ?? 0.0)
-                                .toStringAsFixed(currentB.contains('.') ? 1 : 0),
+                        (double.tryParse(currentB) ?? 0.0)
+                            .toStringAsFixed(currentB.contains('.') ? 1 : 0),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w500,

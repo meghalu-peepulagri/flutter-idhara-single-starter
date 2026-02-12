@@ -43,6 +43,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool allowSnackbar = true;
   bool isSnackbarShown = false;
   bool isbuttonActive = false;
+  bool _isFlcOutOfRange = false;
 
   // StreamSubscription to properly manage the MQTT stream listener
   StreamSubscription? _mqttStreamSubscription;
@@ -654,6 +655,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                       print('New value: $newValue');
                                       controller.flc.value = newValue;
                                     },
+                                    onOutOfRange: (isOutOfRange) {
+                                      setState(() {
+                                        _isFlcOutOfRange = isOutOfRange;
+                                      });
+                                    },
                                   ),
                                   const SizedBox(
                                     height: 7,
@@ -748,18 +754,25 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               child: Container(
                                 height: 45,
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF004E7E),
-                                      Color(0xFF3686AF)
-                                    ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
+                                  gradient: (!isbuttonActive ||
+                                          _isFlcOutOfRange)
+                                      ? null
+                                      : const LinearGradient(
+                                          colors: [
+                                            Color(0xFF004E7E),
+                                            Color(0xFF3686AF)
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                  color: (!isbuttonActive || _isFlcOutOfRange)
+                                      ? const Color(0xFFB0B0B0)
+                                      : null,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: FFButtonWidget(
-                                  onPressed: !isbuttonActive
+                                  onPressed: (!isbuttonActive ||
+                                          _isFlcOutOfRange)
                                       ? null
                                       : () {
                                           final voltageValues = voltageCardKey

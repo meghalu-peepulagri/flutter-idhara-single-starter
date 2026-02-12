@@ -272,30 +272,8 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
     });
   }
 
-  void calculatedFlc2(double CurrentHigh) {
-    setState(() {
-      final percent = CurrentHigh.toInt() / 100;
-      final res = percent * controller.flc.value;
-      calculatedHigh = res;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    double displayMin;
-    double displayMax;
-
-    if (activeThumb == 'low') {
-      displayMin = widget.lowMinLimit;
-      displayMax = widget.lowMaxLimit;
-    } else if (activeThumb == 'high') {
-      displayMin = widget.highMinLimit;
-      displayMax = widget.highMaxLimit;
-    } else {
-      displayMin = widget.minLimit;
-      displayMax = widget.maxLimit;
-    }
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -554,30 +532,85 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
 
           const SizedBox(height: 8),
 
-          // Min/Max Labels
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${displayMin.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF999999),
-                  ),
+          // Range Labels — all 4 boundaries
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final trackWidth = constraints.maxWidth;
+              final range = widget.maxLimit - widget.minLimit;
+              final unitSuffix = widget.unit.contains("A") ? "%" : widget.unit;
+
+              double getLeft(double value) {
+                return ((value - widget.minLimit) / range) * trackWidth;
+              }
+
+              final labelStyle = GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF999999),
+              );
+
+              final innerLabelStyle = GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF666666),
+              );
+
+              // Check if inner labels are too close (difference 0-20)
+              final innerGap = widget.highMinLimit - widget.lowMaxLimit;
+              final isTooClose = innerGap >= 0 && innerGap <= 20;
+
+              // Pixel offset to push labels apart when too close
+              final spreadPx = isTooClose ? 8.0 : 0.0;
+
+              return SizedBox(
+                height: 18,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Min limit (left-aligned)
+                    Positioned(
+                      left: 0,
+                      child: Text(
+                        '${widget.minLimit.toInt()}$unitSuffix',
+                        style: labelStyle,
+                      ),
+                    ),
+                    // Low max limit
+                    Positioned(
+                      left: getLeft(widget.lowMaxLimit) - spreadPx,
+                      child: FractionalTranslation(
+                        translation: const Offset(-0.5, 0),
+                        child: Text(
+                          '${widget.lowMaxLimit.toInt()}$unitSuffix',
+                          style: innerLabelStyle,
+                        ),
+                      ),
+                    ),
+                    // High min limit
+
+                    if (widget.highMinLimit != widget.lowMaxLimit)
+                      Positioned(
+                        left: getLeft(widget.highMinLimit) + spreadPx,
+                        child: FractionalTranslation(
+                          translation: const Offset(-0.5, 0),
+                          child: Text(
+                            '${widget.highMinLimit.toInt()}$unitSuffix',
+                            style: innerLabelStyle,
+                          ),
+                        ),
+                      ),
+                    // Max limit (right-aligned)
+                    Positioned(
+                      right: 0,
+                      child: Text(
+                        '${widget.maxLimit.toInt()}$unitSuffix',
+                        style: labelStyle,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  '${displayMax.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF999999),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
