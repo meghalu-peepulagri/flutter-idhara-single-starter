@@ -1,10 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
-import 'dart:ui' as ui;
 
 import '../modules/settings/settings_controller.dart';
 
@@ -57,7 +58,8 @@ class GradientTrackShape extends SfTrackShape {
 
     // Calculate color for low thumb based on its position
     Color getLowThumbColor(double value) {
-      final normalizedValue = (value - lowMinLimit) / (lowMaxLimit - lowMinLimit);
+      final normalizedValue =
+          (value - lowMinLimit) / (lowMaxLimit - lowMinLimit);
       return Color.lerp(
         Colors.red,
         Colors.green,
@@ -67,7 +69,8 @@ class GradientTrackShape extends SfTrackShape {
 
     // Calculate color for high thumb based on its position
     Color getHighThumbColor(double value) {
-      final normalizedValue = (value - highMinLimit) / (highMaxLimit - highMinLimit);
+      final normalizedValue =
+          (value - highMinLimit) / (highMaxLimit - highMinLimit);
       return Color.lerp(
         Colors.green,
         Colors.red,
@@ -558,7 +561,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${displayMin.toInt()}${widget.unit}',
+                  '${displayMin.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -566,7 +569,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                   ),
                 ),
                 Text(
-                  '${displayMax.toInt()}${widget.unit}',
+                  '${displayMax.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

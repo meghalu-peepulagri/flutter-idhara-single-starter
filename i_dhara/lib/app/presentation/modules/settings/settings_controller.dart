@@ -21,6 +21,14 @@ class SettingsController extends GetxController {
   var olf = 0.obs;
   var lvr = 0.obs;
   var hvr = 0.obs;
+  var lrf = 0.0.obs;
+  var olr = 0.0.obs;
+  var lrr = 0.0.obs;
+  var orignolFlc = 0.0.obs;
+
+  var calculatedLrf = 0.0.obs;
+  var calculatedOlr = 0.0.obs;
+  var calculatedLrr = 0.0.obs;
 
   Map<String, dynamic> payload = {};
   var isrefreshing = false.obs;
@@ -56,15 +64,17 @@ class SettingsController extends GetxController {
   }
 
   String pcbnumberPass(Starter? starter) {
-    print("line 190");
-    print("line 191 ${starter!.toJson()}");
     try {
-      if (starter.pcbNumber != null) {
-        return starter.pcbNumber.toString();
-      } else if (starter.macAddress != null) {
-        return starter.macAddress.toString();
+      if (starter != null) {
+        if (starter.pcbNumber != null) {
+          return starter.pcbNumber.toString();
+        } else if (starter.macAddress != null) {
+          return starter.macAddress.toString();
+        } else {
+          return '';
+        }
       } else {
-        return '';
+        return '0';
       }
     } catch (e) {
       print("error ---> $e");
@@ -127,12 +137,17 @@ class SettingsController extends GetxController {
         pcbNumber.value = pcbnumberPass(response.data?.starter);
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
+        orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
         lvr.value = userSettings2.value?.lvr?.toInt() ?? 0;
         hvr.value = userSettings2.value?.hvr?.toInt() ?? 0;
+        lrf.value = userSettings2.value?.lrf?.toDouble() ?? 0.0;
+        olr.value = userSettings2.value?.olr?.toDouble() ?? 0.0;
+        lrr.value = userSettings2.value?.lrr?.toDouble() ?? 0.0;
+
         payload = {
           "dvc_c": {
             "lvf": lvf.value,
@@ -152,6 +167,13 @@ class SettingsController extends GetxController {
       errorMessage.value = 'Error loading settings: $e';
       print('Error fetching user settings: $e');
     }
+  }
+
+  double calculatedFlc(double val, double flcVal) {
+    final percentLow = val.toInt() / 100;
+    final res = percentLow * flcVal;
+    final newRes = double.parse(res.toStringAsFixed(2)) ?? 0.0;
+    return newRes;
   }
 
   Future<void> fetchUserSettingsLimits() async {

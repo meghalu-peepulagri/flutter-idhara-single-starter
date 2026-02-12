@@ -773,19 +773,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                           final calculatedCurrentValues =
                                               currentCardKey.currentState
                                                   ?.getCalculatedValues();
-                                          if (calculatedCurrentValues != null) {
-                                            print(
-                                                '========================================');
-                                            print(
-                                                'FLC Calculated Current Values:');
-                                            print(
-                                                'Calculated Low Current: ${calculatedCurrentValues['calculatedLow']?.toStringAsFixed(2)} A');
-                                            print(
-                                                'Calculated High Current: ${calculatedCurrentValues['calculatedHigh']?.toStringAsFixed(2)} A');
-                                            print(
-                                                '========================================');
-                                          }
-
                                           controller.lvf.value =
                                               voltageValues?['low']?.toInt() ??
                                                   controller.userSettings2
@@ -895,6 +882,32 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               updatedpayload["dvc_c"]['olf'] =
                                                   double.parse(strVal ?? "0.0");
                                             }
+                                            if (cmin || cmax) {
+                                              final calculatedLrf =
+                                                  controller.calculatedFlc(
+                                                      controller.lrf.value,
+                                                      controller.flc.value);
+                                              final calculatedOlf =
+                                                  controller.calculatedFlc(
+                                                      controller.olr.value,
+                                                      controller.flc.value);
+                                              final calculatedLRR =
+                                                  controller.calculatedFlc(
+                                                      controller.lrr.value,
+                                                      controller.flc.value);
+                                              updatedpayload["dvc_c"]['lrf'] =
+                                                  calculatedLrf;
+                                              updatedpayload['dvc_c']['olr'] =
+                                                  calculatedOlf;
+                                              updatedpayload['dvc_c']['lrr'] =
+                                                  calculatedLRR;
+                                              if (controller.flc.value !=
+                                                  controller.orignolFlc.value) {
+                                                updatedpayload['dvc_c']['flc'] =
+                                                    controller.flc.value;
+                                              }
+                                            }
+
                                             if (isVoltageRange ||
                                                 isCurrentRange) {
                                               _handleSave(vmin, vmax, cmin,

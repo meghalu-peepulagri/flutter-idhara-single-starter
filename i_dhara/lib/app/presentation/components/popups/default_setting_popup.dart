@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 
 Future<bool?> showDeviceSettingConfirmDialog(
@@ -54,111 +53,113 @@ Future<bool?> showDeviceSettingConfirmDialog(
       // Responsive button height
       final buttonHeight =
           isSmallScreen ? 36.0 : (isMediumScreen ? 38.0 : 40.0);
-      final buttonVerticalPadding = isSmallScreen ? 10.0 : 12.0;
 
       return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         insetPadding: EdgeInsets.symmetric(
           horizontal: screenWidth * 0.075,
           vertical: screenHeight * 0.05,
         ),
+        elevation: 8,
+        shadowColor: Colors.black.withValues(alpha: 0.15),
         child: Container(
           width: dialogWidth,
-          padding: EdgeInsets.all(dialogPadding),
+          padding: EdgeInsets.all(dialogPadding + 4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             color: Colors.white,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ❗ Icon
+              const SizedBox(height: 8),
+              // Icon with background
               SizedBox(
-                height: iconContainerSize,
-                width: iconContainerSize,
-                // decoration: BoxDecoration(
-                //   color: Colors.red.withValues(alpha: 0.1),
-                //   shape: BoxShape.circle,
-                // ),
-                child: svgPath != null
-                    ? SvgPicture.asset(
-                        svgPath,
-                        width: iconSize,
-                        height: iconSize,
-                      )
-                    : Icon(
-                        Icons.warning_rounded,
-                        color: Colors.red,
-                        size: iconSize,
-                      ),
+                height: iconContainerSize + 14,
+                width: iconContainerSize + 14,
+                child: Center(
+                  child: svgPath != null
+                      ? SvgPicture.asset(
+                          svgPath,
+                          width: 100,
+                          height: 100,
+                        )
+                      : const Icon(
+                          Icons.settings_backup_restore_rounded,
+                          color: Colors.black,
+                          size: 50,
+                        ),
+                ),
               ),
 
-              SizedBox(height: iconToTitleSpacing),
+              SizedBox(height: iconToTitleSpacing + 4),
 
               // Title
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                style: GoogleFonts.dmSans(
+                  fontSize: titleFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A1A2E),
+                  letterSpacing: -0.3,
                 ),
               ),
 
-              SizedBox(height: titleToMessageSpacing),
+              SizedBox(height: titleToMessageSpacing + 2),
 
               // Message
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: messageFontSize,
-                  color: const Color(0xFF364153),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(
+                    fontSize: messageFontSize,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF6B7280),
+                    height: 1.5,
+                  ),
                 ),
               ),
 
-              SizedBox(height: messageToButtonSpacing),
+              SizedBox(height: messageToButtonSpacing + 4),
 
               // Buttons
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: FFButtonWidget(
-                      showLoadingIndicator: true,
-                      text: noText,
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      options: FFButtonOptions(
-                        height: 40.0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        color: Colors.white38,
-                        textStyle:
-                            FlutterFlowTheme.of(context).titleSmall.override(
-                                  fontFamily: 'Manrope',
-                                  color: const Color(0XFF828282),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                        elevation: 0.0,
-                        borderSide: const BorderSide(color: Color(0x38000000)),
-                        borderRadius: BorderRadius.circular(12.0),
+                    child: SizedBox(
+                      height: buttonHeight + 4,
+                      child: FFButtonWidget(
+                        showLoadingIndicator: true,
+                        text: noText,
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        options: FFButtonOptions(
+                          height: buttonHeight + 4,
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          color: const Color(0xFFF5F5F5),
+                          textStyle: GoogleFonts.dmSans(
+                            color: const Color(0xFF6B7280),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          elevation: 0.0,
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB),
+                          ),
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
                       ),
-                      // options: FFButtonOptions(
-                      //   textStyle: const TextStyle(color: Colors.red),
-                      //   padding: EdgeInsets.symmetric(vertical: buttonVerticalPadding),
-                      //   color: Colors.red.withValues(alpha: 0.15),
-                      //   elevation: 0,
-                      //   borderRadius: BorderRadius.circular(8),
-                      // )
                     ),
                   ),
-                  SizedBox(width: buttonSpacing),
-                  // YES Button
+                  SizedBox(width: buttonSpacing + 2),
+                  // Confirm Button
                   Expanded(
                     child: Container(
-                      height: buttonHeight,
+                      height: buttonHeight + 4,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [
@@ -168,7 +169,15 @@ Future<bool?> showDeviceSettingConfirmDialog(
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFF004E7E).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: FFButtonWidget(
                         showLoadingIndicator: true,
@@ -176,14 +185,20 @@ Future<bool?> showDeviceSettingConfirmDialog(
                         onPressed: onConfirm,
                         options: FFButtonOptions(
                           color: Colors.transparent,
+                          textStyle: GoogleFonts.dmSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
                           elevation: 0,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
                   ),
                 ],
-              )
+              ),
+              const SizedBox(height: 4),
             ],
           ),
         ),
