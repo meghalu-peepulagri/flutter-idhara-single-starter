@@ -4,8 +4,128 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
+import 'dart:ui' as ui;
 
 import '../modules/settings/settings_controller.dart';
+
+// Custom gradient track shape for dual slider
+class GradientTrackShape extends SfTrackShape {
+  final double lowValue;
+  final double highValue;
+  final double lowMinLimit;
+  final double lowMaxLimit;
+  final double highMinLimit;
+  final double highMaxLimit;
+  final double minLimit;
+  final double maxLimit;
+  final bool isDragging;
+
+  GradientTrackShape({
+    required this.lowValue,
+    required this.highValue,
+    required this.lowMinLimit,
+    required this.lowMaxLimit,
+    required this.highMinLimit,
+    required this.highMaxLimit,
+    required this.minLimit,
+    required this.maxLimit,
+    required this.isDragging,
+  });
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset,
+    Offset? thumbCenter,
+    Offset? startThumbCenter,
+    Offset? endThumbCenter, {
+    required RenderBox parentBox,
+    required SfSliderThemeData themeData,
+    SfRangeValues? currentValues,
+    dynamic currentValue,
+    required Animation<double> enableAnimation,
+    required Paint? inactivePaint,
+    required Paint? activePaint,
+    required TextDirection textDirection,
+  }) {
+    final canvas = context.canvas;
+    final trackRect = getPreferredRect(
+      parentBox,
+      themeData,
+      offset,
+    );
+
+    // Calculate color for low thumb based on its position
+    Color getLowThumbColor(double value) {
+      final normalizedValue = (value - lowMinLimit) / (lowMaxLimit - lowMinLimit);
+      return Color.lerp(
+        Colors.red,
+        Colors.green,
+        normalizedValue,
+      )!;
+    }
+
+    // Calculate color for high thumb based on its position
+    Color getHighThumbColor(double value) {
+      final normalizedValue = (value - highMinLimit) / (highMaxLimit - highMinLimit);
+      return Color.lerp(
+        Colors.green,
+        Colors.red,
+        normalizedValue,
+      )!;
+    }
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = themeData.activeTrackHeight ?? 3;
+
+    // Show gradient only while dragging
+    if (isDragging) {
+      final lowColor = getLowThumbColor(lowValue);
+      final highColor = getHighThumbColor(highValue);
+
+      // Draw the full track with gradient
+      final totalWidth = trackRect.width;
+      final valueRange = maxLimit - minLimit;
+
+      // Calculate positions
+      final lowPosition = ((lowValue - minLimit) / valueRange) * totalWidth;
+      final highPosition = ((highValue - minLimit) / valueRange) * totalWidth;
+
+      // Create gradient with multiple stops
+      final gradient = ui.Gradient.linear(
+        Offset(trackRect.left, trackRect.center.dy),
+        Offset(trackRect.right, trackRect.center.dy),
+        [
+          lowColor,
+          lowColor,
+          Colors.grey.shade300,
+          highColor,
+          highColor,
+        ],
+        [
+          0.0,
+          lowPosition / totalWidth,
+          (lowPosition + highPosition) / (2 * totalWidth),
+          highPosition / totalWidth,
+          1.0,
+        ],
+      );
+
+      paint.shader = gradient;
+    } else {
+      // Normal gray color when not dragging
+      paint.color = const Color(0xFFE8E8E8);
+    }
+
+    canvas.drawLine(
+      Offset(trackRect.left, trackRect.center.dy),
+      Offset(trackRect.right, trackRect.center.dy),
+      paint,
+    );
+  }
+}
 
 class SettingsDualSlider extends StatefulWidget {
   final String heading;
@@ -303,7 +423,17 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                     enableTooltip: false,
                     inactiveColor: const Color(0xFFE8E8E8),
                     activeColor: const Color(0xFFE8E8E8),
-                    trackShape: const SfTrackShape(),
+                    trackShape: GradientTrackShape(
+                      lowValue: isDragging ? tempLowValue : lowValue,
+                      highValue: isDragging ? tempHighValue : highValue,
+                      lowMinLimit: widget.lowMinLimit,
+                      lowMaxLimit: widget.lowMaxLimit,
+                      highMinLimit: widget.highMinLimit,
+                      highMaxLimit: widget.highMaxLimit,
+                      minLimit: widget.minLimit,
+                      maxLimit: widget.maxLimit,
+                      isDragging: isDragging,
+                    ),
                     overlayShape: const SfOverlayShape(),
                     startThumbIcon: Container(
                       width: 36,
