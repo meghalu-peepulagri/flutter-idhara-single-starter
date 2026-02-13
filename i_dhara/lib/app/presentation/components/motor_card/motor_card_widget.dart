@@ -361,6 +361,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _navigateToTestRunScreen() {
+    SharedPreference.setMotorId(widget.motor.id ?? 0);
+    SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
     Get.toNamed(
       Routes.testRun,
       arguments: {

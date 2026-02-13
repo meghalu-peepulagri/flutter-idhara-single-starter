@@ -329,7 +329,8 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
-  Future<void> publishTestRunCommand(String motorId, int state) async {
+  Future<void> publishTestRunCommand(String motorId, int state,
+      {int data = 2}) async {
     if (_mqttClient == null || !isConnected) {
       debugPrint('Cannot publish test run: MQTT not connected');
       statusMessage = 'MQTT not connected';
@@ -342,7 +343,7 @@ class MqttService {
     final seq = _random.nextInt(251);
 
     try {
-      await _publishCommand(motorId, 1, 2, seq);
+      await _publishCommand(motorId, 1, data, seq);
       statusMessage = 'Test run command sent';
       debugPrint(
           'Test run command published for $motorId (state=$state) - No retries');

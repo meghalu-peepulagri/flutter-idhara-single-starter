@@ -22,7 +22,6 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   late Motor motor;
   late MqttService mqttService;
   bool fromDevices = false;
-  bool isLoadingApiData = false;
 
   bool isFailed = false;
   var isShowSnackbar = false;
@@ -136,7 +135,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   Future<void> _fetchMotorDetails() async {
     setState(() {
-      isLoadingApiData = true;
+      testRunController.isLoadingApiData = true;
     });
 
     SharedPreference.setMotorId(motor.id!);
@@ -187,12 +186,12 @@ mixin TestRunLogicMixin on State<TestRunPage> {
             : null,
       );
       setState(() {
-        isLoadingApiData = false;
+        testRunController.isLoadingApiData = false;
       });
     } else {
       if (mounted) {
         setState(() {
-          isLoadingApiData = false;
+          testRunController.isLoadingApiData = false;
         });
       }
     }
@@ -730,7 +729,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
   }
 
-  void onAckTimeout() {
+  void onAckTimeout() async {
     ackTimer?.cancel();
     countdownTimer?.cancel();
     mqttService.dataUpdateNotifier.removeListener(onDataUpdate);
@@ -751,21 +750,24 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       if (isCompleted) {
         errorSnackBar(context, 'No response from the device.');
         testRunController.completeTestRun(motor.id!);
+        await calltopics(mqttMotorId);
       } else {
         errorSnackBar(context, 'No response from the device.');
         testRunController.startTestRun(motor.id!);
       }
     } else {
       successSnackBar(context, 'Test Run completed successfully');
+      await calltopics(mqttMotorId);
+
       isShowSnackbar = false;
       testRunController.completeTestRun(motor.id!);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (fromDevices) {
-          goToDevices();
-        } else {
-          goToDashboard();
-        }
-      });
+      // WidgetsBinding.instance.addPostFrameCallback((_) {
+      //   if (fromDevices) {
+      //     goToDevices();
+      //   } else {
+      //     goToDashboard();
+      //   }
+      // });
     }
 
     if (mounted) {
@@ -776,6 +778,45 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     // Navigate after dialog is fully closed to avoid navigator conflict
+  }
+
+  Future<void> calltopics(String mqttMotorId) async {
+    testRunController.isdisabled.value = true;
+    setState(() {
+      testRunController.isLoadingApiData = true;
+      fromDevices = true;
+    });
+    successSnackBar(context, 'Publish to turn off the motor state');
+    await testRunController.fetchUserSettings2().then((val) async {
+      final OLR1 = testRunController.calculatedFlc(
+          testRunController.olr.value, testRunController.flc.value);
+      final LRF2 = testRunController.calculatedFlc(
+          testRunController.lrf.value, testRunController.flc.value);
+      final LRR3 = testRunController.calculatedFlc(
+          testRunController.lrr.value, testRunController.flc.value);
+      final DRF4 = testRunController.calculatedFlc(
+          testRunController.drf.value.toDouble(), testRunController.flc.value);
+      final OLF5 = testRunController.calculatedFlc(
+          testRunController.olf.value.toDouble(), testRunController.flc.value);
+      final payload = {
+        "dvc_c": {
+          "olr": OLR1,
+          "lrr": LRR3,
+          "lrf": LRF2,
+          "drf": DRF4,
+          "olf": OLF5,
+          'flc': testRunController.flc.value
+        },
+      };
+      await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
+      await mqttService.publishUpdateSettings(
+          testRunController.pcbNumber.value, payload);
+    });
+    testRunController.isdisabled.value = false;
+    setState(() {
+      testRunController.isLoadingApiData = false;
+      fromDevices = false;
+    });
   }
 
   void goBack() {

@@ -599,34 +599,22 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         child: RefreshIndicator(
                           onRefresh: () async {
                             controller.isrefreshing.value = true;
-
-                            // Reset local form values
                             _currentVoltageLow = null;
                             _currentVoltageHigh = null;
                             _currentCurrentLow = null;
                             _currentCurrentHigh = null;
-
-                            // Reset original values (used for default settings comparison)
                             _originalVoltageLow = null;
                             _originalVoltageHigh = null;
                             _originalCurrentLow = null;
                             _originalCurrentHigh = null;
-
-                            // Fetch actual user settings (not default)
                             await controller.fetchUserSettings2();
-
-                            // Small delay to ensure controller state is updated
                             await Future.delayed(
                                 const Duration(milliseconds: 100));
-
-                            // Reset cards to actual user values after data is loaded
                             voltageCardKey.currentState?.resetValues();
                             currentCardKey.currentState?.resetValues();
-
                             setState(() {
                               isbuttonActive = false;
                             });
-
                             controller.isrefreshing.value = false;
                           },
                           child: Skeletonizer(

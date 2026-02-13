@@ -57,7 +57,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         child: ValueListenableBuilder<bool>(
           valueListenable: hasInternet,
           builder: (context, hasInternetValue, child) {
-            if (isLoadingApiData && fromDevices) {
+            if (testRunController.isLoadingApiData && fromDevices) {
               return const Padding(
                 padding: EdgeInsets.only(right: 50),
                 child: Center(
@@ -351,17 +351,21 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
             child: Container(
               height: 45,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: testRunController.isdisabled.value
+                    ? null
+                    : const LinearGradient(
+                        colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: showTestRunConfirmDialog,
+                  onTap: testRunController.isdisabled.value
+                      ? null
+                      : showTestRunConfirmDialog,
                   borderRadius: BorderRadius.circular(12),
                   child: Center(
                     child: Text(
