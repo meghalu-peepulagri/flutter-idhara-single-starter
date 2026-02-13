@@ -127,6 +127,42 @@ class GradientTrackShape extends SfTrackShape {
       Offset(trackRect.right, trackRect.center.dy),
       paint,
     );
+
+    // Draw a small vertical blue line at the boundary where Low and High thumbs cannot meet
+    final totalWidth = trackRect.width;
+    final valueRange = maxLimit - minLimit;
+    final boundaryPosition =
+        ((lowMaxLimit + highMinLimit) / 2 - minLimit) / valueRange * totalWidth;
+    final boundaryX = trackRect.left + boundaryPosition;
+
+    final bluePaint = Paint()
+      ..color = Colors.blue.shade300
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(boundaryX, trackRect.center.dy - 8),
+      Offset(boundaryX, trackRect.center.dy + 8),
+      bluePaint,
+    );
+
+    // Draw "FLC" text below the vertical blue line
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'FLC',
+        style: TextStyle(
+          color: Colors.blue,
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    )..layout();
+
+    textPainter.paint(
+      canvas,
+      Offset(boundaryX - textPainter.width / 2, trackRect.center.dy + 10),
+    );
   }
 }
 
