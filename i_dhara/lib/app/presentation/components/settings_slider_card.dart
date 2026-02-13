@@ -575,31 +575,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                         style: labelStyle,
                       ),
                     ),
-                    // Low max limit
-                    Positioned(
-                      left: getLeft(widget.lowMaxLimit) - spreadPx,
-                      child: FractionalTranslation(
-                        translation: const Offset(-0.5, 0),
-                        child: Text(
-                          '${widget.lowMaxLimit.toInt()}$unitSuffix',
-                          style: innerLabelStyle,
-                        ),
-                      ),
-                    ),
-                    // High min limit
 
-                    if (widget.highMinLimit != widget.lowMaxLimit)
-                      Positioned(
-                        left: getLeft(widget.highMinLimit) + spreadPx,
-                        child: FractionalTranslation(
-                          translation: const Offset(-0.5, 0),
-                          child: Text(
-                            '${widget.highMinLimit.toInt()}$unitSuffix',
-                            style: innerLabelStyle,
-                          ),
-                        ),
-                      ),
-                    // Max limit (right-aligned)
                     Positioned(
                       right: 0,
                       child: Text(

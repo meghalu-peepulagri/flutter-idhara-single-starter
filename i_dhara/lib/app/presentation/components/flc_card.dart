@@ -348,15 +348,6 @@ class _FlcCardState extends State<FlcCard> {
                                       height: 1.0,
                                     ),
                                   ),
-                                  Icon(
-                                    _isEditing
-                                        ? Icons.check_circle
-                                        : Icons.edit_square,
-                                    size: 14,
-                                    color: _isEditing
-                                        ? const Color(0xFF22C55E)
-                                        : const Color(0xFF999999),
-                                  ),
                                 ],
                               ),
                             ),
@@ -420,7 +411,7 @@ class _FlcCardState extends State<FlcCard> {
                   ],
                 ),
               ),
-              // Increment/Decrement Buttons 
+              // Increment/Decrement Buttons
             ],
           ),
           // Progress bar

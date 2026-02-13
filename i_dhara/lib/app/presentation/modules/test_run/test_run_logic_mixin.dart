@@ -781,13 +781,13 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   }
 
   Future<void> calltopics(String mqttMotorId) async {
-    testRunController.isdisabled.value = true;
     setState(() {
       testRunController.isLoadingApiData = true;
       fromDevices = true;
     });
-    successSnackBar(context, 'Publish to turn off the motor state');
     await testRunController.fetchUserSettings2().then((val) async {
+      successSnackBar(
+          context, 'Publish the device settings and motor state OFF');
       final OLR1 = testRunController.calculatedFlc(
           testRunController.olr.value, testRunController.flc.value);
       final LRF2 = testRunController.calculatedFlc(
@@ -798,6 +798,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
           testRunController.drf.value.toDouble(), testRunController.flc.value);
       final OLF5 = testRunController.calculatedFlc(
           testRunController.olf.value.toDouble(), testRunController.flc.value);
+
       final payload = {
         "dvc_c": {
           "olr": OLR1,
@@ -808,11 +809,11 @@ mixin TestRunLogicMixin on State<TestRunPage> {
           'flc': testRunController.flc.value
         },
       };
+      
       await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
       await mqttService.publishUpdateSettings(
           testRunController.pcbNumber.value, payload);
     });
-    testRunController.isdisabled.value = false;
     setState(() {
       testRunController.isLoadingApiData = false;
       fromDevices = false;

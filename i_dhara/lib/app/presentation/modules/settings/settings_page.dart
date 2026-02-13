@@ -29,7 +29,8 @@ class SettingsWidget extends StatefulWidget {
 }
 
 class _SettingsWidgetState extends State<SettingsWidget> {
-  final SettingsController controller = Get.put(SettingsController());
+  final SettingsController controller =
+      Get.put(SettingsController(), permanent: true);
   final scaffoldKey = GlobalKey<ScaffoldState>();
   Map<String, dynamic> updatedpayload = {};
 
@@ -44,6 +45,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool isSnackbarShown = false;
   bool isbuttonActive = false;
   bool _isFlcOutOfRange = false;
+  bool _hasPendingSave = false;
 
   // StreamSubscription to properly manage the MQTT stream listener
   StreamSubscription? _mqttStreamSubscription;
@@ -64,7 +66,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   void initState() {
     super.initState();
     mqttService = MqttService();
-    mqttConnection();
 
     // Assign the stream listener to the subscription variable
     _mqttStreamSubscription = mqttService.settingstream.listen((data) async {
@@ -76,8 +77,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       // Only process if topic matches this device
       if (topic != pcbNumber && topic != macAddress) return;
 
-      if (type == 1 && !_ackInProgress) {
+      if (type == 1 && !_ackInProgress && _hasPendingSave) {
         // ACK = 1: Success
+        _hasPendingSave = false;
         _ackInProgress = true;
         isSnackbarShown = true;
 
@@ -101,8 +103,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           _ackInProgress = false;
           isSnackbarShown = false;
         });
-      } else if (type == 0 && !_ackInProgress) {
+      } else if (type == 0 && !_ackInProgress && _hasPendingSave) {
         // ACK = 0: Update failed
+        _hasPendingSave = false;
         _ackInProgress = true;
         isSnackbarShown = true;
 
@@ -147,10 +150,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     // Cancel the MQTT stream subscription to prevent memory leaks
     _mqttStreamSubscription?.cancel();
     super.dispose();
-  }
-
-  mqttConnection() async {
-    await mqttService.initializeMqttClient();
   }
 
   void onTapMenu() {
@@ -346,6 +345,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
               child: ElevatedButton(
                 onPressed: () async {
                   isSnackbarShown = false;
+                  _hasPendingSave = true;
                   Navigator.of(context).pop();
                   await mqttService.publishUpdateSettings(
                       pcbNumber, updatedpayload);
@@ -397,18 +397,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _originalVoltageHigh = controller.userSettings2.value?.hvf?.toInt();
         _originalCurrentLow = controller.userSettings2.value?.drf?.toInt();
         _originalCurrentHigh = controller.userSettings2.value?.olf?.toInt();
-
         updatedpayload = {};
         controller.payload = {};
         await controller.fetchdefaultSettings();
-
-        // Reset form values
         _currentVoltageLow = null;
         _currentVoltageHigh = null;
         _currentCurrentLow = null;
         _currentCurrentHigh = null;
-
-        // Reset cards to show default values
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
 
@@ -576,9 +571,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                 },
                                 text: 'Default',
                                 options: FFButtonOptions(
-                                  // height: 40.0,
-                                  // padding: const EdgeInsets.symmetric(
-                                  //     horizontal: 20.0),
                                   color: Colors.transparent,
                                   textStyle: FlutterFlowTheme.of(context)
                                       .titleSmall
@@ -742,17 +734,17 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                               child: Container(
                                 height: 45,
                                 decoration: BoxDecoration(
-                                  gradient: (!isbuttonActive ||
-                                          _isFlcOutOfRange)
-                                      ? null
-                                      : const LinearGradient(
-                                          colors: [
-                                            Color(0xFF004E7E),
-                                            Color(0xFF3686AF)
-                                          ],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
+                                  gradient:
+                                      (!isbuttonActive || _isFlcOutOfRange)
+                                          ? null
+                                          : const LinearGradient(
+                                              colors: [
+                                                Color(0xFF004E7E),
+                                                Color(0xFF3686AF)
+                                              ],
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                            ),
                                   color: (!isbuttonActive || _isFlcOutOfRange)
                                       ? const Color(0xFFB0B0B0)
                                       : null,
