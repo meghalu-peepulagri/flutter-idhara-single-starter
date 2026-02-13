@@ -757,17 +757,15 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       }
     } else {
       successSnackBar(context, 'Test Run completed successfully');
-      await calltopics(mqttMotorId);
-
       isShowSnackbar = false;
       testRunController.completeTestRun(motor.id!);
-      // WidgetsBinding.instance.addPostFrameCallback((_) {
-      //   if (fromDevices) {
-      //     goToDevices();
-      //   } else {
-      //     goToDashboard();
-      //   }
-      // });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (route == Routes.dashboard) {
+          Get.offAllNamed(route, arguments: {'refresh': true});
+        } else {
+          Get.offNamed(route);
+        }
+      });
     }
 
     if (mounted) {
@@ -809,7 +807,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
           'flc': testRunController.flc.value
         },
       };
-      
+
       await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
       await mqttService.publishUpdateSettings(
           testRunController.pcbNumber.value, payload);
@@ -828,14 +826,13 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
 
     if (route == Routes.dashboard) {
-      Get.offAllNamed(route, arguments: {'refresh': true});
+      goToDashboard();
     } else {
-      Get.offNamed(route);
+      goToDevices();
     }
   }
 
   void goToDashboard() =>
       Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
-
   void goToDevices() => Get.offAllNamed(Routes.devices);
 }

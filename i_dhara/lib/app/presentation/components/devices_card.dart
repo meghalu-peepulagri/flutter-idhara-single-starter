@@ -190,6 +190,9 @@ class DevicesCard extends StatelessWidget {
       ),
     );
 
+    SharedPreference.setMotorId(motor.id ?? 0);
+    SharedPreference.setStarterId(device.id ?? 0);
+
     Get.toNamed(
       Routes.testRun,
       arguments: {

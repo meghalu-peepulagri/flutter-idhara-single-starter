@@ -471,6 +471,8 @@ class MotorCardDialogs {
                                 ),
                               ),
                               // const Spacer(),
+                              const SizedBox(width: 10),
+
                               _buildTimeChip(
                                 context,
                                 1,
@@ -478,7 +480,7 @@ class MotorCardDialogs {
                                 (value) =>
                                     setState(() => selectedTimeout = value),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 20),
                               _buildTimeChip(
                                 context,
                                 2,
@@ -486,22 +488,22 @@ class MotorCardDialogs {
                                 (value) =>
                                     setState(() => selectedTimeout = value),
                               ),
-                              const SizedBox(width: 6),
-                              _buildTimeChip(
-                                context,
-                                3,
-                                selectedTimeout,
-                                (value) =>
-                                    setState(() => selectedTimeout = value),
-                              ),
-                              const SizedBox(width: 6),
-                              _buildTimeChip(
-                                context,
-                                4,
-                                selectedTimeout,
-                                (value) =>
-                                    setState(() => selectedTimeout = value),
-                              ),
+                              // const SizedBox(width: 6),
+                              // _buildTimeChip(
+                              //   context,
+                              //   3,
+                              //   selectedTimeout,
+                              //   (value) =>
+                              //       setState(() => selectedTimeout = value),
+                              // ),
+                              // const SizedBox(width: 6),
+                              // _buildTimeChip(
+                              //   context,
+                              //   4,
+                              //   selectedTimeout,
+                              //   (value) =>
+                              //       setState(() => selectedTimeout = value),
+                              // ),
                               // const SizedBox(width: 6),
                               // _buildTimeChip(
                               //   context,
