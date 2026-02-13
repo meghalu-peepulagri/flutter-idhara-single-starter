@@ -20,6 +20,7 @@ class GradientTrackShape extends SfTrackShape {
   final double minLimit;
   final double maxLimit;
   final bool isDragging;
+  final bool showBoundaryLine;
 
   GradientTrackShape({
     required this.lowValue,
@@ -31,6 +32,7 @@ class GradientTrackShape extends SfTrackShape {
     required this.minLimit,
     required this.maxLimit,
     required this.isDragging,
+    this.showBoundaryLine = false,
   });
 
   @override
@@ -128,41 +130,44 @@ class GradientTrackShape extends SfTrackShape {
       paint,
     );
 
-    // Draw a small vertical blue line at the boundary where Low and High thumbs cannot meet
-    final totalWidth = trackRect.width;
-    final valueRange = maxLimit - minLimit;
-    final boundaryPosition =
-        ((lowMaxLimit + highMinLimit) / 2 - minLimit) / valueRange * totalWidth;
-    final boundaryX = trackRect.left + boundaryPosition;
+    // Draw a small vertical blue line at the boundary (only for A units)
+    if (showBoundaryLine) {
+      final totalWidth = trackRect.width;
+      final valueRange = maxLimit - minLimit;
+      final boundaryPosition = ((lowMaxLimit + highMinLimit) / 2 - minLimit) /
+          valueRange *
+          totalWidth;
+      final boundaryX = trackRect.left + boundaryPosition;
 
-    final bluePaint = Paint()
-      ..color = Colors.blue.shade300
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+      final bluePaint = Paint()
+        ..color = Colors.blue.shade300
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round;
 
-    canvas.drawLine(
-      Offset(boundaryX, trackRect.center.dy - 8),
-      Offset(boundaryX, trackRect.center.dy + 8),
-      bluePaint,
-    );
+      canvas.drawLine(
+        Offset(boundaryX, trackRect.center.dy - 8),
+        Offset(boundaryX, trackRect.center.dy + 8),
+        bluePaint,
+      );
 
-    // Draw "FLC" text below the vertical blue line
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'FLC',
-        style: TextStyle(
-          color: Colors.blue,
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
+      // Draw "FLC" text below the vertical blue line
+      final textPainter = TextPainter(
+        text: const TextSpan(
+          text: 'FLC',
+          style: TextStyle(
+            color: Colors.blue,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      textDirection: ui.TextDirection.ltr,
-    )..layout();
+        textDirection: ui.TextDirection.ltr,
+      )..layout();
 
-    textPainter.paint(
-      canvas,
-      Offset(boundaryX - textPainter.width / 2, trackRect.center.dy + 10),
-    );
+      textPainter.paint(
+        canvas,
+        Offset(boundaryX - textPainter.width / 2, trackRect.center.dy + 10),
+      );
+    }
   }
 }
 
@@ -449,6 +454,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       highMaxLimit: widget.highMaxLimit,
                       minLimit: widget.minLimit,
                       maxLimit: widget.maxLimit,
+                      showBoundaryLine: widget.unit.contains("A"),
                       isDragging: isDragging,
                     ),
                     overlayShape: const SfOverlayShape(),
