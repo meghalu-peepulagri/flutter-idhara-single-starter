@@ -315,6 +315,12 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if inner labels are too close (difference 0-20)
+    final innerGap = widget.highMinLimit - widget.lowMaxLimit;
+    final isTooClose = innerGap >= 0 && innerGap <= 20;
+
+    // Pixel offset to push labels apart when too close
+    final spreadPx = isTooClose ? 8.0 : 0.0;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -458,57 +464,25 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       isDragging: isDragging,
                     ),
                     overlayShape: const SfOverlayShape(),
-                    startThumbIcon: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFFEF3C6),
-                        border: Border.all(
-                            color: const Color(0xFFE5B800), width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0XFFFFD230).withOpacity(0.2),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'L',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
+                    startThumbIcon: _buildThumbIcon(
+                      label: 'L',
+                      bgColor: const Color(0xFFFEF3C6),
+                      borderColor: const Color(0xFFE5B800),
+                      shadowColor:
+                          const Color(0XFFFFD230).withValues(alpha: 0.2),
+                      isOverlapping:
+                          (lowValue - highValue).abs() < 1,
+                      offsetLeft: true,
                     ),
-                    endThumbIcon: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFFFE2E2),
-                        border: Border.all(
-                            color: const Color(0xFFFFA2A2), width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0XFFFFA2A2).withOpacity(0.4),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'H',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
+                    endThumbIcon: _buildThumbIcon(
+                      label: 'H',
+                      bgColor: const Color(0xFFFFE2E2),
+                      borderColor: const Color(0xFFFFA2A2),
+                      shadowColor:
+                          const Color(0XFFFFA2A2).withValues(alpha: 0.4),
+                      isOverlapping:
+                          (lowValue - highValue).abs() < 1,
+                      offsetLeft: false,
                     ),
                     onChanged: (SfRangeValues newValues) {
                       double start = (newValues.start as double)
@@ -549,25 +523,44 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
               ),
 
               // Tooltip-style badges above thumbs
-              Positioned(
-                left: 15 +
-                    _calculatePosition(isDragging ? tempLowValue : lowValue,
-                        widget.minLimit, widget.maxLimit),
-                top: 0,
-                child: _buildTooltipBadge(
-                  '${(isDragging ? tempLowValue : lowValue).toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
-                  const Color(0xFFE5B800),
-                ),
-              ),
-              Positioned(
-                left: _calculatePosition(isDragging ? tempHighValue : highValue,
-                        widget.minLimit, widget.maxLimit) -
-                    10,
-                top: 0,
-                child: _buildTooltipBadge(
-                  '${(isDragging ? tempHighValue : highValue).toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
-                  const Color(0xFFFFA2A2),
-                ),
+              Builder(
+                builder: (context) {
+                  final currentLow =
+                      isDragging ? tempLowValue : lowValue;
+                  final currentHigh =
+                      isDragging ? tempHighValue : highValue;
+                  final thumbsOverlapping =
+                      (currentLow - currentHigh).abs() < 1;
+                  final badgeOffset = thumbsOverlapping ? 25.0 : 0.0;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: 15 +
+                            _calculatePosition(currentLow,
+                                widget.minLimit, widget.maxLimit) -
+                            badgeOffset,
+                        top: 5,
+                        child: _buildTooltipBadge(
+                          '${currentLow.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
+                          const Color(0xFFE5B800),
+                        ),
+                      ),
+                      Positioned(
+                        left: _calculatePosition(currentHigh,
+                                widget.minLimit, widget.maxLimit) -
+                            10 +
+                            badgeOffset,
+                        top: 5,
+                        child: _buildTooltipBadge(
+                          '${currentHigh.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
+                          const Color(0xFFFFA2A2),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -645,6 +638,47 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
     double sliderWidth =
         MediaQuery.of(context).size.width - 80; // Account for container padding
     return (percentage * sliderWidth) - 25;
+  }
+
+  // Build thumb icon with overlap offset
+  Widget _buildThumbIcon({
+    required String label,
+    required Color bgColor,
+    required Color borderColor,
+    required Color shadowColor,
+    required bool isOverlapping,
+    required bool offsetLeft,
+  }) {
+    return Transform.translate(
+      offset: isOverlapping
+          ? Offset(offsetLeft ? -14 : 14, 0)
+          : Offset.zero,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: bgColor,
+          border: Border.all(color: borderColor, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
   }
 
   // Build tooltip badge widget

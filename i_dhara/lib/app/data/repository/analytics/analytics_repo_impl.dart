@@ -58,8 +58,6 @@ class AnalyticsRepositoryImpl extends AnalyticsRepository {
     final response = await NetworkManager().get(
         '/starters/${SharedPreference.getStarterId()}/run-time',
         queryParameters: queryParams);
-    print("line 268 -----------> ${response.data}");
-    print("Query params: $queryParams");
     if (response.statusCode == 200) {
       final data = MotorRunTimeResponse.fromJson(response.data);
       return data;

@@ -40,6 +40,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
       'type': 'fault',
       'page': page,
       'page_size': 15,
+      'is_assigned': "true"
     };
     final response = await NetworkManager().get(
         '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/alerts-faults',
@@ -57,6 +58,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
       'type': 'alert',
       'page': page,
       'page_size': 15,
+      'is_assigned': "true"
     };
     final response = await NetworkManager().get(
         '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/alerts-faults',
@@ -77,6 +79,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
       'action': action,
       'page': page,
       'page_size': 15,
+      'is_assigned': "true"
     };
     final response =
         await NetworkManager().get('/activities', queryParameters: params);

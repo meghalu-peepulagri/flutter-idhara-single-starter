@@ -600,6 +600,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             _originalCurrentLow = null;
                             _originalCurrentHigh = null;
                             await controller.fetchUserSettings2();
+                            await controller.fetchUserSettingsLimits();
                             await Future.delayed(
                                 const Duration(milliseconds: 100));
                             voltageCardKey.currentState?.resetValues();

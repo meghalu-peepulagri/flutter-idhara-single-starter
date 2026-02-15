@@ -50,8 +50,6 @@ class DevicesRepositoryImpl extends DevicesRepository {
   @override
   Future<DeleteStarterResponse?> deletestarter(int starterId) async {
     final response = await NetworkManager().patch('/starters/$starterId');
-    print("line 268 -----------> $starterId");
-    print("line 269 -----------> ${response.data}");
     if (response.statusCode == 200 ||
         response.statusCode == 201 ||
         response.statusCode == 422) {

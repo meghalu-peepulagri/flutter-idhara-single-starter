@@ -14,6 +14,7 @@ class TestRunController extends GetxController {
   final RxString errorMessage = ''.obs;
   final Rx<UserSettings2?> userSettings2 = Rx<UserSettings2?>(null);
   var pcbNumber = ''.obs;
+  
   var macAddress = ''.obs;
 
   var isdisabled = false.obs;

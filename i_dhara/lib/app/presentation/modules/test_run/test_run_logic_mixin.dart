@@ -26,13 +26,17 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   bool isFailed = false;
   var isShowSnackbar = false;
   bool isCompleted = false;
-
+  StreamSubscription? mqttStreamSubscription;
   String failureMessage = '';
   Timer? ackTimer;
   Timer? countdownTimer;
   int remainingSeconds = 0;
   int selectedTimeoutMinutes = 3;
   bool isTestRunning = false;
+  bool isWaitingForAck = false;
+  bool _hasPendingSave = false;
+  bool _ackInProgress = false;
+  Timer? settingsAckTimer;
 
   // Test run controller for API calls
   final TestRunController testRunController = TestRunController();
@@ -200,6 +204,8 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   void disposeLogic() {
     ackTimer?.cancel();
     countdownTimer?.cancel();
+    settingsAckTimer?.cancel();
+    mqttStreamSubscription?.cancel();
     countdownNotifier.dispose();
     localSwitchController.dispose();
     localModeController.dispose();
@@ -750,7 +756,6 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       if (isCompleted) {
         errorSnackBar(context, 'No response from the device.');
         testRunController.completeTestRun(motor.id!);
-        await calltopics(mqttMotorId);
       } else {
         errorSnackBar(context, 'No response from the device.');
         testRunController.startTestRun(motor.id!);
@@ -759,13 +764,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       successSnackBar(context, 'Test Run completed successfully');
       isShowSnackbar = false;
       testRunController.completeTestRun(motor.id!);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (route == Routes.dashboard) {
-          Get.offAllNamed(route, arguments: {'refresh': true});
-        } else {
-          Get.offNamed(route);
-        }
-      });
+      await calltopics(mqttMotorId);
     }
 
     if (mounted) {
@@ -780,8 +779,9 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   Future<void> calltopics(String mqttMotorId) async {
     setState(() {
-      testRunController.isLoadingApiData = true;
-      fromDevices = true;
+      isWaitingForAck = true;
+      _hasPendingSave = true;
+      _ackInProgress = false;
     });
     await testRunController.fetchUserSettings2().then((val) async {
       successSnackBar(
@@ -796,6 +796,8 @@ mixin TestRunLogicMixin on State<TestRunPage> {
           testRunController.drf.value.toDouble(), testRunController.flc.value);
       final OLF5 = testRunController.calculatedFlc(
           testRunController.olf.value.toDouble(), testRunController.flc.value);
+      final pcbNumber = testRunController.pcbNumber.value;
+      final macAddress = testRunController.macAddress.value;
 
       final payload = {
         "dvc_c": {
@@ -807,16 +809,78 @@ mixin TestRunLogicMixin on State<TestRunPage> {
           'flc': testRunController.flc.value
         },
       };
-
       await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
       await mqttService.publishUpdateSettings(
           testRunController.pcbNumber.value, payload);
-    });
-    setState(() {
-      testRunController.isLoadingApiData = false;
-      fromDevices = false;
+
+      // Start 8-second timer after publishUpdateSettings
+      settingsAckTimer = Timer(const Duration(seconds: 30), () {
+        // Timer expired without ACK - re-enable buttons
+        mqttStreamSubscription?.cancel();
+        if (mounted) {
+          setState(() {
+            isWaitingForAck = false;
+            _hasPendingSave = false;
+          });
+          if (!_ackInProgress) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (route == Routes.dashboard) {
+                Get.offAllNamed(route, arguments: {'refresh': true});
+              } else {
+                Get.offNamed(route);
+              }
+            });
+            errorSnackBar(context, 'No acknowledgment received from device');
+          }
+        }
+      });
+
+      mqttStreamSubscription = mqttService.settingstream.listen((data) async {
+        print("line 833 ---------------> ");
+
+        final type = data["D"];
+        final topic = data["topic"];
+        if (topic != pcbNumber && topic != macAddress) return;
+        if (type == 1 && !_ackInProgress && _hasPendingSave) {
+          settingsAckTimer?.cancel();
+          _hasPendingSave = false;
+          _ackInProgress = true;
+          mqttStreamSubscription?.cancel();
+          getsuccessSnackBar("Settings updated successfully");
+          if (mounted) {
+            setState(() {
+              isWaitingForAck = false;
+            });
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (route == Routes.dashboard) {
+              Get.offAllNamed(route, arguments: {'refresh': true});
+            } else {
+              Get.offNamed(route);
+            }
+          });
+        }
+      });
     });
   }
+
+  /**
+   * 
+   * 
+     setState(() {
+      isWaitingForAck = false;
+    });
+  
+       Future.delayed(const Duration(seconds: 13), () {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (route == Routes.dashboard) {
+          Get.offAllNamed(route, arguments: {'refresh': true});
+        } else {
+          Get.offNamed(route);
+        }
+      });
+    });
+   */
 
   void goBack() {
     if (Get.isRegistered<DashboardController>()) {

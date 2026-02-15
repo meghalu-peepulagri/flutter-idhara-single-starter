@@ -40,8 +40,11 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         backgroundColor: const Color(0xFFEBF3FE),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E1E1E)),
-          onPressed: goBack,
+          icon: Icon(Icons.arrow_back,
+              color: isWaitingForAck
+                  ? const Color(0xFFB0B0B0)
+                  : const Color(0xFF1E1E1E)),
+          onPressed: isWaitingForAck ? null : goBack,
         ),
         title: Text(
           'Test Run',
@@ -302,6 +305,8 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
   }
 
   Widget _buildBottomButtons() {
+    final bool buttonsDisabled = isWaitingForAck;
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: const BoxDecoration(
@@ -318,68 +323,106 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Cancel button (left)
-          Expanded(
-            child: SizedBox(
-              height: 45,
-              child: OutlinedButton(
-                onPressed: goBack,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(
-                    color: Color(0xFF6B7280),
-                    width: 1,
+          if (isWaitingForAck)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF004E7E),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Waiting for ack...',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF004E7E),
+                    ),
                   ),
-                ),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF6B7280),
-                  ),
-                ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              height: 45,
-              decoration: BoxDecoration(
-                gradient: testRunController.isdisabled.value
-                    ? null
-                    : const LinearGradient(
-                        colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+          Row(
+            children: [
+              // Cancel button (left)
+              Expanded(
+                child: SizedBox(
+                  height: 45,
+                  child: OutlinedButton(
+                    onPressed: buttonsDisabled ? null : goBack,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: buttonsDisabled
+                            ? const Color(0xFFD1D5DB)
+                            : const Color(0xFF6B7280),
+                        width: 1,
                       ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: testRunController.isdisabled.value
-                      ? null
-                      : showTestRunConfirmDialog,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Center(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: Text(
-                      isFailed ? 'Retry Test' : 'Test Run',
+                      'Cancel',
                       style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: buttonsDisabled
+                            ? const Color(0xFFD1D5DB)
+                            : const Color(0xFF6B7280),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 45,
+                  decoration: BoxDecoration(
+                    gradient:
+                        (testRunController.isdisabled.value || buttonsDisabled)
+                            ? null
+                            : const LinearGradient(
+                                colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                    color: buttonsDisabled ? const Color(0xFFD1D5DB) : null,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: (testRunController.isdisabled.value ||
+                              buttonsDisabled)
+                          ? null
+                          : showTestRunConfirmDialog,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Center(
+                        child: Text(
+                          isFailed ? 'Retry Test' : 'Test Run',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
