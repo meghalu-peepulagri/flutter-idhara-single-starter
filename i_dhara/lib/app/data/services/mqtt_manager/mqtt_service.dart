@@ -329,8 +329,13 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
-  Future<void> publishTestRunCommand(String motorId, int state,
-      {int data = 2}) async {
+  Future<void> publishTestRunCommand(
+    String motorId,
+    int state, {
+    int data = 2,
+    int type = 1,
+  }) async {
+    print("line 338 ---> $isConnected ");
     if (_mqttClient == null || !isConnected) {
       debugPrint('Cannot publish test run: MQTT not connected');
       statusMessage = 'MQTT not connected';
@@ -343,7 +348,7 @@ class MqttService {
     final seq = _random.nextInt(251);
 
     try {
-      await _publishCommand(motorId, 1, data, seq);
+      await _publishCommand(motorId, type, data, seq);
       statusMessage = 'Test run command sent';
       debugPrint(
           'Test run command published for $motorId (state=$state) - No retries');
@@ -1052,6 +1057,8 @@ class MqttService {
   /// Publish a command to MQTT
   Future<void> _publishCommand(
       String motorId, int type, int data, int seq) async {
+    print("line 1060 $motorId T $type D :$data $seq");
+
     final lastDashIndex = motorId.lastIndexOf('-');
     if (lastDashIndex <= 0) {
       throw Exception('Invalid motorId format: $motorId');

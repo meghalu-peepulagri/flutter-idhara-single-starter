@@ -16,6 +16,7 @@ import 'package:i_dhara/app/presentation/modules/test_run/test_run_controller.da
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../components/testrun_verificaiton_card.dart';
 import 'test_run_page.dart';
 
 mixin TestRunLogicMixin on State<TestRunPage> {
@@ -85,15 +86,20 @@ mixin TestRunLogicMixin on State<TestRunPage> {
 
   static const List<String> allowedGroups = ['G01', 'G02'];
 
-  void initLogic() {
+  void showMyDialog(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const ConfirmTestRunScreen(),
+    );
+  }
+
+  void initLogic() async {
     final args = Get.arguments as Map<String, dynamic>;
     motor = args['motor'] as Motor;
     mqttService = args['mqttService'] as MqttService;
     fromDevices = args['fromDevices'] as bool? ?? false;
-
     route = args['route'] as String? ?? '/dashboard';
-
-    print("line 92 ---> $route");
     final motorData = getMotorData();
     bool initialState;
     int initialMode;
@@ -102,20 +108,74 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       initialMode = motorData.modeIndex ?? 1;
     } else {
       final apiState = motor.state ?? 0;
-
       isCompleted =
           motor.testrunStatus?.toLowerCase() == "completed" ? true : false;
       initialState = apiState == 1;
       initialMode = getSimplifiedModeIndex(motor.mode ?? 'AUTO') ?? 1;
     }
-
     localSwitchController = ValueNotifier(initialState);
     localModeController = ValueNotifier(initialMode);
-
     _initConnectivity();
-
     if (fromDevices && motor.id != null) {
       _fetchMotorDetails();
+    }
+    // Show confirmation dialog initially when coming from dashboard
+
+    if (!fromDevices && isTestRunRequired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) {
+          showMyDialog(context);
+          verification(motorData);
+        }
+      });
+    }
+  }
+
+  bool _canControlMotor(MotorData? motorData) {
+    if (!_isMotorAvailable()) return false;
+    final isPowerOn = (motorData?.hasReceivedData == true)
+        ? motorData!.power == 1
+        : (motor.starter?.power ?? 0) == 1;
+
+    return isPowerOn;
+  }
+
+  bool _isMotorAvailable() {
+    final mac = motor.starter?.macAddress;
+    final pcb = motor.starter?.pcbNumber;
+    return (mac?.isNotEmpty == true) || (pcb?.isNotEmpty == true);
+  }
+
+  // verification(MotorData? motorData) async {
+  //   try {
+  //     final mqttMotorId = getMotorId();
+  //     await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+  //     final signal = getSignalBars(motorData);
+  //     final pwr = _canControlMotor(motorData);
+  //     print("line 139 --------> $signal $pwr");
+  //   } catch (e) {
+  //     print("line 141 -----> $e");
+  //   }
+  // }
+  verification(MotorData? initialMotorData) async {
+    try {
+      final mqttMotorId = getMotorId();
+      await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+
+      print(
+          "Initial Check -> Signal: ${getSignalBars(initialMotorData)} Power: ${_canControlMotor(initialMotorData)}");
+
+      // Listen for updates
+      void checkUpdates() {
+        final currentMotorData = getMotorData();
+        final signal = getSignalBars(currentMotorData);
+        final pwr = _canControlMotor(currentMotorData);
+        print("Update Received -> Signal: $signal Power: $pwr");
+      }
+
+      mqttService.dataUpdateNotifier.addListener(checkUpdates);
+    } catch (e) {
+      print("Error in verification: $e");
     }
   }
 
@@ -377,6 +437,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       if (signalStrength >= 15 && signalStrength <= 19) return 3;
       if (signalStrength >= 20 && signalStrength <= 30) return 4;
     }
+    print("line 419 --> $signalStrength");
     return 0;
   }
 
@@ -836,8 +897,6 @@ mixin TestRunLogicMixin on State<TestRunPage> {
       });
 
       mqttStreamSubscription = mqttService.settingstream.listen((data) async {
-        print("line 833 ---------------> ");
-
         final type = data["D"];
         final topic = data["topic"];
         if (topic != pcbNumber && topic != macAddress) return;
