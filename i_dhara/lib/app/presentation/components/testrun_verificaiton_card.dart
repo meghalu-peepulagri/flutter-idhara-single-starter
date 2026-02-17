@@ -984,36 +984,40 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     bool value,
     ValueChanged<bool?> onChanged,
   ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 20,
-          height: 20,
-          child: Checkbox(
-            value: value,
-            onChanged: onChanged,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
-            side: const BorderSide(
-              color: Color(0xFFCBD5E1),
-              width: 1.5,
-            ),
-            activeColor: const Color(0xFF0F6B8A),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF334155),
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: Checkbox(
+              value: value,
+              onChanged: onChanged,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              side: const BorderSide(
+                color: Color(0xFFCBD5E1),
+                width: 1.5,
+              ),
+              activeColor: const Color(0xFF0F6B8A),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF334155),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
