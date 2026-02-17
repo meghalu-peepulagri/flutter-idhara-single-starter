@@ -1,9 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
+import '../../core/utils/snackbars/error_snackbar.dart';
+import '../../core/utils/snackbars/success_snackbar.dart';
 import '../../data/services/mqtt_manager/mqtt_service.dart';
-import 'testrun_verification_card2.dart';
+import '../modules/dashboard/dashboard_controller.dart';
+import '../routes/app_routes.dart';
+
+enum _TestRunPhase { preCheck, measuring, completed, saving }
 
 class ConfirmTestRunScreen extends StatefulWidget {
   final ValueNotifier<bool> cloudConnectionVerified;
@@ -11,26 +20,51 @@ class ConfirmTestRunScreen extends StatefulWidget {
   final ValueNotifier<double> avgflc;
   final Motor motor;
   final MotorData? motorData;
-
   final MqttService mqttService;
+  final String route;
 
-  const ConfirmTestRunScreen({
-    super.key,
-    required this.cloudConnectionVerified,
-    required this.inputPowerVerified,
-    required this.avgflc,
-    required this.motor,
-    required this.mqttService,
-    this.motorData,
-  });
+  const ConfirmTestRunScreen(
+      {super.key,
+      required this.cloudConnectionVerified,
+      required this.inputPowerVerified,
+      required this.avgflc,
+      required this.motor,
+      required this.mqttService,
+      this.motorData,
+      this.route = '/dashboard'});
 
   @override
   State<ConfirmTestRunScreen> createState() => _ConfirmTestRunScreenState();
 }
 
 class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
+  // --- Phase 1: Pre-check state ---
   bool isMotorWiresChecked = false;
   bool isPumpValveChecked = false;
+  StreamSubscription? mqttStreamSubscription;
+
+  String failureMessage = '';
+  Timer? ackTimer;
+  Timer? countdownTimer;
+  int remainingSeconds = 0;
+  int selectedTimeoutMinutes = 3;
+  bool isTestRunning = false;
+  bool isWaitingForAck = false;
+  bool _hasPendingSave = false;
+  bool _ackInProgress = false;
+  Timer? settingsAckTimer;
+
+  // --- Phase 2: Measuring state ---
+  static const int _totalSeconds = 60;
+  int _remainingSeconds = _totalSeconds;
+  Timer? _timer;
+  final List<double> _flcData = [];
+  final ValueNotifier<double> _avgCurrent = ValueNotifier(0);
+  final ValueNotifier<double> _overalCurrent = ValueNotifier(0);
+
+  // --- Common state ---
+  _TestRunPhase _phase = _TestRunPhase.preCheck;
+  DashboardController? _controller;
 
   bool get _isPowerOn {
     if (widget.motorData != null && widget.motorData!.hasReceivedData) {
@@ -39,16 +73,44 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return (widget.motor.starter?.power ?? 0) == 1;
   }
 
-  final ValueNotifier<double> avgflc = ValueNotifier(0.0);
+  bool get isActive {
+    final signal = _getSignalBars(widget.motorData);
+    final cloudOk = signal >= 1 && signal <= 4;
+    final powerOk = _isPowerOn;
 
-  bool signalCheck(int val) {
-    return val >= 1 && val <= 4;
+    return isMotorWiresChecked && isPumpValveChecked && cloudOk && powerOk;
   }
 
-  double percentageOFAmps(double c1, double c2, double c3) {
-    double sum = c1 + c2 + c3;
-    final percent = sum / 3;
-    return percent;
+  @override
+  void dispose() {
+    if (_phase == _TestRunPhase.measuring) {
+      widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+    }
+    _timer?.cancel();
+    settingsAckTimer?.cancel();
+    mqttStreamSubscription?.cancel();
+    _avgCurrent.dispose();
+    _overalCurrent.dispose();
+    super.dispose();
+  }
+
+  // --- Helper methods ---
+
+  int getSignalBars(MotorData? motorData) {
+    if (motorData != null &&
+        motorData.hasReceivedData &&
+        !motorData.isSignalStale() &&
+        motorData.groupId != null) {
+      return motorData.signalBars;
+    }
+    final signalStrength = widget.motor.starter?.signalQuality;
+    if (signalStrength != null && signalStrength >= 2 && signalStrength <= 31) {
+      if (signalStrength >= 2 && signalStrength <= 9) return 1;
+      if (signalStrength >= 10 && signalStrength <= 14) return 2;
+      if (signalStrength >= 15 && signalStrength <= 19) return 3;
+      if (signalStrength >= 20 && signalStrength <= 30) return 4;
+    }
+    return 0;
   }
 
   int _getSignalBars(MotorData? motorData) {
@@ -63,19 +125,216 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return 4;
   }
 
-  bool get isActive {
-    final motordata = widget.motorData;
-    final signal = getSignalBars(motordata);
-    final pwr = motordata?.power;
-
-    final cloudOk = signal >= 1 && signal <= 4;
-    final powerOk = pwr == 1;
-
-    return isMotorWiresChecked && isPumpValveChecked && cloudOk && powerOk;
+  double _percentageOfAmps(double c1, double c2, double c3) {
+    return (c1 + c2 + c3) / 3;
   }
+
+  String _getMotorIdentifier() {
+    if (widget.motor.starter == null) return '';
+    final mac = widget.motor.starter!.macAddress;
+    final pcb = widget.motor.starter!.pcbNumber;
+    if (mac?.isNotEmpty == true) return mac!;
+    if (pcb?.isNotEmpty == true) return pcb!;
+    return '';
+  }
+
+  String _getMotorGroupId(String identifier) {
+    const allowedGroups = ['G01', 'G02'];
+    for (final groupId in allowedGroups) {
+      final motorData = widget.mqttService.motorDataMap['$identifier-$groupId'];
+      if (motorData != null) return groupId;
+    }
+    return 'G01';
+  }
+
+  double _calculatedFlc(double val, double flcVal) {
+    final percentLow = val.toInt() / 100;
+    final res = percentLow * flcVal;
+    return double.parse(res.toStringAsFixed(2));
+  }
+
+  // --- Phase transitions ---
+
+  void _startMeasuring() {
+    _controller = Get.put(DashboardController());
+    widget.mqttService.dataUpdateNotifier.addListener(_checkUpdates);
+
+    setState(() {
+      _phase = _TestRunPhase.measuring;
+      _remainingSeconds = _totalSeconds;
+    });
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingSeconds > 0) {
+        setState(() {
+          _remainingSeconds--;
+        });
+      } else {
+        timer.cancel();
+        widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+
+        final sum =
+            _flcData.isNotEmpty ? _flcData.reduce((a, b) => a + b) : 0.0;
+        final average = _flcData.isNotEmpty ? sum / _flcData.length : 0.0;
+        _overalCurrent.value = average;
+
+        setState(() {
+          _phase = _TestRunPhase.completed;
+        });
+      }
+    });
+  }
+
+  void _checkUpdates() {
+    if (!mounted) return;
+    final motordata = widget.motorData;
+    final c1 = double.parse(motordata?.currentRed ?? "0.0");
+    final c2 = double.parse(motordata?.currentBlue ?? "0.0");
+    final c3 = double.parse(motordata?.currentYellow ?? "0.0");
+    final avg = _percentageOfAmps(c1, c2, c3);
+
+    setState(() {
+      _avgCurrent.value = avg;
+    });
+
+    if (avg > 0 && !_flcData.contains(avg)) {
+      _flcData.add(avg);
+      final sum = _flcData.reduce((a, b) => a + b);
+      _overalCurrent.value = sum / _flcData.length;
+    }
+  }
+
+  void _emergencyStop() {
+    _timer?.cancel();
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+    Navigator.pop(context);
+  }
+
+  Future<void> _onSave() async {
+    print("line 217 -----> $_flcData");
+
+    setState(() {
+      _phase = _TestRunPhase.saving;
+      isWaitingForAck = true;
+      _hasPendingSave = true;
+      _ackInProgress = false;
+    });
+
+    try {
+      final identifier = _getMotorIdentifier();
+      if (identifier.isNotEmpty && _controller != null) {
+        final groupId = _getMotorGroupId(identifier);
+        final mqttMotorId = '$identifier-$groupId';
+        await widget.mqttService
+            .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1);
+
+        await _controller!.fetchUserSettings2();
+
+        final OLR1 = _calculatedFlc(_controller!.olr.value, _avgCurrent.value);
+        final LRF2 = _calculatedFlc(_controller!.lrf.value, _avgCurrent.value);
+        final LRR3 = _calculatedFlc(_controller!.lrr.value, _avgCurrent.value);
+        final DRF4 = _calculatedFlc(
+            _controller!.drf.value.toDouble(), _avgCurrent.value);
+        final OLF5 = _calculatedFlc(
+            _controller!.olf.value.toDouble(), _avgCurrent.value);
+        final trimFlc = _avgCurrent.value.toStringAsFixed(2);
+        final flc = double.parse(trimFlc);
+        final payload = {
+          "dvc_c": {
+            "olr": OLR1,
+            "lrr": LRR3,
+            "lrf": LRF2,
+            "drf": DRF4,
+            "olf": OLF5,
+            'flc': flc
+          },
+        };
+        await widget.mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
+        await widget.mqttService
+            .publishUpdateSettings(_controller!.pcbNumber.value, payload);
+
+        // Start 30-second ACK timeout after publishUpdateSettings
+        settingsAckTimer = Timer(const Duration(seconds: 30), () {
+          mqttStreamSubscription?.cancel();
+          if (mounted && !_ackInProgress) {
+            setState(() {
+              isWaitingForAck = false;
+              _hasPendingSave = false;
+            });
+            errorSnackBar(context, 'No acknowledgment received from device');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (widget.route == Routes.dashboard) {
+                Get.offAllNamed(widget.route, arguments: {'refresh': true});
+              } else {
+                Get.offNamed(widget.route);
+              }
+            });
+          }
+        });
+
+        // Listen for ACK on settingstream
+        mqttStreamSubscription =
+            widget.mqttService.settingstream.listen((data) async {
+          final type = data["D"];
+          final topic = data["topic"];
+          if (topic != _controller!.pcbNumber.value &&
+              topic != _controller!.macAddress.value) return;
+          if (type == 1 && !_ackInProgress && _hasPendingSave) {
+            settingsAckTimer?.cancel();
+            _hasPendingSave = false;
+            _ackInProgress = true;
+            mqttStreamSubscription?.cancel();
+            getsuccessSnackBar("Calibration Successful");
+            if (mounted) {
+              setState(() {
+                isWaitingForAck = false;
+              });
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (widget.route == Routes.dashboard) {
+                Get.offAllNamed(widget.route, arguments: {'refresh': true});
+              } else {
+                Get.offNamed(widget.route);
+              }
+            });
+          }
+        });
+      }
+    } catch (e) {
+      print("Error publishing verification command: $e");
+      if (mounted) {
+        setState(() {
+          isWaitingForAck = false;
+          _hasPendingSave = false;
+          _phase = _TestRunPhase.completed;
+        });
+      }
+    }
+  }
+
+  void _onCancel() {
+    Navigator.pop(context);
+  }
+
+  // --- Build ---
 
   @override
   Widget build(BuildContext context) {
+    switch (_phase) {
+      case _TestRunPhase.preCheck:
+        return _buildPreCheckPhase();
+      case _TestRunPhase.measuring:
+        return _buildMeasuringPhase();
+      case _TestRunPhase.completed:
+        return _buildCompletedPhase();
+      case _TestRunPhase.saving:
+        return _buildSavingPhase();
+    }
+  }
+
+  // ===================== Phase 1: Pre-Check =====================
+
+  Widget _buildPreCheckPhase() {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -98,8 +357,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Close icon
-
               // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -126,7 +383,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                       ),
                     ],
                   ),
-                  // Close icon
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child: Container(
@@ -158,19 +414,16 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Cloud Connection
               _buildVerificationCloudConnection(
                   'Network Connectivity',
                   _getSignalBars(widget.motorData),
                   'assets/images/network_device.svg'),
               const SizedBox(height: 16),
-              // Input Power
               _buildVerificationInputPower(
                 'Power Supply Status',
                 _isPowerOn == true ? 1 : 0,
               ),
               const SizedBox(height: 24),
-              // Motor wires checkbox
               _buildCheckboxItem(
                 'Motor wires / terminals securely connected',
                 isMotorWiresChecked,
@@ -181,8 +434,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
-              // Pump valve checkbox
               _buildCheckboxItem(
                 'Pump / delivery valve fully open',
                 isPumpValveChecked,
@@ -194,45 +445,15 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Start Button - rebuilds on MQTT data changes
+              // Start Button
               ValueListenableBuilder(
                 valueListenable: widget.mqttService.dataUpdateNotifier,
                 builder: (context, _, __) {
-                  final motordata = widget.motorData;
-                  final c1 = double.parse(motordata?.currentBlue ?? "0.0");
-                  final c2 = double.parse(motordata?.currentRed ?? "0.0");
-                  final c3 = double.parse(motordata?.currentYellow ?? "0.0");
-                  final avg = percentageOFAmps(c1, c2, c3);
-                  avgflc.value = avg;
-
-                  print("line 209 ${avgflc.value}");
-
                   return SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: isActive
-                          ? () {
-                              Navigator.pop(context);
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => Dialog(
-                                  backgroundColor: Colors.transparent,
-                                  insetPadding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 24,
-                                  ),
-                                  child: MotorTestRunCard(
-                                    avgflc: avgflc,
-                                    motor: widget.motor,
-                                    mqttService: widget.mqttService,
-                                    motorData: widget.motorData,
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
+                      onPressed: isActive ? _startMeasuring : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isActive
                             ? const Color(0xFF0F6B8A)
@@ -261,6 +482,407 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       ),
     );
   }
+
+  // ===================== Phase 2: Measuring =====================
+
+  double get _progress => _remainingSeconds / _totalSeconds;
+
+  Widget _buildMeasuringPhase() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Center(
+        child: Container(
+          width: 340,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              /// Top Header Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                ),
+                child: const Column(
+                  children: [
+                    Text(
+                      "Motor Test Run",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF004E7E),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Smart Calibration v2.0",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF004E7E),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              /// Body Section
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const Text(
+                      "Measuring Full Load Current ( FLC )..",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF374151),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    /// Current Value
+                    ValueListenableBuilder(
+                        valueListenable: _avgCurrent,
+                        builder: (context, val, _) {
+                          return RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: _avgCurrent.value.toStringAsFixed(2),
+                                  style: const TextStyle(
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF22C55E),
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: "  A",
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+
+                    const SizedBox(height: 18),
+
+                    /// Progress Line
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _progress,
+                        minHeight: 6,
+                        backgroundColor: const Color(0xFFD1D5DB),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF004E7E),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      "Time remaining: $_remainingSeconds Seconds",
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF004E7E),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    /// Emergency Stop Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: _emergencyStop,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "EMERGENCY STOP",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== Phase 3: Completed =====================
+
+  Widget _buildCompletedPhase() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        width: 340,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F7FA),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8EDF3),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'Motor Test Run',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E3A5F),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Smart Calibration v2.0',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF1E3A5F).withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content Section
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text(
+                    'Calibration Completed',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2D3748),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Current Value Display
+                  ValueListenableBuilder(
+                    valueListenable: _overalCurrent,
+                    builder: (context, _, __) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            _overalCurrent.value.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF10B981),
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'A',
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF10B981),
+                              height: 1,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Detected Full Load Current',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _onCancel,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(
+                              color: Color(0xFFCBD5E1),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            backgroundColor: Colors.white,
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FFButtonWidget(
+                            text: 'Save Setting',
+                            showLoadingIndicator: true,
+                            onPressed: _onSave,
+                            options: FFButtonOptions(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              borderRadius: BorderRadius.circular(8),
+                              height: 43,
+                              color: const Color(0xFF0F6B8A),
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            )),
+                      ),
+
+                      // Expanded(
+                      //   child: ElevatedButton(
+                      //     onPressed: _onSave,
+                      //     style: ElevatedButton.styleFrom(
+                      //       padding: const EdgeInsets.symmetric(vertical: 14),
+                      //       backgroundColor: const Color(0xFF0F6B8A),
+                      //       shape: RoundedRectangleBorder(
+                      //         borderRadius: BorderRadius.circular(8),
+                      //       ),
+                      //       elevation: 0,
+                      //     ),
+                      //     child: const Text(
+                      //       'Save Setting',
+                      //       style: TextStyle(
+                      //         fontSize: 16,
+                      //         fontWeight: FontWeight.w500,
+                      //         color: Colors.white,
+                      //       ),
+                      //     ),
+                      //   ),
+                      // ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== Phase 4: Saving (waiting for ACK) =====================
+
+  Widget _buildSavingPhase() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Center(
+        child: Container(
+          width: 340,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: Color(0xFF0F6B8A),
+                  ),
+                ),
+                SizedBox(height: 24),
+                Text(
+                  'Saving Settings...',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF004E7E),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Waiting for device acknowledgment',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== Shared UI Helpers =====================
 
   Widget get checkIcon => Container(
         width: 24,
@@ -307,27 +929,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         ),
       );
 
-  int getSignalBars(MotorData? motorData) {
-    // CRITICAL: Only use signal from allowed groups (G01, G02)
-    if (motorData != null &&
-        motorData.hasReceivedData &&
-        !motorData.isSignalStale() &&
-        motorData.groupId != null) {
-      return motorData.signalBars;
-    }
-    final signalStrength = widget.motor.starter?.signalQuality;
-    if (signalStrength != null && signalStrength >= 2 && signalStrength <= 31) {
-      if (signalStrength >= 2 && signalStrength <= 9) return 1;
-      if (signalStrength >= 10 && signalStrength <= 14) return 2;
-      if (signalStrength >= 15 && signalStrength <= 19) return 3;
-      if (signalStrength >= 20 && signalStrength <= 30) return 4;
-    }
-    print("line 419 --> $signalStrength");
-    return 0;
-  }
-
   Widget _buildVerificationCloudConnection(
       String text, int? signal, String svg) {
+    print("line 937 signal----> $signal");
     return Row(
       spacing: 10,
       children: [
@@ -351,6 +955,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Widget _buildVerificationInputPower(String text, int? verified) {
+    print("line 937 ----> power $verified");
+
     return Row(
       spacing: 10,
       children: [
