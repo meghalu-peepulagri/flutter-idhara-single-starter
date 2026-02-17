@@ -7,12 +7,11 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
 import '../../core/utils/snackbars/error_snackbar.dart';
-import '../../core/utils/snackbars/success_snackbar.dart';
 import '../../data/services/mqtt_manager/mqtt_service.dart';
 import '../modules/dashboard/dashboard_controller.dart';
 import '../routes/app_routes.dart';
 
-enum _TestRunPhase { preCheck, measuring, completed, saving }
+enum _TestRunPhase { preCheck, measuring, completed, saving, success }
 
 class ConfirmTestRunScreen extends StatefulWidget {
   final ValueNotifier<bool> cloudConnectionVerified;
@@ -300,17 +299,20 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             _hasPendingSave = false;
             _ackInProgress = true;
             mqttStreamSubscription?.cancel();
-            getsuccessSnackBar("Calibration Successful");
             if (mounted) {
               setState(() {
                 isWaitingForAck = false;
+                _phase = _TestRunPhase.success;
               });
             }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (widget.route == Routes.dashboard) {
-                Get.offAllNamed(widget.route, arguments: {'refresh': true});
-              } else {
-                Get.offNamed(widget.route);
+            // Auto-navigate after showing success for 2 seconds
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                if (widget.route == Routes.dashboard) {
+                  Get.offAllNamed(widget.route, arguments: {'refresh': true});
+                } else {
+                  Get.offNamed(widget.route);
+                }
               }
             });
           }
@@ -345,6 +347,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         return _buildCompletedPhase();
       case _TestRunPhase.saving:
         return _buildSavingPhase();
+      case _TestRunPhase.success:
+        return _buildSuccessPhase();
     }
   }
 
@@ -898,6 +902,84 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     );
   }
 
+  // ===================== Phase 5: Success =====================
+
+  Widget _buildSuccessPhase() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Center(
+        child: Container(
+          width: 340,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Smart Calibration\nSuccessful',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'FLC: ${_overalCurrent.value.toStringAsFixed(1)} A',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Settings saved to device',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ===================== Shared UI Helpers =====================
 
   Widget get checkIcon => Container(
@@ -947,7 +1029,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   Widget _buildVerificationCloudConnection(
       String text, int? signal, String svg) {
-    print("line 937 signal----> $signal");
     return Row(
       spacing: 10,
       children: [
@@ -971,7 +1052,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Widget _buildVerificationInputPower(String text, int? verified) {
-    print("line 937 ----> power $verified");
 
     return Row(
       spacing: 10,
