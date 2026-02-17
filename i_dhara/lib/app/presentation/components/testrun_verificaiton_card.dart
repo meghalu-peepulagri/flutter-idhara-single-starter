@@ -159,16 +159,32 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     _controller = Get.put(DashboardController());
     widget.mqttService.dataUpdateNotifier.addListener(_checkUpdates);
 
+    final identifier = _getMotorIdentifier();
+    final groupId = identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
+    final mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
+
     setState(() {
       _phase = _TestRunPhase.measuring;
       _remainingSeconds = _totalSeconds;
     });
+
+    // Publish immediately at the start
+    if (mqttMotorId.isNotEmpty) {
+      widget.mqttService
+          .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+    }
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
         setState(() {
           _remainingSeconds--;
         });
+
+        // Publish every 10 seconds (at 50s, 40s, 30s, 20s, 10s remaining)
+        if (mqttMotorId.isNotEmpty && _remainingSeconds % 10 == 0) {
+          widget.mqttService
+              .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+        }
       } else {
         timer.cancel();
         widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
@@ -211,7 +227,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Future<void> _onSave() async {
-    print("line 217 -----> $_flcData");
+    print("line 230 ${_flcData}");
 
     setState(() {
       _phase = _TestRunPhase.saving;
