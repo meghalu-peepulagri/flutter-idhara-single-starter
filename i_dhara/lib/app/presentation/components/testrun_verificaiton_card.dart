@@ -224,6 +224,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
         if (mqttMotorId.isNotEmpty && _remainingSeconds % 10 == 0) {
           widget.mqttService
+              .publishTestRunCommand(mqttMotorId, 1, data: 2, type: 1);
+          widget.mqttService
               .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
         }
       } else {
