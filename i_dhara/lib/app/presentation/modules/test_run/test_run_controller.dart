@@ -91,7 +91,7 @@ class TestRunController extends GetxController {
     return await updateTestRunStatus(motorId, TestRunStatus.processing);
   }
 
-  String pcbnumberPass(Starter? starter) {
+  String pcbnumberPass(SettingStarter? starter) {
     try {
       if (starter != null) {
         if (starter.pcbNumber != null) {

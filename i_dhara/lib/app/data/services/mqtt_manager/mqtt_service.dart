@@ -21,7 +21,7 @@ class MotorData {
   int state = 0;
   String motorMode = '_';
   int? modeIndex;
-  int power = 0;
+  int power;
   int fault = 0;
   int alert = 0;
   String runTime = '-';
@@ -36,12 +36,12 @@ class MotorData {
   int signalBars = 0;
   DateTime? lastSignalUpdate;
 
-  MotorData({
-    this.macAddress,
-    this.pcbNumber,
-    this.groupId,
-    this.title,
-  });
+  MotorData(
+      {this.macAddress,
+      this.pcbNumber,
+      this.groupId,
+      this.title,
+      this.power = 0});
 
   void dispose() {
     controller.dispose();
@@ -854,6 +854,7 @@ class MqttService {
 
   /// Handle live data (type 35, 41)
   void _handleLiveData(String identifier, dynamic payloadData) {
+    print("line 858 $payloadData");
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('   ⚠️ Live data payload is not a Map: $payloadData');
       return;
@@ -865,21 +866,44 @@ class MqttService {
     for (var entry in payloadData.entries) {
       final groupId = entry.key;
       if (groupId == 'ct') continue;
+      print("line 858 step1 $identifier $entry");
 
       final groupData = entry.value as Map<String, dynamic>?;
-      if (groupData == null) continue;
+      if (groupData == null)
+        continue;
+      else {}
+      final pwr = groupData["pwr"];
+      print("line 847 $groupData $pwr");
 
       final fullMotorId = '$identifier-$groupId';
 
       // Get or create motor data
       var motorData = _motorDataMap[fullMotorId];
       if (motorData == null) {
+        // Search for existing entry with same physical motor in this group
+        // (key may differ if _buildMotorDataMap used MAC but MQTT uses PCB)
+        for (var existingEntry in _motorDataMap.entries) {
+          final data = existingEntry.value;
+          if (data.groupId == groupId &&
+              (data.macAddress == identifier ||
+                  data.pcbNumber == identifier)) {
+            motorData = data;
+            // Also register under the new key for future direct lookups
+            _motorDataMap[fullMotorId] = motorData;
+            debugPrint(
+                '   Reusing existing MotorData ${existingEntry.key} as $fullMotorId');
+            break;
+          }
+        }
+      }
+      if (motorData == null) {
         debugPrint('   Creating new MotorData for $fullMotorId');
         motorData = MotorData(
-          macAddress: identifier,
-          groupId: groupId,
-          title: groupId,
-        );
+            macAddress: identifier,
+            pcbNumber: identifier,
+            groupId: groupId,
+            title: groupId,
+            power: pwr);
         _motorDataMap[fullMotorId] = motorData;
       }
 
@@ -921,7 +945,6 @@ class MqttService {
       debugPrint(
           '✓ Settings ACK received from $identifier: $type (No pending command)');
     }
-
     defaultSettingsController.add(map);
   }
 
@@ -940,14 +963,23 @@ class MqttService {
 
     debugPrint('💓 Heartbeat: identifier=$identifier, signal=$signalQuality');
 
-    // Find any motor with this identifier
-    final motorId = _findAnyMotorWithIdentifier(identifier);
-    if (motorId != null) {
-      final motorData = _motorDataMap[motorId];
-      motorData?.updateSignalStrength(signalQuality);
-      motorData?.hasReceivedData = true;
-      debugPrint(
-          '   ✓ Updated signal for $motorId: bars=${motorData?.signalBars}');
+    // Update signal on ALL matching motors (not just the first match)
+    // This ensures signal is updated regardless of which entry the UI reads
+    bool found = false;
+    for (var entry in _motorDataMap.entries) {
+      final motorData = entry.value;
+      if (motorData.macAddress == identifier ||
+          motorData.pcbNumber == identifier) {
+        motorData.updateSignalStrength(signalQuality);
+        motorData.hasReceivedData = true;
+        found = true;
+        debugPrint(
+            '   ✓ Updated signal for ${entry.key}: bars=${motorData.signalBars}');
+      }
+    }
+
+    if (!found) {
+      debugPrint('   ⚠️ No motor found for identifier=$identifier');
     }
 
     _dataUpdateNotifier.value++;

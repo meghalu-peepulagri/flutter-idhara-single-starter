@@ -136,7 +136,7 @@ class UserSettings2 {
   int? createdBy;
   DateTime? createdAt;
   DateTime? updatedAt;
-  Starter? starter;
+  SettingStarter? starter;
 
   UserSettings2({
     this.id,
@@ -342,7 +342,7 @@ class UserSettings2 {
             ? null
             : DateTime.parse(json["updated_at"]),
         starter:
-            json["starter"] == null ? null : Starter.fromJson(json["starter"]),
+            json["starter"] == null ? null : SettingStarter.fromJson(json["starter"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -446,14 +446,14 @@ class UserSettings2 {
       };
 }
 
-class Starter {
+class SettingStarter {
   int? id;
   dynamic name;
   String? pcbNumber;
   String? macAddress;
-  List<Motor>? motors;
+  List<SettingMotor>? motors;
 
-  Starter({
+  SettingStarter({
     this.id,
     this.name,
     this.pcbNumber,
@@ -461,14 +461,14 @@ class Starter {
     this.motors,
   });
 
-  factory Starter.fromJson(Map<String, dynamic> json) => Starter(
+  factory SettingStarter.fromJson(Map<String, dynamic> json) => SettingStarter(
         id: json["id"],
         name: json["name"],
         pcbNumber: json["pcb_number"],
         macAddress: json["mac_address"],
         motors: json["motors"] == null
             ? []
-            : List<Motor>.from(json["motors"]!.map((x) => Motor.fromJson(x))),
+            : List<SettingMotor>.from(json["motors"]!.map((x) => SettingMotor.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
@@ -482,20 +482,20 @@ class Starter {
       };
 }
 
-class Motor {
+class SettingMotor {
   int? id;
   String? name;
   dynamic hp; // Changed to dynamic to handle both int, double, and String
   String? aliasName;
 
-  Motor({
+  SettingMotor({
     this.id,
     this.name,
     this.hp,
     this.aliasName,
   });
 
-  factory Motor.fromJson(Map<String, dynamic> json) => Motor(
+  factory SettingMotor.fromJson(Map<String, dynamic> json) => SettingMotor(
         id: json["id"],
         name: json["name"],
         hp: json["hp"], // Will accept any type

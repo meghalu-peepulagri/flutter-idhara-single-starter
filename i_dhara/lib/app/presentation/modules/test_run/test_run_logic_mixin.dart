@@ -45,6 +45,11 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   final ValueNotifier<int> countdownNotifier = ValueNotifier(0);
   bool isDialogOpen = false;
 
+  // Verification status notifiers for the confirmation dialog
+  final ValueNotifier<bool> cloudConnectionVerified = ValueNotifier(false);
+  final ValueNotifier<bool> inputPowerVerified = ValueNotifier(false);
+  final ValueNotifier<double> avgCurrent = ValueNotifier(0);
+
   // Connectivity
   final connectivity = Connectivity();
   final ValueNotifier<bool> hasInternet = ValueNotifier(true);
@@ -87,10 +92,19 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   static const List<String> allowedGroups = ['G01', 'G02'];
 
   void showMyDialog(BuildContext context) async {
+    // Reset verification status
+    cloudConnectionVerified.value = false;
+    inputPowerVerified.value = false;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const ConfirmTestRunScreen(),
+      builder: (context) => ConfirmTestRunScreen(
+        motor: motor,
+        mqttService: mqttService,
+        cloudConnectionVerified: cloudConnectionVerified,
+        inputPowerVerified: inputPowerVerified,
+        avgflc: avgCurrent,
+      ),
     );
   }
 
@@ -121,23 +135,53 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
     // Show confirmation dialog initially when coming from dashboard
 
-    if (!fromDevices && isTestRunRequired) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (mounted) {
-          showMyDialog(context);
-          verification(motorData);
-        }
-      });
-    }
+    // ConfirmTestRunScreen dialog is now shown from the dashboard (motor_card_widget.dart)
+    // if (!fromDevices && isTestRunRequired) {
+    //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //     if (mounted) {
+    //       showMyDialog(context);
+    //       verification(motorData);
+    //     }
+    //   });
+    // }
   }
 
   bool _canControlMotor(MotorData? motorData) {
     if (!_isMotorAvailable()) return false;
-    final isPowerOn = (motorData?.hasReceivedData == true)
-        ? motorData!.power == 1
-        : (motor.starter?.power ?? 0) == 1;
 
-    return isPowerOn;
+    // Check passed motorData first
+    if (motorData != null && motorData.hasReceivedData) {
+      print("_canControlMotor -> passed motorData power=${motorData.power}");
+      return motorData.power == 1;
+    }
+
+    // Fallback: scan motorDataMap directly by MAC/PCB to find live data entry
+    final mac = motor.starter?.macAddress;
+    final pcb = motor.starter?.pcbNumber;
+
+    for (final entry in mqttService.motorDataMap.entries) {
+      final data = entry.value;
+      if (!data.hasReceivedData) continue;
+
+      final groupId = data.groupId;
+      if (groupId == null || !allowedGroups.contains(groupId)) continue;
+
+      final matchesMac = mac != null &&
+          mac.isNotEmpty &&
+          (data.macAddress == mac || data.pcbNumber == mac);
+      final matchesPcb = pcb != null &&
+          pcb.isNotEmpty &&
+          (data.macAddress == pcb || data.pcbNumber == pcb);
+
+      if (matchesMac || matchesPcb) {
+        print(
+            "_canControlMotor -> found via scan key=${entry.key} power=${data.power}");
+        return data.power == 1;
+      }
+    }
+
+    print("_canControlMotor -> API fallback power=${motor.starter?.power}");
+    return (motor.starter?.power ?? 0) == 1;
   }
 
   bool _isMotorAvailable() {
@@ -161,16 +205,26 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     try {
       final mqttMotorId = getMotorId();
       await mqttService.publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
-
-      print(
-          "Initial Check -> Signal: ${getSignalBars(initialMotorData)} Power: ${_canControlMotor(initialMotorData)}");
-
       // Listen for updates
       void checkUpdates() {
         final currentMotorData = getMotorData();
         final signal = getSignalBars(currentMotorData);
         final pwr = _canControlMotor(currentMotorData);
-        print("Update Received -> Signal: $signal Power: $pwr");
+        final c1 = int.parse(currentMotorData?.currentBlue ?? "0");
+        final c2 = int.parse(currentMotorData?.currentRed ?? "0");
+        final c3 = int.parse(currentMotorData?.currentYellow ?? "0");
+
+        final avgFlc = (c1 + c2 + c3) / 3;
+        avgFlc;
+
+        print("line 189 currents ---------------------> $c1 $c2 $c3 $avgFlc");
+
+        if (pwr) {
+          inputPowerVerified.value = pwr;
+        }
+        if (signal >= 1 && signal <= 4) {
+          cloudConnectionVerified.value = true;
+        }
       }
 
       mqttService.dataUpdateNotifier.addListener(checkUpdates);
@@ -346,6 +400,60 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     if (identifier.isEmpty) return '';
     final groupId = getMotorGroupId();
     return '$identifier-$groupId';
+  }
+
+  MotorData? _getMotorData() {
+    if (motor.starter == null || motor.id == null) return null;
+
+    final mac = motor.starter!.macAddress;
+    final pcb = motor.starter!.pcbNumber;
+
+    if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
+      return null;
+    }
+
+    MotorData? latestData;
+    DateTime? latestTimestamp;
+
+    for (int i = 1; i <= 4; i++) {
+      final groupId = 'G0$i';
+
+      // Try both MAC and PCB identifiers
+      final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
+      final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
+
+      // Check MAC address
+      if (macMotorId != null) {
+        final data = mqttService.motorDataMap[macMotorId];
+        if (data != null && data.hasReceivedData) {
+          final dataTimestamp = mqttService.getLastAckTime(macMotorId);
+          if (latestData == null ||
+              (dataTimestamp != null &&
+                  (latestTimestamp == null ||
+                      dataTimestamp.isAfter(latestTimestamp)))) {
+            latestData = data;
+            latestTimestamp = dataTimestamp;
+          }
+        }
+      }
+
+      // Check PCB number - also compare timestamps (not just when latestData is null)
+      if (pcbMotorId != null) {
+        final data = mqttService.motorDataMap[pcbMotorId];
+        if (data != null && data.hasReceivedData) {
+          final dataTimestamp = mqttService.getLastAckTime(pcbMotorId);
+          if (latestData == null ||
+              (dataTimestamp != null &&
+                  (latestTimestamp == null ||
+                      dataTimestamp.isAfter(latestTimestamp)))) {
+            latestData = data;
+            latestTimestamp = dataTimestamp;
+          }
+        }
+      }
+    }
+
+    return latestData;
   }
 
   MotorData? getMotorData() {

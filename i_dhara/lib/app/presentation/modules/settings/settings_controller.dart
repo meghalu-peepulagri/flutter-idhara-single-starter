@@ -63,7 +63,7 @@ class SettingsController extends GetxController {
     hasInternet.value = result != ConnectivityResult.none;
   }
 
-  String pcbnumberPass(Starter? starter) {
+  String pcbnumberPass(SettingStarter? starter) {
     try {
       if (starter != null) {
         if (starter.pcbNumber != null) {

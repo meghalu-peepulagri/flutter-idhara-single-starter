@@ -9,6 +9,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
+import 'package:i_dhara/app/presentation/components/testrun_verificaiton_card.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
@@ -165,32 +166,38 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (widget.motor.starter == null) return null;
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
-    final motorKey = '${mac ?? pcb}-';
 
-    // Check for existing active data
-    final workingId = widget.mqttService.motorDataMap.keys.firstWhere(
-        (k) =>
-            k.startsWith(motorKey) &&
-            widget.mqttService.motorDataMap[k]?.hasReceivedData == true,
-        orElse: () => '');
+    // Find the best matching entry with the most recent data
+    MotorData? bestData;
+    DateTime? bestTime;
 
-    if (workingId.isNotEmpty) {
-      return widget.mqttService.motorDataMap[workingId];
+    for (var entry in widget.mqttService.motorDataMap.entries) {
+      final data = entry.value;
+      if (data.hasReceivedData != true) continue;
+
+      final key = entry.key;
+      final matchesByKey =
+          (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
+              (pcb != null && pcb.isNotEmpty && key.startsWith('$pcb-'));
+      final matchesByData = (mac != null &&
+              mac.isNotEmpty &&
+              (data.macAddress == mac || data.pcbNumber == mac)) ||
+          (pcb != null &&
+              pcb.isNotEmpty &&
+              (data.macAddress == pcb || data.pcbNumber == pcb));
+
+      if (matchesByKey || matchesByData) {
+        final ackTime = widget.mqttService.getLastAckTime(key);
+        if (bestData == null ||
+            (ackTime != null &&
+                (bestTime == null || ackTime.isAfter(bestTime)))) {
+          bestData = data;
+          bestTime = ackTime;
+        }
+      }
     }
 
-    // Fallback scan
-    for (int i = 1; i <= 4; i++) {
-      final groupId = 'G0$i';
-      if (mac != null && mac.isNotEmpty) {
-        final data = widget.mqttService.motorDataMap['$mac-$groupId'];
-        if (data?.hasReceivedData == true) return data;
-      }
-      if (pcb != null && pcb.isNotEmpty) {
-        final data = widget.mqttService.motorDataMap['$pcb-$groupId'];
-        if (data?.hasReceivedData == true) return data;
-      }
-    }
-    return null;
+    return bestData;
   }
 
   String _getMotorId() {
@@ -312,7 +319,64 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _navigateToTestRun() {
-    _navigateToTestRunScreen();
+    _showConfirmTestRunDialog();
+  }
+
+  void _showConfirmTestRunDialog() async {
+    final cloudConnectionVerified = ValueNotifier<bool>(false);
+    final inputPowerVerified = ValueNotifier<bool>(false);
+    final avgflc = ValueNotifier<double>(0.0);
+
+    // Publish verification command (type 5)
+    try {
+      final identifier = _getMotorIdentifier();
+      if (identifier.isNotEmpty) {
+        final groupId = _getMotorGroupId(identifier);
+        final mqttMotorId = '$identifier-$groupId';
+        await widget.mqttService
+            .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+      }
+    } catch (e) {
+      print("Error publishing verification command: $e");
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ValueListenableBuilder(
+          valueListenable: widget.mqttService.dataUpdateNotifier,
+          builder: (context, _, __) {
+            final motorData = _getMotorData();
+            return ConfirmTestRunScreen(
+              motorData: motorData,
+              motor: widget.motor,
+              mqttService: widget.mqttService,
+              cloudConnectionVerified: cloudConnectionVerified,
+              inputPowerVerified: inputPowerVerified,
+              avgflc: avgflc,
+            );
+          }),
+    );
+  }
+
+  String _getMotorIdentifier() {
+    if (widget.motor.starter == null) return '';
+    final mac = widget.motor.starter!.macAddress;
+    final pcb = widget.motor.starter!.pcbNumber;
+    if (mac?.isNotEmpty == true) return mac!;
+    if (pcb?.isNotEmpty == true) return pcb!;
+    return '';
+  }
+
+  String _getMotorGroupId(String identifier) {
+    const allowedGroups = ['G01', 'G02'];
+    for (final groupId in allowedGroups) {
+      final motorData = widget.mqttService.motorDataMap['$identifier-$groupId'];
+      if (motorData != null) return groupId;
+    }
+    return 'G01';
   }
 
   bool _isNewDeviceWithoutAck(MotorData? motorData) {
