@@ -533,7 +533,9 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       (currentLow - currentHigh).abs() < 1;
                   final badgeOffset = thumbsOverlapping ? 25.0 : 0.0;
 
-                  return Stack(
+                  return SizedBox(
+                    height: 35,
+                    child: Stack(
                     clipBehavior: Clip.none,
                     children: [
                       Positioned(
@@ -559,6 +561,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                         ),
                       ),
                     ],
+                  ),
                   );
                 },
               ),

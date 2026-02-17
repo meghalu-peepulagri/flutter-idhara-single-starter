@@ -102,7 +102,12 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return 'Voltage out of range: ${outOfRange.join(', ')}. Test cannot proceed.';
   }
 
-  bool get _isVoltageInRange => _voltageError == null;
+  bool get _isVoltageInRange {
+    if (widget.motorData == null || !widget.motorData!.hasReceivedData) {
+      return false; // No data yet, not verified
+    }
+    return _voltageError == null;
+  }
 
   bool get isActive {
     final signal = _getSignalBars(widget.motorData);
@@ -346,8 +351,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Future<void> _onSave() async {
-    print("line 230 $_flcData");
-
     setState(() {
       _phase = _TestRunPhase.saving;
       isWaitingForAck = true;
@@ -404,6 +407,14 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               _hasPendingSave = false;
             });
             errorSnackBar(context, 'No acknowledgment received from device');
+            if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
+              _controller?.startTestRun(widget.motor.id!);
+            } else {
+              _controller?.completeTestRun(widget.motor.id!);
+            }
+
+            print("line 414    ----> ${widget.motor.testrunStatus}");
+
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (widget.route == Routes.dashboard) {
                 Get.offAllNamed(widget.route, arguments: {'refresh': true});
@@ -426,19 +437,21 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             _hasPendingSave = false;
             _ackInProgress = true;
             mqttStreamSubscription?.cancel();
+
             if (mounted) {
               setState(() {
                 isWaitingForAck = false;
                 _phase = _TestRunPhase.success;
               });
             }
+            _controller?.completeTestRun(widget.motor.id!);
+
             // Auto-navigate after showing success for 2 seconds
             Future.delayed(const Duration(seconds: 2), () {
               if (mounted) {
                 if (widget.route == Routes.dashboard) {
                   Get.offAllNamed(widget.route, arguments: {'refresh': true});
                 } else {
-                  print("line 351 ----> ${widget.route}");
                   Get.offAllNamed(widget.route);
                 }
               }
@@ -466,6 +479,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print("line 450 ----> ${widget.motor.id!}  ${widget.motor.testrunStatus}");
     switch (_phase) {
       case _TestRunPhase.preCheck:
         return _buildPreCheckPhase();

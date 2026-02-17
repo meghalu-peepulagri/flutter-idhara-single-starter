@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart' hide Location;
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
@@ -89,7 +88,6 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     //   Get.offAllNamed(Routes.dashboard);
     // }
     if (response != null && response.errors == null) {
-      getsuccessSnackBar(message);
       Get.offAllNamed(Routes.dashboard);
     } else if (response?.errors != null) {
       errorInstance.clear();

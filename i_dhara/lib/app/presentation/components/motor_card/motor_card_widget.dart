@@ -319,6 +319,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _navigateToTestRun() {
+    SharedPreference.setMotorId(widget.motor.id ?? 0);
+    SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
     _showConfirmTestRunDialog();
   }
 
@@ -422,19 +424,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   bool _shouldShowTestRun(MotorData? motorData) {
     // Enable only if it's a new device without ACK and motor is available
     return _isNewDeviceWithoutAck(motorData) && _isMotorAvailable();
-  }
-
-  void _navigateToTestRunScreen() {
-    SharedPreference.setMotorId(widget.motor.id ?? 0);
-    SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
-    Get.toNamed(
-      Routes.testRun,
-      arguments: {
-        'motor': widget.motor,
-        'mqttService': widget.mqttService,
-        'route': '/dashboard'
-      },
-    );
   }
 
   @override
