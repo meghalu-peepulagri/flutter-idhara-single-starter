@@ -12,17 +12,16 @@ import 'package:i_dhara/app/data/models/devices/motor_model.dart'
     as motor_model;
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/components/testrun_verificaiton_card.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
+  final MqttService mqttService;
 
-  DevicesCard({
-    super.key,
-    required this.device,
-  });
+  DevicesCard({super.key, required this.device, required this.mqttService});
 
   final DevicesController controller = Get.find<DevicesController>();
 
@@ -164,7 +163,6 @@ class DevicesCard extends StatelessWidget {
   void _navigateToTestRun(Motor? motor) {
     if (motor == null || motor.id == null) return;
 
-    // Navigate immediately with basic motor data
     final motorModelMotor = motor_model.Motor(
       id: motor.id,
       name: motor.name,
@@ -193,15 +191,104 @@ class DevicesCard extends StatelessWidget {
     SharedPreference.setMotorId(motor.id ?? 0);
     SharedPreference.setStarterId(device.id ?? 0);
 
-    Get.toNamed(
-      Routes.testRun,
-      arguments: {
-        'motor': motorModelMotor,
-        'mqttService': MqttService(),
-        'fromDevices': true, // Show API data without blocking
-        "route": '/devices'
-      },
+    _showConfirmTestRunDialog(Get.context!, motorModelMotor);
+  }
+
+  void _showConfirmTestRunDialog(
+      BuildContext ctx, motor_model.Motor motorModelMotor) async {
+    final cloudConnectionVerified = ValueNotifier<bool>(false);
+    final inputPowerVerified = ValueNotifier<bool>(false);
+    final avgflc = ValueNotifier<double>(0.0);
+
+    // Publish verification command (type 5)
+    try {
+      final identifier = _getMotorIdentifier(motorModelMotor);
+      if (identifier.isNotEmpty) {
+        final groupId = _getMotorGroupId(mqttService, identifier);
+        final mqttMotorId = '$identifier-$groupId';
+
+        await mqttService.publishTestRunCommand(mqttMotorId, 1,
+            data: 1, type: 5);
+      }
+    } catch (e) {
+      print("Error publishing verification command: $e");
+    }
+
+    if (!ctx.mounted) return;
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (context) => ValueListenableBuilder(
+          valueListenable: mqttService.dataUpdateNotifier,
+          builder: (context, _, __) {
+            final motorData = _getMotorData(mqttService, motorModelMotor);
+            return ConfirmTestRunScreen(
+              motorData: motorData,
+              motor: motorModelMotor,
+              mqttService: mqttService,
+              cloudConnectionVerified: cloudConnectionVerified,
+              inputPowerVerified: inputPowerVerified,
+              avgflc: avgflc,
+              route: '/devices',
+            );
+          }),
     );
+  }
+
+  String _getMotorIdentifier(motor_model.Motor motor) {
+    if (motor.starter == null) return '';
+    final mac = motor.starter!.macAddress;
+    final pcb = motor.starter!.pcbNumber;
+    if (pcb?.isNotEmpty == true) return pcb!;
+
+    return '';
+  }
+
+  String _getMotorGroupId(MqttService mqttService, String identifier) {
+    const allowedGroups = ['G01', 'G02'];
+    for (final groupId in allowedGroups) {
+      final motorData = mqttService.motorDataMap['$identifier-$groupId'];
+      if (motorData != null) return groupId;
+    }
+    return 'G01';
+  }
+
+  MotorData? _getMotorData(MqttService mqttService, motor_model.Motor motor) {
+    if (motor.starter == null) return null;
+    final mac = motor.starter!.macAddress;
+    final pcb = motor.starter!.pcbNumber;
+
+    MotorData? bestData;
+    DateTime? bestTime;
+
+    for (var entry in mqttService.motorDataMap.entries) {
+      final data = entry.value;
+      if (data.hasReceivedData != true) continue;
+
+      final key = entry.key;
+      final matchesByKey =
+          (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
+              (pcb != null && pcb.isNotEmpty && key.startsWith('$pcb-'));
+      final matchesByData = (mac != null &&
+              mac.isNotEmpty &&
+              (data.macAddress == mac || data.pcbNumber == mac)) ||
+          (pcb != null &&
+              pcb.isNotEmpty &&
+              (data.macAddress == pcb || data.pcbNumber == pcb));
+
+      if (matchesByKey || matchesByData) {
+        final ackTime = mqttService.getLastAckTime(key);
+        if (bestData == null ||
+            (ackTime != null &&
+                (bestTime == null || ackTime.isAfter(bestTime)))) {
+          bestData = data;
+          bestTime = ackTime;
+        }
+      }
+    }
+
+    return bestData;
   }
 
   @override

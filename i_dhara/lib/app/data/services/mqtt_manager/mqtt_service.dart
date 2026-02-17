@@ -885,8 +885,7 @@ class MqttService {
         for (var existingEntry in _motorDataMap.entries) {
           final data = existingEntry.value;
           if (data.groupId == groupId &&
-              (data.macAddress == identifier ||
-                  data.pcbNumber == identifier)) {
+              (data.macAddress == identifier || data.pcbNumber == identifier)) {
             motorData = data;
             // Also register under the new key for future direct lookups
             _motorDataMap[fullMotorId] = motorData;
@@ -1096,13 +1095,18 @@ class MqttService {
       throw Exception('Invalid motorId format: $motorId');
     }
 
-    // Get PCB number from motor data instead of using MAC address
+    // Get PCB number from motor data, or fall back to the identifier from motorId
     final motorData = _motorDataMap[motorId];
-    if (motorData == null || motorData.pcbNumber == null) {
-      throw Exception('Motor data or PCB number not found for: $motorId');
+    final String identifier;
+    if (motorData != null && motorData.pcbNumber != null) {
+      identifier = motorData.pcbNumber!;
+    } else {
+      // Fall back to using the identifier part of motorId (before the last dash)
+      identifier = motorId.substring(0, lastDashIndex);
+      debugPrint(
+          'Motor data not in map for $motorId, using identifier: $identifier');
     }
 
-    final identifier = motorData.pcbNumber!;
     final topic = 'peepul/$identifier/cmd';
 
     final payload = jsonEncode({"T": type, "S": seq, "D": data});

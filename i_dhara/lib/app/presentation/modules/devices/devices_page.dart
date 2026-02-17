@@ -220,7 +220,10 @@ class DevicesPage extends StatelessWidget {
                                         itemBuilder: (context, index) {
                                           final device =
                                               controller.devicesList[index];
-                                          return DevicesCard(device: device);
+                                          return DevicesCard(
+                                            device: device,
+                                            mqttService: controller.mqttService,
+                                          );
                                         },
                                       ),
                                     ),

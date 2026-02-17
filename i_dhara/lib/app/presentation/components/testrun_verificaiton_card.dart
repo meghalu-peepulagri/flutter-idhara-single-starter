@@ -169,8 +169,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     if (widget.motor.starter == null) return '';
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
-    if (mac?.isNotEmpty == true) return mac!;
     if (pcb?.isNotEmpty == true) return pcb!;
+    if (mac?.isNotEmpty == true) return mac!;
+
     return '';
   }
 
@@ -216,7 +217,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           _remainingSeconds--;
         });
 
-        // Publish every 10 seconds (at 50s, 40s, 30s, 20s, 10s remaining)
         if (mqttMotorId.isNotEmpty && _remainingSeconds % 10 == 0) {
           widget.mqttService
               .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
@@ -257,9 +257,92 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   void _emergencyStop() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Emergency Stop',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF004E7E),
+          ),
+        ),
+        content: const Text(
+          'Emergency stop will abort the test. Are you sure?',
+          style: TextStyle(
+            fontSize: 14,
+            color: Color(0xFF374151),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmEmergencyStop();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Stop Test',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmEmergencyStop() {
     _timer?.cancel();
     widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
-    Navigator.pop(context);
+
+    final identifier = _getMotorIdentifier();
+    final groupId = identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
+    final mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
+
+    // Send stop command T=1, D=0
+    if (mqttMotorId.isNotEmpty) {
+      widget.mqttService
+          .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1)
+          .then((_) {
+        if (widget.route == Routes.dashboard) {
+          Get.offAllNamed(widget.route, arguments: {'refresh': true});
+        } else {
+          Get.offAllNamed(widget.route);
+        }
+        debugPrint('Emergency stop command sent for $mqttMotorId');
+      }).catchError((e) {
+        if (widget.route == Routes.dashboard) {
+          Get.offAllNamed(widget.route, arguments: {'refresh': true});
+        } else {
+          Get.offAllNamed(widget.route);
+        }
+        debugPrint('Failed to send emergency stop command: $e');
+      });
+    }
   }
 
   Future<void> _onSave() async {
@@ -282,14 +365,13 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
         await _controller!.fetchUserSettings2();
 
-        final OLR1 = _calculatedFlc(_controller!.olr.value, _avgCurrent.value);
-        final LRF2 = _calculatedFlc(_controller!.lrf.value, _avgCurrent.value);
-        final LRR3 = _calculatedFlc(_controller!.lrr.value, _avgCurrent.value);
-        final DRF4 = _calculatedFlc(
-            _controller!.drf.value.toDouble(), _avgCurrent.value);
-        final OLF5 = _calculatedFlc(
-            _controller!.olf.value.toDouble(), _avgCurrent.value);
-        final trimFlc = _avgCurrent.value.toStringAsFixed(2);
+        final avgFlc = _overalCurrent.value;
+        final OLR1 = _calculatedFlc(_controller!.olr.value, avgFlc);
+        final LRF2 = _calculatedFlc(_controller!.lrf.value, avgFlc);
+        final LRR3 = _calculatedFlc(_controller!.lrr.value, avgFlc);
+        final DRF4 = _calculatedFlc(_controller!.drf.value.toDouble(), avgFlc);
+        final OLF5 = _calculatedFlc(_controller!.olf.value.toDouble(), avgFlc);
+        final trimFlc = avgFlc.toStringAsFixed(2);
         final flc = double.parse(trimFlc);
         final payload = {
           "dvc_c": {
@@ -301,12 +383,20 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             'flc': flc
           },
         };
+        _controller!.olr.value = OLR1;
+        _controller!.lrf.value = LRF2;
+        _controller!.lrr.value = LRR3;
+        _controller!.drf.value = DRF4;
+        _controller!.olf.value = OLF5;
+        _controller!.flc.value = flc;
+
         await widget.mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
         await widget.mqttService
             .publishUpdateSettings(_controller!.pcbNumber.value, payload);
+        await _controller?.fetchupdateSettings();
 
         // Start 30-second ACK timeout after publishUpdateSettings
-        settingsAckTimer = Timer(const Duration(seconds: 30), () {
+        settingsAckTimer = Timer(const Duration(seconds: 10), () {
           mqttStreamSubscription?.cancel();
           if (mounted && !_ackInProgress) {
             setState(() {
@@ -318,7 +408,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               if (widget.route == Routes.dashboard) {
                 Get.offAllNamed(widget.route, arguments: {'refresh': true});
               } else {
-                Get.offNamed(widget.route);
+                Get.offAllNamed(widget.route);
               }
             });
           }
@@ -348,7 +438,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 if (widget.route == Routes.dashboard) {
                   Get.offAllNamed(widget.route, arguments: {'refresh': true});
                 } else {
-                  Get.offNamed(widget.route);
+                  print("line 351 ----> ${widget.route}");
+                  Get.offAllNamed(widget.route);
                 }
               }
             });
@@ -1018,7 +1109,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       ),
     );
   }
-
   // ===================== Shared UI Helpers =====================
 
   Widget get checkIcon => Container(

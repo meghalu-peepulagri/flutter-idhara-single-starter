@@ -69,7 +69,7 @@ class SettingsRepositoryImpl extends SettingsRepository {
   Future<UpdateUserSettingResponse?> updateSettings(
       UserUpdateSettingsDto dto) async {
     final id = SharedPreference.getStarterId();
-    print("line 62 -----> \n${dto.toJson()}");
+    print("line 62 -----> ${dto.toJson()}");
     final response = await NetworkManager().post(
       '/settings/starter/$id',
       {},

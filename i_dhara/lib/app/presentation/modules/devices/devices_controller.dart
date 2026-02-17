@@ -5,6 +5,8 @@ import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
+
 class DevicesController extends GetxController {
   final controller1 = TextEditingController();
   final RxList<Devices> devicesList = <Devices>[].obs;
@@ -32,9 +34,11 @@ class DevicesController extends GetxController {
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
   final ScrollController scrollController = ScrollController();
+  late MqttService mqttService;
 
   @override
   void onInit() {
+    mqttService = MqttService();
     super.onInit();
     _initConnectivity();
     fetchDevices(isInitial: true);

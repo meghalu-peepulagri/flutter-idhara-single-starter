@@ -8,6 +8,7 @@ import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/weather_service/permission_handler.dart';
 
+import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 import '../../../data/repository/settings/settings_repo_impl.dart';
 
@@ -45,9 +46,9 @@ class DashboardController extends GetxController {
   var macAddress = ''.obs;
 
   var isdisabled = false.obs;
-
-  var drf = 0.obs;
-  var olf = 0.obs;
+  final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
+  var drf = 0.0.obs;
+  var olf = 0.0.obs;
   var flc = 0.0.obs;
   var lrf = 0.0.obs;
   var olr = 0.0.obs;
@@ -129,31 +130,6 @@ class DashboardController extends GetxController {
     } catch (e) {
       print("error ---> $e");
       return '';
-    }
-  }
-
-  Future<void> fetchUserSettings2() async {
-    try {
-      // errorMessage.value = '';
-      final response = await SettingsRepositoryImpl().getSettings2();
-      if (response != null &&
-          response.success == true &&
-          response.data != null) {
-        userSettings2.value = response.data;
-        pcbNumber.value = pcbnumberPass(response.data?.starter);
-        macAddress.value = response.data?.starter?.macAddress ?? '';
-        flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
-        drf.value = userSettings2.value?.drf?.toInt() ?? 0;
-        olf.value = userSettings2.value?.olf?.toInt() ?? 0;
-        lrf.value = userSettings2.value?.lrf?.toDouble() ?? 0.0;
-        olr.value = userSettings2.value?.olr?.toDouble() ?? 0.0;
-        lrr.value = userSettings2.value?.lrr?.toDouble() ?? 0.0;
-      } else {
-        errorMessage.value = response?.message ?? 'Failed to load settings';
-      }
-    } catch (e) {
-      errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
     }
   }
 
@@ -306,6 +282,57 @@ class DashboardController extends GetxController {
       return _motorIdToGroupId[motor.id]!;
     }
     return 'G01';
+  }
+
+  Future<void> fetchUserSettings2() async {
+    try {
+      // errorMessage.value = '';
+      final response = await SettingsRepositoryImpl().getSettings2();
+      if (response != null &&
+          response.success == true &&
+          response.data != null) {
+        userSettings2.value = response.data;
+        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        macAddress.value = response.data?.starter?.macAddress ?? '';
+        flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
+        drf.value = userSettings2.value?.drf?.toDouble() ?? 0;
+        olf.value = userSettings2.value?.olf?.toDouble() ?? 0.0;
+        lrf.value = userSettings2.value?.lrf?.toDouble() ?? 0.0;
+        olr.value = userSettings2.value?.olr?.toDouble() ?? 0.0;
+        lrr.value = userSettings2.value?.lrr?.toDouble() ?? 0.0;
+
+        updateSettingDto.assignAll(response.data!.toJson());
+        updateSettingDto.removeWhere((key, value) =>
+            key == "updated_at" || key == "created_at" || key == "created_by");
+      } else {
+        errorMessage.value = response?.message ?? 'Failed to load settings';
+      }
+    } catch (e) {
+      errorMessage.value = 'Error loading settings: $e';
+      print('Error fetching user settings: $e');
+    }
+  }
+
+  Future<void> fetchupdateSettings() async {
+    try {
+      updateSettingDto['drf'] = drf.value;
+      updateSettingDto['olf'] = olf.value;
+      updateSettingDto['flc'] = flc.value;
+      updateSettingDto['lrr'] = lrr.value;
+      updateSettingDto['lrf'] = lrf.value;
+      updateSettingDto['olr'] = olr.value;
+
+      UserUpdateSettingsDto dto =
+          UserUpdateSettingsDto.fromJson(updateSettingDto);
+      final response = await SettingsRepositoryImpl().updateSettings(dto);
+      if (response?.status == 200 || response?.status == 201) {
+      } else {
+        errorMessage.value = response?.message ?? 'Failed to update settings';
+      }
+    } catch (e) {
+      errorMessage.value = 'Error updating settings: $e';
+      print('Error updating user settings: $e');
+    }
   }
 
   Future<void> fetchMotors() async {
