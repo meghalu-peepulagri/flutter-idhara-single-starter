@@ -72,12 +72,49 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return (widget.motor.starter?.power ?? 0) == 1;
   }
 
+  static const double _minVoltage = 370.0;
+  static const double _maxVoltage = 450.0;
+
+  bool _isVoltageValid(double? voltage) {
+    if (voltage == null) return false;
+    return voltage >= _minVoltage && voltage <= _maxVoltage;
+  }
+
+  /// Returns null if all voltages are in range, or an error message string.
+  String? get _voltageError {
+    if (widget.motorData == null || !widget.motorData!.hasReceivedData) {
+      return null; // No data yet, don't block
+    }
+
+    final v1 = double.tryParse(widget.motorData?.voltageBlue ?? '0') ?? 0;
+    final v2 = double.tryParse(widget.motorData?.voltageRed ?? '0') ?? 0;
+    final v3 = double.tryParse(widget.motorData?.voltageYellow ?? '0') ?? 0;
+
+    final outOfRange = <String>[];
+    if (!_isVoltageValid(v1))
+      outOfRange.add('B-phase = ${v1.toStringAsFixed(0)} V');
+    if (!_isVoltageValid(v2))
+      outOfRange.add('R-phase = ${v2.toStringAsFixed(0)} V');
+    if (!_isVoltageValid(v3))
+      outOfRange.add('Y-phase = ${v3.toStringAsFixed(0)} V');
+
+    if (outOfRange.isEmpty) return null;
+    return 'Voltage out of range: ${outOfRange.join(', ')}. Test cannot proceed.';
+  }
+
+  bool get _isVoltageInRange => _voltageError == null;
+
   bool get isActive {
     final signal = _getSignalBars(widget.motorData);
     final cloudOk = signal >= 1 && signal <= 4;
     final powerOk = _isPowerOn;
+    final voltageOk = _isVoltageInRange;
 
-    return isMotorWiresChecked && isPumpValveChecked && cloudOk && powerOk;
+    return isMotorWiresChecked &&
+        isPumpValveChecked &&
+        cloudOk &&
+        powerOk &&
+        voltageOk;
   }
 
   @override
@@ -226,7 +263,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Future<void> _onSave() async {
-    print("line 230 ${_flcData}");
+    print("line 230 $_flcData");
 
     setState(() {
       _phase = _TestRunPhase.saving;
@@ -443,6 +480,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 'Power Supply Status',
                 _isPowerOn == true ? 1 : 0,
               ),
+              const SizedBox(height: 16),
+              _buildVoltageVerification(),
               const SizedBox(height: 24),
               _buildCheckboxItem(
                 'Motor wires / terminals securely connected',
@@ -1052,7 +1091,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Widget _buildVerificationInputPower(String text, int? verified) {
-
     return Row(
       spacing: 10,
       children: [
@@ -1071,6 +1109,54 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 ? checkIcon
                 : closeIcon
             : loadingIcon
+      ],
+    );
+  }
+
+  Widget _buildVoltageVerification() {
+    final voltageOk = _isVoltageInRange;
+    final error = _voltageError;
+    final hasData =
+        widget.motorData != null && widget.motorData!.hasReceivedData;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          spacing: 8,
+          children: [
+            const Icon(Icons.electric_bolt, size: 20, color: Color(0xFF64748B)),
+            const Expanded(
+              child: Text(
+                'Voltage Range (370V - 450V)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF334155),
+                ),
+              ),
+            ),
+            if (!hasData)
+              loadingIcon
+            else if (voltageOk)
+              checkIcon
+            else
+              closeIcon,
+          ],
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 30),
+            child: Text(
+              error,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.red,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
