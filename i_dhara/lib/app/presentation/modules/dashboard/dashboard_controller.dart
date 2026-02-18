@@ -317,13 +317,7 @@ class DashboardController extends GetxController {
 
   Future<void> fetchupdateSettings() async {
     try {
-      updateSettingDto['drf'] = drf.value;
-      updateSettingDto['olf'] = olf.value;
       updateSettingDto['flc'] = flc.value;
-      updateSettingDto['lrr'] = lrr.value;
-      updateSettingDto['lrf'] = lrf.value;
-      updateSettingDto['olr'] = olr.value;
-
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);
       final response = await SettingsRepositoryImpl().updateSettings(dto);

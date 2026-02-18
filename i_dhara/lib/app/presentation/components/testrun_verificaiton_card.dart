@@ -10,6 +10,7 @@ import '../../core/utils/snackbars/error_snackbar.dart';
 import '../../data/services/mqtt_manager/mqtt_service.dart';
 import '../modules/dashboard/dashboard_controller.dart';
 import '../routes/app_routes.dart';
+import 'popups/emergency_popup.dart';
 
 enum _TestRunPhase { preCheck, measuring, completed, saving, success }
 
@@ -267,57 +268,14 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text(
-          'Emergency Stop',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF004E7E),
-          ),
-        ),
-        content: const Text(
-          'Emergency stop will abort the test. Are you sure?',
-          style: TextStyle(
-            fontSize: 14,
-            color: Color(0xFF374151),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _confirmEmergencyStop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Stop Test',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+      builder: (_) => CustomConfirmationDialog(
+        title: "Emergency Stop",
+        message:
+            "Emergency stop will immediately abort the ongoing test process.\n\nAre you sure you want to continue?",
+        confirmText: "Stop Test",
+        confirmColor: const Color(0xFFDC2626),
+        icon: Icons.warning_amber_rounded,
+        onConfirm: _confirmEmergencyStop,
       ),
     );
   }
@@ -388,13 +346,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             'flc': flc
           },
         };
-        _controller!.olr.value = OLR1;
-        _controller!.lrf.value = LRF2;
-        _controller!.lrr.value = LRR3;
-        _controller!.drf.value = DRF4;
-        _controller!.olf.value = OLF5;
         _controller!.flc.value = flc;
-
         await widget.mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
         await widget.mqttService
             .publishUpdateSettings(_controller!.pcbNumber.value, payload);
@@ -414,9 +366,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             } else {
               _controller?.completeTestRun(widget.motor.id!);
             }
-
-            print("line 414    ----> ${widget.motor.testrunStatus}");
-
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (widget.route == Routes.dashboard) {
                 Get.offAllNamed(widget.route, arguments: {'refresh': true});
@@ -458,6 +407,27 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 }
               }
             });
+          } else {
+            mqttStreamSubscription?.cancel();
+            if (mounted && !_ackInProgress) {
+              setState(() {
+                isWaitingForAck = false;
+                _hasPendingSave = false;
+              });
+              geterrorSnackBar('Smart Calibration Failed');
+              if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
+                _controller?.startTestRun(widget.motor.id!);
+              } else {
+                _controller?.completeTestRun(widget.motor.id!);
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (widget.route == Routes.dashboard) {
+                  Get.offAllNamed(widget.route, arguments: {'refresh': true});
+                } else {
+                  Get.offAllNamed(widget.route);
+                }
+              });
+            }
           }
         });
       }
@@ -474,7 +444,36 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   void _onCancel() {
-    Navigator.pop(context);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CustomConfirmationDialog(
+        title: "Cancel Settings",
+        message:
+            "Are you sure you want to cancel? The calibration data will not be saved.",
+        confirmText: "Yes, Cancel",
+        confirmColor: const Color(0xFFDC2626),
+        icon: Icons.cancel_outlined,
+        onConfirm: () {
+          final identifier = _getMotorIdentifier();
+          final groupId =
+              identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
+          final mqttMotorId =
+              identifier.isNotEmpty ? '$identifier-$groupId' : '';
+
+          if (mqttMotorId.isNotEmpty) {
+            widget.mqttService
+                .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1);
+          }
+
+          if (widget.route == Routes.dashboard) {
+            Get.offAllNamed(widget.route, arguments: {'refresh': true});
+          } else {
+            Get.offAllNamed(widget.route);
+          }
+        },
+      ),
+    );
   }
 
   // --- Build ---
@@ -661,7 +660,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         child: Container(
           width: 340,
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F4F6),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -811,7 +810,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       child: Container(
         width: 340,
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F7FA),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -842,7 +841,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E3A5F),
+                      color: Color(0xFF004E7E),
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -852,7 +851,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: const Color(0xFF1E3A5F).withOpacity(0.7),
+                      color: const Color(0xFF004E7E).withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -887,8 +886,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                             _overalCurrent.value.toStringAsFixed(1),
                             style: const TextStyle(
                               fontSize: 48,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF10B981),
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF009336),
                               height: 1,
                             ),
                           ),
@@ -898,7 +897,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                             style: TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF10B981),
+                              color: Color(0xFF009336),
                               height: 1,
                             ),
                           ),
@@ -913,7 +912,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF004E7E),
                     ),
                   ),
 
@@ -941,7 +940,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF64748B),
+                              color: Color(0xFF828282),
                             ),
                           ),
                         ),
@@ -964,28 +963,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                               ),
                             )),
                       ),
-
-                      // Expanded(
-                      //   child: ElevatedButton(
-                      //     onPressed: _onSave,
-                      //     style: ElevatedButton.styleFrom(
-                      //       padding: const EdgeInsets.symmetric(vertical: 14),
-                      //       backgroundColor: const Color(0xFF0F6B8A),
-                      //       shape: RoundedRectangleBorder(
-                      //         borderRadius: BorderRadius.circular(8),
-                      //       ),
-                      //       elevation: 0,
-                      //     ),
-                      //     child: const Text(
-                      //       'Save Setting',
-                      //       style: TextStyle(
-                      //         fontSize: 16,
-                      //         fontWeight: FontWeight.w500,
-                      //         color: Colors.white,
-                      //       ),
-                      //     ),
-                      //   ),
-                      // ),
                     ],
                   ),
                 ],

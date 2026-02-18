@@ -504,7 +504,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   onTestRun: _navigateToTestRun,
                   isTestRunEnabled: _shouldShowTestRun(motorData),
                   showTestRun: _isNewDeviceWithoutAck(motorData),
-                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
                 ),
                 const Divider(
                     height: 0, thickness: 1.0, color: Color(0xFFECECEC)),

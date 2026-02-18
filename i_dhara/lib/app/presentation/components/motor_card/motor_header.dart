@@ -13,7 +13,6 @@ class MotorHeader extends StatelessWidget {
   final VoidCallback? onTestRun;
   final bool isTestRunEnabled;
   final bool showTestRun;
-  final bool isTestRunRequired;
   final Function()? ontapFault;
 
   const MotorHeader(
@@ -24,7 +23,6 @@ class MotorHeader extends StatelessWidget {
       this.onTestRun,
       this.isTestRunEnabled = true,
       this.showTestRun = false,
-      this.isTestRunRequired = false,
       this.ontapFault});
 
   bool get _isPowerOn {
@@ -77,9 +75,9 @@ class MotorHeader extends StatelessWidget {
                     child: Text(
                       () {
                         final aliasName = _normalizeMotorName(motor.aliasName);
-                        final motorName = _normalizeMotorName(motor.name);
-                        final displayName =
-                            aliasName.isNotEmpty ? aliasName : motorName;
+                        final displayName = motor.starter?.starterNumber == null
+                            ? aliasName
+                            : motor.starter?.starterNumber.toString() ?? 'N/A';
                         return displayName.length > 12
                             ? '${displayName.substring(0, 12)}...'
                             : displayName;
@@ -135,11 +133,9 @@ class MotorHeader extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(0.0),
                       child: SvgPicture.asset(
-                        isTestRunRequired
-                            ? 'assets/images/Power_red.svg'
-                            : (_isPowerOn
-                                ? 'assets/images/power.svg'
-                                : 'assets/images/Power_red.svg'),
+                        _isPowerOn
+                            ? 'assets/images/power.svg'
+                            : 'assets/images/Power_red.svg',
                         width: 17,
                         height: 17,
                         fit: BoxFit.cover,
@@ -149,9 +145,8 @@ class MotorHeader extends StatelessWidget {
                     _SignalIcon(
                       motor: motor,
                       motorData: motorData,
-                      isTestRunRequired: isTestRunRequired,
                     ),
-                    if (_faultValue > 0 && !isTestRunRequired) ...[
+                    if (_faultValue > 0) ...[
                       const SizedBox(width: 8.0),
                       GestureDetector(
                         onTap: ontapFault,
@@ -196,12 +191,10 @@ class MotorHeader extends StatelessWidget {
 class _SignalIcon extends StatelessWidget {
   final Motor motor;
   final MotorData? motorData;
-  final bool isTestRunRequired;
 
   const _SignalIcon({
     required this.motor,
     required this.motorData,
-    this.isTestRunRequired = false,
   });
 
   @override
@@ -209,9 +202,7 @@ class _SignalIcon extends StatelessWidget {
     int bars = 0;
 
     // Block signal display if test run is required
-    if (isTestRunRequired) {
-      bars = 0;
-    } else if (motorData != null &&
+    if (motorData != null &&
         motorData!.hasReceivedData &&
         !motorData!.isSignalStale()) {
       bars = motorData!.signalBars;

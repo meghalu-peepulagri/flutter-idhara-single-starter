@@ -182,7 +182,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   void _scrollToCurrentHour() {
     if (_weatherData == null || !_scrollController.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
+        if (mounted && _scrollController.hasClients) {
           _scrollToCurrentHourActual();
         }
       });
@@ -192,7 +192,10 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   }
 
   void _scrollToCurrentHourActual() {
-    if (_weatherData == null || !_scrollController.hasClients) return;
+    if (!mounted || _weatherData == null || !_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) return;
 
     final now = DateTime.now();
     int currentHourIndex = -1;
@@ -207,9 +210,13 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     if (currentHourIndex != -1) {
       const itemWidth = 50.0;
       final scrollPosition = currentHourIndex * itemWidth;
+      final clampedPosition = scrollPosition.clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
 
       _scrollController.animateTo(
-        scrollPosition,
+        clampedPosition,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
