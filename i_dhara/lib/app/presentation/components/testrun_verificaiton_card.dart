@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -38,6 +39,11 @@ class ConfirmTestRunScreen extends StatefulWidget {
 }
 
 class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
+  // --- Connectivity state ---
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _isOffline = false;
+  bool _isSubDialogOpen = false;
+
   // --- Phase 1: Pre-check state ---
   bool isMotorWiresChecked = false;
   bool isPumpValveChecked = false;
@@ -124,7 +130,66 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _initConnectivity();
+  }
+
+  void _initConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    if (mounted && result.first == ConnectivityResult.none) {
+      _goOffline();
+      return;
+    }
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((results) {
+      if (!mounted) return;
+      if (results.first == ConnectivityResult.none) {
+        _goOffline();
+      } else if (_isOffline) {
+        _goOnline();
+      }
+    });
+  }
+
+  void _goOffline() {
+    if (_isOffline) return;
+    _timer?.cancel();
+    settingsAckTimer?.cancel();
+    mqttStreamSubscription?.cancel();
+    if (_phase == _TestRunPhase.measuring) {
+      widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+    }
+    if (mounted) {
+      // Close any open sub-dialogs (emergency stop, cancel confirmation, etc.)
+      if (_isSubDialogOpen) {
+        Navigator.of(context).pop();
+        _isSubDialogOpen = false;
+      }
+      setState(() {
+        _isOffline = true;
+      });
+    }
+  }
+
+  void _goOnline() {
+    if (!_isOffline || !mounted) return;
+    setState(() {
+      _isOffline = false;
+      // Reset to preCheck so user can re-verify and start fresh
+      _phase = _TestRunPhase.preCheck;
+      isMotorWiresChecked = false;
+      isPumpValveChecked = false;
+      _flcData.clear();
+      _remainingSeconds = _totalSeconds;
+      _avgCurrent.value = 0;
+      _overalCurrent.value = 0;
+    });
+  }
+
+  @override
   void dispose() {
+    _connectivitySubscription?.cancel();
     if (_phase == _TestRunPhase.measuring) {
       widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
     }
@@ -210,6 +275,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       _phase = _TestRunPhase.measuring;
       _remainingSeconds = _totalSeconds;
     });
+    _avgCurrent.value = 0.0;
+    _flcData.clear();
+    _overalCurrent.value = 0.0;
 
     // Publish immediately at the start
     if (mqttMotorId.isNotEmpty) {
@@ -251,7 +319,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     final c1 = double.parse(motordata?.currentRed ?? "0.0");
     final c2 = double.parse(motordata?.currentBlue ?? "0.0");
     final c3 = double.parse(motordata?.currentYellow ?? "0.0");
-    final avg = _percentageOfAmps(c1, c2, c3);
+    final res = _percentageOfAmps(c1, c2, c3);
+    final avg = double.parse(res.toStringAsFixed(2));
 
     setState(() {
       _avgCurrent.value = avg;
@@ -265,6 +334,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   void _emergencyStop() {
+    print("line 338 $_flcData");
+    _isSubDialogOpen = true;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -277,7 +348,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         icon: Icons.warning_amber_rounded,
         onConfirm: _confirmEmergencyStop,
       ),
-    );
+    ).then((_) => _isSubDialogOpen = false);
   }
 
   void _confirmEmergencyStop() {
@@ -444,6 +515,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   void _onCancel() {
+    print("line 514 -----> $_flcData");
+    _isSubDialogOpen = true;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -473,7 +546,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           }
         },
       ),
-    );
+    ).then((_) => _isSubDialogOpen = false);
   }
 
   // --- Build ---
@@ -481,6 +554,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   @override
   Widget build(BuildContext context) {
     print("line 450 ----> ${widget.motor.id!}  ${widget.motor.testrunStatus}");
+
+    if (_isOffline) {
+      return _buildNoInternetWidget();
+    }
+
     switch (_phase) {
       case _TestRunPhase.preCheck:
         return _buildPreCheckPhase();
@@ -493,6 +571,87 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       case _TestRunPhase.success:
         return _buildSuccessPhase();
     }
+  }
+
+  // ===================== No Internet Widget =====================
+
+  Widget _buildNoInternetWidget() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        width: 340,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.wifi_off_rounded,
+                  color: Colors.red.shade400,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'No Internet Connection',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Please check your internet connection.\nThe test run will resume automatically\nonce you are back online.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Waiting for connection...',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ===================== Phase 1: Pre-Check =====================
@@ -547,7 +706,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     ],
                   ),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
@@ -577,67 +738,72 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               ),
               const SizedBox(height: 20),
 
-              _buildVerificationCloudConnection(
-                  'Network Connectivity',
-                  _getSignalBars(widget.motorData),
-                  'assets/images/network_device.svg'),
-              const SizedBox(height: 16),
-              _buildVerificationInputPower(
-                'Power Supply Status',
-                _isPowerOn == true ? 1 : 0,
-              ),
-              const SizedBox(height: 16),
-              _buildVoltageVerification(),
-              const SizedBox(height: 24),
-              _buildCheckboxItem(
-                'Motor wires / terminals securely connected',
-                isMotorWiresChecked,
-                (value) {
-                  setState(() {
-                    isMotorWiresChecked = value ?? false;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildCheckboxItem(
-                'Pump / delivery valve fully open',
-                isPumpValveChecked,
-                (value) {
-                  setState(() {
-                    isPumpValveChecked = value ?? false;
-                  });
-                },
-              ),
-              const SizedBox(height: 32),
-
-              // Start Button
               ValueListenableBuilder(
                 valueListenable: widget.mqttService.dataUpdateNotifier,
                 builder: (context, _, __) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: isActive ? _startMeasuring : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isActive
-                            ? const Color(0xFF0F6B8A)
-                            : Colors.grey.shade400,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildVerificationCloudConnection(
+                          'Network Connectivity',
+                          _getSignalBars(widget.motorData),
+                          'assets/images/network_device.svg'),
+                      const SizedBox(height: 16),
+                      _buildVerificationInputPower(
+                        'Power Supply Status',
+                        _isPowerOn == true ? 1 : 0,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildVoltageVerification(),
+                      const SizedBox(height: 24),
+                      _buildCheckboxItem(
+                        'Motor wires / terminals securely connected',
+                        isMotorWiresChecked,
+                        (value) {
+                          setState(() {
+                            isMotorWiresChecked = value ?? false;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildCheckboxItem(
+                        'Pump / delivery valve fully open',
+                        isPumpValveChecked,
+                        (value) {
+                          setState(() {
+                            isPumpValveChecked = value ?? false;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Start Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: isActive ? _startMeasuring : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isActive
+                                ? const Color(0xFF0F6B8A)
+                                : Colors.grey.shade400,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'START TEST RUN',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        'START TEST RUN',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
+                    ],
                   );
                 },
               ),
@@ -883,7 +1049,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                         textBaseline: TextBaseline.alphabetic,
                         children: [
                           Text(
-                            _overalCurrent.value.toStringAsFixed(1),
+                            _overalCurrent.value.toStringAsFixed(2),
                             style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.w500,

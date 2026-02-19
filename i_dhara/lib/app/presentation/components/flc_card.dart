@@ -378,14 +378,14 @@ class _FlcCardState extends State<FlcCard> {
                         ),
                         child: Icon(
                           Icons.add,
-                          size: 15,
+                          size: 12,
                           color: _currentValue < widget.maxValue
                               ? Colors.white
                               : const Color(0xFF999999),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 13),
                     // Decrement Button
                     InkWell(
                       onTap:
@@ -401,7 +401,7 @@ class _FlcCardState extends State<FlcCard> {
                         ),
                         child: Icon(
                           Icons.remove,
-                          size: 15,
+                          size: 12,
                           color: _currentValue > widget.minValue
                               ? Colors.white
                               : const Color(0xFF999999),
