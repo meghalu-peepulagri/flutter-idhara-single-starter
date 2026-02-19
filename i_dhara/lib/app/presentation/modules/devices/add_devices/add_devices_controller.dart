@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart' hide Location;
@@ -117,19 +119,48 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     }
 
     try {
-      Position position = await Geolocator.getCurrentPosition();
+      // iOS needs explicit LocationSettings with a timeout,
+      // otherwise getCurrentPosition() hangs silently on iOS.
+      final LocationSettings locationSettings = Platform.isIOS
+          ? AppleSettings(
+              accuracy: LocationAccuracy.high,
+              activityType: ActivityType.other,
+              timeLimit: const Duration(seconds: 15),
+              pauseLocationUpdatesAutomatically: false,
+              allowBackgroundLocationUpdates: false,
+            )
+          : AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: const Duration(seconds: 15),
+            );
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
+      );
       List<Placemark> placemarks =
           await placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        String address =
-            "${place.locality ?? ''}, ${place.subAdministrativeArea ?? ''}"
-                .replaceAll(RegExp(r'^, |^, |, $'), '')
-                .trim();
-        if (address.isEmpty) {
-          address = place.name ?? 'New Location';
+
+        // Build address using only one field to avoid duplicates and commas.
+        // API only allows characters (no commas or special chars).
+        String locality = place.locality ?? '';
+        String subArea = place.subAdministrativeArea ?? '';
+
+        String address;
+        if (locality.isNotEmpty) {
+          address = locality;
+        } else if (subArea.isNotEmpty) {
+          address = subArea;
+        } else if ((place.name ?? '').isNotEmpty) {
+          address = place.name!;
+        } else {
+          address = 'New Location';
         }
+
+        // Remove any characters not allowed by the API (commas, digits, specials)
+        address = address.replaceAll(RegExp(r'[^a-zA-Z\s]'), '').trim();
 
         // Check if location already exists
         final existingResponse = await LocationRepoImpl().getLocations();
