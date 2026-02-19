@@ -68,7 +68,7 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                   child: selectedFilter != null && selectedFilter != 'All'
                       ? _buildSelectedFilterInlineChip(
                           _isPumpFilter(selectedFilter!)
-                              ? 'Pump: $selectedFilter'
+                              ? '$selectedFilter'
                               : selectedFilter!,
                           _getFilterColor(selectedFilter!),
                           () {
@@ -121,11 +121,9 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                   itemBuilder: (context) => [
                     _buildMainMenuItem('Faults', selectedFilter == 'Faults'),
                     _buildMainMenuItem('Alerts', selectedFilter == 'Alerts'),
-                    PopupMenuItem<String>(
-                      enabled: false,
-                      padding: EdgeInsets.zero,
-                      child: _buildPumpsMenuItemWithSubmenu(context),
-                    ),
+                    _buildMainMenuItem('ON', selectedFilter == 'ON'),
+                    _buildMainMenuItem('OFF', selectedFilter == 'OFF'),
+                    _buildMainMenuItem('MODE', selectedFilter == 'MODE'),
                   ],
                 ),
               ],
@@ -199,80 +197,6 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
 
   bool _isPumpFilter(String filter) {
     return filter == 'ON' || filter == 'OFF' || filter == 'MODE';
-  }
-
-  Widget _buildPumpsMenuItemWithSubmenu(BuildContext context) {
-    bool isPumpSelected =
-        selectedFilter != null && _isPumpFilter(selectedFilter!);
-
-    return PopupMenuButton<String>(
-      offset: const Offset(-120, 0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      onSelected: (value) {
-        setState(() {
-          if (selectedFilter == value) {
-            selectedFilter = 'All';
-            logsController.currentFilter.value = 'All';
-            logsController.resetPagination();
-            logsController.fetchAllLogs();
-          } else {
-            selectedFilter = value;
-            logsController.currentFilter.value = value;
-            logsController.resetPagination();
-            logsController.fetchMotorLogs(value);
-          }
-        });
-        Navigator.of(context).pop();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: isPumpSelected
-                    ? const Color(0xFF3B82F6)
-                    : Colors.transparent,
-                border: Border.all(
-                  color: isPumpSelected
-                      ? const Color(0xFF3B82F6)
-                      : const Color(0xFFD1D5DB),
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: isPumpSelected
-                  ? const Icon(
-                      Icons.check,
-                      size: 14,
-                      color: Colors.white,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Pump',
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isPumpSelected
-                    ? const Color(0xFF3B82F6)
-                    : const Color(0xFF1F2937),
-              ),
-            ),
-          ],
-        ),
-      ),
-      itemBuilder: (context) => [
-        _buildPumpMenuItem('ON', selectedFilter == 'ON'),
-        _buildPumpMenuItem('OFF', selectedFilter == 'OFF'),
-        _buildPumpMenuItem('MODE', selectedFilter == 'MODE'),
-      ],
-    );
   }
 
   Widget _buildSelectedFilterInlineChip(
@@ -371,34 +295,6 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
           ),
         ),
       ]),
-    );
-  }
-
-  PopupMenuItem<String> _buildPumpMenuItem(String value, bool isSelected) {
-    return PopupMenuItem<String>(
-      value: value,
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color:
-                  isSelected ? _getFilterColor(value) : const Color(0xFF1F2937),
-            ),
-          ),
-          if (isSelected)
-            Icon(
-              Icons.check,
-              size: 18,
-              color: _getFilterColor(value),
-            ),
-        ],
-      ),
     );
   }
 }
