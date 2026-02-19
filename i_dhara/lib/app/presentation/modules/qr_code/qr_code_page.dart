@@ -162,7 +162,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                       padding: EdgeInsets.symmetric(horizontal: 30.0),
                       child: Center(
                         child: Text(
-                          'Please scan the QR code on the PCB to proceed.',
+                          'Please scan the QR code on the Serial Number to proceed.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0XFF101828),
@@ -204,12 +204,11 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                       child: Center(
                         child: GestureDetector(
                           onTap: () {
-                            print('Manual PCB entry tapped');
                             cameraController.dispose();
                             Get.offAllNamed(Routes.addDevices);
                           },
                           child: Text(
-                            'Or Enter PCB Number',
+                            'Or Enter Serial Number',
                             style: GoogleFonts.dmSans(
                               color: const Color(0XFF101828),
                               fontSize: 14,

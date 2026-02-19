@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
+import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
@@ -184,7 +184,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Motor & Power Availability',
+                            'Motor & Power',
                             style: FlutterFlowTheme.of(context)
                                 .bodyMedium
                                 .override(

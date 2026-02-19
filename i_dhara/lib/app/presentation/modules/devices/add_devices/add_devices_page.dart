@@ -412,7 +412,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(context, 'PCB / Starter Number', isMandatory: true),
+        _buildLabel(context, 'Serial Number', isMandatory: true),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -420,7 +420,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
             controller: _model.textController1!,
             errors: _model.errorInstance,
             errorKey: 'pcb_number',
-            hintText: 'Enter PCB/Starter Number',
+            hintText: 'Enter Serial Number',
             readOnly: false,
             onChanged: (value) {
               if (_model.errorInstance.containsKey('pcb_number')) {
