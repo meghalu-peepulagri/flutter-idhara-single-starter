@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -22,51 +23,59 @@ import 'app/core/flutter_flow/flutter_flow_util.dart';
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
+// Background message handler - must be top-level function
+@pragma('vm:entry-point')
 Future<void> _firebasemessageBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
-  // Show local notification with iDhara logo in background
-  final FlutterLocalNotificationsPlugin bgPlugin =
-      FlutterLocalNotificationsPlugin();
-  const AndroidInitializationSettings androidInit =
-      AndroidInitializationSettings('@drawable/ic_notification');
-  const DarwinInitializationSettings iosInit = DarwinInitializationSettings();
-  const InitializationSettings initSettings =
-      InitializationSettings(android: androidInit, iOS: iosInit);
-  await bgPlugin.initialize(initSettings);
+  // On iOS, notification messages are shown automatically by APNs.
+  // We only need to handle data-only messages manually here.
+  // For Android, show a local notification for all background messages.
+  if (!Platform.isIOS) {
+    final FlutterLocalNotificationsPlugin bgPlugin =
+        FlutterLocalNotificationsPlugin();
+    const AndroidInitializationSettings androidInit =
+        AndroidInitializationSettings('@drawable/ic_notification');
+    const InitializationSettings initSettings =
+        InitializationSettings(android: androidInit);
+    await bgPlugin.initialize(initSettings);
 
-  final notification = message.notification;
-  if (notification != null) {
-    Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
-    fullData['title'] = notification.title ?? '';
-    fullData['body'] = notification.body ?? '';
+    final notification = message.notification;
+    if (notification != null) {
+      Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
+      fullData['title'] = notification.title ?? '';
+      fullData['body'] = notification.body ?? '';
 
-    await bgPlugin.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'high_importance_channel',
-          'High Importance Notifications',
-          importance: Importance.max,
-          priority: Priority.high,
-          showWhen: false,
-          icon: '@drawable/idhara_logo',
-          color: Color(0xFF1B5E8A),
+      await bgPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'high_importance_channel',
+            'High Importance Notifications',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: false,
+            icon: '@drawable/idhara_logo',
+            color: Color(0xFF1B5E8A),
+          ),
         ),
-      ),
-      payload: json.encode(fullData),
-    );
+        payload: json.encode(fullData),
+      );
+    }
   }
 }
 
 Future<void> _requestFCMPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
-  NotificationSettings settings =
-      await messaging.requestPermission(alert: true, badge: true, sound: true);
-  if (settings.authorizationStatus == AuthorizationStatus.denied) {
-  } else {}
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+    provisional: false,
+  );
+  debugPrint('FCM Permission: ${settings.authorizationStatus}');
 }
 
 Future<void> _requestNotificationPermission() async {
@@ -77,7 +86,6 @@ Future<void> _requestNotificationPermission() async {
       if (result.isPermanentlyDenied) {
         openAppSettings();
       }
-      // Removed recursive call that caused infinite loop in release builds
     } else if (status.isPermanentlyDenied) {
       openAppSettings();
     }
@@ -94,8 +102,7 @@ void _handleNotificationTap(String? payload) {
   print("line --->");
   if (payload == null || payload.isEmpty) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.offAllNamed(
-          Routes.dashboard); // Changed: Use offAllNamed to clear stack
+      Get.offAllNamed(Routes.dashboard);
     });
     return;
   }
@@ -152,7 +159,11 @@ Future<void> _setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@drawable/ic_notification');
   const DarwinInitializationSettings initializationSettingsIOS =
-      DarwinInitializationSettings();
+      DarwinInitializationSettings(
+    requestAlertPermission: false, // We handle permission separately
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
   const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings,
@@ -180,7 +191,7 @@ void main() async {
     };
     runApp(const MyWebApp());
   } else {
-    // Load environment variables with error handling
+    // Load environment variables
     try {
       await dotenv.load(fileName: '.env');
       AppEnvironment.setup();
@@ -188,20 +199,58 @@ void main() async {
       debugPrint('Error loading .env file: $e');
     }
 
-    // Initialize SharedPreference BEFORE Firebase to ensure FCM token can be saved
+    // Initialize SharedPreference BEFORE Firebase
     await SharedPreference.init();
 
-    // Initialize Firebase with error handling
     RemoteMessage? initialMessage;
     try {
       await Firebase.initializeApp();
       FirebaseMessaging.onBackgroundMessage(_firebasemessageBackgroundHandler);
+
       initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+
+      // Request FCM permission first
       await _requestFCMPermission();
+
+      // iOS: Must set foreground options BEFORE getting token
+      if (Platform.isIOS) {
+        await FirebaseMessaging.instance
+            .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+
       await _setupLocalNotifications();
       await _requestNotificationPermission();
-      FirebaseMessaging.instance.getToken().then((value) {
-        SharedPreference.setFcmToken(value.toString());
+
+      // iOS: Wait for APNS token before getting FCM token
+      if (Platform.isIOS) {
+        String? apnsToken;
+        for (int i = 0; i < 15; i++) {
+          apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+          if (apnsToken != null) break;
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+        debugPrint('APNS Token: $apnsToken');
+        if (apnsToken == null) {
+          debugPrint('WARNING: APNS token is null - FCM token will also be null');
+        }
+      }
+
+      // Get and store FCM token
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      debugPrint('FCM Token: $fcmToken');
+      if (fcmToken != null) {
+        SharedPreference.setFcmToken(fcmToken);
+      }
+
+      // CRITICAL: Listen for token refresh and update stored token
+      // This fixes "normal send not working" - token changes and server gets stale token
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        debugPrint('FCM Token Refreshed: $newToken');
+        SharedPreference.setFcmToken(newToken);
       });
     } catch (e) {
       debugPrint('Error initializing Firebase: $e');
@@ -215,7 +264,7 @@ void main() async {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light, // iOS
+        statusBarBrightness: Brightness.light,
       ),
     );
 
@@ -229,7 +278,6 @@ class MyApp extends StatefulWidget {
   final RemoteMessage? initialMessage;
   const MyApp({super.key, this.initialMessage});
 
-  // This widget is the root of your application.
   @override
   State<MyApp> createState() => _MyAppState();
 
@@ -255,6 +303,7 @@ class _MyAppState extends State<MyApp> {
       _router.routerDelegate.currentConfiguration.matches
           .map((e) => getRoute(e))
           .toList();
+
   @override
   void initState() {
     super.initState();
@@ -264,15 +313,22 @@ class _MyAppState extends State<MyApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        // Foreground message handler
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
           _showLocalNotification(message);
         });
+
+        // App opened from background via notification
         FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
           _handleInitialMessage(message);
         });
+
+        // App launched from terminated state via notification
         if (widget.initialMessage != null) {
           _handleInitialMessage(widget.initialMessage!);
         }
+
+        // Handle local notification tap (app was terminated)
         final NotificationAppLaunchDetails? details =
             await flutterLocalNotificationsPlugin
                 .getNotificationAppLaunchDetails();
@@ -281,7 +337,7 @@ class _MyAppState extends State<MyApp> {
           _handleNotificationTap(details.notificationResponse!.payload);
         }
       } catch (e) {
-        print("line error --------------> $e");
+        debugPrint("line error --------------> $e");
       }
     });
   }
@@ -295,9 +351,7 @@ class _MyAppState extends State<MyApp> {
 
   void _showLocalNotification(RemoteMessage message) {
     RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
-    if (notification != null && android != null) {
-      // Include title and body in payload for consistency
+    if (notification != null) {
       Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
       fullData['title'] = notification.title ?? '';
       fullData['body'] = notification.body ?? '';
@@ -316,11 +370,16 @@ class _MyAppState extends State<MyApp> {
                 icon: '@drawable/idhara_logo',
                 color: Color(0xFF1B5E8A),
               ),
+              iOS: DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
             ),
             payload: json.encode(fullData),
           )
           .catchError((e) {});
-    } else {}
+    }
   }
 
   void setThemeMode(ThemeMode mode) => safeSetState(() {
