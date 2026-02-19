@@ -111,6 +111,17 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     );
   }
 
+  Widget _legendDot(Color color) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
   List<TimeSegment> buildChartData(List<TimeSegment> rawData) {
     if (rawData.isEmpty) return [];
     final sorted = List<TimeSegment>.from(rawData);
@@ -148,7 +159,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
         children: [
           Container(
             width: double.infinity,
-            height: 280,
+            height: 300,
             decoration: BoxDecoration(
               color: FlutterFlowTheme.of(context).secondaryBackground,
               boxShadow: const [
@@ -232,137 +243,129 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                           )
                         : Padding(
                             padding: const EdgeInsets.only(
-                                left: 5, top: 10, right: 0, bottom: 0),
-                            child: Stack(
-                              children: [
-                                const Positioned(
-                                  top: 50,
-                                  bottom: 60,
-                                  left: 1,
-                                  child: Text(
-                                    'M',
-                                    style: TextStyle(
-                                        color: Colors.green, fontSize: 12),
+                                left: 5, top: 0, right: 0, bottom: 0),
+                            child: SizedBox(
+                              height: 255,
+                              child: Stack(
+                                children: [
+                                  const Positioned(
+                                    top: 50,
+                                    bottom: 60,
+                                    left: 1,
+                                    child: Text(
+                                      'M',
+                                      style: TextStyle(
+                                          color: Colors.green, fontSize: 12),
+                                    ),
                                   ),
-                                ),
-                                const Positioned(
-                                  top: 130,
-                                  bottom: 0,
-                                  left: 1,
-                                  child: Text(
-                                    'P',
-                                    style: TextStyle(
-                                        color: Colors.blue, fontSize: 12),
+                                  const Positioned(
+                                    top: 130,
+                                    bottom: 0,
+                                    left: 1,
+                                    child: Text(
+                                      'P',
+                                      style: TextStyle(
+                                          color: Colors.blue, fontSize: 12),
+                                    ),
                                   ),
-                                ),
-                                Obx(() {
-                                  final motorChartData =
-                                      analyticsController.chartData;
-                                  final powerChartData =
-                                      analyticsController.powerChartData;
-                                  final now = DateTime.now();
-
-                                  final hasRunningStatus = motorChartData.any(
-                                          (seg) =>
-                                              seg.end
-                                                  .difference(now)
-                                                  .abs()
-                                                  .inSeconds <
-                                              5) ||
-                                      powerChartData.any((seg) =>
-                                          seg.end
-                                              .difference(now)
-                                              .abs()
-                                              .inSeconds <
-                                          5);
-
-                                  if (!hasRunningStatus)
-                                    return const SizedBox.shrink();
-
-                                  return Positioned(
-                                    top: 0,
-                                    right: 15,
-                                    child: Container(
-                                      margin:
-                                          const EdgeInsets.only(bottom: 100),
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(left: 7, top: 10),
+                                    child: SizedBox(
+                                      height: 220,
+                                      child: SfCartesianChart(
+                                        zoomPanBehavior: _zoomPanBehavior,
+                                        trackballBehavior: _trackballBehavior,
+                                        primaryXAxis: DateTimeAxis(
+                                          labelStyle:
+                                              const TextStyle(fontSize: 10),
+                                          dateFormat: DateFormat('hh:mm a'),
+                                          minimum: minTime,
+                                          maximum: maxTime,
+                                          interval: 1,
+                                          labelRotation: -45,
+                                          majorGridLines:
+                                              const MajorGridLines(width: 0),
+                                          intervalType:
+                                              DateTimeIntervalType.auto,
+                                          autoScrollingDeltaType:
+                                              DateTimeIntervalType.minutes,
+                                          labelIntersectAction:
+                                              AxisLabelIntersectAction.hide,
+                                          maximumLabels: 10,
+                                          labelAlignment: LabelAlignment.center,
+                                          axisLabelFormatter:
+                                              (AxisLabelRenderDetails args) {
+                                            final date = DateTime
+                                                .fromMillisecondsSinceEpoch(
+                                              args.value.toInt(),
+                                            );
+                                            return ChartAxisLabel(
+                                              DateFormat('hh:mm a')
+                                                  .format(date),
+                                              const TextStyle(fontSize: 10),
+                                            );
+                                          },
+                                        ),
+                                        primaryYAxis: const NumericAxis(
+                                          isVisible: false,
+                                          minimum: 0,
+                                          maximum: 4,
+                                        ),
+                                        series: [
+                                          ..._buildMotorSeries(motorChartData),
+                                          ..._buildPowerSeries(powerChartData),
+                                        ],
+                                        legend: const Legend(
+                                          isVisible: false,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 10,
+                                    left: 0,
+                                    right: 0,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 0),
                                       child: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
-                                          Container(
-                                            width: 12,
-                                            height: 3,
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange,
-                                              borderRadius:
-                                                  BorderRadius.circular(1.5),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          const Text(
-                                            'Running',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
+                                          _legendDot(Colors.orange),
+                                          const SizedBox(width: 4),
+                                          const Text('Running',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black54)),
+                                          const SizedBox(width: 10),
+                                          _legendDot(Colors.green),
+                                          const SizedBox(width: 4),
+                                          const Text('Motor On',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black54)),
+                                          const SizedBox(width: 10),
+                                          const SizedBox(width: 10),
+                                          _legendDot(Colors.blue),
+                                          const SizedBox(width: 4),
+                                          const Text('Power On',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black54)),
+                                          const SizedBox(width: 10),
+                                          _legendDot(Colors.red),
+                                          const SizedBox(width: 4),
+                                          const Text('Off',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.black54)),
                                         ],
                                       ),
                                     ),
-                                  );
-                                }),
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.only(left: 7, top: 10),
-                                  child: SizedBox(
-                                    height: 220,
-                                    child: SfCartesianChart(
-                                      zoomPanBehavior: _zoomPanBehavior,
-                                      trackballBehavior: _trackballBehavior,
-                                      primaryXAxis: DateTimeAxis(
-                                        labelStyle:
-                                            const TextStyle(fontSize: 10),
-                                        dateFormat: DateFormat('hh:mm a'),
-                                        minimum: minTime,
-                                        maximum: maxTime,
-                                        interval: 1,
-                                        labelRotation: -45,
-                                        majorGridLines:
-                                            const MajorGridLines(width: 0),
-                                        intervalType: DateTimeIntervalType.auto,
-                                        autoScrollingDeltaType:
-                                            DateTimeIntervalType.minutes,
-                                        labelIntersectAction:
-                                            AxisLabelIntersectAction.hide,
-                                        maximumLabels: 10,
-                                        labelAlignment: LabelAlignment.center,
-                                        axisLabelFormatter:
-                                            (AxisLabelRenderDetails args) {
-                                          final date = DateTime
-                                              .fromMillisecondsSinceEpoch(
-                                            args.value.toInt(),
-                                          );
-                                          return ChartAxisLabel(
-                                            DateFormat('hh:mm a').format(date),
-                                            const TextStyle(fontSize: 10),
-                                          );
-                                        },
-                                      ),
-                                      primaryYAxis: const NumericAxis(
-                                        isVisible: false,
-                                        minimum: 0,
-                                        maximum: 4,
-                                      ),
-                                      series: [
-                                        ..._buildMotorSeries(motorChartData),
-                                        ..._buildPowerSeries(powerChartData),
-                                      ],
-                                      legend: const Legend(
-                                        isVisible: false,
-                                      ),
-                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
               ],
