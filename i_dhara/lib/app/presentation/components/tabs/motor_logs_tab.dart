@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
 import 'package:i_dhara/app/presentation/components/tabs/widgets/alerts_list_widget.dart';
+import 'package:i_dhara/app/presentation/components/tabs/widgets/all_logs_widget.dart';
 import 'package:i_dhara/app/presentation/components/tabs/widgets/empty_logs_widget.dart';
 import 'package:i_dhara/app/presentation/components/tabs/widgets/faults_list_widget.dart';
 import 'package:i_dhara/app/presentation/components/tabs/widgets/pump_logs_list_widget.dart';
@@ -24,13 +25,17 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
   @override
   void initState() {
     super.initState();
-    selectedFilter = widget.initialFilter ?? 'Faults';
+    selectedFilter = widget.initialFilter ?? 'All';
     logsController.currentFilter.value = selectedFilter!;
     logsController.resetPagination();
     if (selectedFilter == 'Alerts') {
       logsController.fetchMotorAlerts();
-    } else {
+    } else if (selectedFilter == 'Faults') {
       logsController.fetchMotorFaults();
+    } else if (_isPumpFilter(selectedFilter!)) {
+      logsController.fetchMotorLogs(selectedFilter!);
+    } else {
+      logsController.fetchAllLogs();
     }
   }
 
@@ -42,7 +47,8 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
       if (controller.isLoading.value &&
           controller.motorFaultsList.isEmpty &&
           controller.motorAlertsList.isEmpty &&
-          controller.motorLogsList.isEmpty) {
+          controller.motorLogsList.isEmpty &&
+          controller.logsData.isEmpty) {
         return const Padding(
             padding: EdgeInsets.only(bottom: 50, right: 50),
             child: Center(child: AppLottieLoading()));
@@ -59,23 +65,20 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
               children: [
                 SizedBox(
                   height: 36,
-                  child: selectedFilter != null
+                  child: selectedFilter != null && selectedFilter != 'All'
                       ? _buildSelectedFilterInlineChip(
                           _isPumpFilter(selectedFilter!)
                               ? 'Pump: $selectedFilter'
                               : selectedFilter!,
                           _getFilterColor(selectedFilter!),
-                          selectedFilter != 'Faults'
-                              ? () {
-                                  setState(() {
-                                    selectedFilter = 'Faults';
-                                    logsController.currentFilter.value =
-                                        'Faults';
-                                    logsController.resetPagination();
-                                    logsController.fetchMotorFaults();
-                                  });
-                                }
-                              : null,
+                          () {
+                            setState(() {
+                              selectedFilter = 'All';
+                              logsController.currentFilter.value = 'All';
+                              logsController.resetPagination();
+                              logsController.fetchAllLogs();
+                            });
+                          },
                         )
                       : const SizedBox(),
                 ),
@@ -92,10 +95,10 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                   onSelected: (value) {
                     setState(() {
                       if (selectedFilter == value) {
-                        selectedFilter = 'Faults';
-                        logsController.currentFilter.value = 'Faults';
+                        selectedFilter = 'All';
+                        logsController.currentFilter.value = 'All';
                         logsController.resetPagination();
-                        logsController.fetchMotorFaults();
+                        logsController.fetchAllLogs();
                       } else {
                         selectedFilter = value;
                         logsController.currentFilter.value = value;
@@ -180,6 +183,9 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
   }
 
   Widget _buildLogsContent() {
+    if (selectedFilter == null || selectedFilter == 'All') {
+      return AllLogsWidget(logs: logsController.logsData);
+    }
     if (selectedFilter == null || selectedFilter == 'Faults') {
       return FaultsListWidget(faults: logsController.motorFaultsList);
     } else if (selectedFilter == 'Alerts') {
@@ -207,10 +213,10 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
       onSelected: (value) {
         setState(() {
           if (selectedFilter == value) {
-            selectedFilter = 'Faults';
-            logsController.currentFilter.value = 'Faults';
+            selectedFilter = 'All';
+            logsController.currentFilter.value = 'All';
             logsController.resetPagination();
-            logsController.fetchMotorFaults();
+            logsController.fetchAllLogs();
           } else {
             selectedFilter = value;
             logsController.currentFilter.value = value;

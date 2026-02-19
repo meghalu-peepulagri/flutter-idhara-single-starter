@@ -7,6 +7,8 @@ import 'package:i_dhara/app/data/models/motors/motor_logs_model.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repository.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
+import '../../models/motors/all_logs_model.dart';
+
 class MotorsRepositoryImpl implements MotorsRepository {
   @override
   Future<MotorResponse?> getMotors(int? page, int? limit) async {
@@ -47,6 +49,23 @@ class MotorsRepositoryImpl implements MotorsRepository {
         queryParameters: params);
     if (response.statusCode == 200) {
       final res = FaultsResponse.fromJson(response.data);
+      return res;
+    }
+    return null;
+  }
+
+  @override
+  Future<AlllogsResponse?> getAllLogs(int? page, int? limit) async {
+    Map<String, dynamic> params = {
+      'page': page,
+      'page_size': 15,
+      'is_assigned': "true"
+    };
+    final response = await NetworkManager().get(
+        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/logs',
+        queryParameters: params);
+    if (response.statusCode == 200) {
+      final res = AlllogsResponse.fromJson(response.data);
       return res;
     }
     return null;
