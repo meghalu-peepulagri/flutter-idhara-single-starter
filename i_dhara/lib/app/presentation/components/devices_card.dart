@@ -12,7 +12,7 @@ import 'package:i_dhara/app/data/models/devices/motor_model.dart'
     as motor_model;
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
-import 'package:i_dhara/app/presentation/components/testrun_verificaiton_card.dart';
+import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';

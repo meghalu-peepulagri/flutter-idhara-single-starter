@@ -405,9 +405,6 @@ class DashboardController extends GetxController {
         mqttDataCount++;
       }
     }
-
-    print('✓ Total MQTT data entries: $mqttDataCount');
-
     for (var motor in allMotors) {
       if (motor.starter == null) continue;
 

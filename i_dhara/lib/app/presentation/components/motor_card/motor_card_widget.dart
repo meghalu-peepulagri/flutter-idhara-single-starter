@@ -9,9 +9,11 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
-import 'package:i_dhara/app/presentation/components/testrun_verificaiton_card.dart';
+import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
+
+import '../../../core/utils/mqtt_utils.dart';
 
 class MotorCardWidget extends StatefulWidget {
   final Motor motor;
@@ -329,7 +331,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     // Publish verification command (type 5)
     try {
-      final identifier = _getMotorIdentifier();
+      final identifier = getMotorIdentifier(
+          widget.motor.starter!.deviceAllocation.toString(),
+          widget.motor.starter!.pcbNumber.toString(),
+          widget.motor.starter!.macAddress.toString());
       if (identifier.isNotEmpty) {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
@@ -359,15 +364,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             );
           }),
     );
-  }
-
-  String _getMotorIdentifier() {
-    if (widget.motor.starter == null) return '';
-    final mac = widget.motor.starter!.macAddress;
-    final pcb = widget.motor.starter!.pcbNumber;
-    if (mac?.isNotEmpty == true) return mac!;
-    if (pcb?.isNotEmpty == true) return pcb!;
-    return '';
   }
 
   String _getMotorGroupId(String identifier) {

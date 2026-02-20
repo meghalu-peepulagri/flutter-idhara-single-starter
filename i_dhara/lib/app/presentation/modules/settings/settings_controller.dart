@@ -44,14 +44,7 @@ class SettingsController extends GetxController {
   bool mqttInitialized = false;
   var flc = 0.0.obs;
 
-  @override
-  void onInit() {
-    super.onInit();
-    fetchdata();
-    _initConnectivity();
-  }
-
-  void _initConnectivity() async {
+  void initConnectivity() async {
     final connectivityResult = await connectivity.checkConnectivity();
     _updateConnectionStatus(connectivityResult.first);
     connectivity.onConnectivityChanged.listen((results) {
@@ -213,7 +206,6 @@ class SettingsController extends GetxController {
   }
 
   Future<void> fetchdefaultSettings() async {
-    print("line 216 -----------------------?");
     try {
       isLoading.value = true;
       final res = await SettingsRepositoryImpl().getDefaultSettings();
@@ -243,6 +235,19 @@ class SettingsController extends GetxController {
     } finally {
       isLoading.value = false;
       Get.back();
+    }
+  }
+
+  Future<void> fetchupdateSettingsAck() async {
+    try {
+      final response = await SettingsRepositoryImpl().updateSettingsAck();
+      if (response?.status == 200 || response?.status == 201) {
+      } else {
+        errorMessage.value = response?.message ?? 'Failed to update settings';
+      }
+    } catch (e) {
+      errorMessage.value = 'Error updating settings: $e';
+      print('Error updating user settings: $e');
     }
   }
 

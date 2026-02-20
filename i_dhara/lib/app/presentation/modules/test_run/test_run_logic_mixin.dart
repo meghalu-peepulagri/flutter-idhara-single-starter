@@ -16,7 +16,7 @@ import 'package:i_dhara/app/presentation/modules/test_run/test_run_controller.da
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../components/testrun_verificaiton_card.dart';
+import '../../components/testrun_verification_card.dart';
 import 'test_run_page.dart';
 
 mixin TestRunLogicMixin on State<TestRunPage> {

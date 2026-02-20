@@ -66,9 +66,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   @override
   void initState() {
     super.initState();
+    controller.fetchdata();
+    controller.initConnectivity();
     mqttService = MqttService();
-
-    // Assign the stream listener to the subscription variable
+    controller.fetchupdateSettingsAck();
     _mqttStreamSubscription = mqttService.settingstream.listen((data) async {
       final type = data["D"];
       final topic = data["topic"];
@@ -407,7 +408,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _currentCurrentHigh = null;
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
-        print("line 474 pcb ${controller.pcbNumber.value}");
 
         updatedpayload = {
           "dvc_c": {
@@ -473,7 +473,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           }
         }
         var pcbNumber = controller.pcbNumber.value;
-        print("line 474 ----> $pcbNumber");
         onUpdatedSettings2(pcbNumber);
       });
     } catch (e) {

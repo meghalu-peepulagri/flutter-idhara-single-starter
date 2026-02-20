@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
+import '../../core/utils/mqtt_utils.dart';
 import '../../core/utils/snackbars/error_snackbar.dart';
 import '../../data/services/mqtt_manager/mqtt_service.dart';
 import '../modules/dashboard/dashboard_controller.dart';
@@ -236,16 +237,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return (c1 + c2 + c3) / 3;
   }
 
-  String _getMotorIdentifier() {
-    if (widget.motor.starter == null) return '';
-    final mac = widget.motor.starter!.macAddress;
-    final pcb = widget.motor.starter!.pcbNumber;
-    if (pcb?.isNotEmpty == true) return pcb!;
-    if (mac?.isNotEmpty == true) return mac!;
-
-    return '';
-  }
-
   String _getMotorGroupId(String identifier) {
     const allowedGroups = ['G01', 'G02'];
     for (final groupId in allowedGroups) {
@@ -267,7 +258,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     _controller = Get.put(DashboardController());
     widget.mqttService.dataUpdateNotifier.addListener(_checkUpdates);
 
-    final identifier = _getMotorIdentifier();
+    final identifier = getMotorIdentifier(
+        widget.motor.starter!.deviceAllocation.toString(),
+        widget.motor.starter!.pcbNumber.toString(),
+        widget.motor.starter!.macAddress.toString());
     final groupId = identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
     final mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
 
@@ -282,7 +276,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     // Publish immediately at the start
     if (mqttMotorId.isNotEmpty) {
       widget.mqttService
-          .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+          .publishTestRunCommand(mqttMotorId, 1, data: 2, type: 1);
     }
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -293,19 +287,17 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
         if (mqttMotorId.isNotEmpty && _remainingSeconds % 10 == 0) {
           widget.mqttService
-              .publishTestRunCommand(mqttMotorId, 1, data: 2, type: 1);
-          widget.mqttService
               .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
         }
       } else {
         timer.cancel();
         widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
-
         final sum =
             _flcData.isNotEmpty ? _flcData.reduce((a, b) => a + b) : 0.0;
         final average = _flcData.isNotEmpty ? sum / _flcData.length : 0.0;
         _overalCurrent.value = average;
-
+        widget.mqttService
+            .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1);
         setState(() {
           _phase = _TestRunPhase.completed;
         });
@@ -334,7 +326,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   void _emergencyStop() {
-    print("line 338 $_flcData");
     _isSubDialogOpen = true;
     showDialog(
       context: context,
@@ -355,7 +346,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     _timer?.cancel();
     widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
 
-    final identifier = _getMotorIdentifier();
+    final identifier = getMotorIdentifier(
+        widget.motor.starter!.deviceAllocation.toString(),
+        widget.motor.starter!.pcbNumber.toString(),
+        widget.motor.starter!.macAddress.toString());
     final groupId = identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
     final mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
 
@@ -390,7 +384,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     });
 
     try {
-      final identifier = _getMotorIdentifier();
+      final identifier = getMotorIdentifier(
+          widget.motor.starter!.deviceAllocation.toString(),
+          widget.motor.starter!.pcbNumber.toString(),
+          widget.motor.starter!.macAddress.toString());
       if (identifier.isNotEmpty && _controller != null) {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
@@ -467,8 +464,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               });
             }
             _controller?.completeTestRun(widget.motor.id!);
-
-            // Auto-navigate after showing success for 2 seconds
             Future.delayed(const Duration(seconds: 2), () {
               if (mounted) {
                 if (widget.route == Routes.dashboard) {
@@ -515,7 +510,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   void _onCancel() {
-    print("line 514 -----> $_flcData");
     _isSubDialogOpen = true;
     showDialog(
       context: context,
@@ -528,7 +522,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         confirmColor: const Color(0xFFDC2626),
         icon: Icons.cancel_outlined,
         onConfirm: () {
-          final identifier = _getMotorIdentifier();
+          final identifier = getMotorIdentifier(
+              widget.motor.starter!.deviceAllocation.toString(),
+              widget.motor.starter!.pcbNumber.toString(),
+              widget.motor.starter!.macAddress.toString());
           final groupId =
               identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
           final mqttMotorId =
@@ -553,8 +550,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print("line 450 ----> ${widget.motor.id!}  ${widget.motor.testrunStatus}");
-
     if (_isOffline) {
       return _buildNoInternetWidget();
     }
