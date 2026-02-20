@@ -33,6 +33,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       Get.put(SettingsController(), permanent: true);
   final scaffoldKey = GlobalKey<ScaffoldState>();
   Map<String, dynamic> updatedpayload = {};
+  Map<String, dynamic> defaultupdatedpayload = {};
 
   late MqttService mqttService;
   MotorData? motorData;
@@ -406,6 +407,18 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _currentCurrentHigh = null;
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
+        print("line 474 pcb ${controller.pcbNumber.value}");
+
+        updatedpayload = {
+          "dvc_c": {
+            "lvf": controller.lvf.value.toDouble(),
+            "hvf": controller.hvf.value.toDouble(),
+            "drf": controller.drf.value.toDouble(),
+            "olf": controller.olf.value.toDouble(),
+          },
+        };
+
+        updatesDefault();
 
         // Enable Save button
         setState(() {
@@ -413,6 +426,76 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         });
       },
     );
+  }
+
+  void updatesDefault() {
+    final Map<String, dynamic> dvcMap = updatedpayload["dvc_c"] ?? {};
+    print("line 432 $dvcMap");
+    try {
+      setState(() {
+        bool vmin = dvcMap.containsKey("lvf");
+        bool vmax = dvcMap.containsKey("hvf");
+        bool cmin = dvcMap.containsKey("drf");
+        bool cmax = dvcMap.containsKey("olf");
+        if (vmin) {
+          try {
+            if (dvcMap['lvf'] > controller.payload['dvc_c']['lvf'] ||
+                dvcMap['lvf'] < controller.payload['dvc_c']['lvf']) {
+              updatedpayload["dvc_c"]['lvr'] = dvcMap['lvf'] + 10;
+              controller.lvr.value = dvcMap['lvf'] + 10;
+            }
+          } catch (e) {
+            print("error line 818 $e");
+          }
+        }
+        if (vmax) {
+          try {
+            if (dvcMap['hvf'] > controller.payload['dvc_c']['hvf']) {
+              updatedpayload["dvc_c"]['hvr'] = dvcMap['hvf'] - 10;
+              controller.hvr.value = dvcMap['hvf'] - 10;
+            }
+          } catch (e) {
+            print("error line 844 $e");
+          }
+        }
+        if (cmin || cmax) {
+          final calculatedLrf = controller.calculatedFlc(
+              controller.lrf.value, controller.flc.value);
+          final calculatedOlf = controller.calculatedFlc(
+              controller.olr.value, controller.flc.value);
+          final calculatedLRR = controller.calculatedFlc(
+              controller.lrr.value, controller.flc.value);
+          updatedpayload["dvc_c"]['lrf'] = calculatedLrf;
+          updatedpayload['dvc_c']['olr'] = calculatedOlf;
+          updatedpayload['dvc_c']['lrr'] = calculatedLRR;
+          if (controller.flc.value != controller.orignolFlc.value) {
+            updatedpayload['dvc_c']['flc'] = controller.flc.value;
+          }
+        }
+        var pcbNumber = controller.pcbNumber.value;
+        print("line 474 ----> $pcbNumber");
+        onUpdatedSettings2(pcbNumber);
+      });
+    } catch (e) {
+      print("line 480  $e");
+    }
+  }
+
+  onUpdatedSettings2(String pcbNumber) async {
+    isSnackbarShown = false;
+    _hasPendingSave = true;
+    await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
+    await controller.fetchupdateSettings();
+    Future.delayed(const Duration(seconds: 15), () {
+      final errorMessage = mqttService.commandStatusNotifier.value;
+      if (errorMessage != null && !isSnackbarShown) {
+        isSnackbarShown = true;
+        geterrorSnackBar(errorMessage);
+        setState(() {
+          isbuttonActive = false;
+        });
+      }
+    });
   }
 
   @override

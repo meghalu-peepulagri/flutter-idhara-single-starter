@@ -135,8 +135,6 @@ class DashboardController extends GetxController {
     }
   }
 
-  /// Build motor map - creates entries for ALL groups (G01-G04) for each identifier
-  /// This ensures any MQTT data on any group can be matched to the motor
   Map<String, Motor> _buildMotorMap(List<Motor> motorsList) {
     final motorMap = <String, Motor>{};
     _motorIdToGroupId.clear();
@@ -365,9 +363,11 @@ class DashboardController extends GetxController {
     try {
       final response =
           await MotorsRepositoryImpl().getMotors(page.value, limit.value);
+      print("line 365 --> $response");
 
       if (response != null && response.data != null) {
         this.response = response.data;
+
         allMotors.value = response.data!.records ?? [];
         motors.value = allMotors;
 

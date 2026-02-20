@@ -32,12 +32,10 @@ class MotorCardWidget extends StatefulWidget {
 class _MotorCardWidgetState extends State<MotorCardWidget> {
   late ValueNotifier<bool> _localSwitchController;
   late ValueNotifier<int> _localModeController;
-  // bool _isInitialized = false; // Not strictly used in snippet
   bool _hasPendingSwitchCommand = false;
   bool _hasPendingModeCommand = false;
   bool? _pendingSwitchValue;
   int? _pendingModeValue;
-  // bool _isUpdatingFromMqtt = false;
   bool _isWaitingForSwitchAck = false;
   bool _isWaitingForModeAck = false;
 
@@ -509,9 +507,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _isNewDeviceWithoutAck(motorData)
-                      ? _navigateToTestRun
-                      : _navigateToDetails,
+                  onTap: _navigateToDetails,
                   child: AbsorbPointer(
                     child: Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -519,7 +515,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                       child: VoltageCurrentValuesCard(
                         motor: widget.motor,
                         mqttService: widget.mqttService,
-                        isTestRunRequired: _isNewDeviceWithoutAck(motorData),
+                        isTestRunRequired: false,
                       ),
                     ),
                   ),
@@ -539,12 +535,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   isModeDisabled: isTestRunBlocked ||
                       _isWaitingForModeAck ||
                       !canChangeMode,
-                  onNavigateToDetails: _isNewDeviceWithoutAck(motorData)
-                      ? _navigateToTestRun
-                      : _navigateToDetails,
+                  onNavigateToDetails: _navigateToDetails,
                   onTestRunTap: _navigateToTestRun,
-                  showTestRun: _isNewDeviceWithoutAck(motorData),
-                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
+                  showTestRun: false,
+                  isTestRunRequired: false,
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),

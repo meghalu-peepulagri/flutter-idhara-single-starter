@@ -179,6 +179,8 @@ class Starter {
   int? power;
   String? networkType;
   String? starterNumber;
+  String? deviceAllocation;
+
   List<StarterParameter>? starterParameters;
 
   Starter(
@@ -191,6 +193,7 @@ class Starter {
       this.power,
       this.networkType,
       this.starterParameters,
+      this.deviceAllocation,
       this.starterNumber});
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
@@ -202,6 +205,7 @@ class Starter {
         starterNumber: json["starter_number"],
         signalQuality: json["signal_quality"],
         power: json["power"],
+        deviceAllocation: json["device_allocation"],
         networkType: json["network_type"],
         starterParameters: json["starterParameters"] == null
             ? []
@@ -219,6 +223,7 @@ class Starter {
         "signal_quality": signalQuality,
         "power": power,
         "network_type": networkType,
+        "device_allocation": deviceAllocation,
         "starterParameters": starterParameters == null
             ? []
             : List<dynamic>.from(starterParameters!.map((x) => x.toJson())),

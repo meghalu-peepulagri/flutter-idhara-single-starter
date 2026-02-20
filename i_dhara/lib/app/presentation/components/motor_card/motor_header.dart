@@ -57,7 +57,7 @@ class MotorHeader extends StatelessWidget {
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: showTestRun && onTestRun != null ? onTestRun : onTap,
+              onTap: onTap,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

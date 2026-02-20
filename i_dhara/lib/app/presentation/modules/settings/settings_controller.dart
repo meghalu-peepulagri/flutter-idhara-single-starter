@@ -135,6 +135,7 @@ class SettingsController extends GetxController {
         pumpName.value = motorName();
         pumpHP.value = motorHP();
         pcbNumber.value = pcbnumberPass(response.data?.starter);
+
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
@@ -212,12 +213,12 @@ class SettingsController extends GetxController {
   }
 
   Future<void> fetchdefaultSettings() async {
+    print("line 216 -----------------------?");
     try {
       isLoading.value = true;
       final res = await SettingsRepositoryImpl().getDefaultSettings();
       if (res?.status == 200 || res?.status == 201) {
         userSettings2.value = res?.data;
-        pcbNumber.value = pcbnumberPass(res?.data?.starter);
         macAddress.value = res?.data?.starter?.macAddress ?? '';
         lvf.value = userSettings2.value?.lvf ?? 0;
         hvf.value = userSettings2.value?.hvf ?? 0;
