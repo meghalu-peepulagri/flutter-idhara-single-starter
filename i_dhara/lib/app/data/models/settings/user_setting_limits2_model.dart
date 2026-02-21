@@ -341,8 +341,9 @@ class UserSettings2 {
         updatedAt: json["updated_at"] == null
             ? null
             : DateTime.parse(json["updated_at"]),
-        starter:
-            json["starter"] == null ? null : SettingStarter.fromJson(json["starter"]),
+        starter: json["starter"] == null
+            ? null
+            : SettingStarter.fromJson(json["starter"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -451,24 +452,28 @@ class SettingStarter {
   dynamic name;
   String? pcbNumber;
   String? macAddress;
+  String? deviceAllocation;
+
   List<SettingMotor>? motors;
 
-  SettingStarter({
-    this.id,
-    this.name,
-    this.pcbNumber,
-    this.macAddress,
-    this.motors,
-  });
+  SettingStarter(
+      {this.id,
+      this.name,
+      this.pcbNumber,
+      this.macAddress,
+      this.motors,
+      this.deviceAllocation});
 
   factory SettingStarter.fromJson(Map<String, dynamic> json) => SettingStarter(
         id: json["id"],
         name: json["name"],
         pcbNumber: json["pcb_number"],
         macAddress: json["mac_address"],
+        deviceAllocation: json["device_allocation"],
         motors: json["motors"] == null
             ? []
-            : List<SettingMotor>.from(json["motors"]!.map((x) => SettingMotor.fromJson(x))),
+            : List<SettingMotor>.from(
+                json["motors"]!.map((x) => SettingMotor.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
@@ -476,6 +481,7 @@ class SettingStarter {
         "name": name,
         "pcb_number": pcbNumber,
         "mac_address": macAddress,
+        "device_allocation": deviceAllocation,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),

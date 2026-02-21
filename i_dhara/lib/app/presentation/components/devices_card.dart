@@ -17,6 +17,8 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
+import '../../core/utils/mqtt_utils.dart';
+
 class DevicesCard extends StatelessWidget {
   final Devices device;
   final MqttService mqttService;
@@ -178,9 +180,10 @@ class DevicesCard extends StatelessWidget {
             )
           : null,
       starter: motor_model.Starter(
+        deviceAllocation: device.deviceAllocation,
         id: device.id,
         name: device.name,
-        macAddress: device.starterNumber,
+        macAddress: device.macAddress,
         pcbNumber: device.pcbNumber,
         signalQuality: device.signalQuality,
         power: device.power,
@@ -201,8 +204,16 @@ class DevicesCard extends StatelessWidget {
     final avgflc = ValueNotifier<double>(0.0);
 
     // Publish verification command (type 5)
+
+    final deviceallow = motorModelMotor.starter!.deviceAllocation.toString();
+    final pcb = motorModelMotor.starter?.pcbNumber.toString();
+    final mac = motorModelMotor.starter?.macAddress.toString();
+
+    print("line 8 $pcb $mac $deviceallow");
+
     try {
-      final identifier = _getMotorIdentifier(motorModelMotor);
+      final identifier = getMotorIdentifier(
+          deviceallow.toString(), pcb.toString(), mac.toString());
       if (identifier.isNotEmpty) {
         final groupId = _getMotorGroupId(mqttService, identifier);
         final mqttMotorId = '$identifier-$groupId';
@@ -234,15 +245,6 @@ class DevicesCard extends StatelessWidget {
             );
           }),
     );
-  }
-
-  String _getMotorIdentifier(motor_model.Motor motor) {
-    if (motor.starter == null) return '';
-    final mac = motor.starter!.macAddress;
-    final pcb = motor.starter!.pcbNumber;
-    if (pcb?.isNotEmpty == true) return pcb!;
-
-    return '';
   }
 
   String _getMotorGroupId(MqttService mqttService, String identifier) {

@@ -391,11 +391,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       if (identifier.isNotEmpty && _controller != null) {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
-        await widget.mqttService
-            .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1);
-
         await _controller!.fetchUserSettings2();
-
         final avgFlc = _overalCurrent.value;
         final OLR1 = _calculatedFlc(_controller!.olr.value, avgFlc);
         final LRF2 = _calculatedFlc(_controller!.lrf.value, avgFlc);
@@ -415,7 +411,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           },
         };
         _controller!.flc.value = flc;
-        await widget.mqttService.publishTestRunCommand(mqttMotorId, 1, data: 0);
         await widget.mqttService
             .publishUpdateSettings(_controller!.pcbNumber.value, payload);
         await _controller?.fetchupdateSettings();

@@ -50,6 +50,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   // StreamSubscription to properly manage the MQTT stream listener
   StreamSubscription? _mqttStreamSubscription;
+  Timer? _settingsAckTimer;
 
   // New: Track current values to compare with initial
   double? _currentVoltageLow;
@@ -63,6 +64,23 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   int? _originalCurrentLow;
   int? _originalCurrentHigh;
 
+  void _startAckTimer() {
+    _settingsAckTimer?.cancel();
+    _settingsAckTimer = Timer(const Duration(seconds: 11), _onAckTimeout);
+  }
+
+  void _onAckTimeout() {
+    if (!mounted || !_hasPendingSave) return;
+    _hasPendingSave = false;
+    if (!isSnackbarShown) {
+      isSnackbarShown = true;
+      geterrorSnackBar('No acknowledgment received from device');
+    }
+    // setState(() {
+    //   isbuttonActive = false;
+    // });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,23 +92,19 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       final type = data["D"];
       final topic = data["topic"];
       final pcbNumber = controller.pcbNumber.value;
-      final macAddress = controller.macAddress.value;
 
       // Only process if topic matches this device
-      if (topic != pcbNumber && topic != macAddress) return;
+      if (topic != pcbNumber) return;
 
       if (type == 1 && !_ackInProgress && _hasPendingSave) {
-        // ACK = 1: Success
+        _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
         isSnackbarShown = true;
-
         getsuccessSnackBar("Settings updated successfully");
-
         controller.isLoading.value = true;
-        await controller.fetchUserSettings2();
+        controller.fetchupdateSettingsAck();
         controller.isLoading.value = false;
-
         // Reset original values after successful save
         _originalVoltageLow = null;
         _originalVoltageHigh = null;
@@ -107,6 +121,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         });
       } else if (type == 0 && !_ackInProgress && _hasPendingSave) {
         // ACK = 0: Update failed
+        _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
         isSnackbarShown = true;
@@ -149,7 +164,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   @override
   void dispose() {
-    // Cancel the MQTT stream subscription to prevent memory leaks
+    _settingsAckTimer?.cancel();
     _mqttStreamSubscription?.cancel();
     super.dispose();
   }
@@ -352,17 +367,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                   await mqttService.publishUpdateSettings(
                       pcbNumber, updatedpayload);
                   await controller.fetchupdateSettings();
-                  Future.delayed(const Duration(seconds: 15), () {
-                    final errorMessage =
-                        mqttService.commandStatusNotifier.value;
-                    if (errorMessage != null && !isSnackbarShown) {
-                      isSnackbarShown = true;
-                      geterrorSnackBar(errorMessage);
-                      setState(() {
-                        isbuttonActive = false;
-                      });
-                    }
-                  });
+                  _startAckTimer();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -409,16 +414,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
 
-        updatedpayload = {
-          "dvc_c": {
-            "lvf": controller.lvf.value.toDouble(),
-            "hvf": controller.hvf.value.toDouble(),
-            "drf": controller.drf.value.toDouble(),
-            "olf": controller.olf.value.toDouble(),
-          },
-        };
-
-        updatesDefault();
+        try {
+          setState(() {
+            var pcbNumber = controller.pcbNumber.value;
+            onUpdatedSettings2(pcbNumber);
+          });
+        } catch (e) {
+          print("line 480  $e");
+        }
 
         // Enable Save button
         setState(() {
@@ -428,72 +431,16 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     );
   }
 
-  void updatesDefault() {
-    final Map<String, dynamic> dvcMap = updatedpayload["dvc_c"] ?? {};
-    print("line 432 $dvcMap");
-    try {
-      setState(() {
-        bool vmin = dvcMap.containsKey("lvf");
-        bool vmax = dvcMap.containsKey("hvf");
-        bool cmin = dvcMap.containsKey("drf");
-        bool cmax = dvcMap.containsKey("olf");
-        if (vmin) {
-          try {
-            if (dvcMap['lvf'] > controller.payload['dvc_c']['lvf'] ||
-                dvcMap['lvf'] < controller.payload['dvc_c']['lvf']) {
-              updatedpayload["dvc_c"]['lvr'] = dvcMap['lvf'] + 10;
-              controller.lvr.value = dvcMap['lvf'] + 10;
-            }
-          } catch (e) {
-            print("error line 818 $e");
-          }
-        }
-        if (vmax) {
-          try {
-            if (dvcMap['hvf'] > controller.payload['dvc_c']['hvf']) {
-              updatedpayload["dvc_c"]['hvr'] = dvcMap['hvf'] - 10;
-              controller.hvr.value = dvcMap['hvf'] - 10;
-            }
-          } catch (e) {
-            print("error line 844 $e");
-          }
-        }
-        if (cmin || cmax) {
-          final calculatedLrf = controller.calculatedFlc(
-              controller.lrf.value, controller.flc.value);
-          final calculatedOlf = controller.calculatedFlc(
-              controller.olr.value, controller.flc.value);
-          final calculatedLRR = controller.calculatedFlc(
-              controller.lrr.value, controller.flc.value);
-          updatedpayload["dvc_c"]['lrf'] = calculatedLrf;
-          updatedpayload['dvc_c']['olr'] = calculatedOlf;
-          updatedpayload['dvc_c']['lrr'] = calculatedLRR;
-          if (controller.flc.value != controller.orignolFlc.value) {
-            updatedpayload['dvc_c']['flc'] = controller.flc.value;
-          }
-        }
-        var pcbNumber = controller.pcbNumber.value;
-        onUpdatedSettings2(pcbNumber);
-      });
-    } catch (e) {
-      print("line 480  $e");
-    }
-  }
-
   onUpdatedSettings2(String pcbNumber) async {
     isSnackbarShown = false;
     _hasPendingSave = true;
-    await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
-    await controller.fetchupdateSettings();
-    Future.delayed(const Duration(seconds: 15), () {
-      final errorMessage = mqttService.commandStatusNotifier.value;
-      if (errorMessage != null && !isSnackbarShown) {
-        isSnackbarShown = true;
-        geterrorSnackBar(errorMessage);
-        setState(() {
-          isbuttonActive = false;
-        });
-      }
+    await mqttService.publishUpdateSettings(
+        pcbNumber, controller.defaultSettingspayload);
+    await controller.fetchDefaultupdateSettings();
+    _startAckTimer();
+
+    setState(() {
+      isbuttonActive = false;
     });
   }
 

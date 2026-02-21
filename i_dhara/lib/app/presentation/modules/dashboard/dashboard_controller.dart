@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
@@ -114,25 +115,6 @@ class DashboardController extends GetxController {
       // mqttService.dispose();
     }
     super.onClose();
-  }
-
-  String pcbnumberPass(SettingStarter? starter) {
-    try {
-      if (starter != null) {
-        if (starter.pcbNumber != null) {
-          return starter.pcbNumber.toString();
-        } else if (starter.macAddress != null) {
-          return starter.macAddress.toString();
-        } else {
-          return '';
-        }
-      } else {
-        return '0';
-      }
-    } catch (e) {
-      print("error ---> $e");
-      return '';
-    }
   }
 
   Map<String, Motor> _buildMotorMap(List<Motor> motorsList) {
@@ -292,7 +274,12 @@ class DashboardController extends GetxController {
           response.success == true &&
           response.data != null) {
         userSettings2.value = response.data;
-        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        final deviceallow = userSettings2.value?.starter?.deviceAllocation;
+        final pcb = userSettings2.value?.starter?.pcbNumber;
+        final mac = userSettings2.value?.starter?.macAddress;
+
+        pcbNumber.value = getMotorIdentifier(
+            deviceallow.toString(), pcb.toString(), mac.toString());
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         drf.value = userSettings2.value?.drf?.toDouble() ?? 0;

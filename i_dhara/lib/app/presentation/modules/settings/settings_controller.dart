@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
 
+import '../../../core/utils/mqtt_utils.dart';
 import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 
@@ -14,6 +15,7 @@ class SettingsController extends GetxController {
 
   // ✅ Typed reactive map
   final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
+  Map<String, dynamic> defaultSettingspayload = {};
 
   var lvf = 0.obs;
   var hvf = 0.obs;
@@ -54,25 +56,6 @@ class SettingsController extends GetxController {
 
   void _updateConnectionStatus(ConnectivityResult result) {
     hasInternet.value = result != ConnectivityResult.none;
-  }
-
-  String pcbnumberPass(SettingStarter? starter) {
-    try {
-      if (starter != null) {
-        if (starter.pcbNumber != null) {
-          return starter.pcbNumber.toString();
-        } else if (starter.macAddress != null) {
-          return starter.macAddress.toString();
-        } else {
-          return '';
-        }
-      } else {
-        return '0';
-      }
-    } catch (e) {
-      print("error ---> $e");
-      return '';
-    }
   }
 
   Future<void> fetchdata() async {
@@ -118,6 +101,8 @@ class SettingsController extends GetxController {
   }
 
   Future<void> fetchUserSettings2() async {
+    print("line 103");
+
     try {
       // errorMessage.value = '';
       final response = await SettingsRepositoryImpl().getSettings2();
@@ -125,9 +110,15 @@ class SettingsController extends GetxController {
           response.success == true &&
           response.data != null) {
         userSettings2.value = response.data;
+
+        final deviceallocate = userSettings2.value?.starter?.deviceAllocation;
+        final pcb = userSettings2.value?.starter?.pcbNumber;
+        final mac = userSettings2.value?.starter?.macAddress;
+
         pumpName.value = motorName();
         pumpHP.value = motorHP();
-        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        pcbNumber.value = getMotorIdentifier(
+            deviceallocate ?? 'true', pcb.toString(), mac.toString());
 
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
@@ -182,6 +173,21 @@ class SettingsController extends GetxController {
     }
   }
 
+  Future<void> fetchDefaultupdateSettings() async {
+    try {
+      UserUpdateSettingsDto dto =
+          UserUpdateSettingsDto.fromJson(updateSettingDto);
+      final response = await SettingsRepositoryImpl().updateSettings(dto);
+      if (response?.status == 200 || response?.status == 201) {
+      } else {
+        errorMessage.value = response?.message ?? 'Failed to update settings';
+      }
+    } catch (e) {
+      errorMessage.value = 'Error updating settings: $e';
+      print('Error updating user settings: $e');
+    }
+  }
+
   Future<void> fetchupdateSettings() async {
     try {
       updateSettingDto['lvf'] = lvf.value;
@@ -216,14 +222,38 @@ class SettingsController extends GetxController {
         hvf.value = userSettings2.value?.hvf ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+        final data = userSettings2.value;
+        final hvr = (data?.hvf?.toDouble() ?? 0) - 10;
+        final lvr = (data?.lvf?.toDouble() ?? 0) + 10;
 
-        payload = {
+        defaultSettingspayload = {
           "dvc_c": {
-            "lvf": lvf.value,
-            "hvf": hvf.value,
-            "drf": drf.value,
-            "olf": olf.value,
-          },
+            "allflt_en": data?.allfltEn ?? 0,
+            "flc": data?.flc ?? 0,
+            "as_dly": data?.asDly,
+            "ipf": data?.ipf ?? 0,
+            "lvf": data?.lvf ?? 0,
+            "hvf": data?.hvf ?? 0,
+            "vif": data?.vif ?? 0,
+            "paminf": data?.paminf ?? 0,
+            "pamaxf": data?.pamaxf ?? 0,
+            "lvr": lvr ?? 0.0,
+            "hvr": hvr ?? 0.0,
+            "drf": calculatedFlc(
+                data?.drf?.toDouble() ?? 0, data!.flc!.toDouble()),
+            "olf":
+                calculatedFlc(data.olf?.toDouble() ?? 0, data.flc!.toDouble()),
+            "lrf":
+                calculatedFlc(data.lrf?.toDouble() ?? 0, data.flc!.toDouble()),
+            "opf": data.opf ?? 0,
+            "cif": data.cir ?? 0,
+            "olr":
+                calculatedFlc(data.olr?.toDouble() ?? 0, data.flc!.toDouble()),
+            "lrr":
+                calculatedFlc(data.lrr?.toDouble() ?? 0, data.flc!.toDouble()),
+            "cir": data.cir ?? 0,
+            "pr_flt_en": data.prFltEn ?? 0
+          }
         };
 
         updateSettingDto.assignAll(res!.data!.toJson());
@@ -239,15 +269,20 @@ class SettingsController extends GetxController {
   }
 
   Future<void> fetchupdateSettingsAck() async {
+    print("line 230");
     try {
-      final response = await SettingsRepositoryImpl().updateSettingsAck();
-      if (response?.status == 200 || response?.status == 201) {
-      } else {
-        errorMessage.value = response?.message ?? 'Failed to update settings';
+      try {
+        final response = await SettingsRepositoryImpl().updateSettingsAck();
+        if (response?.status == 200 || response?.status == 201) {
+        } else {
+          errorMessage.value = response?.message ?? 'Failed to update settings';
+        }
+      } catch (e) {
+        errorMessage.value = 'Error updating settings: $e';
+        print('Error updating user settings: $e');
       }
-    } catch (e) {
-      errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
+    } finally {
+      await fetchUserSettings2();
     }
   }
 

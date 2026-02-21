@@ -202,21 +202,26 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   String _getMotorId() {
     if (widget.motor.starter == null) return '';
+    final mac = widget.motor.starter!.macAddress;
+    final pcb = widget.motor.starter!.pcbNumber;
+    final deviceallow = widget.motor.starter?.deviceAllocation;
+    final publishedNumber = getMotorIdentifier(
+        deviceallow.toString(), pcb.toString(), mac.toString());
+
+    if (widget.motor.starter == null) return '';
     final motorData = _getMotorData();
 
     if (motorData?.groupId != null) {
       if (motorData!.macAddress?.isNotEmpty == true) {
-        return '${motorData.macAddress}-${motorData.groupId}';
+        return '$publishedNumber-${motorData.groupId}';
       }
       if (motorData.pcbNumber?.isNotEmpty == true) {
-        return '${motorData.pcbNumber}-${motorData.groupId}';
+        return '$publishedNumber-${motorData.groupId}';
       }
     }
 
-    final mac = widget.motor.starter!.macAddress;
-    final pcb = widget.motor.starter!.pcbNumber;
-    if (mac?.isNotEmpty == true) return '$mac-G01';
-    if (pcb?.isNotEmpty == true) return '$pcb-G01';
+    if (mac?.isNotEmpty == true) return '$publishedNumber-G01';
+    if (pcb?.isNotEmpty == true) return '$publishedNumber-G01';
     return '';
   }
 
@@ -245,6 +250,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     try {
       await widget.mqttService.publishMotorCommand(motorId, newValue ? 1 : 0);
     } catch (e) {
+      print("line 238 error $e");
       _switchAckTimer?.cancel();
       _localSwitchController.value = !newValue;
       _hasPendingSwitchCommand = false;

@@ -171,7 +171,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       if (!motorData.isSignalStale()) {
         signalQuality.value = motorData.signalStrength;
         if (kDebugMode) {
-          print('Signal Quality updated to ${motorData.signalStrength} (bars=${motorData.signalBars})');
+          print(
+              'Signal Quality updated to ${motorData.signalStrength} (bars=${motorData.signalBars})');
         }
       }
     } else {
@@ -220,30 +221,24 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     if (motorDetails.value?.starter == null) return '';
 
     final motorData = getMotorData();
+    final mac = motorDetails.value!.starter!.macAddress;
+    final pcb = motorDetails.value!.starter!.pcbNumber;
+    final publishedNumber = getMotorIdentifier(
+        motorDetails.value!.starter!.deviceAllocation.toString(),
+        pcb.toString(),
+        mac.toString());
 
     if (motorData != null && motorData.groupId != null) {
-      if (motorData.macAddress != null && motorData.macAddress!.isNotEmpty) {
-        final motorId = '${motorData.macAddress}-${motorData.groupId}';
+      if (motorData.macAddress != null && publishedNumber.isNotEmpty) {
+        final motorId = '$publishedNumber-${motorData.groupId}';
         if (kDebugMode) print('Using active MAC motor ID: $motorId');
-        return motorId;
-      } else if (motorData.pcbNumber != null &&
-          motorData.pcbNumber!.isNotEmpty) {
-        final motorId = '${motorData.pcbNumber}-${motorData.groupId}';
-        if (kDebugMode) print('Using active PCB motor ID: $motorId');
         return motorId;
       }
     }
 
-    final mac = motorDetails.value!.starter!.macAddress;
-    final pcb = motorDetails.value!.starter!.pcbNumber;
-
-    if (mac != null && mac.isNotEmpty) {
-      final motorId = '$mac-G01';
+    if (publishedNumber.isNotEmpty) {
+      final motorId = '$publishedNumber-G01';
       if (kDebugMode) print('fallback MAC motor ID: $motorId');
-      return motorId;
-    } else if (pcb != null && pcb.isNotEmpty) {
-      final motorId = '$pcb-G01';
-      if (kDebugMode) print('fallback PCB motor ID: $motorId');
       return motorId;
     }
 

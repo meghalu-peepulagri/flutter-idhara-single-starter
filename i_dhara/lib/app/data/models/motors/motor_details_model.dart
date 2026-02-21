@@ -120,20 +120,22 @@ class Starter {
   int? signalQuality;
   int? power;
   String? networkType;
+  String? deviceAllocation;
+
   List<StarterParameter>? starterParameters;
 
-  Starter({
-    this.id,
-    this.name,
-    this.status,
-    this.pcbNumber,
-    this.macAddress,
-    this.starterNumber,
-    this.signalQuality,
-    this.power,
-    this.networkType,
-    this.starterParameters,
-  });
+  Starter(
+      {this.id,
+      this.name,
+      this.status,
+      this.pcbNumber,
+      this.macAddress,
+      this.starterNumber,
+      this.signalQuality,
+      this.power,
+      this.networkType,
+      this.starterParameters,
+      this.deviceAllocation});
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
         id: json["id"],
@@ -145,6 +147,7 @@ class Starter {
         signalQuality: json["signal_quality"],
         power: json["power"],
         networkType: json["network_type"],
+        deviceAllocation: json["device_allocation"],
         starterParameters: json["starterParameters"] == null
             ? []
             : List<StarterParameter>.from(json["starterParameters"]!
@@ -161,6 +164,7 @@ class Starter {
         "signal_quality": signalQuality,
         "power": power,
         "network_type": networkType,
+        "device_allocation": deviceAllocation,
         "starterParameters": starterParameters == null
             ? []
             : List<dynamic>.from(starterParameters!.map((x) => x.toJson())),

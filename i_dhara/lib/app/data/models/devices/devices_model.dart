@@ -106,31 +106,36 @@ class Devices {
   int? id;
   String? name;
   String? pcbNumber;
+  String? macAddress;
   String? starterNumber;
   int? power;
   int? signalQuality;
   String? networkType;
+  String? deviceAllocation;
   List<Motor>? motors;
 
-  Devices({
-    this.id,
-    this.name,
-    this.pcbNumber,
-    this.starterNumber,
-    this.power,
-    this.signalQuality,
-    this.networkType,
-    this.motors,
-  });
+  Devices(
+      {this.id,
+      this.name,
+      this.pcbNumber,
+      this.macAddress,
+      this.starterNumber,
+      this.power,
+      this.signalQuality,
+      this.networkType,
+      this.motors,
+      this.deviceAllocation});
 
   factory Devices.fromJson(Map<String, dynamic> json) => Devices(
         id: json["id"],
         name: json["name"],
         pcbNumber: json["pcb_number"],
+        macAddress: json["mac_address"],
         starterNumber: json["starter_number"],
         power: json["power"],
         signalQuality: json["signal_quality"],
         networkType: json["network_type"],
+        deviceAllocation: json["device_allocation"],
         motors: json["motors"] == null
             ? []
             : List<Motor>.from(json["motors"]!.map((x) => Motor.fromJson(x))),
@@ -140,10 +145,12 @@ class Devices {
         "id": id,
         "name": name,
         "pcb_number": pcbNumber,
+        "mac_address": macAddress,
         "starter_number": starterNumber,
         "power": power,
         "signal_quality": signalQuality,
         "network_type": networkType,
+        "device_allocation": deviceAllocation,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),
