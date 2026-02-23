@@ -111,6 +111,8 @@ class SettingsController extends GetxController {
           response.data != null) {
         userSettings2.value = response.data;
 
+        print("line 114 ${userSettings2.value?.toJson()}");
+
         final deviceallocate = userSettings2.value?.starter?.deviceAllocation;
         final pcb = userSettings2.value?.starter?.pcbNumber;
         final mac = userSettings2.value?.starter?.macAddress;

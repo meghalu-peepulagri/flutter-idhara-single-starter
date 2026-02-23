@@ -414,8 +414,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         await widget.mqttService
             .publishUpdateSettings(_controller!.pcbNumber.value, payload);
         await _controller?.fetchupdateSettings();
-
-        // Start 30-second ACK timeout after publishUpdateSettings
         settingsAckTimer = Timer(const Duration(seconds: 10), () {
           mqttStreamSubscription?.cancel();
           if (mounted && !_ackInProgress) {
@@ -451,23 +449,26 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             _hasPendingSave = false;
             _ackInProgress = true;
             mqttStreamSubscription?.cancel();
-
             if (mounted) {
               setState(() {
                 isWaitingForAck = false;
                 _phase = _TestRunPhase.success;
               });
             }
-            _controller?.completeTestRun(widget.motor.id!);
-            Future.delayed(const Duration(seconds: 2), () {
-              if (mounted) {
-                if (widget.route == Routes.dashboard) {
-                  Get.offAllNamed(widget.route, arguments: {'refresh': true});
-                } else {
-                  Get.offAllNamed(widget.route);
+            try {
+              _controller?.completeTestRun(widget.motor.id!);
+              _controller?.fetchupdateSettingsAck();
+            } finally {
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  if (widget.route == Routes.dashboard) {
+                    Get.offAllNamed(widget.route, arguments: {'refresh': true});
+                  } else {
+                    Get.offAllNamed(widget.route);
+                  }
                 }
-              }
-            });
+              });
+            }
           } else {
             mqttStreamSubscription?.cancel();
             if (mounted && !_ackInProgress) {
@@ -517,20 +518,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         confirmColor: const Color(0xFFDC2626),
         icon: Icons.cancel_outlined,
         onConfirm: () {
-          final identifier = getMotorIdentifier(
-              widget.motor.starter!.deviceAllocation.toString(),
-              widget.motor.starter!.pcbNumber.toString(),
-              widget.motor.starter!.macAddress.toString());
-          final groupId =
-              identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
-          final mqttMotorId =
-              identifier.isNotEmpty ? '$identifier-$groupId' : '';
-
-          if (mqttMotorId.isNotEmpty) {
-            widget.mqttService
-                .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1);
-          }
-
+          _flcData.clear();
+          _overalCurrent.value = 0.0;
+          _avgCurrent.value = 0.0;
           if (widget.route == Routes.dashboard) {
             Get.offAllNamed(widget.route, arguments: {'refresh': true});
           } else {

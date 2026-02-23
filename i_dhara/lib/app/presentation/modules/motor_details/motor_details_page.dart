@@ -88,6 +88,16 @@ class MotorControlWidget extends StatelessWidget {
     );
   }
 
+  String motorName(String starter, String? alias) {
+    print("line 93 $starter $alias");
+
+    if (alias != null && alias.trim().isNotEmpty) {
+      return alias;
+    }
+
+    return starter;
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
@@ -96,9 +106,11 @@ class MotorControlWidget extends StatelessWidget {
         children: [
           Center(
             child: Obx(() {
-              String displayName = controller.motorName.value
-                  .replaceAll(RegExp(r'\s+'), ' ')
-                  .trim();
+              String? alias = controller.motorDetails.value?.aliasName;
+              String starterNumber =
+                  controller.motorDetails.value?.starter?.starterNumber ?? "";
+
+              String displayName = motorName(starterNumber, alias);
               if (displayName.length > 16) {
                 displayName = '${displayName.substring(0, 16)}...';
               }

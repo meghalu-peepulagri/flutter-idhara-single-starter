@@ -56,9 +56,10 @@ class DashboardWidget extends StatelessWidget {
         },
         child: Scaffold(
           key: scaffoldKey,
-          backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
+          backgroundColor: const Color(0xFFEBF3FE),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
           body: SafeArea(
+            top: true,
             child: Container(
               decoration: BoxDecoration(
                 image: DecorationImage(

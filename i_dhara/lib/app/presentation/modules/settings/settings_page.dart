@@ -76,9 +76,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       isSnackbarShown = true;
       geterrorSnackBar('No acknowledgment received from device');
     }
-    // setState(() {
-    //   isbuttonActive = false;
-    // });
   }
 
   @override
@@ -87,7 +84,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     controller.fetchdata();
     controller.initConnectivity();
     mqttService = MqttService();
-    controller.fetchupdateSettingsAck();
     _mqttStreamSubscription = mqttService.settingstream.listen((data) async {
       final type = data["D"];
       final topic = data["topic"];
@@ -661,6 +657,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                     maxValue: controller.data.value?.flcMax
                                             ?.toDouble() ??
                                         0.0,
+                                    decimalPlaces: 2,
+                                    step: 0.01,
                                     onValueChanged: (newValue) {
                                       print('New value: $newValue');
                                       controller.flc.value = newValue;

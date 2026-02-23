@@ -91,6 +91,24 @@ class DashboardController extends GetxController {
     });
   }
 
+  
+  Future<void> fetchupdateSettingsAck() async {
+    try {
+      try {
+        final response = await SettingsRepositoryImpl().updateSettingsAck();
+        if (response?.status == 200 || response?.status == 201) {
+        } else {
+          errorMessage.value = response?.message ?? 'Failed to update settings';
+        }
+      } catch (e) {
+        errorMessage.value = 'Error updating settings: $e';
+        print('Error updating user settings: $e');
+      }
+    } finally {
+      await fetchUserSettings2();
+    }
+  }
+
   void _updateConnectionStatus(ConnectivityResult result) {
     hasInternet.value = result != ConnectivityResult.none;
   }

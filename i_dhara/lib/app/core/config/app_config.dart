@@ -113,6 +113,7 @@ class NetworkManager {
               case 404:
                 geterrorSnackBar(responseData['message']);
                 return error.response;
+
               case 403:
                 geterrorSnackBar(errorsMap["bad_request_error"]);
                 return error.response;
@@ -120,6 +121,9 @@ class NetworkManager {
                 geterrorSnackBar(responseData['message']);
                 return error.response;
               case 422:
+                return error.response;
+              case 429:
+                geterrorSnackBar(responseData['message']);
                 return error.response;
               case 500:
                 geterrorSnackBar("Internal Server Error");

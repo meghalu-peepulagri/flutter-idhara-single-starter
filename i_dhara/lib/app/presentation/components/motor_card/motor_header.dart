@@ -75,7 +75,7 @@ class MotorHeader extends StatelessWidget {
                     child: Text(
                       () {
                         final aliasName = _normalizeMotorName(motor.aliasName);
-                        final displayName = motor.starter?.starterNumber == null
+                        final displayName = motor.aliasName != null
                             ? aliasName
                             : motor.starter?.starterNumber.toString() ?? 'N/A';
                         return displayName.length > 12
