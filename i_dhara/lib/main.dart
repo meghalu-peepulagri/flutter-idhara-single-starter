@@ -11,6 +11,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/config/env.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -175,6 +176,7 @@ void main() async {
     await SharedPreference.init();
     usePathUrlStrategy();
     await FlutterFlowTheme.initialize();
+    Get.put(ConnectivityService());
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
     };
@@ -211,6 +213,7 @@ void main() async {
     usePathUrlStrategy();
 
     await FlutterFlowTheme.initialize();
+    Get.put(ConnectivityService());
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,

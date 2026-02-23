@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/components/location_card.dart';
-import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
+import 'package:i_dhara/app/presentation/modules/locations/locations_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
@@ -279,7 +280,7 @@ class LocationsWidget extends StatelessWidget {
                                 child: AppLottieLoading(),
                               ),
                             );
-                          } else if (!controller.hasInternet.value) {
+                          } else if (!ConnectivityService.to.isConnected) {
                             return const Padding(
                               padding: EdgeInsets.only(bottom: 70),
                               child: Center(child: NoInternetWidget()),

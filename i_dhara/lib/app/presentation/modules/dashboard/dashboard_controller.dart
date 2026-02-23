@@ -1,6 +1,6 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
@@ -15,7 +15,7 @@ import '../../../data/repository/devices/devices_repo_impl.dart';
 import '../../../data/repository/devices/devices_repository.dart';
 import '../../../data/repository/settings/settings_repo_impl.dart';
 
-class DashboardController extends GetxController {
+class DashboardController extends GetxController with ConnectivityMixin {
   final motors = <Motor>[].obs;
   final allMotors = <Motor>[].obs;
   final locations = <LocationDropDown>[].obs;
@@ -35,8 +35,7 @@ class DashboardController extends GetxController {
   bool mqttInitialized = false;
 
   final Map<int, String> _motorIdToGroupId = {};
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
   var totalPages = 1.obs;
   var currentPage = 0.obs;
   var page = 1.obs;
@@ -60,7 +59,6 @@ class DashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _initConnectivity();
     _loadAllData();
     _requestPermissionAndLoad();
   }
@@ -83,15 +81,12 @@ class DashboardController extends GetxController {
         await PermissionService.requestLocationPermission();
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-    });
+  @override
+  Future<void> onRetry() async {
+    Get.log('DashboardController: Retrying API calls after reconnection');
+    await refreshDashboard();
   }
 
-  
   Future<void> fetchupdateSettingsAck() async {
     try {
       try {
@@ -107,10 +102,6 @@ class DashboardController extends GetxController {
     } finally {
       await fetchUserSettings2();
     }
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
   }
 
   Future<void> _loadAllData() async {

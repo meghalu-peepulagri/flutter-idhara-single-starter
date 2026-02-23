@@ -260,7 +260,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     final motorData = getMotorData();
     final signalBars = _getSignalBars(motorData);
-    canChangeMode.value = hasInternet.value && signalBars > 0;
+    canChangeMode.value = ConnectivityService.to.isConnected && signalBars > 0;
   }
 
   int _getSignalBars(MotorData? motorData) {

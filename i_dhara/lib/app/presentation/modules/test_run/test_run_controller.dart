@@ -1,12 +1,12 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repository.dart';
 
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 import '../../../data/repository/settings/settings_repo_impl.dart';
 
-class TestRunController extends GetxController {
+class TestRunController extends GetxController with ConnectivityMixin {
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
   bool isLoadingApiData = false;
 
@@ -14,7 +14,7 @@ class TestRunController extends GetxController {
   final RxString errorMessage = ''.obs;
   final Rx<UserSettings2?> userSettings2 = Rx<UserSettings2?>(null);
   var pcbNumber = ''.obs;
-  
+
   var macAddress = ''.obs;
 
   var isdisabled = false.obs;
@@ -26,29 +26,12 @@ class TestRunController extends GetxController {
   var olr = 0.0.obs;
   var lrr = 0.0.obs;
 
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   @override
-  void onInit() {
-    super.onInit();
-    _initConnectivity();
-  }
-
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult.isNotEmpty) {
-      _updateConnectionStatus(connectivityResult.first);
-    }
-    connectivity.onConnectivityChanged.listen((results) {
-      if (results.isNotEmpty) {
-        _updateConnectionStatus(results.first);
-      }
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  Future<void> onRetry() async {
+    Get.log('TestRunController: Retrying API calls after reconnection');
+    await fetchUserSettings2();
   }
 
   Future<bool> updateTestRunStatus(int motorId, TestRunStatus status) async {
@@ -113,7 +96,7 @@ class TestRunController extends GetxController {
   double calculatedFlc(double val, double flcVal) {
     final percentLow = val.toInt() / 100;
     final res = percentLow * flcVal;
-    final newRes = double.parse(res.toStringAsFixed(2)) ?? 0.0;
+    final newRes = double.parse(res.toStringAsFixed(2));
     return newRes;
   }
 

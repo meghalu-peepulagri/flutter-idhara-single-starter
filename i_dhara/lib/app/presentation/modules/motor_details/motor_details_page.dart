@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/motor_details_card.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_tab.dart';
@@ -46,7 +47,7 @@ class MotorControlWidget extends StatelessWidget {
                   padding: EdgeInsets.only(right: 50),
                   child: Center(child: AppLottieLoading()),
                 );
-              } else if (!controller.hasInternet.value) {
+              } else if (!ConnectivityService.to.isConnected) {
                 return const Center(
                   child: NoInternetWidget(),
                 );

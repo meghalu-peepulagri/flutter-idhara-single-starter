@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/components/devices_card.dart';
@@ -187,7 +188,7 @@ class DevicesPage extends StatelessWidget {
                                 padding: EdgeInsets.only(bottom: 50, right: 50),
                                 child: Center(child: AppLottieLoading()),
                               );
-                            } else if (!controller.hasInternet.value) {
+                            } else if (!ConnectivityService.to.isConnected) {
                               return const Padding(
                                 padding: EdgeInsets.only(bottom: 70),
                                 child: Center(
@@ -233,55 +234,10 @@ class DevicesPage extends StatelessWidget {
                                   const Padding(
                                     padding:
                                         EdgeInsets.symmetric(vertical: 16.0),
-                                    child: CircularProgressIndicator(
-                                        // color: Colors.green,
-                                        ),
+                                    child: CircularProgressIndicator(),
                                   ),
                               ],
                             );
-
-                            // return Column(
-                            //   children: [
-                            //     Expanded(
-                            //       child: Skeletonizer(
-                            //         enabled: controller.isRefreshing.value,
-                            //         child: RefreshIndicator(
-                            //           onRefresh: controller.refreshDevices,
-                            //           child: GridView.builder(
-                            //             controller: controller.scrollController,
-                            //             physics:
-                            //                 const AlwaysScrollableScrollPhysics(),
-                            //             padding: EdgeInsets.zero,
-                            //             gridDelegate:
-                            //                 SliverGridDelegateWithFixedCrossAxisCount(
-                            //               crossAxisCount: 2,
-                            //               crossAxisSpacing: 10.0,
-                            //               mainAxisSpacing: 10.0,
-                            //               childAspectRatio:
-                            //                   _getCardAspectRatio(context),
-                            //             ),
-                            //             scrollDirection: Axis.vertical,
-                            //             itemCount:
-                            //                 controller.devicesList.length,
-                            //             itemBuilder: (context, index) {
-                            //               final device =
-                            //                   controller.devicesList[index];
-                            //               return DevicesCard(device: device);
-                            //             },
-                            //           ),
-                            //         ),
-                            //       ),
-                            //     ),
-                            //     if (controller.isHasMoreLoading.value)
-                            //       const Padding(
-                            //         padding:
-                            //             EdgeInsets.symmetric(vertical: 16.0),
-                            //         child: CircularProgressIndicator(
-                            //           color: Colors.green,
-                            //         ),
-                            //       ),
-                            //   ],
-                            // );
                           }),
                         ),
                       ]

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
@@ -82,7 +83,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   void initState() {
     super.initState();
     controller.fetchdata();
-    controller.initConnectivity();
+    controller.fetchdata();
     mqttService = MqttService();
     _mqttStreamSubscription = mqttService.settingstream.listen((data) async {
       final type = data["D"];
@@ -535,7 +536,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         child: AppLottieLoading(),
                       ),
                     );
-                  } else if (!controller.hasInternet.value) {
+                  } else if (!ConnectivityService.to.isConnected) {
                     return const Center(
                       child: NoInternetWidget(),
                     );

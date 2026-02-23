@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 const _kBg = Color(0xFFCFE3F3); // light blue body background
@@ -31,6 +33,8 @@ class ProfileWidget extends StatelessWidget {
           body: Obx(() {
             if (controller.isLoading.value) {
               return const Center(child: AppLottieLoading());
+            } else if (!ConnectivityService.to.isConnected) {
+              return const Center(child: NoInternetWidget());
             }
             final profile = controller.userProfile.value;
             return RefreshIndicator(

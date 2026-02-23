@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -50,9 +49,7 @@ mixin TestRunLogicMixin on State<TestRunPage> {
   final ValueNotifier<bool> inputPowerVerified = ValueNotifier(false);
   final ValueNotifier<double> avgCurrent = ValueNotifier(0);
 
-  // Connectivity
-  final connectivity = Connectivity();
-  final ValueNotifier<bool> hasInternet = ValueNotifier(true);
+  // Removed local connectivity logic, using ConnectivityService instead
 
   bool get isTestRunRequired {
     // Check test_run_status from API response first
@@ -233,22 +230,8 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     }
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult.isNotEmpty) {
-      _updateConnectionStatus(connectivityResult.first);
-    }
-    connectivity.onConnectivityChanged.listen((results) {
-      if (results.isNotEmpty) {
-        _updateConnectionStatus(results.first);
-      }
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    if (mounted) {
-      hasInternet.value = result != ConnectivityResult.none;
-    }
+  void _initConnectivity() {
+    // Handled by ConnectivityService
   }
 
   Future<void> _fetchMotorDetails() async {
@@ -323,7 +306,6 @@ mixin TestRunLogicMixin on State<TestRunPage> {
     countdownNotifier.dispose();
     localSwitchController.dispose();
     localModeController.dispose();
-    hasInternet.dispose();
   }
 
   int? getSimplifiedModeIndex(String motorMode) {

@@ -13,6 +13,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
+import '../../../core/services/connectivity_service.dart';
 import 'dashboard_controller.dart';
 
 export 'dashboard_controller.dart';
@@ -85,7 +86,7 @@ class DashboardWidget extends StatelessWidget {
                               child: AppLottieLoading(),
                             ),
                           );
-                        } else if (!controller.hasInternet.value) {
+                        } else if (!ConnectivityService.to.isConnected) {
                           return const Center(
                             child: NoInternetWidget(),
                           );

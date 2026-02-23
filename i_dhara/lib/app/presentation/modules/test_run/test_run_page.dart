@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
@@ -57,9 +59,8 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: ValueListenableBuilder<bool>(
-          valueListenable: hasInternet,
-          builder: (context, hasInternetValue, child) {
+        child: Obx(
+          () {
             if (testRunController.isLoadingApiData && fromDevices) {
               return const Padding(
                 padding: EdgeInsets.only(right: 50),
@@ -67,7 +68,7 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
                   child: AppLottieLoading(),
                 ),
               );
-            } else if (!hasInternetValue) {
+            } else if (!ConnectivityService.to.isConnected) {
               return const Padding(
                 padding: EdgeInsets.only(bottom: 70),
                 child: Center(child: NoInternetWidget()),

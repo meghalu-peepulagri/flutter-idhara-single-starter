@@ -1,13 +1,13 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
 import '../../../data/services/mqtt_manager/mqtt_service.dart';
 
-class DevicesController extends GetxController {
+class DevicesController extends GetxController with ConnectivityMixin {
   final controller1 = TextEditingController();
   final RxList<Devices> devicesList = <Devices>[].obs;
 
@@ -28,8 +28,7 @@ class DevicesController extends GetxController {
   var searchQuery = ''.obs;
   Map<String, dynamic> errorInstance = {};
   String message = '';
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
@@ -40,7 +39,6 @@ class DevicesController extends GetxController {
   void onInit() {
     mqttService = MqttService();
     super.onInit();
-    _initConnectivity();
     fetchDevices(isInitial: true);
     _addScrollListener();
     debounce<String>(
@@ -70,16 +68,10 @@ class DevicesController extends GetxController {
     });
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  @override
+  Future<void> onRetry() async {
+    Get.log('DevicesController: Retrying API calls after reconnection');
+    await fetchDevices(isInitial: true);
   }
 
   @override

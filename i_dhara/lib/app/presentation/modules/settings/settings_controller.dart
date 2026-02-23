@@ -1,6 +1,6 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
 
@@ -8,7 +8,7 @@ import '../../../core/utils/mqtt_utils.dart';
 import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 
-class SettingsController extends GetxController {
+class SettingsController extends GetxController with ConnectivityMixin {
   TabController? tabBarController;
 
   final Rx<UserSettings2?> userSettings2 = Rx<UserSettings2?>(null);
@@ -41,21 +41,14 @@ class SettingsController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   var data = Rxn<UserSettingsLimits>();
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
   bool mqttInitialized = false;
   var flc = 0.0.obs;
 
-  void initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  @override
+  Future<void> onRetry() async {
+    Get.log('SettingsController: Retrying API calls after reconnection');
+    await fetchdata();
   }
 
   Future<void> fetchdata() async {

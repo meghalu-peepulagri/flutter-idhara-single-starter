@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
@@ -21,7 +22,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 part 'motor_details_controller.api.dart';
 part 'motor_details_controller.mqtt.dart';
 
-class AnalyticsController extends GetxController {
+class AnalyticsController extends GetxController with ConnectivityMixin {
   // --- Data Variables ---
   var motorDetails = Rxn<MotorDetails>();
   var daterange = <DateTime?>[DateTime.now(), DateTime.now()].obs;
@@ -44,7 +45,7 @@ class AnalyticsController extends GetxController {
   var isModalOpen = false.obs;
   var selectedTabIndex = 0.obs;
   var logFilter = Rxn<String>();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   // --- Display Values ---
   var motorName = ''.obs;
@@ -66,7 +67,7 @@ class AnalyticsController extends GetxController {
   var voltageTrackball = Rxn<TrackballBehavior>();
   var currentTrackball = Rxn<TrackballBehavior>();
   final ScrollController monthScrollController = ScrollController();
-  final connectivity = Connectivity();
+  // Removed local connectivity logic
 
   // --- Internal Logic Variables ---
   var selectedMotorId = Rxn<int?>();
@@ -92,7 +93,6 @@ class AnalyticsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _initConnectivity();
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
       motorId.value = args['motorId'];
@@ -117,19 +117,10 @@ class AnalyticsController extends GetxController {
     _updateCanChangeMode();
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-      if (mqttInitialized) {
-        _updateCanChangeMode();
-      }
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  @override
+  Future<void> onRetry() async {
+    Get.log('AnalyticsController: Retrying API calls after reconnection');
+    await fetchallApis();
   }
 
   void onTabChanged(int newIndex) {
