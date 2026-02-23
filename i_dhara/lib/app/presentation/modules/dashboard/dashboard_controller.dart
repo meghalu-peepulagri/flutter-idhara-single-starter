@@ -383,10 +383,13 @@ class DashboardController extends GetxController {
         final motorMap = _buildMotorMap(allMotors);
 
         mqttService = MqttService(initialMotors: motorMap);
-        mqttInitialized = true;
+
+        if (!mqttInitialized) {
+          mqttInitialized = true;
+          mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
+        }
 
         await mqttService.initializeMqttClient();
-        mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
 
         if (motorMap.isNotEmpty) {
           _onMqttUpdate();

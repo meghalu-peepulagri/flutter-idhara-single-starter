@@ -227,7 +227,11 @@ class MqttService {
   /// Initialize MQTT connection
   Future<void> initializeMqttClient() async {
     if (_mqttClient != null && isConnected) {
-      _mqttClient!.disconnect();
+      // Already connected — update subscriptions for the refreshed motor map
+      // and notify listeners with current data instead of a costly reconnect.
+      _subscribeToAllTopics();
+      _dataUpdateNotifier.value++;
+      return;
     }
 
     const broker = 'e0be1176.ala.asia-southeast1.emqxsl.com';

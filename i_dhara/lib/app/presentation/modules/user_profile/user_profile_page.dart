@@ -6,6 +6,10 @@ import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_contr
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+const _kBg = Color(0xFFCFE3F3); // light blue body background
+const _kPrimary = Color(0xFF004E7E);
+const _kGradientEnd = Color(0xFF3686AF);
+
 class ProfileWidget extends StatelessWidget {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final UserProfileController controller = Get.put(UserProfileController());
@@ -31,7 +35,7 @@ class ProfileWidget extends StatelessWidget {
             final profile = controller.userProfile.value;
             return RefreshIndicator(
               onRefresh: controller.onRefresh,
-              color: const Color(0x00004E7E),
+              color: _kPrimary,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [

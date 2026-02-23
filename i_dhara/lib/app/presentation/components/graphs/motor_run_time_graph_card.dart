@@ -80,7 +80,9 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                   .isAfter(e.start.subtract(const Duration(microseconds: 1))) &&
               xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
             final motorDur = formatDuration(e.duration);
-            tooltipText += '\nDuration: $motorDur';
+            final startLabel = DateFormat('dd-MM-yyyy hh:mm:ss').format(e.start.toLocal());
+            final endLabel = DateFormat('dd-MM-yyyy hh:mm:ss').format(e.end.toLocal());
+            tooltipText = 'Start: $startLabel\nEnd:   $endLabel\nDuration: $motorDur';
             break;
           }
         }
@@ -91,7 +93,9 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                   .isAfter(e.start.subtract(const Duration(microseconds: 1))) &&
               xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
             final powerDur = formatDuration(e.duration);
-            tooltipText += '\nDuration: $powerDur';
+            final startLabel = DateFormat('dd-MM-yyyy hh:mm:ss').format(e.start.toLocal());
+            final endLabel = DateFormat('dd-MM-yyyy hh:mm:ss').format(e.end.toLocal());
+            tooltipText = 'Start: $startLabel\nEnd:   $endLabel\nDuration: $powerDur';
             break;
           }
         }

@@ -64,9 +64,6 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     mqttService.dataUpdateNotifier.addListener(_onMqttDataUpdate);
 
-    // Wait for connection to stabilize
-    await Future.delayed(const Duration(milliseconds: 500));
-
     // Check if we have data
     if (kDebugMode) {
       print('Checking motor data availability...');

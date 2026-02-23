@@ -655,16 +655,24 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with background
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE5E7EB),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -679,7 +687,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Smart Calibration v2.0',
+                        'Smart Calibration',
                         style: TextStyle(
                           fontSize: 14,
                           color: Color(0xFF64748B),
@@ -706,93 +714,100 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                 ],
               ),
+            ),
 
-              const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pre-Test Verifications Section
+                  const Text(
+                    'Pre - Test Verifications',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-              // Pre-Test Verifications Section
-              const Text(
-                'Pre - Test Verifications',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 20),
+                  ValueListenableBuilder(
+                    valueListenable: widget.mqttService.dataUpdateNotifier,
+                    builder: (context, _, __) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildVerificationCloudConnection(
+                              'Network Connectivity',
+                              _getSignalBars(widget.motorData),
+                              'assets/images/network_device.svg'),
+                          const SizedBox(height: 16),
+                          _buildVerificationInputPower(
+                            'Power Supply Status',
+                            (widget.motorData?.hasReceivedLiveData ?? false)
+                                ? (_isPowerOn ? 1 : 0)
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildVoltageVerification(),
+                          const SizedBox(height: 24),
+                          _buildCheckboxItem(
+                            'Motor wires / terminals securely connected',
+                            isMotorWiresChecked,
+                            (value) {
+                              setState(() {
+                                isMotorWiresChecked = value ?? false;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildCheckboxItem(
+                            'Pump / delivery valve fully open',
+                            isPumpValveChecked,
+                            (value) {
+                              setState(() {
+                                isPumpValveChecked = value ?? false;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 32),
 
-              ValueListenableBuilder(
-                valueListenable: widget.mqttService.dataUpdateNotifier,
-                builder: (context, _, __) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildVerificationCloudConnection(
-                          'Network Connectivity',
-                          _getSignalBars(widget.motorData),
-                          'assets/images/network_device.svg'),
-                      const SizedBox(height: 16),
-                      _buildVerificationInputPower(
-                        'Power Supply Status',
-                        (widget.motorData?.hasReceivedLiveData ?? false)
-                            ? (_isPowerOn ? 1 : 0)
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildVoltageVerification(),
-                      const SizedBox(height: 24),
-                      _buildCheckboxItem(
-                        'Motor wires / terminals securely connected',
-                        isMotorWiresChecked,
-                        (value) {
-                          setState(() {
-                            isMotorWiresChecked = value ?? false;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildCheckboxItem(
-                        'Pump / delivery valve fully open',
-                        isPumpValveChecked,
-                        (value) {
-                          setState(() {
-                            isPumpValveChecked = value ?? false;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Start Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: isActive ? _startMeasuring : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isActive
-                                ? const Color(0xFF0F6B8A)
-                                : Colors.grey.shade400,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                          // Start Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: isActive ? _startMeasuring : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isActive
+                                    ? const Color(0xFF0F6B8A)
+                                    : Colors.grey.shade400,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                'START TEST RUN',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                             ),
                           ),
-                          child: const Text(
-                            'START TEST RUN',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -838,7 +853,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      "Smart Calibration v2.0",
+                      "Smart Calibration",
                       style: TextStyle(
                         fontSize: 13,
                         color: Color(0xFF004E7E),
@@ -997,7 +1012,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Smart Calibration v2.0',
+                    'Smart Calibration',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -1098,7 +1113,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: FFButtonWidget(
-                            text: 'Save Setting',
+                            text: 'Save Settings',
                             showLoadingIndicator: true,
                             onPressed: _onSave,
                             options: FFButtonOptions(
