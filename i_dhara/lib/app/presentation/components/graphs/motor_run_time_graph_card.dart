@@ -269,8 +269,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                     ),
                                   ),
                                   Padding(
-                                    padding:
-                                        const EdgeInsets.only(left: 7, top: 10),
+                                    padding: const EdgeInsets.only(
+                                        left: 10, top: 10, right: 8),
                                     child: SizedBox(
                                       height: 220,
                                       child: SfCartesianChart(
@@ -332,13 +332,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          _legendDot(Colors.orange),
-                                          const SizedBox(width: 4),
-                                          const Text('Running',
-                                              style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.black54)),
-                                          const SizedBox(width: 10),
                                           _legendDot(Colors.green),
                                           const SizedBox(width: 4),
                                           const Text('Motor On',
@@ -428,17 +421,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
   List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
       List<TimeSegment> data) {
     final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-    final DateTime now = DateTime.now();
 
     for (final segment in data) {
-      // Check if this motor segment is still running
-      // A segment is "still running" if end time is very close to now (within 5 seconds)
-      final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-      // Choose color based on whether it's still running
-      final lineColor = isStillRunning ? Colors.orange : Colors.green;
-      final endPointColor = isStillRunning ? Colors.orange : Colors.red;
-
       final points = [
         TimePoint(
           segment.start,
@@ -465,12 +449,9 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
           dataSource: points,
           xValueMapper: (p, _) => p.time,
           yValueMapper: (p, _) => p.value,
-          color: lineColor, // Orange if still running, green if completed
+          color: Colors.green,
           width: 3,
-          name: isStillRunning ? 'Still Running' : null,
-          legendIconType:
-              isStillRunning ? LegendIconType.circle : LegendIconType.circle,
-          isVisibleInLegend: isStillRunning,
+          isVisibleInLegend: false,
           markerSettings: const MarkerSettings(
             isVisible: true,
             height: 6,
@@ -478,13 +459,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
             shape: DataMarkerType.circle,
           ),
           pointColorMapper: (TimePoint point, _) {
-            if (isStillRunning) {
-              // Both points orange if still running
-              return Colors.orange;
-            } else {
-              // Green start, red end if completed
-              return point.isStartPoint ? Colors.green : Colors.red;
-            }
+            return point.isStartPoint ? Colors.green : Colors.red;
           },
         ),
       );
@@ -496,17 +471,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
   List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
       List<TimeSegment> data) {
     final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
-    final DateTime now = DateTime.now();
 
     for (final segment in data) {
-      // Check if this segment is still running
-      // A segment is "still running" if end time is very close to now (within 5 seconds)
-      final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-      // Choose color based on whether it's still running
-      final lineColor = isStillRunning ? Colors.orange : Colors.blue;
-      final endPointColor = isStillRunning ? Colors.orange : Colors.orange;
-
       final points = [
         PowerTimePoint(
           segment.start,
@@ -533,7 +499,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
           dataSource: points,
           xValueMapper: (p, _) => p.time,
           yValueMapper: (p, _) => p.value,
-          color: lineColor, // Orange if still running, blue if completed
+          color: Colors.blue,
           width: 3,
           markerSettings: const MarkerSettings(
             isVisible: true,
@@ -542,13 +508,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
             shape: DataMarkerType.circle,
           ),
           pointColorMapper: (PowerTimePoint point, _) {
-            if (isStillRunning) {
-              // Both points orange if still running
-              return Colors.orange;
-            } else {
-              // Blue start, orange end if completed
-              return point.isStartPoint ? Colors.blue : Colors.red;
-            }
+            return point.isStartPoint ? Colors.blue : Colors.red;
           },
           isVisibleInLegend: false,
         ),

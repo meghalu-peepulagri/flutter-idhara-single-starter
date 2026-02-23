@@ -32,6 +32,8 @@ class MotorData {
   String? groupId;
   String? title;
 
+  bool hasReceivedLiveData = false;
+
   int signalStrength = 0;
   int signalBars = 0;
   DateTime? lastSignalUpdate;
@@ -910,6 +912,7 @@ class MqttService {
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
 
       motorData.hasReceivedData = true;
+      motorData.hasReceivedLiveData = true;
       _lastAckTimes[fullMotorId] = DateTime.now();
       debugPrint(
           '   ✓ Updated $fullMotorId: state=${motorData.state}, mode=${motorData.motorMode}');

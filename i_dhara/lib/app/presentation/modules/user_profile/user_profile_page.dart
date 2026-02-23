@@ -31,7 +31,7 @@ class ProfileWidget extends StatelessWidget {
             final profile = controller.userProfile.value;
             return RefreshIndicator(
               onRefresh: controller.onRefresh,
-              color: const Color(0xFF004E7E),
+              color: const Color(0x00004E7E),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [

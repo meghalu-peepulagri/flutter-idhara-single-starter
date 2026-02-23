@@ -74,7 +74,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   DashboardController? _controller;
 
   bool get _isPowerOn {
-    if (widget.motorData != null && widget.motorData!.hasReceivedData) {
+    if (widget.motorData != null && widget.motorData!.hasReceivedLiveData) {
       return widget.motorData!.power == 1;
     }
     return (widget.motor.starter?.power ?? 0) == 1;
@@ -90,7 +90,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   /// Returns null if all voltages are in range, or an error message string.
   String? get _voltageError {
-    if (widget.motorData == null || !widget.motorData!.hasReceivedData) {
+    if (widget.motorData == null || !widget.motorData!.hasReceivedLiveData) {
       return null; // No data yet, don't block
     }
 
@@ -111,7 +111,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   bool get _isVoltageInRange {
-    if (widget.motorData == null || !widget.motorData!.hasReceivedData) {
+    if (widget.motorData == null || !widget.motorData!.hasReceivedLiveData) {
       return false; // No data yet, not verified
     }
     return _voltageError == null;
@@ -535,6 +535,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print("line 538 --> ");
+
     if (_isOffline) {
       return _buildNoInternetWidget();
     }
@@ -731,7 +733,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                       const SizedBox(height: 16),
                       _buildVerificationInputPower(
                         'Power Supply Status',
-                        _isPowerOn == true ? 1 : 0,
+                        (widget.motorData?.hasReceivedLiveData ?? false)
+                            ? (_isPowerOn ? 1 : 0)
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       _buildVoltageVerification(),
@@ -1346,7 +1350,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     final voltageOk = _isVoltageInRange;
     final error = _voltageError;
     final hasData =
-        widget.motorData != null && widget.motorData!.hasReceivedData;
+        widget.motorData != null && widget.motorData!.hasReceivedLiveData;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
