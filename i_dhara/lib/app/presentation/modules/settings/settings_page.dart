@@ -40,6 +40,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   MotorData? motorData;
   final GlobalKey<SettingsVoltageCardState> voltageCardKey = GlobalKey();
   final GlobalKey<SettingsCurrentCardState> currentCardKey = GlobalKey();
+  final GlobalKey<FlcCardState> flcCardKey = GlobalKey();
   bool _ackInProgress = false;
   bool isVoltageRange = false;
   bool isCurrentRange = false;
@@ -187,9 +188,12 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
     await Future.delayed(const Duration(milliseconds: 100));
 
-    // Reset cards to show actual user values after data is loaded
+    // Reset voltage, current, and FLC cards to show actual saved values.
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
+    flcCardKey.currentState?.resetValue();
+    controller.flc.value =
+        controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
 
     setState(() {
       isbuttonActive = false;
@@ -669,6 +673,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                     height: 10,
                                   ),
                                   FlcCard(
+                                    key: flcCardKey,
                                     initialValue: controller
                                             .userSettings2.value?.flc
                                             ?.toDouble() ??

@@ -34,10 +34,10 @@ class FlcCard extends StatefulWidget {
   });
 
   @override
-  State<FlcCard> createState() => _FlcCardState();
+  State<FlcCard> createState() => FlcCardState();
 }
 
-class _FlcCardState extends State<FlcCard> {
+class FlcCardState extends State<FlcCard> {
   late double _currentValue;
   late TextEditingController _textController;
   final FocusNode _focusNode = FocusNode();
@@ -58,6 +58,19 @@ class _FlcCardState extends State<FlcCard> {
         _isEditing = _focusNode.hasFocus;
       });
     });
+  }
+
+  /// Resets the card back to the widget's current initialValue.
+  /// Call this after updating the initialValue (e.g. after fetchUserSettings2).
+  void resetValue() {
+    final value =
+        widget.initialValue.clamp(widget.minValue, widget.maxValue);
+    setState(() {
+      _currentValue = value;
+      _textController.text = _formatValue(value);
+      _isOutOfRange = false;
+    });
+    widget.onValueChanged?.call(value);
   }
 
   @override
