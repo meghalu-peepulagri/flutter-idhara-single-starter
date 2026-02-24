@@ -234,7 +234,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     final hasChanges = (currentVoltageLow != initialVoltageLow) ||
         (currentVoltageHigh != initialVoltageHigh) ||
         (currentCurrentLow != initialCurrentLow) ||
-        (currentCurrentHigh != initialCurrentHigh);
+        (currentCurrentHigh != initialCurrentHigh) ||
+        (controller.flc.value != initialFlc);
 
     if (isbuttonActive != hasChanges) {
       setState(() {
@@ -243,8 +244,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     }
   }
 
-  void _handleSave(
-      bool vmin, bool vmax, bool cmin, bool cmax, String pcbNumber) async {
+  void _handleSave(bool vmin, bool vmax, bool cmin, bool cmax, String pcbNumber,
+      {bool flcChanged = false}) async {
     showDialog(
       context: context,
       builder: (context) {
@@ -325,6 +326,26 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                       vmax: false,
                       cmin: cmin,
                       cmax: cmax),
+                const SizedBox(height: 12),
+
+                if (flcChanged && !isCurrentRange && !isVoltageRange)
+                  infoCard(
+                      widthofSvg: 32,
+                      heightofSvg: 32,
+                      bgColor: const Color(0xFFEAF3FF),
+                      iconBg: Colors.transparent,
+                      svg: 'assets/images/flc_icon.svg',
+                      title: 'FLC',
+                      lowOld:
+                          '${controller.userSettings2.value?.flc?.toStringAsFixed(2) ?? '0.00'} A',
+                      lowNew: '${controller.flc.value.toStringAsFixed(2)} A',
+                      highOld: '',
+                      highNew: '',
+                      valueColor: const Color(0xFF2563EB),
+                      vmin: true,
+                      vmax: false,
+                      cmin: false,
+                      cmax: false),
               ],
             ),
           ),
@@ -663,6 +684,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                     onValueChanged: (newValue) {
                                       print('New value: $newValue');
                                       controller.flc.value = newValue;
+                                      _checkForChanges();
                                     },
                                     onOutOfRange: (isOutOfRange) {
                                       setState(() {
@@ -829,12 +851,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                             key: "dvc_c",
                                           );
                                           if (updatedpayload["dvc_c"]
-                                              .containsKey("drf")) {
+                                                  ?.containsKey("drf") ==
+                                              true) {
                                             updatedpayload["dvc_c"]['drf'] =
                                                 controller.drf.value;
                                           }
                                           if (updatedpayload["dvc_c"]
-                                              .containsKey('olf')) {
+                                                  ?.containsKey('olf') ==
+                                              true) {
                                             updatedpayload["dvc_c"]['olf'] =
                                                 controller.olf.value;
                                           }
@@ -923,18 +947,31 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                                   calculatedOlf;
                                               updatedpayload['dvc_c']['lrr'] =
                                                   calculatedLRR;
-                                              if (controller.flc.value !=
-                                                  controller.orignolFlc.value) {
-                                                updatedpayload['dvc_c']['flc'] =
-                                                    controller.flc.value;
-                                              }
                                             }
-
+                                            // Handle FLC independently: add to
+                                            // payload only when it changed;
+                                            // if only FLC changed this also
+                                            // creates the dvc_c entry.
+                                            final initialFlc = controller
+                                                    .userSettings2.value?.flc
+                                                    ?.toDouble() ??
+                                                0.0;
+                                            final flcChanged =
+                                                controller.flc.value !=
+                                                    initialFlc;
+                                            if (flcChanged) {
+                                              updatedpayload['dvc_c'] ??=
+                                                  <String, dynamic>{};
+                                              updatedpayload['dvc_c']['flc'] =
+                                                  controller.flc.value;
+                                            }
                                             if (isVoltageRange ||
-                                                isCurrentRange) {
+                                                isCurrentRange ||
+                                                flcChanged) {
                                               _handleSave(vmin, vmax, cmin,
-                                                  cmax, pcbNumber);
-                                            } else {}
+                                                  cmax, pcbNumber,
+                                                  flcChanged: flcChanged);
+                                            }
                                           });
                                         },
                                   text: 'Save',
