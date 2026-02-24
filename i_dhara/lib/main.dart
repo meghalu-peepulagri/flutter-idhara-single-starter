@@ -67,7 +67,7 @@ Future<void> _requestFCMPermission() async {
   NotificationSettings settings =
       await messaging.requestPermission(alert: true, badge: true, sound: true);
   if (settings.authorizationStatus == AuthorizationStatus.denied) {
-  } else {}
+  }
 }
 
 Future<void> _requestNotificationPermission() async {
@@ -92,7 +92,6 @@ Future<void> _requestNotificationPermission() async {
 }
 
 void _handleNotificationTap(String? payload) {
-  print("line --->");
   if (payload == null || payload.isEmpty) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.offAllNamed(
@@ -102,7 +101,6 @@ void _handleNotificationTap(String? payload) {
   }
   try {
     Map<String, dynamic> data = json.decode(payload);
-    print("line 66 $payload");
     String title = data['title'] ?? "";
     String? body = data['body'];
     String motorId = data['motor_id'];
@@ -176,7 +174,7 @@ void main() async {
     await SharedPreference.init();
     usePathUrlStrategy();
     await FlutterFlowTheme.initialize();
-    Get.put(ConnectivityService());
+    Get.put<ConnectivityService>(ConnectivityService(), permanent: true);
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
     };
@@ -213,7 +211,7 @@ void main() async {
     usePathUrlStrategy();
 
     await FlutterFlowTheme.initialize();
-    Get.put(ConnectivityService());
+    Get.put<ConnectivityService>(ConnectivityService(), permanent: true);
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,

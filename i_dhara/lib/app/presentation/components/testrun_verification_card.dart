@@ -8,13 +8,12 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
 import '../../core/utils/mqtt_utils.dart';
-import '../../core/utils/snackbars/error_snackbar.dart';
 import '../../data/services/mqtt_manager/mqtt_service.dart';
 import '../modules/dashboard/dashboard_controller.dart';
 import '../routes/app_routes.dart';
 import 'popups/emergency_popup.dart';
 
-enum _TestRunPhase { preCheck, measuring, completed, saving, success }
+enum _TestRunPhase { preCheck, measuring, completed, saving, success, failure }
 
 class ConfirmTestRunScreen extends StatefulWidget {
   final ValueNotifier<bool> cloudConnectionVerified;
@@ -68,10 +67,20 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   final List<double> _flcData = [];
   final ValueNotifier<double> _avgCurrent = ValueNotifier(0);
   final ValueNotifier<double> _overalCurrent = ValueNotifier(0);
+  // MQTT key for the motor being measured; set in _startMeasuring so
+  // _checkUpdates can read live data directly from motorDataMap.
+  String _mqttMotorId = '';
+  // Holds the measured FLC so _buildSuccessPhase can display it even after
+  // _resetPreCheckState() has zeroed _overalCurrent.
+  double _finalFLC = 0.0;
 
   // --- Common state ---
   _TestRunPhase _phase = _TestRunPhase.preCheck;
   DashboardController? _controller;
+
+  // Tracks whether at least one MQTT update has arrived since the dialog opened.
+  // Verification icons show loading until this is true.
+  bool _freshDataReceived = false;
 
   bool get _isPowerOn {
     if (widget.motorData != null && widget.motorData!.hasReceivedLiveData) {
@@ -118,6 +127,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   bool get isActive {
+    if (!_freshDataReceived) return false;
     final signal = _getSignalBars(widget.motorData);
     final cloudOk = signal >= 1 && signal <= 4;
     final powerOk = _isPowerOn;
@@ -134,6 +144,18 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   void initState() {
     super.initState();
     _initConnectivity();
+    widget.mqttService.dataUpdateNotifier.addListener(_onFirstDataUpdate);
+  }
+  
+  void _onFirstDataUpdate() {
+    if (!_freshDataReceived && mounted) {
+      widget.mqttService.dataUpdateNotifier.removeListener(_onFirstDataUpdate);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _freshDataReceived = true);
+        }
+      });
+    }
   }
 
   void _initConnectivity() async {
@@ -175,6 +197,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   void _goOnline() {
     if (!_isOffline || !mounted) return;
+    // Re-subscribe so verification icons show loading until fresh data arrives.
+    _freshDataReceived = false;
+    widget.mqttService.dataUpdateNotifier.addListener(_onFirstDataUpdate);
     setState(() {
       _isOffline = false;
       // Reset to preCheck so user can re-verify and start fresh
@@ -191,6 +216,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   @override
   void dispose() {
     _connectivitySubscription?.cancel();
+    widget.mqttService.dataUpdateNotifier.removeListener(_onFirstDataUpdate);
     if (_phase == _TestRunPhase.measuring) {
       widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
     }
@@ -200,6 +226,18 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     _avgCurrent.dispose();
     _overalCurrent.dispose();
     super.dispose();
+  }
+
+  void _resetPreCheckState() {
+    setState(() {
+      _avgCurrent.value = 0;
+      _overalCurrent.value = 0;
+      _flcData.clear();
+      isMotorWiresChecked = false;
+      isPumpValveChecked = false;
+      widget.cloudConnectionVerified.value = false;
+      widget.inputPowerVerified.value = false;
+    });
   }
 
   // --- Helper methods ---
@@ -255,6 +293,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   // --- Phase transitions ---
 
   void _startMeasuring() {
+    _avgCurrent.value = 0;
+    _overalCurrent.value = 0;
+    _flcData.clear();
     _controller = Get.put(DashboardController());
     widget.mqttService.dataUpdateNotifier.addListener(_checkUpdates);
 
@@ -263,7 +304,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         widget.motor.starter!.pcbNumber.toString(),
         widget.motor.starter!.macAddress.toString());
     final groupId = identifier.isNotEmpty ? _getMotorGroupId(identifier) : '';
-    final mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
+    _mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
+    final mqttMotorId = _mqttMotorId;
 
     setState(() {
       _phase = _TestRunPhase.measuring;
@@ -307,22 +349,32 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   void _checkUpdates() {
     if (!mounted) return;
-    final motordata = widget.motorData;
-    final c1 = double.parse(motordata?.currentRed ?? "0.0");
-    final c2 = double.parse(motordata?.currentBlue ?? "0.0");
-    final c3 = double.parse(motordata?.currentYellow ?? "0.0");
-    final res = _percentageOfAmps(c1, c2, c3);
-    final avg = double.parse(res.toStringAsFixed(2));
+    // Read directly from the live map so we always get the freshest data,
+    // rather than relying on widget.motorData which is a stale prop at the
+    // moment this listener fires (the outer ValueListenableBuilder hasn't
+    // rebuilt yet in this same listener-fire cycle).
+    final motordata = _mqttMotorId.isNotEmpty
+        ? widget.mqttService.motorDataMap[_mqttMotorId]
+        : widget.motorData;
+    final c1 = double.tryParse(motordata?.currentRed ?? "0.0") ?? 0.0;
+    final c2 = double.tryParse(motordata?.currentBlue ?? "0.0") ?? 0.0;
+    final c3 = double.tryParse(motordata?.currentYellow ?? "0.0") ?? 0.0;
 
-    setState(() {
-      _avgCurrent.value = avg;
-    });
+    // Only accept if all phases have at least 0.5A
+    if (c1 >= 0.5 && c2 >= 0.5 && c3 >= 0.5) {
+      final res = _percentageOfAmps(c1, c2, c3);
+      final avg = double.parse(res.toStringAsFixed(2));
 
-    if (avg > 0 && !_flcData.contains(avg)) {
-      _flcData.add(avg);
-      final sum = _flcData.reduce((a, b) => a + b);
-      _overalCurrent.value = sum / _flcData.length;
-    }
+      setState(() {
+        _avgCurrent.value = avg;
+      });
+
+      if (!_flcData.contains(avg)) {
+        _flcData.add(avg);
+        final sum = _flcData.reduce((a, b) => a + b);
+        _overalCurrent.value = sum / _flcData.length;
+      }
+    } else {}
   }
 
   void _emergencyStop() {
@@ -361,14 +413,14 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         if (widget.route == Routes.dashboard) {
           Get.offAllNamed(widget.route, arguments: {'refresh': true});
         } else {
-          Get.offAllNamed(widget.route);
+          Navigator.of(context).pop();
         }
         debugPrint('Emergency stop command sent for $mqttMotorId');
       }).catchError((e) {
         if (widget.route == Routes.dashboard) {
           Get.offAllNamed(widget.route, arguments: {'refresh': true});
         } else {
-          Get.offAllNamed(widget.route);
+          Navigator.of(context).pop();
         }
         debugPrint('Failed to send emergency stop command: $e');
       });
@@ -417,21 +469,25 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         settingsAckTimer = Timer(const Duration(seconds: 10), () {
           mqttStreamSubscription?.cancel();
           if (mounted && !_ackInProgress) {
+            _resetPreCheckState();
             setState(() {
               isWaitingForAck = false;
               _hasPendingSave = false;
+              _phase = _TestRunPhase.failure;
+              failureMessage = 'No acknowledgment received from device';
             });
-            errorSnackBar(context, 'No acknowledgment received from device');
             if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
               _controller?.startTestRun(widget.motor.id!);
             } else {
               _controller?.completeTestRun(widget.motor.id!);
             }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (widget.route == Routes.dashboard) {
-                Get.offAllNamed(widget.route, arguments: {'refresh': true});
-              } else {
-                Get.offAllNamed(widget.route);
+            Future.delayed(const Duration(seconds: 4), () {
+              if (mounted) {
+                if (widget.route == Routes.dashboard) {
+                  Get.offAllNamed(widget.route, arguments: {'refresh': true});
+                } else {
+                  Get.offAllNamed(Routes.devices);
+                }
               }
             });
           }
@@ -449,6 +505,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             _hasPendingSave = false;
             _ackInProgress = true;
             mqttStreamSubscription?.cancel();
+            // Capture before reset so success phase can still display it.
+            _finalFLC = _overalCurrent.value;
+            _resetPreCheckState(); // Clear pre-test verification after testrun
             if (mounted) {
               setState(() {
                 isWaitingForAck = false;
@@ -459,12 +518,12 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               _controller?.completeTestRun(widget.motor.id!);
               _controller?.fetchupdateSettingsAck();
             } finally {
-              Future.delayed(const Duration(seconds: 2), () {
+              Future.delayed(const Duration(seconds: 4), () {
                 if (mounted) {
                   if (widget.route == Routes.dashboard) {
                     Get.offAllNamed(widget.route, arguments: {'refresh': true});
                   } else {
-                    Get.offAllNamed(widget.route);
+                    Get.offAllNamed(Routes.devices);
                   }
                 }
               });
@@ -472,21 +531,25 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           } else {
             mqttStreamSubscription?.cancel();
             if (mounted && !_ackInProgress) {
+              _resetPreCheckState(); // Clear pre-test verification after testrun
               setState(() {
                 isWaitingForAck = false;
                 _hasPendingSave = false;
+                _phase = _TestRunPhase.failure;
+                failureMessage = 'Smart Calibration Failed';
               });
-              geterrorSnackBar('Smart Calibration Failed');
               if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
                 _controller?.startTestRun(widget.motor.id!);
               } else {
                 _controller?.completeTestRun(widget.motor.id!);
               }
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (widget.route == Routes.dashboard) {
-                  Get.offAllNamed(widget.route, arguments: {'refresh': true});
-                } else {
-                  Get.offAllNamed(widget.route);
+              Future.delayed(const Duration(seconds: 4), () {
+                if (mounted) {
+                  if (widget.route == Routes.dashboard) {
+                    Get.offAllNamed(widget.route, arguments: {'refresh': true});
+                  } else {
+                    Get.offAllNamed(Routes.devices);
+                  }
                 }
               });
             }
@@ -524,7 +587,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           if (widget.route == Routes.dashboard) {
             Get.offAllNamed(widget.route, arguments: {'refresh': true});
           } else {
-            Get.offAllNamed(widget.route);
+            Navigator.of(context).pop();
           }
         },
       ),
@@ -535,7 +598,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print("line 538 --> ");
+    print("line 580    ------>");
 
     if (_isOffline) {
       return _buildNoInternetWidget();
@@ -552,6 +615,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         return _buildSavingPhase();
       case _TestRunPhase.success:
         return _buildSuccessPhase();
+      case _TestRunPhase.failure:
+        return _buildFailurePhase();
     }
   }
 
@@ -741,14 +806,19 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                         children: [
                           _buildVerificationCloudConnection(
                               'Network Connectivity',
-                              _getSignalBars(widget.motorData),
+                              _freshDataReceived
+                                  ? _getSignalBars(widget.motorData)
+                                  : null,
                               'assets/images/network_device.svg'),
                           const SizedBox(height: 16),
                           _buildVerificationInputPower(
                             'Power Supply Status',
-                            (widget.motorData?.hasReceivedLiveData ?? false)
-                                ? (_isPowerOn ? 1 : 0)
-                                : null,
+                            !_freshDataReceived
+                                ? null
+                                : (widget.motorData?.hasReceivedLiveData ??
+                                        false)
+                                    ? (_isPowerOn ? 1 : 0)
+                                    : null,
                           ),
                           const SizedBox(height: 16),
                           _buildVoltageVerification(),
@@ -1245,7 +1315,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'FLC: ${_overalCurrent.value.toStringAsFixed(1)} A',
+                  'FLC: ${_finalFLC.toStringAsFixed(1)} A',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -1255,6 +1325,82 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Settings saved to device',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFailurePhase() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Center(
+        child: Container(
+          width: 340,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Smart Calibration\nFailed',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  failureMessage,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please try again later',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFF64748B),
@@ -1364,8 +1510,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   Widget _buildVoltageVerification() {
     final voltageOk = _isVoltageInRange;
     final error = _voltageError;
-    final hasData =
-        widget.motorData != null && widget.motorData!.hasReceivedLiveData;
+    final hasData = _freshDataReceived &&
+        widget.motorData != null &&
+        widget.motorData!.hasReceivedLiveData;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

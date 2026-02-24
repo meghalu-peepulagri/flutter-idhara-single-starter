@@ -9,6 +9,10 @@ mixin ConnectivityMixin on GetxController {
   @override
   void onInit() {
     super.onInit();
+    // Ensure ConnectivityService is available, if not, try to put it (as a fallback)
+    if (!Get.isRegistered<ConnectivityService>()) {
+      Get.put<ConnectivityService>(ConnectivityService(), permanent: true);
+    }
     _connectivitySubscription =
         ConnectivityService.to.onReconnected.listen((_) {
       onRetry();
