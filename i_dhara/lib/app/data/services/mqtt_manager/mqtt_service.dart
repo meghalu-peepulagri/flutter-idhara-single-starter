@@ -135,6 +135,10 @@ class MqttService {
 
   // Notifiers
   final ValueNotifier<int> _dataUpdateNotifier = ValueNotifier(0);
+  // Fires only on T:40 (heartbeat / signal updates)
+  final ValueNotifier<int> _heartbeatNotifier = ValueNotifier(0);
+  // Fires only on T:35 or T:41 (live data: power, voltage, current)
+  final ValueNotifier<int> _liveDataNotifier = ValueNotifier(0);
   final ValueNotifier<String?> commandStatusNotifier =
       ValueNotifier<String?>(null);
 
@@ -155,6 +159,8 @@ class MqttService {
   final Random _random = Random();
 
   ValueNotifier<int> get dataUpdateNotifier => _dataUpdateNotifier;
+  ValueNotifier<int> get heartbeatNotifier => _heartbeatNotifier;
+  ValueNotifier<int> get liveDataNotifier => _liveDataNotifier;
   Map<String, MotorData> get motorDataMap => _motorDataMap;
   Map<String, Motor> get motors => _motors;
 
@@ -929,6 +935,7 @@ class MqttService {
     // Force notify listeners
     debugPrint(
         '📢 Notifying listeners: dataUpdateNotifier=${_dataUpdateNotifier.value + 1}');
+    _liveDataNotifier.value++;
     _dataUpdateNotifier.value++;
   }
 
@@ -988,6 +995,7 @@ class MqttService {
       debugPrint('   ⚠️ No motor found for identifier=$identifier');
     }
 
+    _heartbeatNotifier.value++;
     _dataUpdateNotifier.value++;
   }
 

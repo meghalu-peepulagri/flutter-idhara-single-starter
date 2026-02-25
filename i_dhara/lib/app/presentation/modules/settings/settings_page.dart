@@ -444,8 +444,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         } catch (e) {
           print("line 480  $e");
         }
-
-        // Enable Save button
         setState(() {
           isbuttonActive = true;
         });
@@ -641,6 +639,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                       Expanded(
                         child: RefreshIndicator(
                           onRefresh: () async {
+                            await _handleCancel();
                             controller.isrefreshing.value = true;
                             _currentVoltageLow = null;
                             _currentVoltageHigh = null;
@@ -933,26 +932,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               updatedpayload["dvc_c"]['olf'] =
                                                   double.parse(strVal ?? "0.0");
                                             }
-                                            if (cmin || cmax) {
-                                              final calculatedLrf =
-                                                  controller.calculatedFlc(
-                                                      controller.lrf.value,
-                                                      controller.flc.value);
-                                              final calculatedOlf =
-                                                  controller.calculatedFlc(
-                                                      controller.olr.value,
-                                                      controller.flc.value);
-                                              final calculatedLRR =
-                                                  controller.calculatedFlc(
-                                                      controller.lrr.value,
-                                                      controller.flc.value);
-                                              updatedpayload["dvc_c"]['lrf'] =
-                                                  calculatedLrf;
-                                              updatedpayload['dvc_c']['olr'] =
-                                                  calculatedOlf;
-                                              updatedpayload['dvc_c']['lrr'] =
-                                                  calculatedLRR;
-                                            }
+
                                             // Handle FLC independently: add to
                                             // payload only when it changed;
                                             // if only FLC changed this also
@@ -969,6 +949,38 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                                   <String, dynamic>{};
                                               updatedpayload['dvc_c']['flc'] =
                                                   controller.flc.value;
+                                              final calculatedLrf =
+                                                  controller.calculatedFlc(
+                                                      controller.lrf.value,
+                                                      controller.flc.value);
+                                              final calculatedOlr =
+                                                  controller.calculatedFlc(
+                                                      controller.olr.value,
+                                                      controller.flc.value);
+                                              final calculatedLRR =
+                                                  controller.calculatedFlc(
+                                                      controller.lrr.value,
+                                                      controller.flc.value);
+                                              final calculatedDrf =
+                                                  controller.calculatedFlc(
+                                                      controller.drf.value
+                                                          .toDouble(),
+                                                      controller.flc.value);
+                                              final calculatedOlf =
+                                                  controller.calculatedFlc(
+                                                      controller.olf.value
+                                                          .toDouble(),
+                                                      controller.flc.value);
+                                              updatedpayload["dvc_c"]['lrf'] =
+                                                  calculatedLrf;
+                                              updatedpayload['dvc_c']['olr'] =
+                                                  calculatedOlr;
+                                              updatedpayload['dvc_c']['lrr'] =
+                                                  calculatedLRR;
+                                              updatedpayload['dvc_c']['drf'] =
+                                                  calculatedDrf;
+                                              updatedpayload['dvc_c']['olf'] =
+                                                  calculatedOlf;
                                             }
                                             if (isVoltageRange ||
                                                 isCurrentRange ||
