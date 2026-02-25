@@ -28,17 +28,16 @@ class OtpWidget extends StatelessWidget {
         child: Scaffold(
           key: scaffoldKey,
           backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-          body: SafeArea(
-            top: true,
-            child: Container(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  fit: BoxFit.cover,
-                  image: Image.asset(
-                    'assets/images/Verify OTP.png',
-                  ).image,
-                ),
+          body: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                fit: BoxFit.cover,
+                image: Image.asset(
+                  'assets/images/Verify OTP.png',
+                ).image,
               ),
+            ),
+            child: SafeArea(
               child: Padding(
                 padding:
                     const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),

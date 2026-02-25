@@ -66,8 +66,7 @@ Future<void> _requestFCMPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   NotificationSettings settings =
       await messaging.requestPermission(alert: true, badge: true, sound: true);
-  if (settings.authorizationStatus == AuthorizationStatus.denied) {
-  }
+  if (settings.authorizationStatus == AuthorizationStatus.denied) {}
 }
 
 Future<void> _requestNotificationPermission() async {
@@ -215,8 +214,10 @@ void main() async {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light, // iOS
+        statusBarIconBrightness: Brightness.dark, // For Android
+        statusBarBrightness: Brightness.light, // For iOS
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
 

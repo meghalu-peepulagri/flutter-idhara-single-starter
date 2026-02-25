@@ -60,6 +60,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   bool _ackInProgress = false;
   Timer? settingsAckTimer;
 
+  final Color _testrunColor = const Color(0xFFEFF6FF);
+
   // --- Phase 2: Measuring state ---
   static const int _totalSeconds = 60;
   int _remainingSeconds = _totalSeconds;
@@ -631,8 +633,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print("line 580    ------>");
-
     if (_isOffline) {
       return _buildNoInternetWidget();
     }
@@ -762,7 +762,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: const BoxDecoration(
-                color: Color(0xFFE5E7EB),
+                color: Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -794,22 +794,14 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     ],
                   ),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF3F4F6),
-                        shape: BoxShape.circle,
-                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
                       child: const Icon(
                         Icons.close,
-                        size: 18,
+                        size: 28,
                         color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ),
+                      )),
                 ],
               ),
             ),
@@ -949,9 +941,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.vertical(
+                decoration: BoxDecoration(
+                  color: _testrunColor,
+                  borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
                   ),
                 ),
@@ -1106,9 +1098,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE8EDF3),
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: _testrunColor,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),

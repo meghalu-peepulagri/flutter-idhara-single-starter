@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
@@ -8,9 +9,18 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-const _kBg = Color(0xFFCFE3F3); // light blue body background
+// ── Palette (unchanged as requested) ─────────────────────────────────────────
+const _kBg = Color(0xFFF8FAFF);
 const _kPrimary = Color(0xFF004E7E);
 const _kGradientEnd = Color(0xFF3686AF);
+
+// ── Extra tokens ──────────────────────────────────────────────────────────────
+const _kSurface = Colors.white;
+const _kBorder = Color(0xFFEBF2FF);
+const _kSubtext = Color(0xFF94A3B8);
+const _kText = Color(0xFF1E293B);
+const _kDivider = Color(0xFFF1F5F9);
+const _kRed = Color(0xFFEF4444);
 
 class ProfileWidget extends StatelessWidget {
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -29,7 +39,7 @@ class ProfileWidget extends StatelessWidget {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
           key: scaffoldKey,
-          backgroundColor: const Color(0xFFF0F5FF),
+          backgroundColor: _kBg,
           body: Obx(() {
             if (controller.isLoading.value) {
               return const Center(child: AppLottieLoading());
@@ -43,12 +53,12 @@ class ProfileWidget extends StatelessWidget {
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // ─── App Bar ───────────────────────────────────────────
+                  // ── App Bar ────────────────────────────────────────────
                   SliverAppBar(
-                    expandedHeight: 240,
+                    expandedHeight: 270,
                     pinned: true,
                     elevation: 0,
-                    backgroundColor: Colors.transparent,
+                    backgroundColor: _kPrimary,
                     automaticallyImplyLeading: false,
                     flexibleSpace: FlexibleSpaceBar(
                       background: Skeletonizer(
@@ -66,36 +76,34 @@ class ProfileWidget extends StatelessWidget {
                             onTap: () => Get.offAllNamed(Routes.dashboard),
                           ),
                           Text(
-                            'Profile',
+                            'My Profile',
                             style: GoogleFonts.dmSans(
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
                             ),
                           ),
-                          const SizedBox(width: 40),
+                          Container(width: 40),
                         ],
                       ),
                     ),
                   ),
 
-                  // ─── Body Content ──────────────────────────────────────
+                  // ── Body Content ───────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Skeletonizer(
                       enabled: controller.isRefreshing.value,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 48),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Contact Information Card
-                            const _SectionLabel(label: 'Contact Information'),
-                            const SizedBox(height: 10),
+                            const _SectionLabel(label: 'ACCOUNT SETTINGS'),
+                            const SizedBox(height: 12),
                             _ContactCard(profile: profile),
-
-                            const SizedBox(height: 28),
-
-                            // Logout Button
+                            const SizedBox(height: 32),
+                            const _SectionLabel(label: 'SESSION'),
+                            const SizedBox(height: 12),
                             _LogoutButton(
                               onPressed: () async {
                                 await controller.fetchFcmToken();
@@ -117,12 +125,20 @@ class ProfileWidget extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Profile Header (gradient banner + avatar + name/role)
+// Profile Header
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ProfileHeader extends StatelessWidget {
   final dynamic profile;
   const _ProfileHeader({required this.profile});
+
+  /// Returns up to 2 initials from a full name.
+  String _initials(String? name) {
+    if (name == null || name.trim().isEmpty) return '?';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,97 +149,152 @@ class _ProfileHeader extends StatelessWidget {
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF00366B), Color(0xFF0073BF)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_kGradientEnd, _kPrimary],
             ),
           ),
         ),
 
-        // Decorative circles
+        // Decorative circle – top-right
         Positioned(
-          top: -40,
-          right: -40,
+          top: -30,
+          right: -30,
           child: Container(
-            width: 180,
-            height: 180,
+            width: 170,
+            height: 170,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.07),
+            ),
+          ),
+        ),
+        // Decorative circle – mid-left
+        Positioned(
+          top: 50,
+          left: -50,
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.04),
+            ),
+          ),
+        ),
+        // Decorative circle – bottom-right accent
+        Positioned(
+          bottom: 20,
+          right: 20,
+          child: Container(
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.06),
             ),
           ),
         ),
-        Positioned(
-          bottom: 20,
-          left: -30,
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.05),
-            ),
-          ),
-        ),
 
-        // Avatar + name
+        // Avatar + name + role
         Positioned(
           bottom: 24,
           left: 0,
           right: 0,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Avatar
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.15),
-                  border: Border.all(
-                      color: Colors.white.withOpacity(0.5), width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
+              // Avatar with outer glow ring
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Outer glow ring
+                  Container(
+                    width: 107,
+                    height: 107,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.25), width: 2),
                     ),
-                  ],
-                ),
-                child: const Icon(Icons.person_rounded,
-                    color: Colors.white70, size: 52),
+                  ),
+                  // Avatar circle
+                  Container(
+                    width: 95,
+                    height: 95,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.3),
+                          Colors.white.withOpacity(0.1),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(color: Colors.white, width: 2.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        _initials(profile?.fullName),
+                        style: GoogleFonts.dmSans(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              // Name
+
+              const SizedBox(height: 14),
+
+              // Full name
               Text(
-                profile?.fullName ?? 'Unknown',
+                profile?.fullName ?? 'Unknown User',
                 style: GoogleFonts.dmSans(
                   color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 20,
-                  letterSpacing: 0.2,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                  letterSpacing: -0.5,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
+
               // Role pill
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(25),
                   border: Border.all(
                       color: Colors.white.withOpacity(0.3), width: 1),
                 ),
-                child: Text(
-                  profile?.userType ?? 'Unknown',
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      profile?.userType ?? 'Member',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -247,35 +318,50 @@ class _ContactCard extends StatelessWidget {
     final UserProfileController controller = Get.find<UserProfileController>();
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF004E7E).withOpacity(0.07),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            color: _kPrimary.withOpacity(0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(color: _kBorder, width: 1),
       ),
       child: Column(
         children: [
           _ContactRow(
-            iconData: Icons.mail_outline_rounded,
-            label: 'Email',
-            value: controller.userProfile.value?.email ?? '—',
+            iconData: Icons.mail_rounded,
+            iconColor: const Color(0xFF6366F1),
+            iconBg: const Color(0xFFEEF2FF),
+            label: 'Email Address',
+            value: controller.userProfile.value?.email ?? 'Not available',
             isFirst: true,
+            copyable: true,
           ),
-          _Divider(),
+          _DividerLine(),
           _ContactRow(
-            iconData: Icons.phone_outlined,
-            label: 'Phone',
-            value: controller.userProfile.value?.phone ?? '—',
+            iconData: Icons.phone_android_rounded,
+            iconColor: const Color(0xFF0EA5E9),
+            iconBg: const Color(0xFFE0F2FE),
+            label: 'Phone Number',
+            value: controller.userProfile.value?.phone ?? 'Not available',
+            copyable: true,
           ),
-          _Divider(),
+          _DividerLine(),
           _ContactRow(
-            iconData: Icons.location_on_outlined,
-            label: 'Address',
-            value: controller.userProfile.value?.address ?? 'N/A',
+            iconData: Icons.location_on_rounded,
+            iconColor: _kPrimary,
+            iconBg: const Color(0xFFE0EFF8),
+            label: 'Location / Address',
+            value:
+                controller.userProfile.value?.address ?? 'No address provided',
             isLast: true,
           ),
         ],
@@ -286,85 +372,123 @@ class _ContactCard extends StatelessWidget {
 
 class _ContactRow extends StatelessWidget {
   final IconData iconData;
+  final Color iconColor;
+  final Color iconBg;
   final String label;
   final String value;
   final bool isFirst;
   final bool isLast;
+  final bool copyable;
 
   const _ContactRow({
     required this.iconData,
+    required this.iconColor,
+    required this.iconBg,
     required this.label,
     required this.value,
     this.isFirst = false,
     this.isLast = false,
+    this.copyable = false,
   });
+
+  void _copy(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$label copied',
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: _kPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 18,
-        right: 18,
-        top: isFirst ? 18 : 14,
-        bottom: isLast ? 18 : 14,
+    return InkWell(
+      onTap: copyable ? () => _copy(context) : null,
+      borderRadius: BorderRadius.vertical(
+        top: isFirst ? const Radius.circular(24) : Radius.zero,
+        bottom: isLast ? const Radius.circular(24) : Radius.zero,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F2FB),
-              borderRadius: BorderRadius.circular(11),
+      splashColor: _kPrimary.withOpacity(0.04),
+      highlightColor: _kPrimary.withOpacity(0.02),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 16,
+          top: isFirst ? 22 : 14,
+          bottom: isLast ? 22 : 14,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Tinted icon container
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(iconData, color: iconColor, size: 22),
             ),
-            child: Icon(iconData, color: const Color(0xFF004E7E), size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.dmSans(
-                    color: const Color(0xFF8A97A8),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.4,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    style: GoogleFonts.dmSans(
+                      color: _kSubtext,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: GoogleFonts.dmSans(
-                    color: const Color(0xFF101828),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(height: 3),
+                  Text(
+                    value,
+                    style: GoogleFonts.dmSans(
+                      color: _kText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            if (copyable) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.copy_rounded, size: 16, color: _kSubtext),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _Divider extends StatelessWidget {
+class _DividerLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 18),
-      color: const Color(0xFFF0F4F8),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      color: _kDivider,
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section Label
+// Section Label  (with left accent bar)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
@@ -373,60 +497,127 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: GoogleFonts.dmSans(
-        color: const Color(0xFF344054),
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.8,
-      ),
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 14,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: _kPrimary,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            color: const Color(0xFF64748B),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+          ),
+        ),
+      ],
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Logout Button
+// Logout Button  ← updated: disables itself after first tap
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _LogoutButton extends StatelessWidget {
-  final VoidCallback onPressed;
+class _LogoutButton extends StatefulWidget {
+  final Future<void> Function() onPressed;
   const _LogoutButton({required this.onPressed});
 
   @override
+  State<_LogoutButton> createState() => _LogoutButtonState();
+}
+
+class _LogoutButtonState extends State<_LogoutButton> {
+  bool _isLoading = false;
+
+  Future<void> _handlePress() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      await widget.onPressed();
+    } catch (_) {
+      // Re-enable the button if something goes wrong so the user can retry.
+      if (mounted) setState(() => _isLoading = false);
+    }
+    // If navigation succeeded the widget is unmounted, so nothing more to do.
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 52,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.logout_rounded, size: 19, color: Colors.white),
-        label: Text(
-          'Logout',
-          style: GoogleFonts.dmSans(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: (_isLoading ? Colors.grey : _kRed).withOpacity(0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
-        ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handlePress,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFEF3340),
+          backgroundColor: _isLoading ? const Color(0xFFB0BEC5) : _kRed,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0xFFB0BEC5),
+          disabledForegroundColor: Colors.white70,
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: _isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(7),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.logout_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _isLoading ? 'Signing Out...' : 'Sign Out',
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Circle Icon Button
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CircleButton extends StatelessWidget {
   final IconData icon;
@@ -438,14 +629,14 @@ class _CircleButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 38,
+        height: 38,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white.withOpacity(0.18),
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+          border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
         ),
-        child: Icon(icon, color: Colors.white, size: 16),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }

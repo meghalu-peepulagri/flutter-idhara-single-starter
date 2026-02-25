@@ -59,17 +59,17 @@ class DashboardWidget extends StatelessWidget {
           key: scaffoldKey,
           backgroundColor: const Color(0xFFEBF3FE),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-          body: SafeArea(
-            top: true,
-            child: Container(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  fit: BoxFit.cover,
-                  image: Image.asset(
-                    'assets/images/idhara_background.png',
-                  ).image,
-                ),
+          body: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                fit: BoxFit.cover,
+                image: Image.asset(
+                  'assets/images/idhara_background.png',
+                ).image,
               ),
+            ),
+            child: SafeArea(
+              top: true,
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
