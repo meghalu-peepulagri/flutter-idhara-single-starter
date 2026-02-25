@@ -320,8 +320,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     //   arguments: {'motorId': widget.motor.id},
     // );
 
-    Get.offAllNamed(Routes.motorDetails,
-        arguments: {'tabIndex': 2, 'logFilter': 'Faults'});
+    Get.offAllNamed(Routes.motorDetails, arguments: {
+      'motorId': widget.motor.id,
+      'tabIndex': 2,
+      'logFilter': 'Faults'
+    });
   }
 
   void _navigateToTestRun() {
