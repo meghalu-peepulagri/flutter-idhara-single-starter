@@ -380,11 +380,16 @@ class DashboardController extends GetxController with ConnectivityMixin {
           mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
         }
 
-        await mqttService.initializeMqttClient();
-
-        if (motorMap.isNotEmpty) {
-          _onMqttUpdate();
-        }
+        // Initialize MQTT in the background to avoid blocking the UI refresh
+        debugPrint('DASHBOARD: Initializing MQTT client...');
+        mqttService.initializeMqttClient().then((_) {
+          debugPrint('DASHBOARD: MQTT client initialized successfully');
+          if (motorMap.isNotEmpty) {
+            _onMqttUpdate();
+          }
+        }).catchError((e) {
+          debugPrint('DASHBOARD: MQTT initialization failed: $e');
+        });
       } else {
         errorMessage.value = 'Failed to load motors';
       }

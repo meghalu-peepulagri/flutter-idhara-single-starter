@@ -58,369 +58,397 @@ class _RegisterWidgetState extends State<RegisterWidget> {
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
         body: LayoutBuilder(builder: (context, constraints) {
           return SafeArea(
-            top: true,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              scrollDirection: Axis.vertical,
-              child: Container(
-                width: double.infinity,
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
+              top: true,
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: const SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: Brightness.dark,
+                  statusBarBrightness: Brightness.light,
                 ),
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/Verify OTP.png'),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Column(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.vertical,
+                  child: Container(
+                    width: double.infinity,
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/Verify OTP.png'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
+                      child: Column(
                         mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: SvgPicture.asset(
-                                  'assets/images/idhara_logo.svg',
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ],
-                          ),
                           Column(
                             mainAxisSize: MainAxisSize.max,
                             children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: SvgPicture.asset(
+                                      'assets/images/idhara_logo.svg',
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ],
+                              ),
                               Column(
                                 mainAxisSize: MainAxisSize.max,
                                 children: [
-                                  Text(
-                                    'Create Your Account',
-                                    textAlign: TextAlign.center,
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          fontFamily: 'Lexend',
-                                          color: const Color(0xFF35353D),
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w400,
-                                          letterSpacing: 0,
-                                        ),
-                                  ),
-                                  Text(
-                                    'Enter your details to get started.',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          fontFamily: 'Lexend',
-                                          color: const Color(0xFF6A7185),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w400,
-                                          letterSpacing: 0,
-                                        ),
-                                  ),
-                                ].divide(const SizedBox(height: 8)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    16, 0, 16, 0),
-                                child: Form(
-                                  key: _formKey,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
+                                  Column(
+                                    mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      Column(
-                                        mainAxisSize: MainAxisSize.max,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                      Text(
+                                        'Create Your Account',
+                                        textAlign: TextAlign.center,
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              fontFamily: 'Lexend',
+                                              color: const Color(0xFF35353D),
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w400,
+                                              letterSpacing: 0,
+                                            ),
+                                      ),
+                                      Text(
+                                        'Enter your details to get started.',
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              fontFamily: 'Lexend',
+                                              color: const Color(0xFF6A7185),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                              letterSpacing: 0,
+                                            ),
+                                      ),
+                                    ].divide(const SizedBox(height: 8)),
+                                  ),
+                                  Padding(
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                            16, 0, 16, 0),
+                                    child: Form(
+                                      key: _formKey,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text.rich(
-                                            TextSpan(
-                                              text: 'Full Name',
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w400,
-                                                    fontFamily: 'Manrope',
-                                                    color:
-                                                        const Color(0xFF000000),
-                                                  ),
-                                              children: const [
+                                          Column(
+                                            mainAxisSize: MainAxisSize.max,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text.rich(
                                                 TextSpan(
-                                                  text: '*',
-                                                  style: TextStyle(
-                                                      color: Colors.red,
-                                                      fontWeight:
-                                                          FontWeight.bold),
+                                                  text: 'Full Name',
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .bodyMedium
+                                                      .override(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                        fontFamily: 'Manrope',
+                                                        color: const Color(
+                                                            0xFF000000),
+                                                      ),
+                                                  children: const [
+                                                    TextSpan(
+                                                      text: '*',
+                                                      style: TextStyle(
+                                                          color: Colors.red,
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                            height: 8,
-                                          ),
-                                          TextFieldComponent(
-                                            readOnly: false,
-                                            controller: nameController,
-                                            errors: _model.errorInstance,
-                                            hintText: 'Enter Full Name',
-                                            errorKey: 'full_name',
-                                            keyboardType: TextInputType.name,
-                                            onChanged: (value) {
-                                              if (_model.errorInstance
-                                                  .containsKey('full_name')) {
-                                                setState(() {
-                                                  _model.errorInstance
-                                                      .remove('full_name');
-                                                });
-                                              }
-                                            },
-                                            inputFormatters: [
-                                              FilteringTextInputFormatter.allow(
-                                                  RegExp(r'[a-zA-Z\s]')),
-                                              FilteringTextInputFormatter.deny(
-                                                  RegExp(r'^\s')),
-                                            ],
-                                          ),
-                                          const SizedBox(
-                                            height: 10,
-                                          ),
-                                          Text.rich(
-                                            TextSpan(
-                                              text: 'Mobile Number',
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w400,
-                                                    fontFamily: 'Manrope',
-                                                    color:
-                                                        const Color(0xFF000000),
-                                                  ),
-                                              children: const [
-                                                TextSpan(
-                                                  text: '*',
-                                                  style: TextStyle(
-                                                      color: Colors.red,
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                            height: 8,
-                                          ),
-                                          TextFieldComponent(
-                                            readOnly: false,
-                                            controller: phoneController,
-                                            errors: _model.errorInstance,
-                                            hintText: 'Enter Mobile Number',
-                                            errorKey: 'phone',
-                                            onChanged: (value) {
-                                              if (_model.errorInstance
-                                                  .containsKey('phone')) {
-                                                setState(() {
-                                                  _model.errorInstance
-                                                      .remove('phone');
-                                                });
-                                              }
-                                            },
-                                            keyboardType: TextInputType.phone,
-                                            inputFormatters: [
-                                              FilteringTextInputFormatter
-                                                  .digitsOnly,
-                                              LengthLimitingTextInputFormatter(
-                                                  10),
-                                            ],
-                                          ),
-                                          const SizedBox(
-                                            height: 10,
-                                          ),
-                                          Text.rich(
-                                            TextSpan(
-                                              text: 'Email',
-                                              style: FlutterFlowTheme.of(
-                                                      context)
-                                                  .bodyMedium
-                                                  .override(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w400,
-                                                    fontFamily: 'Manrope',
-                                                    color:
-                                                        const Color(0xFF000000),
-                                                  ),
-                                              children: const [
-                                                TextSpan(
-                                                  text: '',
-                                                  style: TextStyle(
-                                                      color: Colors.red,
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                            height: 8,
-                                          ),
-                                          TextFieldComponent(
-                                            readOnly: false,
-                                            controller: emailController,
-                                            errors: _model.errorInstance,
-                                            hintText: 'Enter Email',
-                                            errorKey: 'email',
-                                            onChanged: (value) {
-                                              if (_model.errorInstance
-                                                  .containsKey('email')) {
-                                                setState(() {
-                                                  _model.errorInstance
-                                                      .remove('email');
-                                                });
-                                              }
-                                            },
-                                            inputFormatters: [
-                                              FilteringTextInputFormatter.allow(
-                                                  RegExp(
-                                                      r'[a-zA-Z0-9$#%^&*!@()/|.]')),
-                                            ],
-                                          ),
-                                          const SizedBox(
-                                            height: 10,
-                                          ),
-                                          Text(
-                                            'Address',
-                                            style: FlutterFlowTheme.of(context)
-                                                .bodyMedium
-                                                .override(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400,
-                                                  fontFamily: 'Manrope',
-                                                  color:
-                                                      const Color(0xFF000000),
-                                                ),
-                                          ),
-                                          const SizedBox(
-                                            height: 8,
-                                          ),
-                                          DescriptionTextField(
-                                            readOnly: false,
-                                            controller: addressController,
-                                            errors: _model.errorInstance,
-                                            hintText: 'Enter Address',
-                                            errorKey: 'location',
-                                            keyboardType: TextInputType.text,
-                                            ontap: () {},
-                                          ),
-                                          const SizedBox(height: 30),
-                                          Container(
-                                            width: double.infinity,
-                                            height: 45,
-                                            decoration: BoxDecoration(
-                                              gradient: const LinearGradient(
-                                                colors: [
-                                                  Color(0xFF004E7E),
-                                                  Color(0xFF3686AF),
-                                                ],
-                                                begin: Alignment.centerLeft,
-                                                end: Alignment.centerRight,
                                               ),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: FFButtonWidget(
-                                              onPressed: () async {
-                                                String id = await SmsAutoFill()
-                                                    .getAppSignature;
-
-                                                await _model.fetchregister(
-                                                    fullName: nameController
-                                                        .text
-                                                        .trim(),
-                                                    email: emailController.text
-                                                            .trim()
-                                                            .isEmpty
-                                                        ? null
-                                                        : emailController.text
-                                                            .trim(),
-                                                    phone: phoneController.text
-                                                        .trim(),
-                                                    address: addressController
-                                                        .text
-                                                        .trim(),
-                                                    sid: id);
-
-                                                if (!mounted) return;
-                                                setState(() {});
-                                              },
-                                              text: 'Register',
-                                              options: FFButtonOptions(
-                                                width: double.infinity,
-                                                height: 40,
-                                                padding:
-                                                    const EdgeInsetsDirectional
-                                                        .fromSTEB(16, 0, 16, 0),
-                                                iconPadding:
-                                                    const EdgeInsetsDirectional
-                                                        .fromSTEB(0, 0, 0, 0),
-                                                color: Colors.transparent,
-                                                textStyle:
+                                              const SizedBox(
+                                                height: 8,
+                                              ),
+                                              TextFieldComponent(
+                                                readOnly: false,
+                                                controller: nameController,
+                                                errors: _model.errorInstance,
+                                                hintText: 'Enter Full Name',
+                                                errorKey: 'full_name',
+                                                keyboardType:
+                                                    TextInputType.name,
+                                                onChanged: (value) {
+                                                  if (_model.errorInstance
+                                                      .containsKey(
+                                                          'full_name')) {
+                                                    setState(() {
+                                                      _model.errorInstance
+                                                          .remove('full_name');
+                                                    });
+                                                  }
+                                                },
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .allow(RegExp(
+                                                          r'[a-zA-Z\s]')),
+                                                  FilteringTextInputFormatter
+                                                      .deny(RegExp(r'^\s')),
+                                                ],
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              Text.rich(
+                                                TextSpan(
+                                                  text: 'Mobile Number',
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .bodyMedium
+                                                      .override(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                        fontFamily: 'Manrope',
+                                                        color: const Color(
+                                                            0xFF000000),
+                                                      ),
+                                                  children: const [
+                                                    TextSpan(
+                                                      text: '*',
+                                                      style: TextStyle(
+                                                          color: Colors.red,
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                height: 8,
+                                              ),
+                                              TextFieldComponent(
+                                                readOnly: false,
+                                                controller: phoneController,
+                                                errors: _model.errorInstance,
+                                                hintText: 'Enter Mobile Number',
+                                                errorKey: 'phone',
+                                                onChanged: (value) {
+                                                  if (_model.errorInstance
+                                                      .containsKey('phone')) {
+                                                    setState(() {
+                                                      _model.errorInstance
+                                                          .remove('phone');
+                                                    });
+                                                  }
+                                                },
+                                                keyboardType:
+                                                    TextInputType.phone,
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .digitsOnly,
+                                                  LengthLimitingTextInputFormatter(
+                                                      10),
+                                                ],
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              Text.rich(
+                                                TextSpan(
+                                                  text: 'Email',
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .bodyMedium
+                                                      .override(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                        fontFamily: 'Manrope',
+                                                        color: const Color(
+                                                            0xFF000000),
+                                                      ),
+                                                  children: const [
+                                                    TextSpan(
+                                                      text: '',
+                                                      style: TextStyle(
+                                                          color: Colors.red,
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                height: 8,
+                                              ),
+                                              TextFieldComponent(
+                                                readOnly: false,
+                                                controller: emailController,
+                                                errors: _model.errorInstance,
+                                                hintText: 'Enter Email',
+                                                errorKey: 'email',
+                                                onChanged: (value) {
+                                                  if (_model.errorInstance
+                                                      .containsKey('email')) {
+                                                    setState(() {
+                                                      _model.errorInstance
+                                                          .remove('email');
+                                                    });
+                                                  }
+                                                },
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .allow(RegExp(
+                                                          r'[a-zA-Z0-9$#%^&*!@()/|.]')),
+                                                ],
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              Text(
+                                                'Address',
+                                                style:
                                                     FlutterFlowTheme.of(context)
+                                                        .bodyMedium
+                                                        .override(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w400,
+                                                          fontFamily: 'Manrope',
+                                                          color: const Color(
+                                                              0xFF000000),
+                                                        ),
+                                              ),
+                                              const SizedBox(
+                                                height: 8,
+                                              ),
+                                              DescriptionTextField(
+                                                readOnly: false,
+                                                controller: addressController,
+                                                errors: _model.errorInstance,
+                                                hintText: 'Enter Address',
+                                                errorKey: 'location',
+                                                keyboardType:
+                                                    TextInputType.text,
+                                                ontap: () {},
+                                              ),
+                                              const SizedBox(height: 30),
+                                              Container(
+                                                width: double.infinity,
+                                                height: 45,
+                                                decoration: BoxDecoration(
+                                                  gradient:
+                                                      const LinearGradient(
+                                                    colors: [
+                                                      Color(0xFF004E7E),
+                                                      Color(0xFF3686AF),
+                                                    ],
+                                                    begin: Alignment.centerLeft,
+                                                    end: Alignment.centerRight,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: FFButtonWidget(
+                                                  onPressed: () async {
+                                                    String id =
+                                                        await SmsAutoFill()
+                                                            .getAppSignature;
+
+                                                    await _model.fetchregister(
+                                                        fullName: nameController
+                                                            .text
+                                                            .trim(),
+                                                        email:
+                                                            emailController.text
+                                                                    .trim()
+                                                                    .isEmpty
+                                                                ? null
+                                                                : emailController
+                                                                    .text
+                                                                    .trim(),
+                                                        phone: phoneController
+                                                            .text
+                                                            .trim(),
+                                                        address:
+                                                            addressController
+                                                                .text
+                                                                .trim(),
+                                                        sid: id);
+
+                                                    if (!mounted) return;
+                                                    setState(() {});
+                                                  },
+                                                  text: 'Register',
+                                                  options: FFButtonOptions(
+                                                    width: double.infinity,
+                                                    height: 40,
+                                                    padding:
+                                                        const EdgeInsetsDirectional
+                                                            .fromSTEB(
+                                                            16, 0, 16, 0),
+                                                    iconPadding:
+                                                        const EdgeInsetsDirectional
+                                                            .fromSTEB(
+                                                            0, 0, 0, 0),
+                                                    color: Colors.transparent,
+                                                    textStyle: FlutterFlowTheme
+                                                            .of(context)
                                                         .titleSmall
                                                         .override(
                                                           fontFamily: 'Lexend',
                                                           color: Colors.white,
                                                           letterSpacing: 0,
                                                         ),
-                                                elevation: 0,
-                                                borderRadius:
-                                                    BorderRadius.circular(24),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 13),
-                                          Row(
-                                              mainAxisSize: MainAxisSize.max,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'or',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        fontFamily: 'Lexend',
-                                                        color: const Color(
-                                                            0xFF6A7185),
-                                                        fontWeight:
-                                                            FontWeight.w300,
-                                                        fontSize: 16,
-                                                        letterSpacing: 0,
-                                                      ),
+                                                    elevation: 0,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            24),
+                                                  ),
                                                 ),
-                                              ]),
-                                          const SizedBox(height: 13),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.max,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'Already have an account?',
-                                                style:
-                                                    FlutterFlowTheme.of(context)
+                                              ),
+                                              const SizedBox(height: 13),
+                                              Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.max,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Text(
+                                                      'or',
+                                                      style: FlutterFlowTheme
+                                                              .of(context)
+                                                          .bodyMedium
+                                                          .override(
+                                                            fontFamily:
+                                                                'Lexend',
+                                                            color: const Color(
+                                                                0xFF6A7185),
+                                                            fontWeight:
+                                                                FontWeight.w300,
+                                                            fontSize: 16,
+                                                            letterSpacing: 0,
+                                                          ),
+                                                    ),
+                                                  ]),
+                                              const SizedBox(height: 13),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.max,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Already have an account?',
+                                                    style: FlutterFlowTheme.of(
+                                                            context)
                                                         .bodyMedium
                                                         .override(
                                                           fontFamily: 'Lexend',
@@ -431,50 +459,52 @@ class _RegisterWidgetState extends State<RegisterWidget> {
                                                               FontWeight.w300,
                                                           letterSpacing: 0,
                                                         ),
-                                              ),
-                                              const SizedBox(
-                                                width: 5,
-                                              ),
-                                              GestureDetector(
-                                                onTap: () {
-                                                  Get.toNamed(
-                                                      Routes.loginwithmobile);
-                                                },
-                                                child: Text('Login',
-                                                    style: FlutterFlowTheme.of(
-                                                            context)
-                                                        .bodyMedium
-                                                        .override(
-                                                            fontFamily:
-                                                                'Lexend',
-                                                            color: const Color(
-                                                                0xFF121212),
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.w400,
-                                                            letterSpacing: 0,
-                                                            decoration:
-                                                                TextDecoration
-                                                                    .underline)),
-                                              ),
+                                                  ),
+                                                  const SizedBox(
+                                                    width: 5,
+                                                  ),
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      Get.toNamed(Routes
+                                                          .loginwithmobile);
+                                                    },
+                                                    child: Text('Login',
+                                                        style: FlutterFlowTheme.of(
+                                                                context)
+                                                            .bodyMedium
+                                                            .override(
+                                                                fontFamily:
+                                                                    'Lexend',
+                                                                color: const Color(
+                                                                    0xFF121212),
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w400,
+                                                                letterSpacing:
+                                                                    0,
+                                                                decoration:
+                                                                    TextDecoration
+                                                                        .underline)),
+                                                  ),
+                                                ],
+                                              )
                                             ],
                                           )
                                         ],
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              )
+                                      ),
+                                    ),
+                                  )
+                                ].divide(const SizedBox(height: 20)),
+                              ),
                             ].divide(const SizedBox(height: 20)),
                           ),
-                        ].divide(const SizedBox(height: 20)),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
+              ));
         }),
       ),
     );

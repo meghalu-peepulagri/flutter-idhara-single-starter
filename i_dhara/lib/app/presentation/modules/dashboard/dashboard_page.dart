@@ -59,50 +59,57 @@ class DashboardWidget extends StatelessWidget {
           key: scaffoldKey,
           backgroundColor: const Color(0xFFEBF3FE),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-          body: Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                fit: BoxFit.cover,
-                image: Image.asset(
-                  'assets/images/idhara_background.png',
-                ).image,
-              ),
+          body: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
             ),
-            child: SafeArea(
-              top: true,
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          16.0, 0.0, 16.0, 0.0),
-                      child: Obx(() {
-                        if (controller.isLoading.value) {
-                          return const Padding(
-                            padding: EdgeInsets.only(right: 50),
-                            child: Center(
-                              child: AppLottieLoading(),
-                            ),
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  fit: BoxFit.cover,
+                  image: Image.asset(
+                    'assets/images/idhara_background.png',
+                  ).image,
+                ),
+              ),
+              child: SafeArea(
+                top: true,
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                            16.0, 0.0, 16.0, 0.0),
+                        child: Obx(() {
+                          if (controller.isLoading.value) {
+                            return const Padding(
+                              padding: EdgeInsets.only(right: 50),
+                              child: Center(
+                                child: AppLottieLoading(),
+                              ),
+                            );
+                          } else if (!ConnectivityService.to.isConnected) {
+                            return const Center(
+                              child: NoInternetWidget(),
+                            );
+                          }
+                          return Column(
+                            children: [
+                              const WeatherCard(),
+                              Expanded(child: _buildMotorList()),
+                            ]
+                                .divide(const SizedBox(height: 10.0))
+                                .addToStart(const SizedBox(height: 10.0)),
                           );
-                        } else if (!ConnectivityService.to.isConnected) {
-                          return const Center(
-                            child: NoInternetWidget(),
-                          );
-                        }
-                        return Column(
-                          children: [
-                            const WeatherCard(),
-                            Expanded(child: _buildMotorList()),
-                          ]
-                              .divide(const SizedBox(height: 10.0))
-                              .addToStart(const SizedBox(height: 10.0)),
-                        );
-                      }),
+                        }),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -532,7 +532,6 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
       child: FFButtonWidget(
         onPressed: () async {
           FocusScope.of(context).unfocus();
-
           await _model.assignDevice(
             pcbNumber: _model.textController1!.text.trim(),
             pumpName: _model.textController2!.text.trim(),

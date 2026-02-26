@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -41,6 +42,11 @@ class _TestRunPageState extends State<TestRunPage> with TestRunLogicMixin {
       appBar: AppBar(
         backgroundColor: const Color(0xFFEBF3FE),
         elevation: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back,
               color: isWaitingForAck

@@ -60,6 +60,11 @@ class ProfileWidget extends StatelessWidget {
                     elevation: 0,
                     backgroundColor: _kPrimary,
                     automaticallyImplyLeading: false,
+                    systemOverlayStyle: const SystemUiOverlayStyle(
+                      statusBarColor: Colors.transparent,
+                      statusBarIconBrightness: Brightness.light,
+                      statusBarBrightness: Brightness.dark,
+                    ),
                     flexibleSpace: FlexibleSpaceBar(
                       background: Skeletonizer(
                         enabled: controller.isRefreshing.value,
@@ -617,7 +622,6 @@ class _LogoutButtonState extends State<_LogoutButton> {
     );
   }
 }
-
 
 class _CircleButton extends StatelessWidget {
   final IconData icon;
