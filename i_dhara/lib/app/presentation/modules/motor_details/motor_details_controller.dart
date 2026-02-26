@@ -83,7 +83,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   Timer? _modeAckTimer;
   static const Duration _ackTimeout = Duration(seconds: 13);
   var isWaitingForModeAck = false.obs;
-  var canChangeMode = true.obs;
+  var canChangeMode = false.obs;
   var signalQuality = 0.obs;
 
   final bool _isUsingExistingMqttInstance = false;

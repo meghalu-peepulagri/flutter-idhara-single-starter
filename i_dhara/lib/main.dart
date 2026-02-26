@@ -296,33 +296,37 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _showLocalNotification(RemoteMessage message) {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
-    if (notification != null && android != null) {
-      // Include title and body in payload for consistency
+    // Get title & body from notification OR fallback to data
+    String? title = message.notification?.title ?? message.data['title'];
+    String? body = message.notification?.body ?? message.data['body'];
+
+    if (title != null && body != null) {
       Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
-      fullData['title'] = notification.title ?? '';
-      fullData['body'] = notification.body ?? '';
-      flutterLocalNotificationsPlugin
-          .show(
-            notification.hashCode,
-            notification.title,
-            notification.body,
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'high_importance_channel',
-                'High Importance Notifications',
-                importance: Importance.max,
-                priority: Priority.high,
-                showWhen: false,
-                icon: '@drawable/idhara_logo',
-                color: Color(0xFF1B5E8A),
-              ),
+
+      fullData['title'] = title;
+      fullData['body'] = body;
+
+      flutterLocalNotificationsPlugin.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body, // ✅ Body will now always show
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'high_importance_channel',
+            'High Importance Notifications',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: true,
+            icon: '@drawable/idhara_logo',
+            color: Color(0xFF1B5E8A),
+            styleInformation: BigTextStyleInformation(
+              '', // Will auto expand large text
             ),
-            payload: json.encode(fullData),
-          )
-          .catchError((e) {});
-    } else {}
+          ),
+        ),
+        payload: json.encode(fullData),
+      );
+    }
   }
 
   void setThemeMode(ThemeMode mode) => safeSetState(() {

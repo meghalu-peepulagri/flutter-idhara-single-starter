@@ -115,7 +115,7 @@ class NetworkManager {
                 return error.response;
 
               case 403:
-                geterrorSnackBar(errorsMap["bad_request_error"]);
+                geterrorSnackBar(responseData['message']);
                 return error.response;
               case 409:
                 geterrorSnackBar(responseData['message']);

@@ -6,6 +6,7 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
@@ -67,6 +68,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     // _isInitialized = true;
     widget.mqttService.commandStatusNotifier
         .addListener(_onCommandStatusChanged);
+    // Rebuild when mode changes so isSwitchDisabled is never stale
+    _localModeController.addListener(_onModeControllerChanged);
+  }
+
+  void _onModeControllerChanged() {
+    if (mounted) setState(() {});
   }
 
   // --- Logic Methods ---
@@ -155,6 +162,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   void dispose() {
     widget.mqttService.commandStatusNotifier
         .removeListener(_onCommandStatusChanged);
+    _localModeController.removeListener(_onModeControllerChanged);
     _switchAckTimer?.cancel();
     _modeAckTimer?.cancel();
     _localSwitchController.dispose();
@@ -279,6 +287,37 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (_localModeController.value != newMode) {
       _localModeController.value = newMode;
     }
+  }
+
+  void _handleModeChange(int newMode) {
+    if (_isWaitingForModeAck) return;
+    if (!_isMotorAvailable()) return;
+
+    final motorId = _getMotorId();
+    if (motorId.isEmpty) return;
+
+    final motorName = widget.motor.aliasName ?? widget.motor.name ?? 'Motor';
+
+    MotorCardDialogs.showModeChangeDialog(context, motorName, newMode,
+        (confirmedMode) async {
+      final previousMode = _localModeController.value;
+
+      setState(() => _isWaitingForModeAck = true);
+      _localModeController.value = confirmedMode;
+      _hasPendingModeCommand = true;
+      _pendingModeValue = confirmedMode;
+      _startModeAckTimer(previousMode);
+
+      try {
+        await widget.mqttService.publishModeCommand(motorId, confirmedMode);
+      } catch (e) {
+        _modeAckTimer?.cancel();
+        _localModeController.value = previousMode;
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+        if (mounted) setState(() => _isWaitingForModeAck = false);
+      }
+    });
   }
 
   bool _canControlMotor(MotorData? motorData) {
@@ -475,9 +514,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           } else {
             if (motorData.modeIndex != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && !_hasPendingModeCommand)
+                if (mounted && !_hasPendingModeCommand) {
                   _updateModeFromMqtt(motorData.modeIndex!);
-                setState(() {});
+                }
               });
             }
           }
@@ -531,9 +570,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   switchController: _localSwitchController,
                   modeController: _localModeController,
                   onToggleSwitch: _handleToggle,
-                  onModeChange: (_) {
-                    //  logic
-                  },
+                  onModeChange: _handleModeChange,
                   isSwitchDisabled: isSwitchDisabled,
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                   onNavigateToDetails: _navigateToDetails,

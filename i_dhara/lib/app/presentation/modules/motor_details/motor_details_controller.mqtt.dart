@@ -293,14 +293,10 @@ extension AnalyticsControllerMqtt on AnalyticsController {
   }
 
   Future<void> handleModeChange(int newModeIndex) async {
-    if (!mqttInitialized || isWaitingForModeAck.value) {
-      if (kDebugMode) return;
-    }
+    if (!mqttInitialized || isWaitingForModeAck.value) return;
 
     final mId = _getMotorId();
-    if (mId.isEmpty) {
-      if (kDebugMode) return;
-    }
+    if (mId.isEmpty) return;
 
     final previousValue = localModeIndex.value;
 

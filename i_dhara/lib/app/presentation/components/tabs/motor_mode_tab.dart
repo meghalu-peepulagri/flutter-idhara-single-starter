@@ -21,6 +21,7 @@ class MotorModeTab extends StatefulWidget {
 
 class _MotorModeTabState extends State<MotorModeTab> {
   late ValueNotifier<int> _modeNotifier;
+  Worker? _modeWorker;
 
   @override
   void initState() {
@@ -28,7 +29,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
     _modeNotifier = ValueNotifier<int>(widget.controller.localModeIndex.value);
 
     // Listen to controller mode changes and update the notifier
-    ever(widget.controller.localModeIndex, (value) {
+    _modeWorker = ever(widget.controller.localModeIndex, (value) {
       if (mounted && _modeNotifier.value != value) {
         _modeNotifier.value = value;
         if (kDebugMode) {
@@ -41,6 +42,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
 
   @override
   void dispose() {
+    _modeWorker?.dispose();
     _modeNotifier.dispose();
     super.dispose();
   }
