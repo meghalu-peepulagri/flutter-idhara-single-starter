@@ -23,6 +23,12 @@ import 'app/core/flutter_flow/flutter_flow_util.dart';
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
+// Must be top-level for background notification tap handling
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  _handleNotificationTap(notificationResponse.payload);
+}
+
 // Background message handler - must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebasemessageBackgroundHandler(RemoteMessage message) async {
@@ -39,6 +45,17 @@ Future<void> _firebasemessageBackgroundHandler(RemoteMessage message) async {
     const InitializationSettings initSettings =
         InitializationSettings(android: androidInit);
     await bgPlugin.initialize(initSettings);
+
+    // Create the notification channel in background isolate too
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'High Importance Notifications',
+      importance: Importance.high,
+    );
+    await bgPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
     final notification = message.notification;
     if (notification != null) {
@@ -57,7 +74,7 @@ Future<void> _firebasemessageBackgroundHandler(RemoteMessage message) async {
             importance: Importance.max,
             priority: Priority.high,
             showWhen: false,
-            icon: '@drawable/idhara_logo',
+            icon: '@drawable/ic_notification',
             color: Color(0xFF1B5E8A),
           ),
         ),
@@ -166,10 +183,13 @@ Future<void> _setupLocalNotifications() async {
   );
   const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-    _handleNotificationTap(response.payload);
-  });
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      _handleNotificationTap(response.payload);
+    },
+    onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+  );
   AndroidNotificationChannel channel = const AndroidNotificationChannel(
       'high_importance_channel', 'High Importance Notifications',
       importance: Importance.high);
@@ -228,7 +248,8 @@ void main() async {
       // iOS: Wait for APNS token before getting FCM token
       if (Platform.isIOS) {
         String? apnsToken;
-        for (int i = 0; i < 15; i++) {
+        // Increase retries for release builds where APNs registration can be slower
+        for (int i = 0; i < 30; i++) {
           apnsToken = await FirebaseMessaging.instance.getAPNSToken();
           if (apnsToken != null) break;
           await Future.delayed(const Duration(milliseconds: 500));
@@ -240,7 +261,17 @@ void main() async {
       }
 
       // Get and store FCM token
-      final fcmToken = await FirebaseMessaging.instance.getToken();
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+      // Retry FCM token retrieval if null (common in release builds)
+      if (fcmToken == null && Platform.isIOS) {
+        for (int i = 0; i < 5; i++) {
+          await Future.delayed(const Duration(seconds: 1));
+          fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) break;
+        }
+      }
+
       debugPrint('FCM Token: $fcmToken');
       if (fcmToken != null) {
         SharedPreference.setFcmToken(fcmToken);
@@ -350,6 +381,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _showLocalNotification(RemoteMessage message) {
+    // iOS foreground notifications are handled by setForegroundNotificationPresentationOptions.
+    // Showing a local notification here on iOS causes conflicts and duplicate/suppressed alerts.
+    if (Platform.isIOS) return;
+
     RemoteNotification? notification = message.notification;
     if (notification != null) {
       Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
@@ -367,13 +402,8 @@ class _MyAppState extends State<MyApp> {
                 importance: Importance.max,
                 priority: Priority.high,
                 showWhen: false,
-                icon: '@drawable/idhara_logo',
+                icon: '@drawable/ic_notification',
                 color: Color(0xFF1B5E8A),
-              ),
-              iOS: DarwinNotificationDetails(
-                presentAlert: true,
-                presentBadge: true,
-                presentSound: true,
               ),
             ),
             payload: json.encode(fullData),

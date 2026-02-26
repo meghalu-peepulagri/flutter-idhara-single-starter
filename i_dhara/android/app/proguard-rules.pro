@@ -61,6 +61,23 @@
 -keep public class * extends android.app.Service
 -keep public class * extends android.content.BroadcastReceiver
 
+# Keep Gson and JSON serialization classes (used internally by Firebase)
+-keep class com.google.gson.** { *; }
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Keep Firebase Installations (required for FCM token generation in release)
+-keep class com.google.firebase.installations.** { *; }
+-keep class com.google.firebase.iid.** { *; }
+
+# Keep background message handler callback lookup
+-keep class io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingBackgroundService { *; }
+-keep class io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingBackgroundExecutor { *; }
+
+# Keep Application subclasses (needed for background isolate initialization)
+-keep public class * extends android.app.Application
+
 
 
 
