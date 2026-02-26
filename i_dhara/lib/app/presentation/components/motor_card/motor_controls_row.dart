@@ -16,9 +16,6 @@ class MotorControlsRow extends StatelessWidget {
   final bool isSwitchDisabled;
   final bool isModeDisabled;
   final VoidCallback? onNavigateToDetails;
-  final VoidCallback? onTestRunTap;
-  final bool showTestRun;
-  final bool isTestRunRequired;
 
   const MotorControlsRow({
     super.key,
@@ -31,9 +28,6 @@ class MotorControlsRow extends StatelessWidget {
     required this.isSwitchDisabled,
     required this.isModeDisabled,
     this.onNavigateToDetails,
-    this.onTestRunTap,
-    this.showTestRun = false,
-    this.isTestRunRequired = false,
   });
 
   @override
@@ -51,19 +45,14 @@ class MotorControlsRow extends StatelessWidget {
                 ValueListenableBuilder<int>(
                   valueListenable: modeController,
                   builder: (context, modeIndex, _) {
-                    // Use modeController value (synced with MQTT/API)
-                    // modeIndex: 0 = Manual, 1 = Auto
                     final isAuto = modeIndex == 1;
                     final String modeText = isAuto ? 'Auto' : 'Manual';
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: isTestRunRequired
-                            ? const Color(0xFF9CA3AF)
-                            : (isAuto
-                                ? const Color(0xFFFFA500).withValues(alpha: 0.8)
-                                : const Color(0xFF2F80ED)
-                                    .withValues(alpha: 0.8)),
+                        color: isAuto
+                            ? const Color(0xFFFFA500).withValues(alpha: 0.8)
+                            : const Color(0xFF2F80ED).withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -91,44 +80,31 @@ class MotorControlsRow extends StatelessWidget {
               ],
             ),
           ),
-          // Tappable space - only navigates to test run if needed
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: showTestRun ? onTestRunTap : null,
-              child: const SizedBox(height: 25),
-            ),
-          ),
+          const Expanded(child: SizedBox(height: 25)),
           ValueListenableBuilder(
             valueListenable: modeController,
             builder: (context, modeIndex, _) {
               return ValueListenableBuilder(
                 valueListenable: switchController,
                 builder: (context, isOn, child) {
-                  // Block switch state if test run is required
-                  final displayState = isTestRunRequired ? false : isOn;
                   return GestureDetector(
-                    onTap: showTestRun
-                        ? onTestRunTap
-                        : (!isSwitchDisabled
-                            ? () {
-                                MotorCardDialogs.showSwitchCommandDialog(
-                                    context, motor, !isOn, (newValue) {
-                                  onToggleSwitch(newValue);
-                                });
-                              }
-                            : null),
+                    onTap: !isSwitchDisabled
+                        ? () {
+                            MotorCardDialogs.showSwitchCommandDialog(
+                                context, motor, !isOn, (newValue) {
+                              onToggleSwitch(newValue);
+                            });
+                          }
+                        : null,
                     behavior: HitTestBehavior.opaque,
                     child: AbsorbPointer(
                       absorbing: true,
                       child: Opacity(
-                        opacity: (!isSwitchDisabled && !isTestRunRequired)
-                            ? 1.0
-                            : 0.4,
+                        opacity: !isSwitchDisabled ? 1.0 : 0.4,
                         child: AdvancedSwitch(
-                          key: ValueKey('switch_${motor.id}_$displayState'),
+                          key: ValueKey('switch_${motor.id}_$isOn'),
                           controller: switchController,
-                          initialValue: displayState,
+                          initialValue: isOn,
                           activeColor: Colors.green,
                           inactiveColor: Colors.red.shade500,
                           activeChild: const Text(
@@ -151,7 +127,7 @@ class MotorControlsRow extends StatelessWidget {
                               const BorderRadius.all(Radius.circular(15)),
                           width: 55,
                           height: 25,
-                          enabled: !isSwitchDisabled && !isTestRunRequired,
+                          enabled: !isSwitchDisabled,
                           disabledOpacity: 0.9,
                         ),
                       ),

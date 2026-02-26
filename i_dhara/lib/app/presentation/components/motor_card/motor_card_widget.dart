@@ -484,10 +484,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         }
 
         final isManualMode = _localModeController.value == 0;
-        final isTestRunBlocked = _isNewDeviceWithoutAck(motorData);
-        final isSwitchDisabled = isTestRunBlocked ||
-            _isWaitingForSwitchAck ||
-            !(canControl && isManualMode);
+        final isSwitchDisabled =
+            _isWaitingForSwitchAck || !(canControl && isManualMode);
 
         return Container(
           decoration: BoxDecoration(
@@ -537,13 +535,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     //  logic
                   },
                   isSwitchDisabled: isSwitchDisabled,
-                  isModeDisabled: isTestRunBlocked ||
-                      _isWaitingForModeAck ||
-                      !canChangeMode,
+                  isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                   onNavigateToDetails: _navigateToDetails,
-                  onTestRunTap: _navigateToTestRun,
-                  showTestRun: false,
-                  isTestRunRequired: false,
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),
