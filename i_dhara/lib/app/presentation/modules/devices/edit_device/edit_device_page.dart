@@ -197,18 +197,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                         child: FFButtonWidget(
                           onPressed: () async {
                             FocusScope.of(context).unfocus();
-
                             final newName = _model.textController!.text.trim();
-
-                            // if (newName.isEmpty) {
-                            //   setState(() {
-                            //     _model.errorInstance = {
-                            //       'title': ['Motor name is required']
-                            //     };
-                            //   });
-                            //   return;
-                            // }
-
                             await devicesController.renamedevice(
                               motorId: widget.motorId,
                               name: newName,

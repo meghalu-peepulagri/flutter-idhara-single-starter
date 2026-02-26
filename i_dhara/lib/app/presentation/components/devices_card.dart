@@ -247,6 +247,42 @@ class DevicesCard extends StatelessWidget {
     );
   }
 
+  MotorData? _getDeviceMotorData() {
+    final mac = device.macAddress;
+    final pcb = device.pcbNumber;
+
+    MotorData? bestData;
+    DateTime? bestTime;
+
+    for (var entry in mqttService.motorDataMap.entries) {
+      final data = entry.value;
+      if (data.hasReceivedData != true) continue;
+
+      final key = entry.key;
+      final matchesByKey =
+          (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
+              (pcb != null && pcb.isNotEmpty && key.startsWith('$pcb-'));
+      final matchesByData = (mac != null &&
+              mac.isNotEmpty &&
+              (data.macAddress == mac || data.pcbNumber == mac)) ||
+          (pcb != null &&
+              pcb.isNotEmpty &&
+              (data.macAddress == pcb || data.pcbNumber == pcb));
+
+      if (matchesByKey || matchesByData) {
+        final ackTime = mqttService.getLastAckTime(key);
+        if (bestData == null ||
+            (ackTime != null &&
+                (bestTime == null || ackTime.isAfter(bestTime)))) {
+          bestData = data;
+          bestTime = ackTime;
+        }
+      }
+    }
+
+    return bestData;
+  }
+
   String _getMotorGroupId(MqttService mqttService, String identifier) {
     const allowedGroups = ['G01', 'G02'];
     for (final groupId in allowedGroups) {
@@ -298,43 +334,50 @@ class DevicesCard extends StatelessWidget {
     final motor =
         device.motors?.isNotEmpty == true ? device.motors!.first : null;
 
-    return GestureDetector(
-      // onTap: () => _navigateToTestRun(motor),
-      child: Container(
-        decoration: BoxDecoration(
-          color: FlutterFlowTheme.of(context).secondaryBackground,
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F3F3),
-                  borderRadius: BorderRadius.circular(6.0),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      _buildHeader(context, motor),
-                      _buildPcbAndPowerStatus(context, motor),
-                    ].divide(const SizedBox(height: 12.0)),
+    return ValueListenableBuilder(
+      valueListenable: mqttService.dataUpdateNotifier,
+      builder: (context, _, __) {
+        final motorData = _getDeviceMotorData();
+
+        return GestureDetector(
+          // onTap: () => _navigateToTestRun(motor),
+          child: Container(
+            decoration: BoxDecoration(
+              color: FlutterFlowTheme.of(context).secondaryBackground,
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F3F3),
+                      borderRadius: BorderRadius.circular(6.0),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          _buildHeader(context, motor, motorData),
+                          _buildPcbAndPowerStatus(context, motor, motorData),
+                        ].divide(const SizedBox(height: 12.0)),
+                      ),
+                    ),
                   ),
-                ),
+                  _buildLocationRow(context, motor),
+                ].divide(const SizedBox(height: 8.0)),
               ),
-              _buildLocationRow(context, motor),
-            ].divide(const SizedBox(height: 8.0)),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(BuildContext context, Motor? motor) {
+  Widget _buildHeader(BuildContext context, Motor? motor, MotorData? motorData) {
     final displayName = _getMotorDisplayName(motor);
 
     return Row(
@@ -397,7 +440,9 @@ class DevicesCard extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(0.0),
                         child: SvgPicture.asset(
-                          device.power == 1
+                          (motorData?.hasReceivedData == true
+                                  ? motorData!.power == 1
+                                  : device.power == 1)
                               ? 'assets/images/power.svg'
                               : 'assets/images/Power_red.svg',
                           width: 17,
@@ -433,7 +478,7 @@ class DevicesCard extends StatelessWidget {
     return name.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  Widget _buildPcbAndPowerStatus(BuildContext context, Motor? motor) {
+  Widget _buildPcbAndPowerStatus(BuildContext context, Motor? motor, MotorData? motorData) {
     String starterText = device.starterNumber ?? 'N/A';
     String displayText = starterText.length > 12
         ? '${starterText.substring(0, 12)}...'
@@ -484,7 +529,9 @@ class DevicesCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(0.0),
           child: SvgPicture.asset(
-            (motor?.state == 1)
+            (motorData?.hasReceivedData == true
+                    ? motorData!.state == 1
+                    : motor?.state == 1)
                 ? 'assets/images/pump.svg'
                 : 'assets/images/pump_off.svg',
             width: 34,

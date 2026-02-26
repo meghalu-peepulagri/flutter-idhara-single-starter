@@ -132,11 +132,10 @@ class DevicesController extends GetxController with ConnectivityMixin {
 
   Future<void> renamedevice(
       {required int motorId, required double hp, required String name}) async {
+    errorInstance = {};
     try {
       isRenameLoading.value = true;
-
       final response = await _repository.renameDevice(motorId, name, hp);
-
       if (response != null && response.errors == null) {
         await fetchDevices(isInitial: true);
         Get.back();

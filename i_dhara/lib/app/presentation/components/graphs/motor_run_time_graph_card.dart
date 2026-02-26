@@ -155,7 +155,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
         children: [
           Container(
             width: double.infinity,
-            height: 323,
+            height: 330,
             decoration: BoxDecoration(
               color: FlutterFlowTheme.of(context).secondaryBackground,
               boxShadow: const [
@@ -261,7 +261,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                     ),
                                   ),
                                   Positioned(
-                                    bottom: 10,
+                                    bottom: 0,
                                     left: 0,
                                     right: 0,
                                     child: _buildLegend(),

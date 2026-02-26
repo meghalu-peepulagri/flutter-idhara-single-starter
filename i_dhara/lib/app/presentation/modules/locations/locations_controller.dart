@@ -78,6 +78,7 @@ class LocationsController extends GetxController with ConnectivityMixin {
 
   Future<void> renamelocation(
       {required int locationId, required String name}) async {
+    errorInstance = {};
     final response = await LocationRepoImpl().renameLocation(locationId, name);
     if (response != null && response.errors == null) {
       await fetchLocations();

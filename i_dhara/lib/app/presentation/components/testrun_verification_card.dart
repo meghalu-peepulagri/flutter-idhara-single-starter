@@ -1574,7 +1574,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               closeIcon,
           ],
         ),
-        if (error != null) ...[
+        if (hasData && error != null) ...[
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.only(left: 30),

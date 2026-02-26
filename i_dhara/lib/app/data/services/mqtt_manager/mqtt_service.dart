@@ -769,7 +769,6 @@ class MqttService {
         debugPrint('   ⚠️ Could not find motor for identifier=$identifier');
       }
     }
-
     _dataUpdateNotifier.value++;
   }
 
