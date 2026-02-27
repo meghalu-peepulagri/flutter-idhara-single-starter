@@ -466,560 +466,573 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
+    return WillPopScope(
+      onWillPop: () async {
+        Get.offAllNamed(Routes.devices, arguments: {"refresh": true});
+        return false;
       },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: const Color(0xFFEBF3FE),
-        endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-        body: SafeArea(
-          top: true,
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              // Header
-              Padding(
-                padding:
-                    const EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 0.0),
-                child: Column(
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Center(
-                          child: Text(
-                            'Settings',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.dmSans(
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: const Color(0xFFEBF3FE),
+          endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
+          body: SafeArea(
+            top: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                      16.0, 8.0, 16.0, 0.0),
+                  child: Column(
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Center(
+                            child: Text(
+                              'Settings',
+                              style: FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .fontStyle,
+                                    ),
+                                    color: const Color(0xFF004E7E),
+                                    fontSize: 16.0,
+                                    letterSpacing: 0.0,
                                     fontWeight: FontWeight.w500,
                                     fontStyle: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .fontStyle,
                                   ),
-                                  color: const Color(0xFF004E7E),
-                                  fontSize: 16.0,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FontWeight.w500,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontStyle,
-                                ),
+                            ),
                           ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              onTap: () {
-                                Get.offAllNamed(
-                                  Routes.devices,
-                                  arguments: {'refresh': true},
-                                );
-                              },
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Color(0xFF004E7E),
-                                size: 20.0,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                onTapMenu();
-                              },
-                              child: Container(
-                                decoration: const BoxDecoration(),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(6.0),
-                                  child: Icon(
-                                    Icons.menu_sharp,
-                                    color: Color(0xFF121212),
-                                    size: 30.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Obx(() {
-                  if (controller.isLoading.value) {
-                    return const Padding(
-                      padding: EdgeInsets.only(right: 50),
-                      child: Center(
-                        child: AppLottieLoading(),
-                      ),
-                    );
-                  } else if (!ConnectivityService.to.isConnected) {
-                    return const Center(
-                      child: NoInternetWidget(),
-                    );
-                  }
-                  final settings = controller.userSettings2.value;
-                  return Column(
-                    children: [
-                      Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              spacing: 10,
-                              children: [
-                                Text(
-                                  (() {
-                                    final name =
-                                        (controller.pumpName.value ?? 'N/A')
-                                            .replaceAll(RegExp(r'\s+'), ' ');
-                                    return name.length > 16
-                                        ? '${name.substring(0, 16)}...'
-                                        : name;
-                                  })(),
-                                  style: FlutterFlowTheme.of(context)
-                                      .titleMedium
-                                      .override(
-                                        fontFamily: 'Manrope',
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFF000000),
-                                        fontSize: 16.0,
-                                      ),
-                                ),
-                                Text(
-                                  "${controller.pumpHP.value} HP" ?? '0 HP',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        fontFamily: 'Manrope',
-                                        fontWeight: FontWeight.w400,
-                                        color: const Color(0xFF000000),
-                                        fontSize: 12.0,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              height: 32,
-                              width: 70,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF2994A),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: FFButtonWidget(
-                                onPressed: () {
-                                  _defaultSettingsPopUp(context);
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  Get.offAllNamed(
+                                    Routes.devices,
+                                    arguments: {'refresh': true},
+                                  );
                                 },
-                                text: 'Default',
-                                options: FFButtonOptions(
-                                  color: Colors.transparent,
-                                  textStyle: FlutterFlowTheme.of(context)
-                                      .titleSmall
-                                      .override(
-                                          fontFamily: 'Manrope',
-                                          color: const Color(0XFFFFFFFF),
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14),
-                                  elevation: 0.0,
-                                  borderRadius: BorderRadius.circular(0),
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  color: Color(0xFF004E7E),
+                                  size: 20.0,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                              GestureDetector(
+                                onTap: () {
+                                  onTapMenu();
+                                },
+                                child: Container(
+                                  decoration: const BoxDecoration(),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6.0),
+                                    child: Icon(
+                                      Icons.menu_sharp,
+                                      color: Color(0xFF121212),
+                                      size: 30.0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: () async {
-                            await _handleCancel();
-                            controller.isrefreshing.value = true;
-                            _currentVoltageLow = null;
-                            _currentVoltageHigh = null;
-                            _currentCurrentLow = null;
-                            _currentCurrentHigh = null;
-                            _originalVoltageLow = null;
-                            _originalVoltageHigh = null;
-                            _originalCurrentLow = null;
-                            _originalCurrentHigh = null;
-                            await controller.fetchUserSettings2();
-                            await controller.fetchUserSettingsLimits();
-                            await Future.delayed(
-                                const Duration(milliseconds: 100));
-                            voltageCardKey.currentState?.resetValues();
-                            currentCardKey.currentState?.resetValues();
-                            setState(() {
-                              isbuttonActive = false;
-                            });
-                            controller.isrefreshing.value = false;
-                          },
-                          child: Skeletonizer(
-                            enabled: controller.isrefreshing.value,
-                            child: SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 4.0),
-                              child: Column(
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Obx(() {
+                    if (controller.isLoading.value) {
+                      return const Padding(
+                        padding: EdgeInsets.only(right: 50),
+                        child: Center(
+                          child: AppLottieLoading(),
+                        ),
+                      );
+                    } else if (!ConnectivityService.to.isConnected) {
+                      return const Center(
+                        child: NoInternetWidget(),
+                      );
+                    }
+                    final settings = controller.userSettings2.value;
+                    return Column(
+                      children: [
+                        Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                spacing: 10,
                                 children: [
-                                  const SizedBox(
-                                    height: 10,
+                                  Text(
+                                    (() {
+                                      final name =
+                                          (controller.pumpName.value ?? 'N/A')
+                                              .replaceAll(RegExp(r'\s+'), ' ');
+                                      return name.length > 16
+                                          ? '${name.substring(0, 16)}...'
+                                          : name;
+                                    })(),
+                                    style: FlutterFlowTheme.of(context)
+                                        .titleMedium
+                                        .override(
+                                          fontFamily: 'Manrope',
+                                          fontWeight: FontWeight.w500,
+                                          color: const Color(0xFF000000),
+                                          fontSize: 16.0,
+                                        ),
                                   ),
-                                  FlcCard(
-                                    key: flcCardKey,
-                                    initialValue: controller
-                                            .userSettings2.value?.flc
-                                            ?.toDouble() ??
-                                        0.0,
-                                    minValue: controller.data.value?.flcMin
-                                            ?.toDouble() ??
-                                        0.0,
-                                    maxValue: controller.data.value?.flcMax
-                                            ?.toDouble() ??
-                                        0.0,
-                                    decimalPlaces: 2,
-                                    step: 0.01,
-                                    onValueChanged: (newValue) {
-                                      print('New value: $newValue');
-                                      controller.flc.value = newValue;
-                                      _checkForChanges();
-                                    },
-                                    onOutOfRange: (isOutOfRange) {
-                                      setState(() {
-                                        _isFlcOutOfRange = isOutOfRange;
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(
-                                    height: 7,
-                                  ),
-                                  SettingsVoltageCard(
-                                    key: voltageCardKey,
-                                    initialLowVoltage: controller
-                                            .userSettings2.value?.lvf
-                                            ?.toDouble() ??
-                                        180.0,
-                                    initialHighVoltage: controller
-                                            .userSettings2.value?.hvf
-                                            ?.toDouble() ??
-                                        280.0,
-                                    motorName:
-                                        settings?.starter?.name?.toString() ??
-                                            'Pump 1',
-                                    motorHp: '3 HP',
-                                    onChanged: (low, high) {
-                                      _currentVoltageLow = low;
-                                      _currentVoltageHigh = high;
-                                      _checkForChanges();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SettingsCurrentCard(
-                                    key: currentCardKey,
-                                    initialLowCurrent:
-                                        settings?.drf?.toDouble() ??
-                                            180.0, // NOTE: Check mapping
-                                    initialHighCurrent:
-                                        settings?.olf?.toDouble() ??
-                                            280.0, // NOTE: Check mapping
-                                    motorName:
-                                        settings?.starter?.name?.toString() ??
-                                            'Pump 1',
-                                    motorHp: '3 HP',
-                                    onChanged: (low, high) {
-                                      _currentCurrentLow = low;
-                                      _currentCurrentHigh = high;
-                                      _checkForChanges();
-                                    },
+                                  Text(
+                                    "${controller.pumpHP.value} HP" ?? '0 HP',
+                                    style: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .override(
+                                          fontFamily: 'Manrope',
+                                          fontWeight: FontWeight.w400,
+                                          color: const Color(0xFF000000),
+                                          fontSize: 12.0,
+                                        ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(16.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, -2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: FFButtonWidget(
-                                onPressed: _handleCancel,
-                                text: 'Cancel',
-                                options: FFButtonOptions(
-                                  height: 45.0,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 24.0),
-                                  color: settings?.starter != null
-                                      ? FlutterFlowTheme.of(context)
-                                          .secondaryBackground
-                                      : Colors.white38,
-                                  textStyle: FlutterFlowTheme.of(context)
-                                      .titleSmall
-                                      .override(
-                                        fontFamily: 'Manrope',
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                  elevation: 0.0,
-                                  borderSide: const BorderSide(
-                                      color: Color(0x38000000)),
-                                  borderRadius: BorderRadius.circular(12.0),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 24.0),
-                            Expanded(
-                              child: Container(
-                                height: 45,
+                              Container(
+                                height: 32,
+                                width: 70,
                                 decoration: BoxDecoration(
-                                  gradient:
-                                      (!isbuttonActive || _isFlcOutOfRange)
-                                          ? null
-                                          : const LinearGradient(
-                                              colors: [
-                                                Color(0xFF004E7E),
-                                                Color(0xFF3686AF)
-                                              ],
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
-                                            ),
-                                  color: (!isbuttonActive || _isFlcOutOfRange)
-                                      ? const Color(0xFFB0B0B0)
-                                      : null,
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFFF2994A),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: FFButtonWidget(
-                                  onPressed: (!isbuttonActive ||
-                                          _isFlcOutOfRange)
-                                      ? null
-                                      : () {
-                                          final voltageValues = voltageCardKey
-                                              .currentState
-                                              ?.getValues();
-                                          final currentValues = currentCardKey
-                                              .currentState
-                                              ?.getValues();
-
-                                          // Get and print calculated current values (FLC-based)
-                                          final calculatedCurrentValues =
-                                              currentCardKey.currentState
-                                                  ?.getCalculatedValues();
-                                          controller.lvf.value =
-                                              voltageValues?['low']?.toInt() ??
-                                                  controller.userSettings2
-                                                      .value!.lvf!;
-                                          controller.hvf.value =
-                                              voltageValues?['high']?.toInt() ??
-                                                  controller.userSettings2
-                                                      .value!.hvf!;
-                                          controller.drf.value =
-                                              currentValues?['low']?.toInt() ??
-                                                  controller
-                                                      .userSettings2.value!.drf!
-                                                      .toInt();
-                                          controller.olf.value =
-                                              currentValues?['high']?.toInt() ??
-                                                  controller
-                                                      .userSettings2.value!.olf!
-                                                      .toInt();
-                                          var pcbNumber =
-                                              controller.pcbNumber.value;
-                                          updatedpayload = {
-                                            "dvc_c": {
-                                              "lvf": controller.lvf.value,
-                                              "hvf": controller.hvf.value,
-                                              "drf": controller.drf.value,
-                                              "olf": controller.olf.value,
-                                            },
-                                          };
-                                          updatedpayload = diffNestedPayload(
-                                            newPayload: updatedpayload,
-                                            oldPayload: controller.payload,
-                                            key: "dvc_c",
-                                          );
-                                          if (updatedpayload["dvc_c"]
-                                                  ?.containsKey("drf") ==
-                                              true) {
-                                            updatedpayload["dvc_c"]['drf'] =
-                                                controller.drf.value;
-                                          }
-                                          if (updatedpayload["dvc_c"]
-                                                  ?.containsKey('olf') ==
-                                              true) {
-                                            updatedpayload["dvc_c"]['olf'] =
-                                                controller.olf.value;
-                                          }
-                                          final Map<String, dynamic> dvcMap =
-                                              updatedpayload["dvc_c"] ?? {};
-                                          setState(() {
-                                            isVoltageRange =
-                                                dvcMap.containsKey("lvf") ||
-                                                    dvcMap.containsKey("hvf");
-                                            isCurrentRange =
-                                                dvcMap.containsKey("drf") ||
-                                                    dvcMap.containsKey("olf");
-                                            bool vmin =
-                                                dvcMap.containsKey("lvf");
-                                            bool vmax =
-                                                dvcMap.containsKey("hvf");
-                                            bool cmin =
-                                                dvcMap.containsKey("drf");
-                                            bool cmax =
-                                                dvcMap.containsKey("olf");
-                                            if (vmin) {
-                                              try {
-                                                if (dvcMap['lvf'] >
-                                                        controller.payload[
-                                                            'dvc_c']['lvf'] ||
-                                                    dvcMap['lvf'] <
-                                                        controller.payload[
-                                                            'dvc_c']['lvf']) {
-                                                  updatedpayload["dvc_c"]
-                                                          ['lvr'] =
-                                                      dvcMap['lvf'] + 10;
-                                                  controller.lvr.value =
-                                                      dvcMap['lvf'] + 10;
-                                                }
-                                              } catch (e) {
-                                                print("error line 818 $e");
-                                              }
-                                            }
-                                            if (vmax) {
-                                              try {
-                                                if (dvcMap['hvf'] >
-                                                    controller.payload['dvc_c']
-                                                        ['hvf']) {
-                                                  updatedpayload["dvc_c"]
-                                                          ['hvr'] =
-                                                      dvcMap['hvf'] - 10;
-                                                  controller.hvr.value =
-                                                      dvcMap['hvf'] - 10;
-                                                }
-                                              } catch (e) {
-                                                print("error line 844 $e");
-                                              }
-                                            }
-                                            if (cmin) {
-                                              final strVal =
-                                                  calculatedCurrentValues![
-                                                          'calculatedLow']
-                                                      ?.toStringAsFixed(2);
-                                              updatedpayload["dvc_c"]['drf'] =
-                                                  double.parse(strVal ?? "0.0");
-                                            }
-                                            if (cmax) {
-                                              final strVal =
-                                                  calculatedCurrentValues![
-                                                          'calculatedHigh']
-                                                      ?.toStringAsFixed(2);
-                                              updatedpayload["dvc_c"]['olf'] =
-                                                  double.parse(strVal ?? "0.0");
-                                            }
-
-                                            // Handle FLC independently: add to
-                                            // payload only when it changed;
-                                            // if only FLC changed this also
-                                            // creates the dvc_c entry.
-                                            final initialFlc = controller
-                                                    .userSettings2.value?.flc
-                                                    ?.toDouble() ??
-                                                0.0;
-                                            final flcChanged =
-                                                controller.flc.value !=
-                                                    initialFlc;
-                                            if (flcChanged) {
-                                              updatedpayload['dvc_c'] ??=
-                                                  <String, dynamic>{};
-                                              updatedpayload['dvc_c']['flc'] =
-                                                  controller.flc.value;
-                                              final calculatedLrf =
-                                                  controller.calculatedFlc(
-                                                      controller.lrf.value,
-                                                      controller.flc.value);
-                                              final calculatedOlr =
-                                                  controller.calculatedFlc(
-                                                      controller.olr.value,
-                                                      controller.flc.value);
-                                              final calculatedLRR =
-                                                  controller.calculatedFlc(
-                                                      controller.lrr.value,
-                                                      controller.flc.value);
-                                              final calculatedDrf =
-                                                  controller.calculatedFlc(
-                                                      controller.drf.value
-                                                          .toDouble(),
-                                                      controller.flc.value);
-                                              final calculatedOlf =
-                                                  controller.calculatedFlc(
-                                                      controller.olf.value
-                                                          .toDouble(),
-                                                      controller.flc.value);
-                                              updatedpayload["dvc_c"]['lrf'] =
-                                                  calculatedLrf;
-                                              updatedpayload['dvc_c']['olr'] =
-                                                  calculatedOlr;
-                                              updatedpayload['dvc_c']['lrr'] =
-                                                  calculatedLRR;
-                                              updatedpayload['dvc_c']['drf'] =
-                                                  calculatedDrf;
-                                              updatedpayload['dvc_c']['olf'] =
-                                                  calculatedOlf;
-                                            }
-                                            if (isVoltageRange ||
-                                                isCurrentRange ||
-                                                flcChanged) {
-                                              _handleSave(vmin, vmax, cmin,
-                                                  cmax, pcbNumber,
-                                                  flcChanged: flcChanged);
-                                            }
-                                          });
-                                        },
-                                  text: 'Save',
+                                  onPressed: () {
+                                    _defaultSettingsPopUp(context);
+                                  },
+                                  text: 'Default',
                                   options: FFButtonOptions(
-                                    height: 45.0,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 24.0),
                                     color: Colors.transparent,
                                     textStyle: FlutterFlowTheme.of(context)
                                         .titleSmall
                                         .override(
-                                          fontFamily: 'Manrope',
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                            fontFamily: 'Manrope',
+                                            color: const Color(0XFFFFFFFF),
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14),
                                     elevation: 0.0,
-                                    borderRadius: BorderRadius.circular(12.0),
-                                    disabledColor: const Color(0xFFB0B0B0),
-                                    disabledTextColor: Colors.white,
+                                    borderRadius: BorderRadius.circular(0),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
-            ],
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: () async {
+                              await _handleCancel();
+                              controller.isrefreshing.value = true;
+                              _currentVoltageLow = null;
+                              _currentVoltageHigh = null;
+                              _currentCurrentLow = null;
+                              _currentCurrentHigh = null;
+                              _originalVoltageLow = null;
+                              _originalVoltageHigh = null;
+                              _originalCurrentLow = null;
+                              _originalCurrentHigh = null;
+                              await controller.fetchUserSettings2();
+                              await controller.fetchUserSettingsLimits();
+                              await Future.delayed(
+                                  const Duration(milliseconds: 100));
+                              voltageCardKey.currentState?.resetValues();
+                              currentCardKey.currentState?.resetValues();
+                              setState(() {
+                                isbuttonActive = false;
+                              });
+                              controller.isrefreshing.value = false;
+                            },
+                            child: Skeletonizer(
+                              enabled: controller.isrefreshing.value,
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 4.0),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    FlcCard(
+                                      key: flcCardKey,
+                                      initialValue: controller
+                                              .userSettings2.value?.flc
+                                              ?.toDouble() ??
+                                          0.0,
+                                      minValue: controller.data.value?.flcMin
+                                              ?.toDouble() ??
+                                          0.0,
+                                      maxValue: controller.data.value?.flcMax
+                                              ?.toDouble() ??
+                                          0.0,
+                                      decimalPlaces: 2,
+                                      step: 0.01,
+                                      onValueChanged: (newValue) {
+                                        print('New value: $newValue');
+                                        controller.flc.value = newValue;
+                                        _checkForChanges();
+                                      },
+                                      onOutOfRange: (isOutOfRange) {
+                                        setState(() {
+                                          _isFlcOutOfRange = isOutOfRange;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(
+                                      height: 7,
+                                    ),
+                                    SettingsVoltageCard(
+                                      key: voltageCardKey,
+                                      initialLowVoltage: controller
+                                              .userSettings2.value?.lvf
+                                              ?.toDouble() ??
+                                          180.0,
+                                      initialHighVoltage: controller
+                                              .userSettings2.value?.hvf
+                                              ?.toDouble() ??
+                                          280.0,
+                                      motorName:
+                                          settings?.starter?.name?.toString() ??
+                                              'Pump 1',
+                                      motorHp: '3 HP',
+                                      onChanged: (low, high) {
+                                        _currentVoltageLow = low;
+                                        _currentVoltageHigh = high;
+                                        _checkForChanges();
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SettingsCurrentCard(
+                                      key: currentCardKey,
+                                      initialLowCurrent:
+                                          settings?.drf?.toDouble() ??
+                                              180.0, // NOTE: Check mapping
+                                      initialHighCurrent:
+                                          settings?.olf?.toDouble() ??
+                                              280.0, // NOTE: Check mapping
+                                      motorName:
+                                          settings?.starter?.name?.toString() ??
+                                              'Pump 1',
+                                      motorHp: '3 HP',
+                                      onChanged: (low, high) {
+                                        _currentCurrentLow = low;
+                                        _currentCurrentHigh = high;
+                                        _checkForChanges();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, -2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: FFButtonWidget(
+                                  onPressed: _handleCancel,
+                                  text: 'Cancel',
+                                  options: FFButtonOptions(
+                                    height: 45.0,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24.0),
+                                    color: settings?.starter != null
+                                        ? FlutterFlowTheme.of(context)
+                                            .secondaryBackground
+                                        : Colors.white38,
+                                    textStyle: FlutterFlowTheme.of(context)
+                                        .titleSmall
+                                        .override(
+                                          fontFamily: 'Manrope',
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                    elevation: 0.0,
+                                    borderSide: const BorderSide(
+                                        color: Color(0x38000000)),
+                                    borderRadius: BorderRadius.circular(12.0),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 24.0),
+                              Expanded(
+                                child: Container(
+                                  height: 45,
+                                  decoration: BoxDecoration(
+                                    gradient:
+                                        (!isbuttonActive || _isFlcOutOfRange)
+                                            ? null
+                                            : const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF004E7E),
+                                                  Color(0xFF3686AF)
+                                                ],
+                                                begin: Alignment.centerLeft,
+                                                end: Alignment.centerRight,
+                                              ),
+                                    color: (!isbuttonActive || _isFlcOutOfRange)
+                                        ? const Color(0xFFB0B0B0)
+                                        : null,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: FFButtonWidget(
+                                    onPressed: (!isbuttonActive ||
+                                            _isFlcOutOfRange)
+                                        ? null
+                                        : () {
+                                            final voltageValues = voltageCardKey
+                                                .currentState
+                                                ?.getValues();
+                                            final currentValues = currentCardKey
+                                                .currentState
+                                                ?.getValues();
+
+                                            // Get and print calculated current values (FLC-based)
+                                            final calculatedCurrentValues =
+                                                currentCardKey.currentState
+                                                    ?.getCalculatedValues();
+                                            controller.lvf.value =
+                                                voltageValues?['low']
+                                                        ?.toInt() ??
+                                                    controller.userSettings2
+                                                        .value!.lvf!;
+                                            controller.hvf.value =
+                                                voltageValues?['high']
+                                                        ?.toInt() ??
+                                                    controller.userSettings2
+                                                        .value!.hvf!;
+                                            controller.drf.value =
+                                                currentValues?['low']
+                                                        ?.toInt() ??
+                                                    controller.userSettings2
+                                                        .value!.drf!
+                                                        .toInt();
+                                            controller.olf.value =
+                                                currentValues?['high']
+                                                        ?.toInt() ??
+                                                    controller.userSettings2
+                                                        .value!.olf!
+                                                        .toInt();
+                                            var pcbNumber =
+                                                controller.pcbNumber.value;
+                                            updatedpayload = {
+                                              "dvc_c": {
+                                                "lvf": controller.lvf.value,
+                                                "hvf": controller.hvf.value,
+                                                "drf": controller.drf.value,
+                                                "olf": controller.olf.value,
+                                              },
+                                            };
+                                            updatedpayload = diffNestedPayload(
+                                              newPayload: updatedpayload,
+                                              oldPayload: controller.payload,
+                                              key: "dvc_c",
+                                            );
+                                            if (updatedpayload["dvc_c"]
+                                                    ?.containsKey("drf") ==
+                                                true) {
+                                              updatedpayload["dvc_c"]['drf'] =
+                                                  controller.drf.value;
+                                            }
+                                            if (updatedpayload["dvc_c"]
+                                                    ?.containsKey('olf') ==
+                                                true) {
+                                              updatedpayload["dvc_c"]['olf'] =
+                                                  controller.olf.value;
+                                            }
+                                            final Map<String, dynamic> dvcMap =
+                                                updatedpayload["dvc_c"] ?? {};
+                                            setState(() {
+                                              isVoltageRange =
+                                                  dvcMap.containsKey("lvf") ||
+                                                      dvcMap.containsKey("hvf");
+                                              isCurrentRange =
+                                                  dvcMap.containsKey("drf") ||
+                                                      dvcMap.containsKey("olf");
+                                              bool vmin =
+                                                  dvcMap.containsKey("lvf");
+                                              bool vmax =
+                                                  dvcMap.containsKey("hvf");
+                                              bool cmin =
+                                                  dvcMap.containsKey("drf");
+                                              bool cmax =
+                                                  dvcMap.containsKey("olf");
+                                              if (vmin) {
+                                                try {
+                                                  if (dvcMap['lvf'] >
+                                                          controller.payload[
+                                                              'dvc_c']['lvf'] ||
+                                                      dvcMap['lvf'] <
+                                                          controller.payload[
+                                                              'dvc_c']['lvf']) {
+                                                    updatedpayload["dvc_c"]
+                                                            ['lvr'] =
+                                                        dvcMap['lvf'] + 10;
+                                                    controller.lvr.value =
+                                                        dvcMap['lvf'] + 10;
+                                                  }
+                                                } catch (e) {
+                                                  print("error line 818 $e");
+                                                }
+                                              }
+                                              if (vmax) {
+                                                try {
+                                                  if (dvcMap['hvf'] >
+                                                      controller
+                                                              .payload['dvc_c']
+                                                          ['hvf']) {
+                                                    updatedpayload["dvc_c"]
+                                                            ['hvr'] =
+                                                        dvcMap['hvf'] - 10;
+                                                    controller.hvr.value =
+                                                        dvcMap['hvf'] - 10;
+                                                  }
+                                                } catch (e) {
+                                                  print("error line 844 $e");
+                                                }
+                                              }
+                                              if (cmin) {
+                                                final strVal =
+                                                    calculatedCurrentValues![
+                                                            'calculatedLow']
+                                                        ?.toStringAsFixed(2);
+                                                updatedpayload["dvc_c"]['drf'] =
+                                                    double.parse(
+                                                        strVal ?? "0.0");
+                                              }
+                                              if (cmax) {
+                                                final strVal =
+                                                    calculatedCurrentValues![
+                                                            'calculatedHigh']
+                                                        ?.toStringAsFixed(2);
+                                                updatedpayload["dvc_c"]['olf'] =
+                                                    double.parse(
+                                                        strVal ?? "0.0");
+                                              }
+
+                                              // Handle FLC independently: add to
+                                              // payload only when it changed;
+                                              // if only FLC changed this also
+                                              // creates the dvc_c entry.
+                                              final initialFlc = controller
+                                                      .userSettings2.value?.flc
+                                                      ?.toDouble() ??
+                                                  0.0;
+                                              final flcChanged =
+                                                  controller.flc.value !=
+                                                      initialFlc;
+                                              if (flcChanged) {
+                                                updatedpayload['dvc_c'] ??=
+                                                    <String, dynamic>{};
+                                                updatedpayload['dvc_c']['flc'] =
+                                                    controller.flc.value;
+                                                final calculatedLrf =
+                                                    controller.calculatedFlc(
+                                                        controller.lrf.value,
+                                                        controller.flc.value);
+                                                final calculatedOlr =
+                                                    controller.calculatedFlc(
+                                                        controller.olr.value,
+                                                        controller.flc.value);
+                                                final calculatedLRR =
+                                                    controller.calculatedFlc(
+                                                        controller.lrr.value,
+                                                        controller.flc.value);
+                                                final calculatedDrf =
+                                                    controller.calculatedFlc(
+                                                        controller.drf.value
+                                                            .toDouble(),
+                                                        controller.flc.value);
+                                                final calculatedOlf =
+                                                    controller.calculatedFlc(
+                                                        controller.olf.value
+                                                            .toDouble(),
+                                                        controller.flc.value);
+                                                updatedpayload["dvc_c"]['lrf'] =
+                                                    calculatedLrf;
+                                                updatedpayload['dvc_c']['olr'] =
+                                                    calculatedOlr;
+                                                updatedpayload['dvc_c']['lrr'] =
+                                                    calculatedLRR;
+                                                updatedpayload['dvc_c']['drf'] =
+                                                    calculatedDrf;
+                                                updatedpayload['dvc_c']['olf'] =
+                                                    calculatedOlf;
+                                              }
+                                              if (isVoltageRange ||
+                                                  isCurrentRange ||
+                                                  flcChanged) {
+                                                _handleSave(vmin, vmax, cmin,
+                                                    cmax, pcbNumber,
+                                                    flcChanged: flcChanged);
+                                              }
+                                            });
+                                          },
+                                    text: 'Save',
+                                    options: FFButtonOptions(
+                                      height: 45.0,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24.0),
+                                      color: Colors.transparent,
+                                      textStyle: FlutterFlowTheme.of(context)
+                                          .titleSmall
+                                          .override(
+                                            fontFamily: 'Manrope',
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                      elevation: 0.0,
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      disabledColor: const Color(0xFFB0B0B0),
+                                      disabledTextColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
         ),
       ),

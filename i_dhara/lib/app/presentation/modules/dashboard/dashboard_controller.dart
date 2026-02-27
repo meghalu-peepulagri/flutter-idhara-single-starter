@@ -107,7 +107,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
   Future<void> _loadAllData() async {
     try {
       isLoading.value = true;
-
       await Future.wait([
         fetchMotors(),
         fetchLocationDropDown(),
