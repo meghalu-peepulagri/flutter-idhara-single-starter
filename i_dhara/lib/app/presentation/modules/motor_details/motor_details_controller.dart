@@ -32,6 +32,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   var current = <Current>[].obs;
   var motorRuntimeData = <Runtime>[].obs;
   var chartData = <TimeSegment>[].obs;
+  var motorOffChartData = <TimeSegment>[].obs;
   var powerChartData = <TimeSegment>[].obs;
   var powerOffChartData = <TimeSegment>[].obs;
 
@@ -143,6 +144,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   void _clearAnalyticsData() {
     motorRuntimeData.clear();
     chartData.clear();
+    motorOffChartData.clear();
     powerChartData.clear();
     powerOffChartData.clear();
     voltage.clear();

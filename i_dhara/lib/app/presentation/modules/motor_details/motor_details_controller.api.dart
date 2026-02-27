@@ -133,6 +133,7 @@ extension AnalyticsControllerApi on AnalyticsController {
     if (isHardClear) {
       motorRuntimeData.clear();
       chartData.clear();
+      motorOffChartData.clear();
       powerChartData.clear();
       powerOffChartData.clear();
       voltage.clear();
@@ -171,6 +172,8 @@ extension AnalyticsControllerApi on AnalyticsController {
         if (response.data!.records != null) {
           chartData.value =
               convertRuntimeToTimeSegments(response.data!.records!);
+          motorOffChartData.value =
+              convertRuntimeToMotorOffSegments(response.data!.records!);
           powerChartData.value =
               convertRuntimeToPowerSegments(response.data!.records!);
           powerOffChartData.value =
@@ -334,6 +337,25 @@ extension AnalyticsControllerApi on AnalyticsController {
           'ON',
           duration,
         ));
+      }
+    }
+
+    return segments;
+  }
+
+  List<TimeSegment> convertRuntimeToMotorOffSegments(List<Runtime> runtimes) {
+    final List<TimeSegment> segments = [];
+
+    for (final runtime in runtimes) {
+      if (runtime.motorState != 0) continue;
+      if (runtime.startTime == null || runtime.endTime == null) continue;
+
+      final startTime = runtime.startTime!;
+      final endTime = runtime.endTime!;
+      final duration = endTime.difference(startTime);
+
+      if (duration.inSeconds > 0) {
+        segments.add(TimeSegment(startTime, endTime, 'MOTOR_OFF', duration));
       }
     }
 
