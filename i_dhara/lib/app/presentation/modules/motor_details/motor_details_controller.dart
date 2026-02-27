@@ -33,6 +33,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   var motorRuntimeData = <Runtime>[].obs;
   var chartData = <TimeSegment>[].obs;
   var powerChartData = <TimeSegment>[].obs;
+  var powerOffChartData = <TimeSegment>[].obs;
 
   // --- UI State Variables ---
   var isMotorDetailsLoading = false.obs;
@@ -143,6 +144,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
     motorRuntimeData.clear();
     chartData.clear();
     powerChartData.clear();
+    powerOffChartData.clear();
     voltage.clear();
     current.clear();
     motortotalRuntime.value = '';

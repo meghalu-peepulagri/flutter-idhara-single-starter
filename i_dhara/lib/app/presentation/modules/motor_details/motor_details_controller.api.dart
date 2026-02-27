@@ -134,6 +134,7 @@ extension AnalyticsControllerApi on AnalyticsController {
       motorRuntimeData.clear();
       chartData.clear();
       powerChartData.clear();
+      powerOffChartData.clear();
       voltage.clear();
       current.clear();
       motortotalRuntime.value = '';
@@ -172,6 +173,8 @@ extension AnalyticsControllerApi on AnalyticsController {
               convertRuntimeToTimeSegments(response.data!.records!);
           powerChartData.value =
               convertRuntimeToPowerSegments(response.data!.records!);
+          powerOffChartData.value =
+              convertRuntimeToPowerOffSegments(response.data!.records!);
 
           // Calculate power total runtime
           Duration totalPowerDuration = Duration.zero;
@@ -377,6 +380,25 @@ extension AnalyticsControllerApi on AnalyticsController {
           duration,
         ),
       );
+    }
+
+    return segments;
+  }
+
+  List<TimeSegment> convertRuntimeToPowerOffSegments(List<Runtime> runtimes) {
+    final List<TimeSegment> segments = [];
+
+    for (final runtime in runtimes) {
+      if (runtime.powerState != 0) continue;
+      if (runtime.powerStart == null || runtime.powerEnd == null) continue;
+
+      final startTime = runtime.powerStart!;
+      final endTime = runtime.powerEnd!;
+      final duration = endTime.difference(startTime);
+
+      if (duration.inSeconds > 0) {
+        segments.add(TimeSegment(startTime, endTime, 'POWER_OFF', duration));
+      }
     }
 
     return segments;

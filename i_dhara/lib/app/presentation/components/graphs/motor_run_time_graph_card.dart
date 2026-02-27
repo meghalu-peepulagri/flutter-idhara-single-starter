@@ -34,7 +34,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
       enablePanning: true,
       enableDoubleTapZooming: true,
       zoomMode: ZoomMode.x,
-      maximumZoomLevel: 0.1,
+      maximumZoomLevel: 0.05,
     );
 
     _trackballBehavior = TrackballBehavior(
@@ -125,16 +125,16 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     return sorted;
   }
 
-  DateTime? getMinTime(
-      List<TimeSegment> motorData, List<TimeSegment> powerData) {
-    final allData = [...motorData, ...powerData];
+  DateTime? getMinTime(List<TimeSegment> motorData, List<TimeSegment> powerData,
+      List<TimeSegment> powerOffData) {
+    final allData = [...motorData, ...powerData, ...powerOffData];
     if (allData.isEmpty) return null;
     return allData.map((e) => e.start).reduce((a, b) => a.isBefore(b) ? a : b);
   }
 
-  DateTime? getMaxTime(
-      List<TimeSegment> motorData, List<TimeSegment> powerData) {
-    final allData = [...motorData, ...powerData];
+  DateTime? getMaxTime(List<TimeSegment> motorData, List<TimeSegment> powerData,
+      List<TimeSegment> powerOffData) {
+    final allData = [...motorData, ...powerData, ...powerOffData];
     if (allData.isEmpty) return null;
     return allData.map((e) => e.end).reduce((a, b) => a.isAfter(b) ? a : b);
   }
@@ -144,11 +144,17 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     return Obx(() {
       final motorChartData = buildChartData(analyticsController.chartData);
       final powerChartData = buildChartData(analyticsController.powerChartData);
+      final powerOffChartData =
+          buildChartData(analyticsController.powerOffChartData);
 
-      final minTime = getMinTime(motorChartData, powerChartData);
-      final maxTime = getMaxTime(motorChartData, powerChartData);
+      final minTime =
+          getMinTime(motorChartData, powerChartData, powerOffChartData);
+      final maxTime =
+          getMaxTime(motorChartData, powerChartData, powerOffChartData);
 
-      final hasData = motorChartData.isNotEmpty || powerChartData.isNotEmpty;
+      final hasData = motorChartData.isNotEmpty ||
+          powerChartData.isNotEmpty ||
+          powerOffChartData.isNotEmpty;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -255,8 +261,12 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         series: [
                                           ..._buildMotorSeries(motorChartData),
                                           ..._buildPowerSeries(powerChartData),
+                                          ..._buildPowerOffSeries(
+                                              powerOffChartData),
                                         ],
-                                        legend: const Legend(isVisible: false),
+                                        legend: const Legend(
+                                          isVisible: false,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -276,145 +286,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
         ],
       );
     });
-  }
-
-  Widget _buildLegend() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _legendChip(Colors.green, 'Motor On', Icons.power_rounded),
-        const SizedBox(width: 8),
-        _legendChip(Colors.blue, 'Power On', Icons.bolt_rounded),
-        const SizedBox(width: 8),
-        _legendChip(Colors.red, 'Off', Icons.stop_circle_outlined),
-      ],
-    );
-  }
-
-  Widget _legendChip(Color color, String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
-      List<TimeSegment> data) {
-    final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-
-    for (final segment in data) {
-      final points = [
-        TimePoint(
-          segment.start,
-          3,
-          segment.duration.toString(),
-          segment.type,
-          segment.start,
-          segment.end,
-          true,
-        ),
-        TimePoint(
-          segment.end,
-          3,
-          segment.duration.toString(),
-          segment.type,
-          segment.start,
-          segment.end,
-          false,
-        ),
-      ];
-
-      seriesList.add(
-        LineSeries(
-          dataSource: points,
-          xValueMapper: (p, _) => p.time,
-          yValueMapper: (p, _) => p.value,
-          color: Colors.green,
-          width: 3,
-          isVisibleInLegend: false,
-          markerSettings: const MarkerSettings(
-            isVisible: true,
-            height: 7,
-            width: 7,
-            shape: DataMarkerType.circle,
-          ),
-          pointColorMapper: (TimePoint point, _) {
-            return point.isStartPoint ? Colors.green : Colors.red;
-          },
-        ),
-      );
-    }
-
-    return seriesList;
-  }
-
-  List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
-      List<TimeSegment> data) {
-    final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
-
-    for (final segment in data) {
-      final points = [
-        PowerTimePoint(
-          segment.start,
-          1,
-          segment.duration.toString(),
-          segment.type,
-          segment.start,
-          segment.end,
-          true,
-        ),
-        PowerTimePoint(
-          segment.end,
-          1,
-          segment.duration.toString(),
-          segment.type,
-          segment.start,
-          segment.end,
-          false,
-        ),
-      ];
-
-      seriesList.add(
-        LineSeries(
-          dataSource: points,
-          xValueMapper: (p, _) => p.time,
-          yValueMapper: (p, _) => p.value,
-          color: Colors.blue,
-          width: 3,
-          isVisibleInLegend: false,
-          markerSettings: const MarkerSettings(
-            isVisible: true,
-            height: 7,
-            width: 7,
-            shape: DataMarkerType.circle,
-          ),
-          pointColorMapper: (PowerTimePoint point, _) {
-            return point.isStartPoint ? Colors.blue : Colors.red;
-          },
-        ),
-      );
-    }
-
-    return seriesList;
   }
 
   Widget _buildHeader(BuildContext context) {
@@ -510,6 +381,226 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
       ),
     );
   }
+}
+
+List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
+    List<TimeSegment> data) {
+  final List<LineSeries<TimePoint, DateTime>> seriesList = [];
+  final DateTime now = DateTime.now();
+
+  for (final segment in data) {
+    // Check if this motor segment is still running
+    // A segment is "still running" if end time is very close to now (within 5 seconds)
+    final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
+
+    // Choose color based on whether it's still running
+    final lineColor = isStillRunning ? Colors.green : Colors.green;
+    final endPointColor = isStillRunning ? Colors.green : Colors.red;
+
+    final points = [
+      TimePoint(
+        segment.start,
+        3, // Y-position for motor line (top)
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        true,
+      ),
+      TimePoint(
+        segment.end,
+        3, // Y-position for motor line (top)
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        false,
+      ),
+    ];
+
+    seriesList.add(
+      LineSeries(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: lineColor, // Orange if still running, green if completed
+        width: 3,
+        name: isStillRunning ? 'Still Running' : null,
+        legendIconType:
+            isStillRunning ? LegendIconType.circle : LegendIconType.circle,
+        isVisibleInLegend: isStillRunning,
+        markerSettings: const MarkerSettings(
+          isVisible: true,
+          height: 6,
+          width: 6,
+          shape: DataMarkerType.circle,
+        ),
+        pointColorMapper: (TimePoint point, _) {
+          if (isStillRunning) {
+            // Both points orange if still running
+            return Colors.green;
+          } else {
+            // Green start, red end if completed
+            return point.isStartPoint ? Colors.green : Colors.red;
+          }
+        },
+      ),
+    );
+  }
+
+  return seriesList;
+}
+
+Widget _buildLegend() {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      _legendChip(Colors.green, 'Motor On', Icons.power_rounded),
+      const SizedBox(width: 8),
+      _legendChip(Colors.blue, 'Power On', Icons.bolt_rounded),
+      const SizedBox(width: 8),
+      _legendChip(Colors.red, 'Off', Icons.stop_circle_outlined),
+    ],
+  );
+}
+
+Widget _legendChip(Color color, String label, IconData icon) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
+    List<TimeSegment> data) {
+  final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
+  final DateTime now = DateTime.now();
+
+  for (final segment in data) {
+    // Check if this segment is still running
+    // A segment is "still running" if end time is very close to now (within 5 seconds)
+    final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
+
+    // Choose color based on whether it's still running
+    final lineColor = isStillRunning ? Colors.green : Colors.blue;
+    final endPointColor = isStillRunning ? Colors.green : Colors.red;
+
+    final points = [
+      PowerTimePoint(
+        segment.start,
+        1, // Y-position for power line (bottom)
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        true,
+      ),
+      PowerTimePoint(
+        segment.end,
+        1, // Y-position for power line (bottom)
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        false,
+      ),
+    ];
+
+    seriesList.add(
+      LineSeries(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: lineColor, // Orange if still running, blue if completed
+        width: 3,
+        markerSettings: const MarkerSettings(
+          isVisible: true,
+          height: 6,
+          width: 6,
+          shape: DataMarkerType.circle,
+        ),
+        pointColorMapper: (PowerTimePoint point, _) {
+          if (isStillRunning) {
+            // Both points orange if still running
+            return Colors.green;
+          } else {
+            // Blue start, orange end if completed
+            return point.isStartPoint ? Colors.blue : Colors.red;
+          }
+        },
+        isVisibleInLegend: false,
+      ),
+    );
+  }
+
+  return seriesList;
+}
+
+List<LineSeries<PowerTimePoint, DateTime>> _buildPowerOffSeries(
+    List<TimeSegment> data) {
+  final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
+
+  for (final segment in data) {
+    final points = [
+      PowerTimePoint(
+        segment.start,
+        1, // same Y-position as power line
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        true,
+      ),
+      PowerTimePoint(
+        segment.end,
+        1,
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        false,
+      ),
+    ];
+
+    seriesList.add(
+      LineSeries(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: Colors.red,
+        width: 3,
+        markerSettings: const MarkerSettings(
+          isVisible: true,
+          height: 6,
+          width: 6,
+          shape: DataMarkerType.circle,
+        ),
+        pointColorMapper: (PowerTimePoint point, _) => Colors.red,
+        isVisibleInLegend: false,
+      ),
+    );
+  }
+
+  return seriesList;
 }
 
 class TimePoint {
