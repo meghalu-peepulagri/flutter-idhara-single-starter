@@ -26,6 +26,10 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
 
   final AnalyticsController analyticsController = Get.find();
 
+  bool _showMotorOn = true;
+  bool _showPowerOn = true;
+  bool _showOff = true;
+
   @override
   void initState() {
     super.initState();
@@ -166,7 +170,12 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
       List<TimeSegment> motorOffData,
       List<TimeSegment> powerData,
       List<TimeSegment> powerOffData) {
-    final allData = [...motorData, ...motorOffData, ...powerData, ...powerOffData];
+    final allData = [
+      ...motorData,
+      ...motorOffData,
+      ...powerData,
+      ...powerOffData
+    ];
     if (allData.isEmpty) return null;
     return allData.map((e) => e.start).reduce((a, b) => a.isBefore(b) ? a : b);
   }
@@ -176,7 +185,12 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
       List<TimeSegment> motorOffData,
       List<TimeSegment> powerData,
       List<TimeSegment> powerOffData) {
-    final allData = [...motorData, ...motorOffData, ...powerData, ...powerOffData];
+    final allData = [
+      ...motorData,
+      ...motorOffData,
+      ...powerData,
+      ...powerOffData
+    ];
     if (allData.isEmpty) return null;
     return allData.map((e) => e.end).reduce((a, b) => a.isAfter(b) ? a : b);
   }
@@ -304,10 +318,16 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                           maximum: 4,
                                         ),
                                         series: [
-                                          ..._buildMotorSeries(motorChartData),
-                                          ..._buildMotorOffSeries(motorOffChartData),
-                                          ..._buildPowerSeries(powerChartData),
-                                          ..._buildPowerOffSeries(powerOffChartData),
+                                          if (_showMotorOn)
+                                            ..._buildMotorSeries(motorChartData),
+                                          if (_showOff)
+                                            ..._buildMotorOffSeries(
+                                                motorOffChartData),
+                                          if (_showPowerOn)
+                                            ..._buildPowerSeries(powerChartData),
+                                          if (_showOff)
+                                            ..._buildPowerOffSeries(
+                                                powerOffChartData),
                                         ],
                                         legend: const Legend(
                                           isVisible: false,
@@ -415,6 +435,60 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLegend() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _legendChip(Colors.green, 'Motor On', Icons.power_rounded, _showMotorOn,
+            () => setState(() => _showMotorOn = !_showMotorOn)),
+        const SizedBox(width: 8),
+        _legendChip(Colors.blue, 'Power On', Icons.bolt_rounded, _showPowerOn,
+            () => setState(() => _showPowerOn = !_showPowerOn)),
+        const SizedBox(width: 8),
+        _legendChip(Colors.red, 'Off', Icons.stop_circle_outlined, _showOff,
+            () => setState(() => _showOff = !_showOff)),
+      ],
+    );
+  }
+
+  Widget _legendChip(Color color, String label, IconData icon, bool isActive,
+      VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedOpacity(
+        opacity: isActive ? 1.0 : 0.35,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(20),
+            border:
+                Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 11, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  decoration:
+                      isActive ? null : TextDecoration.lineThrough,
+                  decorationColor: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -536,44 +610,6 @@ List<LineSeries<TimePoint, DateTime>> _buildMotorOffSeries(
   return seriesList;
 }
 
-Widget _buildLegend() {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      _legendChip(Colors.green, 'Motor On', Icons.power_rounded),
-      const SizedBox(width: 8),
-      _legendChip(Colors.blue, 'Power On', Icons.bolt_rounded),
-      const SizedBox(width: 8),
-      _legendChip(Colors.red, 'Off', Icons.stop_circle_outlined),
-    ],
-  );
-}
-
-Widget _legendChip(Color color, String label, IconData icon) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.07),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 11, color: color),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
     List<TimeSegment> data) {
@@ -586,8 +622,8 @@ List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
     final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
 
     // Choose color based on whether it's still running
-    final lineColor = isStillRunning ? Colors.green : Colors.blue;
-    final endPointColor = isStillRunning ? Colors.green : Colors.red;
+    final lineColor = isStillRunning ? Colors.blue : Colors.blue;
+    final endPointColor = isStillRunning ? Colors.blue : Colors.red;
 
     final points = [
       PowerTimePoint(
@@ -626,7 +662,7 @@ List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
         pointColorMapper: (PowerTimePoint point, _) {
           if (isStillRunning) {
             // Both points orange if still running
-            return Colors.green;
+            return Colors.blue;
           } else {
             // Blue start, orange end if completed
             return point.isStartPoint ? Colors.blue : Colors.red;
