@@ -18,12 +18,56 @@ import 'dashboard_controller.dart';
 
 export 'dashboard_controller.dart';
 
-class DashboardWidget extends StatelessWidget {
+class DashboardWidget extends StatefulWidget {
   DashboardWidget({super.key});
 
+  @override
+  State<DashboardWidget> createState() => _DashboardWidgetState();
+}
+
+class _DashboardWidgetState extends State<DashboardWidget>
+    with WidgetsBindingObserver {
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  final controller = Get.find<DashboardController>();
+  late final DashboardController controller;
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolve the controller once; the binding guarantees a fresh instance
+    // exists by the time this State is created.
+    controller = Get.find<DashboardController>();
+    WidgetsBinding.instance.addObserver(this);
+    // Register the scroll listener exactly once so loadMoreMotors() is called
+    // a single time per scroll event, regardless of how many Obx rebuilds occur.
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh when the app returns from background while the dashboard is visible.
+      controller.refreshDashboard();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !controller.isLoadingMore.value &&
+        !controller.isLoading.value &&
+        !controller.isRefreshing.value) {
+      controller.loadMoreMotors();
+    }
+  }
 
   void onTapMenu() {
     scaffoldKey.currentState!.openEndDrawer();
@@ -31,17 +75,6 @@ class DashboardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Add scroll listener for pagination
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 200 &&
-          !controller.isLoadingMore.value &&
-          !controller.isLoading.value &&
-          !controller.isRefreshing.value) {
-        controller.loadMoreMotors();
-      }
-    });
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {

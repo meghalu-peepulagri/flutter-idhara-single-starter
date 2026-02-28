@@ -372,12 +372,17 @@ class DashboardController extends GetxController with ConnectivityMixin {
         // Build motor map
         final motorMap = _buildMotorMap(allMotors);
 
-        mqttService = MqttService(initialMotors: motorMap);
-
-        if (!mqttInitialized) {
-          mqttInitialized = true;
-          mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
+        // Always clean up the previous service's listener before replacing it.
+        // Without this, refreshDashboard() creates a new MqttService but the
+        // old one still holds the listener callback — and the new service never
+        // gets one, so real-time MQTT updates are silently dropped after any
+        // refresh call.
+        if (mqttInitialized) {
+          mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
         }
+        mqttService = MqttService(initialMotors: motorMap);
+        mqttInitialized = true;
+        mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
 
         // Initialize MQTT in the background to avoid blocking the UI refresh
         debugPrint('DASHBOARD: Initializing MQTT client...');
@@ -394,26 +399,18 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error: $e';
-      print('Error fetching motors: $e');
+      debugPrint('Error fetching motors: $e');
     } finally {
       isRefreshing.value = false;
     }
   }
 
   void _onMqttUpdate() {
-    int mqttDataCount = 0;
-    for (var key in mqttService.motorDataMap.keys) {
-      final data = mqttService.motorDataMap[key];
-      if (data?.hasReceivedData == true) {
-        mqttDataCount++;
-      }
-    }
     for (var motor in allMotors) {
       if (motor.starter == null) continue;
 
       final mac = motor.starter!.macAddress;
       final pcb = motor.starter!.pcbNumber;
-      final currentGroupId = _getGroupIdForMotor(motor);
 
       MotorData? currentMotorData;
 
@@ -522,7 +519,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
         locations.insert(0, LocationDropDown(id: null, name: 'All'));
       }
     } catch (e) {
-      print('Error fetching locations: $e');
+      debugPrint('Error fetching locations: $e');
     } finally {
       isLoadingLocations.value = false;
     }
