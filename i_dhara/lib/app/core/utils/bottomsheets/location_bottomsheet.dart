@@ -12,14 +12,16 @@ String _normalizeLocationName(String? name) {
 }
 
 class LocationBottomSheet extends StatefulWidget {
-  const LocationBottomSheet({super.key});
+  final DashboardController controller;
+
+  const LocationBottomSheet({super.key, required this.controller});
 
   @override
   State<LocationBottomSheet> createState() => _LocationBottomSheetState();
 }
 
 class _LocationBottomSheetState extends State<LocationBottomSheet> {
-  final controller = Get.find<DashboardController>();
+  late final DashboardController controller = widget.controller;
 
   @override
   void initState() {

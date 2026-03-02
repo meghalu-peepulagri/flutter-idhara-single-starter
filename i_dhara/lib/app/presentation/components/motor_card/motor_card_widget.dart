@@ -20,14 +20,12 @@ class MotorCardWidget extends StatefulWidget {
   final Motor motor;
   final MqttService mqttService;
   final Function(Motor, bool) onToggleMotor;
-
   const MotorCardWidget({
     super.key,
     required this.motor,
     required this.mqttService,
     required this.onToggleMotor,
   });
-
   @override
   State<MotorCardWidget> createState() => _MotorCardWidgetState();
 }
@@ -41,19 +39,15 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   int? _pendingModeValue;
   bool _isWaitingForSwitchAck = false;
   bool _isWaitingForModeAck = false;
-
   Timer? _switchAckTimer;
   Timer? _modeAckTimer;
   static const Duration _ackTimeout = Duration(seconds: 13);
-
   @override
   void initState() {
     super.initState();
-
     final motorData = _getMotorData();
     bool initialState;
     int initialMode;
-
     if (motorData != null && motorData.hasReceivedData) {
       initialState = motorData.state == 1;
       initialMode = motorData.modeIndex ?? 1;
@@ -62,13 +56,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       initialState = apiState == 1;
       initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 1;
     }
-
     _localSwitchController = ValueNotifier(initialState);
     _localModeController = ValueNotifier(initialMode);
-    // _isInitialized = true;
     widget.mqttService.commandStatusNotifier
         .addListener(_onCommandStatusChanged);
-    // Rebuild when mode changes so isSwitchDisabled is never stale
     _localModeController.addListener(_onModeControllerChanged);
   }
 
@@ -84,11 +75,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       if (mounted && _hasPendingSwitchCommand) {
         debugPrint(
             ' Switch ACK timeout - reverting to previous state: $previousValue');
-
         _localSwitchController.value = previousValue;
         _hasPendingSwitchCommand = false;
         _pendingSwitchValue = null;
-
         if (mounted) {
           setState(() {
             _isWaitingForSwitchAck = false;
@@ -104,11 +93,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       if (mounted && _hasPendingModeCommand) {
         debugPrint(
             ' Mode ACK timeout - reverting to previous mode: $previousValue');
-
         _localModeController.value = previousValue;
         _hasPendingModeCommand = false;
         _pendingModeValue = null;
-
         if (mounted) {
           setState(() {
             _isWaitingForModeAck = false;
@@ -174,15 +161,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (widget.motor.starter == null) return null;
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
-
-    // Find the best matching entry with the most recent data
     MotorData? bestData;
     DateTime? bestTime;
-
     for (var entry in widget.mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
-
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -193,7 +176,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           (pcb != null &&
               pcb.isNotEmpty &&
               (data.macAddress == pcb || data.pcbNumber == pcb));
-
       if (matchesByKey || matchesByData) {
         final ackTime = widget.mqttService.getLastAckTime(key);
         if (bestData == null ||
@@ -204,7 +186,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         }
       }
     }
-
     return bestData;
   }
 
@@ -215,10 +196,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     final deviceallow = widget.motor.starter?.deviceAllocation;
     final publishedNumber = getMotorIdentifier(
         deviceallow.toString(), pcb.toString(), mac.toString());
-
     if (widget.motor.starter == null) return '';
     final motorData = _getMotorData();
-
     if (motorData?.groupId != null) {
       if (motorData!.macAddress?.isNotEmpty == true) {
         return '$publishedNumber-${motorData.groupId}';
@@ -227,7 +206,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         return '$publishedNumber-${motorData.groupId}';
       }
     }
-
     if (mac?.isNotEmpty == true) return '$publishedNumber-G01';
     if (pcb?.isNotEmpty == true) return '$publishedNumber-G01';
     return '';
@@ -243,18 +221,14 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     // if (_isUpdatingFromMqtt || _isWaitingForSwitchAck) return;
     if (_isWaitingForSwitchAck) return;
     if (!_isMotorAvailable()) return;
-
     final motorId = _getMotorId();
     if (motorId.isEmpty) return;
-
     final previousValue = _localSwitchController.value;
-
     setState(() => _isWaitingForSwitchAck = true);
     _localSwitchController.value = newValue;
     _hasPendingSwitchCommand = true;
     _pendingSwitchValue = newValue;
     _startSwitchAckTimer(previousValue);
-
     try {
       await widget.mqttService.publishMotorCommand(motorId, newValue ? 1 : 0);
     } catch (e) {
@@ -275,11 +249,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   void _updateSwitchFromMqtt(bool newState) {
     if (_localSwitchController.value != newState) {
-      // _isUpdatingFromMqtt = true;
       _localSwitchController.value = newState;
-      // Future.delayed(const Duration(milliseconds: 50), () {
-      //   _isUpdatingFromMqtt = false;
-      // });
     }
   }
 
@@ -292,16 +262,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   void _handleModeChange(int newMode) {
     if (_isWaitingForModeAck) return;
     if (!_isMotorAvailable()) return;
-
     final motorId = _getMotorId();
     if (motorId.isEmpty) return;
-
     final motorName = widget.motor.aliasName ?? widget.motor.name ?? 'Motor';
-
     MotorCardDialogs.showModeChangeDialog(context, motorName, newMode,
         (confirmedMode) async {
       final previousMode = _localModeController.value;
-
       setState(() => _isWaitingForModeAck = true);
       _localModeController.value = confirmedMode;
       _hasPendingModeCommand = true;

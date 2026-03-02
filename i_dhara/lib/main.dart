@@ -108,7 +108,6 @@ void _handleNotificationTap(String? payload) {
     int starterId0 = int.parse(starterId);
     if (starterId.isNotEmpty) {
       SharedPreference.setStarterId(starterId0);
-      print("line 75 starter $starterId0");
     }
 
     if (title.toLowerCase().contains("state") && title.isNotEmpty) {
@@ -135,7 +134,7 @@ void _handleNotificationTap(String? payload) {
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         SharedPreference.clear();
-        Get.offAllNamed(Routes.loginwithmobile);
+        Get.offAllNamed(Routes.dashboard);
       });
     }
   } catch (e) {

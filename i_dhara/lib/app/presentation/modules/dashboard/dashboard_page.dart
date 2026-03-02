@@ -43,11 +43,23 @@ class _DashboardWidgetState extends State<DashboardWidget>
     _scrollController.addListener(_onScroll);
   }
 
+  bool _didPause = false;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // Refresh when the app returns from background while the dashboard is visible.
-      controller.refreshDashboard();
+    if (state == AppLifecycleState.paused) {
+      _didPause = true;
+    } else if (state == AppLifecycleState.resumed) {
+      // Only refresh when truly returning from background (paused → resumed).
+      // Skips spurious cycles caused by the system panel (notification shade /
+      // quick-settings) and the Recent-apps switcher, which produce an
+      // inactive → resumed transition without ever reaching paused.
+      if (_didPause) {
+        _didPause = false;
+        controller.refreshDashboard();
+      }
+    } else if (state == AppLifecycleState.inactive) {
+      // Do nothing – this fires for system-panel and recent-apps interactions.
     }
   }
 
@@ -196,7 +208,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
         showModalBottomSheet(
           context: context,
           backgroundColor: Colors.transparent,
-          builder: (_) => const LocationBottomSheet(),
+          builder: (_) => LocationBottomSheet(controller: controller),
         );
       },
       child: Obx(() {

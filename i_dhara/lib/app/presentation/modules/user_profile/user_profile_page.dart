@@ -42,7 +42,10 @@ class ProfileWidget extends StatelessWidget {
           backgroundColor: _kBg,
           body: Obx(() {
             if (controller.isLoading.value) {
-              return const Center(child: AppLottieLoading());
+              return const Padding(
+                padding: EdgeInsets.only(right: 30),
+                child: Center(child: AppLottieLoading()),
+              );
             } else if (!ConnectivityService.to.isConnected) {
               return const Center(child: NoInternetWidget());
             }
