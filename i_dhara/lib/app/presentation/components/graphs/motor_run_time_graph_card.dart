@@ -407,8 +407,14 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
           Obx(() {
             final motorTotal = analyticsController.motortotalRuntime.value;
             if (motorTotal.isEmpty) return const SizedBox.shrink();
-            return _runtimeBadge(
-                motorTotal, Colors.green, Icons.timer_outlined);
+            final parts = motorTotal.split(':');
+            final display = parts.length >= 3
+                ? '${parts[0]}:${parts[1]}'
+                : motorTotal
+                    .replaceAll(
+                        RegExp(r'\s*\d+\s*sec', caseSensitive: false), '')
+                    .trim();
+            return _runtimeBadge(display, Colors.green, Icons.timer_outlined);
           }),
         ],
       ),

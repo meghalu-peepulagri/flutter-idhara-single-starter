@@ -98,29 +98,29 @@ class MotorCardDialogs {
                         ),
                       ],
                     ),
-                    if (isAutoMode) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Text(
-                            'Mode: ',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF004E7E),
-                            ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          'Mode: ',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF004E7E),
                           ),
-                          Text(
-                            'Auto',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFFFFA500),
-                            ),
+                        ),
+                        Text(
+                          isAutoMode ? 'Auto' : 'Manual',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isAutoMode
+                                ? const Color(0xFFFFA500)
+                                : const Color(0xFF2F80ED),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -138,7 +138,7 @@ class MotorCardDialogs {
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: newValue
-                                ? const Color(0xFF2F80ED) // ON
+                                ? Colors.green // ON
                                 : const Color(0xFFDB3B2A), // OFF
                           ),
                         ),
