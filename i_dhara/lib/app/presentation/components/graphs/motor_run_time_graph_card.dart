@@ -319,12 +319,14 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                         ),
                                         series: [
                                           if (_showMotorOn)
-                                            ..._buildMotorSeries(motorChartData),
+                                            ..._buildMotorSeries(
+                                                motorChartData),
                                           if (_showOff)
                                             ..._buildMotorOffSeries(
                                                 motorOffChartData),
                                           if (_showPowerOn)
-                                            ..._buildPowerSeries(powerChartData),
+                                            ..._buildPowerSeries(
+                                                powerChartData),
                                           if (_showOff)
                                             ..._buildPowerOffSeries(
                                                 powerOffChartData),
@@ -370,28 +372,28 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: const Color(0xFF45A845).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFF45A845).withValues(alpha: 0.2),
-                width: 0.8,
-              ),
-            ),
-            child: Image.asset(
-              'assets/images/motorruntime.png',
-              height: 20,
-            ),
-          ),
+          // Container(
+          //   padding: const EdgeInsets.all(9),
+          //   decoration: BoxDecoration(
+          //     color: const Color(0xFF45A845).withValues(alpha: 0.12),
+          //     borderRadius: BorderRadius.circular(10),
+          //     border: Border.all(
+          //       color: const Color(0xFF45A845).withValues(alpha: 0.2),
+          //       width: 0.8,
+          //     ),
+          //   ),
+          //   child: Image.asset(
+          //     'assets/images/motorruntime.png',
+          //     height: 20,
+          //   ),
+          // ),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Motor & Power",
+                  "Motor",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -467,8 +469,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(20),
-            border:
-                Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -481,8 +482,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                   fontSize: 10,
                   color: color,
                   fontWeight: FontWeight.w600,
-                  decoration:
-                      isActive ? null : TextDecoration.lineThrough,
+                  decoration: isActive ? null : TextDecoration.lineThrough,
                   decorationColor: color,
                 ),
               ),
@@ -609,7 +609,6 @@ List<LineSeries<TimePoint, DateTime>> _buildMotorOffSeries(
 
   return seriesList;
 }
-
 
 List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
     List<TimeSegment> data) {

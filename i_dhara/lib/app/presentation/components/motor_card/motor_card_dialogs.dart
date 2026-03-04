@@ -43,8 +43,9 @@ class MotorCardDialogs {
     BuildContext context,
     Motor motor,
     bool newValue,
-    Function(bool) onConfirm,
-  ) {
+    Function(bool) onConfirm, {
+    bool isAutoMode = false,
+  }) {
     final stateName = newValue ? 'ON' : 'OFF';
 
     showDialog(
@@ -59,7 +60,9 @@ class MotorCardDialogs {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Are you sure you want to control the motor?',
+                isAutoMode
+                    ? 'Motor is in Auto mode. Are you sure you want to control the motor?'
+                    : 'Are you sure you want to control the motor?',
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: const Color(0xFF6B7280),
@@ -95,6 +98,29 @@ class MotorCardDialogs {
                         ),
                       ],
                     ),
+                    if (isAutoMode) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text(
+                            'Mode: ',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF004E7E),
+                            ),
+                          ),
+                          Text(
+                            'Auto',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFFFA500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [

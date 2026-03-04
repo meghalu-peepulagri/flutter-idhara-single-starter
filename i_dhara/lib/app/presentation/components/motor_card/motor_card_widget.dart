@@ -488,9 +488,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           }
         }
 
-        final isManualMode = _localModeController.value == 0;
         final isSwitchDisabled =
-            _isWaitingForSwitchAck || !(canControl && isManualMode);
+            _isWaitingForSwitchAck || !canControl;
 
         return Container(
           decoration: BoxDecoration(
@@ -538,6 +537,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   onToggleSwitch: _handleToggle,
                   onModeChange: _handleModeChange,
                   isSwitchDisabled: isSwitchDisabled,
+                  isAutoMode: _localModeController.value == 1,
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                   onNavigateToDetails: _navigateToDetails,
                 ),

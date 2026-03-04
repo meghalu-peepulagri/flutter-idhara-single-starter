@@ -14,6 +14,7 @@ class MotorControlsRow extends StatelessWidget {
   final Function(bool) onToggleSwitch;
   final Function(int) onModeChange;
   final bool isSwitchDisabled;
+  final bool isAutoMode;
   final bool isModeDisabled;
   final VoidCallback? onNavigateToDetails;
 
@@ -26,6 +27,7 @@ class MotorControlsRow extends StatelessWidget {
     required this.onToggleSwitch,
     required this.onModeChange,
     required this.isSwitchDisabled,
+    this.isAutoMode = false,
     required this.isModeDisabled,
     this.onNavigateToDetails,
   });
@@ -93,7 +95,7 @@ class MotorControlsRow extends StatelessWidget {
                             MotorCardDialogs.showSwitchCommandDialog(
                                 context, motor, !isOn, (newValue) {
                               onToggleSwitch(newValue);
-                            });
+                            }, isAutoMode: isAutoMode);
                           }
                         : null,
                     behavior: HitTestBehavior.opaque,
