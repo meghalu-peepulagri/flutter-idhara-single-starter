@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'schedule_utils.dart';
 import 'schedule_widgets.dart';
 import 'schedule_bottom_sheets.dart';
@@ -16,6 +17,7 @@ class SchedulePage extends StatefulWidget {
 class _SchedulePageState extends State<SchedulePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final MqttService _mqttService = MqttService();
   Motor? motor;
   bool _isScheduleEnabled = false;
 
@@ -25,6 +27,7 @@ class _SchedulePageState extends State<SchedulePage>
   TimeOfDay _oneTimeEndTime = const TimeOfDay(hour: 0, minute: 0);
   int _oneTimeDurationHours = 0;
   int _oneTimeDurationMinutes = 0;
+  final int _oneTimeScheduleId = 1;
 
   // Cyclic state
   final Set<int> _cyclicSelectedDays = {};
@@ -32,6 +35,7 @@ class _SchedulePageState extends State<SchedulePage>
   TimeOfDay _cyclicEndTime = const TimeOfDay(hour: 0, minute: 0);
   int _cyclicDurationHours = 0;
   int _cyclicDurationMinutes = 0;
+  final int _cyclicScheduleId = 1;
 
   @override
   void initState() {
@@ -105,6 +109,65 @@ class _SchedulePageState extends State<SchedulePage>
       _cyclicDurationMinutes = m;
       _cyclicEndTime = calcEndTime(_cyclicStartTime, h, m);
     });
+  }
+
+  String _resolveIdentifier(Motor? motor) {
+    final mac = motor?.starter?.macAddress?.trim() ?? '';
+    if (mac.isNotEmpty) return mac;
+    final pcb = motor?.starter?.pcbNumber?.trim() ?? '';
+    return pcb;
+  }
+
+  Future<void> _publishSchedule() async {
+    final isOneTimeTab = _tabController.index == 0;
+    final selectedDays =
+        isOneTimeTab ? _oneTimeSelectedDays : _cyclicSelectedDays;
+    final startTime = isOneTimeTab ? _oneTimeStartTime : _cyclicStartTime;
+    final endTime = isOneTimeTab ? _oneTimeEndTime : _cyclicEndTime;
+    final durationHours =
+        isOneTimeTab ? _oneTimeDurationHours : _cyclicDurationHours;
+    final durationMinutes =
+        isOneTimeTab ? _oneTimeDurationMinutes : _cyclicDurationMinutes;
+    final scheduleId = isOneTimeTab ? _oneTimeScheduleId : _cyclicScheduleId;
+
+    final identifier = _resolveIdentifier(motor);
+    if (identifier.isEmpty) {
+      Get.snackbar(
+        'Schedule',
+        'Motor identifier not found (MAC/PCB).',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final payloadDays = buildDaysBitmask(selectedDays);
+
+    try {
+      await _mqttService.publishScheduleCommand(
+        identifier: identifier,
+        scheduleType: isOneTimeTab ? 1 : 2,
+        scheduleId: scheduleId,
+        startTime: formatTime24h(startTime),
+        endTime: formatTime24h(endTime),
+        durationMinutes: durationToMinutes(durationHours, durationMinutes),
+        repeat: isOneTimeTab ? 0 : 1,
+        daysBitmask: payloadDays,
+        powerRecovery: _isScheduleEnabled ? 1 : 0,
+        enabled: _isScheduleEnabled ? 1 : 0,
+      );
+
+      Get.snackbar(
+        'Schedule',
+        'Schedule command published',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Schedule',
+        'Failed to publish schedule: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   @override
@@ -223,20 +286,20 @@ class _SchedulePageState extends State<SchedulePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          const SectionLabel(label: 'Select Days'),
+          buildSectionLabel('Select Days'),
           const SizedBox(height: 8),
-          DaySelector(
-            selectedDays: _oneTimeSelectedDays,
-            onChanged: (days) => setState(() => _oneTimeSelectedDays
+          buildDaySelector(
+            _oneTimeSelectedDays,
+            (days) => setState(() => _oneTimeSelectedDays
               ..clear()
               ..addAll(days)),
           ),
           const SizedBox(height: 16),
-          const SectionLabel(label: 'Set Time'),
+          buildSectionLabel('Set Time'),
           const SizedBox(height: 8),
           Row(children: [
             Expanded(
-                child: TimeCard(
+                child: buildTimeCard(
               label: 'Start Time',
               time: _oneTimeStartTime,
               icon: Icons.play_circle_outline_rounded,
@@ -245,7 +308,7 @@ class _SchedulePageState extends State<SchedulePage>
             )),
             const SizedBox(width: 10),
             Expanded(
-                child: TimeCard(
+                child: buildTimeCard(
               label: 'End Time',
               time: _oneTimeEndTime,
               icon: Icons.stop_circle_outlined,
@@ -254,9 +317,9 @@ class _SchedulePageState extends State<SchedulePage>
             )),
           ]),
           const SizedBox(height: 16),
-          DurationCard(
-            durationH: _oneTimeDurationHours,
-            durationM: _oneTimeDurationMinutes,
+          buildDurationCard(
+            _oneTimeDurationHours,
+            _oneTimeDurationMinutes,
             onTap: () => showDurationBottomSheet(context, _oneTimeDurationHours,
                 _oneTimeDurationMinutes, _setOneTimeDuration),
           ),
@@ -273,20 +336,20 @@ class _SchedulePageState extends State<SchedulePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          const SectionLabel(label: 'Select Days'),
+          buildSectionLabel('Select Days'),
           const SizedBox(height: 8),
-          DaySelector(
-            selectedDays: _cyclicSelectedDays,
-            onChanged: (days) => setState(() => _cyclicSelectedDays
+          buildDaySelector(
+            _cyclicSelectedDays,
+            (days) => setState(() => _cyclicSelectedDays
               ..clear()
               ..addAll(days)),
           ),
           const SizedBox(height: 16),
-          const SectionLabel(label: 'Set Time'),
+          buildSectionLabel('Set Time'),
           const SizedBox(height: 8),
           Row(children: [
             Expanded(
-                child: TimeCard(
+                child: buildTimeCard(
               label: 'Start Time',
               time: _cyclicStartTime,
               icon: Icons.play_circle_outline_rounded,
@@ -295,7 +358,7 @@ class _SchedulePageState extends State<SchedulePage>
             )),
             const SizedBox(width: 10),
             Expanded(
-                child: TimeCard(
+                child: buildTimeCard(
               label: 'End Time',
               time: _cyclicEndTime,
               icon: Icons.stop_circle_outlined,
@@ -304,14 +367,14 @@ class _SchedulePageState extends State<SchedulePage>
             )),
           ]),
           const SizedBox(height: 16),
-          DurationCard(
-            durationH: _cyclicDurationHours,
-            durationM: _cyclicDurationMinutes,
+          buildDurationCard(
+            _cyclicDurationHours,
+            _cyclicDurationMinutes,
             onTap: () => showDurationBottomSheet(context, _cyclicDurationHours,
                 _cyclicDurationMinutes, _setCyclicDuration),
           ),
           const SizedBox(height: 12),
-          RepeatInfoCard(selectedDays: _cyclicSelectedDays),
+          buildRepeatInfoCard(_cyclicSelectedDays),
           const SizedBox(height: 16),
         ],
       ),
@@ -334,17 +397,12 @@ class _SchedulePageState extends State<SchedulePage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          PowerToggleRow(
-            isEnabled: _isScheduleEnabled,
-            onToggle: () =>
-                setState(() => _isScheduleEnabled = !_isScheduleEnabled),
+          buildPowerToggleRow(
+            _isScheduleEnabled,
+            () => setState(() => _isScheduleEnabled = !_isScheduleEnabled),
           ),
           const SizedBox(height: 12),
-          CreateScheduleButton(
-            onTap: () {
-              // TODO: Implement schedule creation logic
-            },
-          ),
+          buildCreateScheduleButton(_publishSchedule),
         ],
       ),
     );

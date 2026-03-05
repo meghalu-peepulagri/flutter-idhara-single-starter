@@ -33,14 +33,14 @@ void showTimeBottomSheet(
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ScrollWheel(
+                    buildScrollWheel(
                       values: List.generate(24, (i) => i),
                       selected: selectedHour,
                       onChanged: (v) => setSheetState(() => selectedHour = v),
                       padZero: true,
                     ),
                     _buildColon(),
-                    ScrollWheel(
+                    buildScrollWheel(
                       values: List.generate(60, (i) => i),
                       selected: selectedMinute,
                       onChanged: (v) => setSheetState(() => selectedMinute = v),
@@ -107,7 +107,7 @@ void showDurationBottomSheet(
                               color: const Color(0xFF57636C),
                             )),
                         const SizedBox(height: 4),
-                        ScrollWheel(
+                        buildScrollWheel(
                           values: List.generate(24, (i) => i),
                           selected: selH,
                           onChanged: (v) => setSheetState(() => selH = v),
@@ -128,7 +128,7 @@ void showDurationBottomSheet(
                               color: const Color(0xFF57636C),
                             )),
                         const SizedBox(height: 4),
-                        ScrollWheel(
+                        buildScrollWheel(
                           values: List.generate(60, (i) => i),
                           selected: selM,
                           onChanged: (v) => setSheetState(() => selM = v),

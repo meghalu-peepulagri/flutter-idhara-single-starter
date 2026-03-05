@@ -35,3 +35,17 @@ TimeOfDay calcEndTime(TimeOfDay start, int durH, int durM) {
 String formatDurationHM(int h, int m) {
   return '${h.toString().padLeft(2, '0')}h : ${m.toString().padLeft(2, '0')}m';
 }
+
+int buildDaysBitmask(Set<int> selectedDays) {
+  int mask = 0;
+  for (final dayIndex in selectedDays) {
+    if (dayIndex >= 0 && dayIndex <= 6) {
+      mask |= (1 << dayIndex);
+    }
+  }
+  return mask;
+}
+
+int durationToMinutes(int hours, int minutes) {
+  return (hours * 60) + minutes;
+}

@@ -78,10 +78,10 @@ class MotorData {
 /// Tracks pending commands for retry mechanism
 class PendingCommand {
   final String motorId;
-  final int commandType; // 1 = motor control, 2 = mode change, 4 = settings
+  final int commandType; // 1 = motor control, 2 = mode change, 4 = settings, 23 = schedule
   final dynamic commandData;
   final int sequenceNumber;
-  final String? pcbnumber; // For settings commands (type 4)
+  final String? pcbnumber; // For settings/schedule commands (type 4/23)
   int retryCount;
   Timer? retryTimer;
   final Function(String) onMaxRetriesReached;
@@ -444,6 +444,115 @@ class MqttService {
       rethrow;
     }
     _dataUpdateNotifier.value++;
+  }
+
+  /// Publish schedule command
+  /// MQTT format:
+  /// {
+  ///   "T": 23,
+  ///   "S": <seq>,
+  ///   "D": {
+  ///     "sch_type": 1|2,
+  ///     "id": <optional 1..6>,
+  ///     "start": "HH:mm",
+  ///     "end": "HH:mm",
+  ///     "dur": <minutes>,
+  ///     "rep": 0|1,
+  ///     "days": <bitmask>,
+  ///     "pwr_rec": 0|1,
+  ///     "en": 0|1
+  ///   }
+  /// }
+  Future<void> publishScheduleCommand({
+    required String identifier,
+    required int scheduleType,
+    required int scheduleId,
+    required String startTime,
+    required String endTime,
+    required int durationMinutes,
+    required int repeat,
+    required int daysBitmask,
+    required int powerRecovery,
+    required int enabled,
+    int? sequenceNumber,
+  }) async {
+    if (_mqttClient == null || !isConnected) {
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+
+    if (identifier.trim().isEmpty) {
+      throw Exception('Invalid identifier for schedule publish');
+    }
+    if (scheduleType != 1 && scheduleType != 2) {
+      throw Exception('scheduleType must be 1 (time-based) or 2 (cyclic)');
+    }
+
+    final seq = sequenceNumber ?? _random.nextInt(251);
+
+    final scheduleData = <String, dynamic>{
+      'sch_type': scheduleType,
+      'id': scheduleId,
+      'start': startTime,
+      'end': endTime,
+      'dur': durationMinutes,
+      'rep': repeat,
+      'days': daysBitmask,
+      'pwr_rec': powerRecovery,
+      'en': enabled,
+    };
+
+    final payload = <String, dynamic>{
+      'T': 23,
+      'S': seq,
+      'D': scheduleData,
+    };
+
+    final commandKey = 'schedule_$identifier';
+    _lastAckTimes.remove(commandKey);
+
+    await _publishScheduleCommandInternal(
+      payload,
+      identifier,
+      sequenceNumber: seq,
+    );
+    _registerPendingCommand(
+      commandKey,
+      23,
+      payload,
+      seq,
+      pcbnumber: identifier,
+    );
+    statusMessage = 'Schedule command sent successfully';
+    _dataUpdateNotifier.value++;
+  }
+
+  Future<void> _publishScheduleCommandInternal(
+    Map<String, dynamic> schedulePayload,
+    String identifier, {
+    int? sequenceNumber,
+    bool isRetry = false,
+  }) async {
+    if (_mqttClient == null || !isConnected) {
+      throw Exception('MQTT not connected');
+    }
+
+    final topic = 'peepul/$identifier/cmd';
+    final payload = Map<String, dynamic>.from(schedulePayload);
+    if (sequenceNumber != null) {
+      payload['S'] = sequenceNumber;
+    }
+    final message = jsonEncode(payload);
+    final builder = MqttClientPayloadBuilder()..addString(message);
+    _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+
+    if (!isRetry) {
+      debugPrint('✓ Published Schedule Command -> $topic');
+      debugPrint('   Payload: $message');
+    } else {
+      debugPrint('🔄 Re-published Schedule Command -> $topic');
+    }
   }
 
   /// Get motor data filtered by location
@@ -1174,6 +1283,16 @@ class MqttService {
             );
             debugPrint(
                 '🔄 Retry ${command.retryCount}: Settings (${command.pcbnumber})');
+          } else if (command.commandType == 23 && command.pcbnumber != null) {
+            // Schedule command
+            await _publishScheduleCommandInternal(
+              Map<String, dynamic>.from(command.commandData),
+              command.pcbnumber!,
+              sequenceNumber: command.sequenceNumber,
+              isRetry: true,
+            );
+            debugPrint(
+                '🔄 Retry ${command.retryCount}: Schedule (${command.pcbnumber})');
           } else {
             // Motor control or mode change command
             await _publishCommand(
@@ -1196,6 +1315,8 @@ class MqttService {
         if (command.commandType == 4) {
           command
               .onMaxRetriesReached('Device Settings: No response from device');
+        } else if (command.commandType == 23) {
+          command.onMaxRetriesReached('Schedule: No response from device');
         } else {
           final rawMotorName = (_motors.entries
                       .firstWhere((e) => e.key == command.motorId,
