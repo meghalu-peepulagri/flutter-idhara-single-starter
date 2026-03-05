@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'schedule_utils.dart';
@@ -18,6 +22,7 @@ class _SchedulePageState extends State<SchedulePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final MqttService _mqttService = MqttService();
+  StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
   Motor? motor;
   bool _isScheduleEnabled = false;
 
@@ -45,10 +50,12 @@ class _SchedulePageState extends State<SchedulePage>
     if (args != null && args is Map<String, dynamic>) {
       motor = args['motor'] as Motor?;
     }
+    _listenScheduleAck();
   }
 
   @override
   void dispose() {
+    _scheduleAckSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -118,6 +125,26 @@ class _SchedulePageState extends State<SchedulePage>
     return pcb;
   }
 
+  void _listenScheduleAck() {
+    _scheduleAckSubscription = _mqttService.scheduleAckStream.listen((ack) {
+      if (!mounted) return;
+
+      final currentIdentifier = _resolveIdentifier(motor);
+      final ackIdentifier = (ack['topic'] ?? '').toString();
+      if (currentIdentifier.isNotEmpty && ackIdentifier != currentIdentifier) {
+        return;
+      }
+
+      final status = ack['status'] as int? ?? 0;
+      final isSuccess = status == 1;
+      if (isSuccess) {
+        getsuccessSnackBar('Schedule updated successfully');
+      } else {
+        geterrorSnackBar('Schedule update failed');
+      }
+    });
+  }
+
   Future<void> _publishSchedule() async {
     final isOneTimeTab = _tabController.index == 0;
     final selectedDays =
@@ -132,11 +159,7 @@ class _SchedulePageState extends State<SchedulePage>
 
     final identifier = _resolveIdentifier(motor);
     if (identifier.isEmpty) {
-      Get.snackbar(
-        'Schedule',
-        'Motor identifier not found (MAC/PCB).',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      geterrorSnackBar('Motor identifier not found (MAC/PCB).');
       return;
     }
 
@@ -155,18 +178,8 @@ class _SchedulePageState extends State<SchedulePage>
         powerRecovery: _isScheduleEnabled ? 1 : 0,
         enabled: _isScheduleEnabled ? 1 : 0,
       );
-
-      Get.snackbar(
-        'Schedule',
-        'Schedule command published',
-        snackPosition: SnackPosition.BOTTOM,
-      );
     } catch (e) {
-      Get.snackbar(
-        'Schedule',
-        'Failed to publish schedule: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      geterrorSnackBar('Failed to publish schedule: $e');
     }
   }
 

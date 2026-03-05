@@ -107,8 +107,12 @@ class MqttService {
   static final MqttService _instance = MqttService._internal();
   final StreamController<Map<String, dynamic>> defaultSettingsController =
       StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> scheduleAckController =
+      StreamController.broadcast();
   Stream<Map<String, dynamic>> get settingstream =>
       defaultSettingsController.stream;
+  Stream<Map<String, dynamic>> get scheduleAckStream =>
+      scheduleAckController.stream;
 
   factory MqttService({Map<String, Motor>? initialMotors}) {
     if (initialMotors != null) {
@@ -783,6 +787,9 @@ class MqttService {
           case 40:
             _handleHeartbeat(identifier, payloadData);
             break;
+          case 54:
+            _handleScheduleAck(identifier, payloadData);
+            break;
           default:
             debugPrint('   Unknown message type: $type');
         }
@@ -1067,6 +1074,42 @@ class MqttService {
           '✓ Settings ACK received from $identifier: $type (No pending command)');
     }
     defaultSettingsController.add(map);
+  }
+
+  void _handleScheduleAck(String identifier, dynamic payloadData) {
+    if (payloadData is! Map<String, dynamic>) {
+      debugPrint('⚠️ Invalid schedule ACK payload: $payloadData');
+      return;
+    }
+
+    final schTypeRaw = payloadData['sch_type'];
+    final idRaw = payloadData['id'];
+    final statusRaw = payloadData['status'];
+
+    final schType = schTypeRaw is int ? schTypeRaw : int.tryParse('$schTypeRaw');
+    final scheduleId = idRaw is int ? idRaw : int.tryParse('$idRaw');
+    final status = statusRaw is int ? statusRaw : int.tryParse('$statusRaw');
+
+    if (schType == null || scheduleId == null || status == null) {
+      debugPrint('⚠️ Schedule ACK missing required fields: $payloadData');
+      return;
+    }
+
+    // ACK arrived; clear retry/error status for this identifier.
+    commandStatusNotifier.value = null;
+    final scheduleCommandKey = 'schedule_$identifier';
+    _clearPendingCommand(scheduleCommandKey, 23);
+
+    final ackMap = <String, dynamic>{
+      'topic': identifier,
+      'sch_type': schType,
+      'id': scheduleId,
+      'status': status,
+    };
+    scheduleAckController.add(ackMap);
+
+    debugPrint(
+        '✓ Schedule ACK received from $identifier: sch_type=$schType, id=$scheduleId, status=$status');
   }
 
   /// Handle heartbeat (type 40)
