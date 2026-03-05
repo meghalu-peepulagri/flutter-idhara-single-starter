@@ -494,83 +494,18 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
   }
 }
 
-List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
+List<CartesianSeries<dynamic, dynamic>> _buildMotorSeries(
     List<TimeSegment> data) {
-  final List<LineSeries<TimePoint, DateTime>> seriesList = [];
+  final List<CartesianSeries<dynamic, dynamic>> seriesList = <CartesianSeries<dynamic, dynamic>>[];
   final DateTime now = DateTime.now();
 
   for (final segment in data) {
-    // Check if this motor segment is still running
-    // A segment is "still running" if end time is very close to now (within 5 seconds)
     final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
 
-    // Choose color based on whether it's still running
-    final lineColor = isStillRunning ? Colors.green : Colors.green;
-    final endPointColor = isStillRunning ? Colors.green : Colors.red;
-
     final points = [
       TimePoint(
         segment.start,
-        3, // Y-position for motor line (top)
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        true,
-      ),
-      TimePoint(
-        segment.end,
-        3, // Y-position for motor line (top)
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        false,
-      ),
-    ];
-
-    seriesList.add(
-      LineSeries(
-        dataSource: points,
-        xValueMapper: (p, _) => p.time,
-        yValueMapper: (p, _) => p.value,
-        color: lineColor, // Orange if still running, green if completed
-        width: 3,
-        name: isStillRunning ? 'Still Running' : null,
-        legendIconType:
-            isStillRunning ? LegendIconType.circle : LegendIconType.circle,
-        isVisibleInLegend: isStillRunning,
-        markerSettings: const MarkerSettings(
-          isVisible: true,
-          height: 6,
-          width: 6,
-          shape: DataMarkerType.circle,
-        ),
-        pointColorMapper: (TimePoint point, _) {
-          if (isStillRunning) {
-            // Both points orange if still running
-            return Colors.green;
-          } else {
-            // Green start, red end if completed
-            return point.isStartPoint ? Colors.green : Colors.red;
-          }
-        },
-      ),
-    );
-  }
-
-  return seriesList;
-}
-
-List<LineSeries<TimePoint, DateTime>> _buildMotorOffSeries(
-    List<TimeSegment> data) {
-  final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-
-  for (final segment in data) {
-    final points = [
-      TimePoint(
-        segment.start,
-        3, // same Y-position as motor ON line
+        3,
         segment.duration.toString(),
         segment.type,
         segment.start,
@@ -588,21 +523,47 @@ List<LineSeries<TimePoint, DateTime>> _buildMotorOffSeries(
       ),
     ];
 
+    // Gradient area fill under the motor ON line
     seriesList.add(
-      LineSeries(
+      AreaSeries<TimePoint, DateTime>(
         dataSource: points,
         xValueMapper: (p, _) => p.time,
         yValueMapper: (p, _) => p.value,
-        color: Colors.red,
-        width: 3,
+        gradient: const LinearGradient(
+          colors: [Color(0x5522C55E), Color(0x0022C55E)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderColor: Colors.transparent,
+        borderWidth: 0,
+        markerSettings: const MarkerSettings(isVisible: false),
+        isVisibleInLegend: false,
+      ),
+    );
+
+    // Line with green start / red end markers
+    seriesList.add(
+      LineSeries<TimePoint, DateTime>(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: const Color(0xFF22C55E),
+        width: 2.5,
+        isVisibleInLegend: false,
         markerSettings: const MarkerSettings(
           isVisible: true,
-          height: 6,
-          width: 6,
+          height: 7,
+          width: 7,
           shape: DataMarkerType.circle,
+          borderColor: Colors.white,
+          borderWidth: 1.5,
         ),
-        pointColorMapper: (TimePoint point, _) => Colors.red,
-        isVisibleInLegend: false,
+        pointColorMapper: (TimePoint point, _) {
+          if (isStillRunning) return const Color(0xFF22C55E);
+          return point.isStartPoint
+              ? const Color(0xFF22C55E)
+              : const Color(0xFFEF4444);
+        },
       ),
     );
   }
@@ -610,34 +571,24 @@ List<LineSeries<TimePoint, DateTime>> _buildMotorOffSeries(
   return seriesList;
 }
 
-
-List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
+List<CartesianSeries<dynamic, dynamic>> _buildMotorOffSeries(
     List<TimeSegment> data) {
-  final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
-  final DateTime now = DateTime.now();
+  final List<CartesianSeries<dynamic, dynamic>> seriesList = <CartesianSeries<dynamic, dynamic>>[];
 
   for (final segment in data) {
-    // Check if this segment is still running
-    // A segment is "still running" if end time is very close to now (within 5 seconds)
-    final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-    // Choose color based on whether it's still running
-    final lineColor = isStillRunning ? Colors.blue : Colors.blue;
-    final endPointColor = isStillRunning ? Colors.blue : Colors.red;
-
     final points = [
-      PowerTimePoint(
+      TimePoint(
         segment.start,
-        1, // Y-position for power line (bottom)
+        3,
         segment.duration.toString(),
         segment.type,
         segment.start,
         segment.end,
         true,
       ),
-      PowerTimePoint(
+      TimePoint(
         segment.end,
-        1, // Y-position for power line (bottom)
+        3,
         segment.duration.toString(),
         segment.type,
         segment.start,
@@ -646,28 +597,41 @@ List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
       ),
     ];
 
+    // Gradient area fill under the motor OFF line
     seriesList.add(
-      LineSeries(
+      AreaSeries<TimePoint, DateTime>(
         dataSource: points,
         xValueMapper: (p, _) => p.time,
         yValueMapper: (p, _) => p.value,
-        color: lineColor, // Orange if still running, blue if completed
-        width: 3,
+        gradient: const LinearGradient(
+          colors: [Color(0x44EF4444), Color(0x00EF4444)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderColor: Colors.transparent,
+        borderWidth: 0,
+        markerSettings: const MarkerSettings(isVisible: false),
+        isVisibleInLegend: false,
+      ),
+    );
+
+    seriesList.add(
+      LineSeries<TimePoint, DateTime>(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: const Color(0xFFEF4444),
+        width: 2.5,
         markerSettings: const MarkerSettings(
           isVisible: true,
-          height: 6,
-          width: 6,
+          height: 7,
+          width: 7,
           shape: DataMarkerType.circle,
+          borderColor: Colors.white,
+          borderWidth: 1.5,
+          color: Color(0xFFEF4444),
         ),
-        pointColorMapper: (PowerTimePoint point, _) {
-          if (isStillRunning) {
-            // Both points orange if still running
-            return Colors.blue;
-          } else {
-            // Blue start, orange end if completed
-            return point.isStartPoint ? Colors.blue : Colors.red;
-          }
-        },
+        pointColorMapper: (TimePoint point, _) => const Color(0xFFEF4444),
         isVisibleInLegend: false,
       ),
     );
@@ -676,15 +640,18 @@ List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
   return seriesList;
 }
 
-List<LineSeries<PowerTimePoint, DateTime>> _buildPowerOffSeries(
+List<CartesianSeries<dynamic, dynamic>> _buildPowerSeries(
     List<TimeSegment> data) {
-  final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
+  final List<CartesianSeries<dynamic, dynamic>> seriesList = <CartesianSeries<dynamic, dynamic>>[];
+  final DateTime now = DateTime.now();
 
   for (final segment in data) {
+    final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
+
     final points = [
       PowerTimePoint(
         segment.start,
-        1, // same Y-position as power line
+        1,
         segment.duration.toString(),
         segment.type,
         segment.start,
@@ -702,20 +669,115 @@ List<LineSeries<PowerTimePoint, DateTime>> _buildPowerOffSeries(
       ),
     ];
 
+    // Gradient area fill under the power ON line
     seriesList.add(
-      LineSeries(
+      AreaSeries<PowerTimePoint, DateTime>(
         dataSource: points,
         xValueMapper: (p, _) => p.time,
         yValueMapper: (p, _) => p.value,
-        color: Colors.red,
-        width: 3,
+        gradient: const LinearGradient(
+          colors: [Color(0x553B82F6), Color(0x003B82F6)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderColor: Colors.transparent,
+        borderWidth: 0,
+        markerSettings: const MarkerSettings(isVisible: false),
+        isVisibleInLegend: false,
+      ),
+    );
+
+    // Line with blue start / red end markers
+    seriesList.add(
+      LineSeries<PowerTimePoint, DateTime>(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: const Color(0xFF3B82F6),
+        width: 2.5,
+        isVisibleInLegend: false,
         markerSettings: const MarkerSettings(
           isVisible: true,
-          height: 6,
-          width: 6,
+          height: 7,
+          width: 7,
           shape: DataMarkerType.circle,
+          borderColor: Colors.white,
+          borderWidth: 1.5,
         ),
-        pointColorMapper: (PowerTimePoint point, _) => Colors.red,
+        pointColorMapper: (PowerTimePoint point, _) {
+          if (isStillRunning) return const Color(0xFF3B82F6);
+          return point.isStartPoint
+              ? const Color(0xFF3B82F6)
+              : const Color(0xFFEF4444);
+        },
+      ),
+    );
+  }
+
+  return seriesList;
+}
+
+List<CartesianSeries<dynamic, dynamic>> _buildPowerOffSeries(
+    List<TimeSegment> data) {
+  final List<CartesianSeries<dynamic, dynamic>> seriesList = <CartesianSeries<dynamic, dynamic>>[];
+
+  for (final segment in data) {
+    final points = [
+      PowerTimePoint(
+        segment.start,
+        1,
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        true,
+      ),
+      PowerTimePoint(
+        segment.end,
+        1,
+        segment.duration.toString(),
+        segment.type,
+        segment.start,
+        segment.end,
+        false,
+      ),
+    ];
+
+    // Gradient area fill under the power OFF line
+    seriesList.add(
+      AreaSeries<PowerTimePoint, DateTime>(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        gradient: const LinearGradient(
+          colors: [Color(0x44EF4444), Color(0x00EF4444)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderColor: Colors.transparent,
+        borderWidth: 0,
+        markerSettings: const MarkerSettings(isVisible: false),
+        isVisibleInLegend: false,
+      ),
+    );
+
+    seriesList.add(
+      LineSeries<PowerTimePoint, DateTime>(
+        dataSource: points,
+        xValueMapper: (p, _) => p.time,
+        yValueMapper: (p, _) => p.value,
+        color: const Color(0xFFEF4444),
+        width: 2.5,
+        markerSettings: const MarkerSettings(
+          isVisible: true,
+          height: 7,
+          width: 7,
+          shape: DataMarkerType.circle,
+          borderColor: Colors.white,
+          borderWidth: 1.5,
+          color: Color(0xFFEF4444),
+        ),
+        pointColorMapper: (PowerTimePoint point, _) => const Color(0xFFEF4444),
         isVisibleInLegend: false,
       ),
     );
