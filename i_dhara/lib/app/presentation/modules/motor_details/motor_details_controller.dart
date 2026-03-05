@@ -128,11 +128,11 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   void onTabChanged(int newIndex) {
     final previousIndex = selectedTabIndex.value;
 
-    if (previousIndex == 1 && newIndex != 1) {
+    if (previousIndex == 2 && newIndex != 2) {
       _clearAnalyticsData();
     }
 
-    if (newIndex == 1 && previousIndex != 1) {
+    if (newIndex == 2 && previousIndex != 2) {
       resetDateToToday();
       clearAllData();
       fetchRuntime(daterange);

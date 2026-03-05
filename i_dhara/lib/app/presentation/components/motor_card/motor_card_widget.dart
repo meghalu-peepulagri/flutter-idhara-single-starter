@@ -327,7 +327,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     Get.offAllNamed(Routes.motorDetails, arguments: {
       'motorId': widget.motor.id,
-      'tabIndex': 2,
+      'tabIndex': 3,
       'logFilter': 'Faults'
     });
   }
@@ -540,10 +540,13 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                   onNavigateToDetails: _navigateToDetails,
                   onScheduleTap: () {
-                    Get.toNamed(
-                      Routes.schedule,
-                      arguments: {'motor': widget.motor},
-                    );
+                    SharedPreference.setMotorId(widget.motor.id ?? 0);
+                    SharedPreference.setStarterId(
+                        widget.motor.starter?.id ?? 0);
+                    Get.offAllNamed(Routes.motorDetails, arguments: {
+                      'motorId': widget.motor.id,
+                      'tabIndex': 1,
+                    });
                   },
                 ),
               ].divide(const SizedBox(height: 4.0)),
