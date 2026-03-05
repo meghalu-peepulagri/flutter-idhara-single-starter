@@ -17,6 +17,7 @@ class MotorControlsRow extends StatelessWidget {
   final bool isAutoMode;
   final bool isModeDisabled;
   final VoidCallback? onNavigateToDetails;
+  final VoidCallback? onScheduleTap;
 
   const MotorControlsRow({
     super.key,
@@ -30,6 +31,7 @@ class MotorControlsRow extends StatelessWidget {
     this.isAutoMode = false,
     required this.isModeDisabled,
     this.onNavigateToDetails,
+    this.onScheduleTap,
   });
 
   @override
@@ -83,6 +85,24 @@ class MotorControlsRow extends StatelessWidget {
             ),
           ),
           const Expanded(child: SizedBox(height: 25)),
+          GestureDetector(
+            onTap: onScheduleTap ?? onNavigateToDetails,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2F80ED).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: const Icon(
+                Icons.schedule,
+                size: 18,
+                color: Color(0xFF2F80ED),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           ValueListenableBuilder(
             valueListenable: modeController,
             builder: (context, modeIndex, _) {

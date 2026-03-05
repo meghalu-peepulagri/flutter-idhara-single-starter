@@ -488,8 +488,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           }
         }
 
-        final isSwitchDisabled =
-            _isWaitingForSwitchAck || !canControl;
+        final isSwitchDisabled = _isWaitingForSwitchAck || !canControl;
 
         return Container(
           decoration: BoxDecoration(
@@ -540,6 +539,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                   isAutoMode: _localModeController.value == 1,
                   isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                   onNavigateToDetails: _navigateToDetails,
+                  onScheduleTap: () {
+                    Get.toNamed(
+                      Routes.schedule,
+                      arguments: {'motor': widget.motor},
+                    );
+                  },
                 ),
               ].divide(const SizedBox(height: 4.0)),
             ),
