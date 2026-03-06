@@ -108,13 +108,15 @@ extension AnalyticsControllerApi on AnalyticsController {
 
       futures.add(fetchMotorDetails());
 
-      if (selectedTabIndex.value == 1) {
+      if (selectedTabIndex.value == 2) {
         futures.add(fetchRuntime(daterange));
       }
 
-      if (selectedTabIndex.value == 2) {
-        final logsController = Get.find<MotorLogsController>();
-        futures.add(logsController.refreshCurrentTab());
+      if (selectedTabIndex.value == 3) {
+        if (Get.isRegistered<MotorLogsController>()) {
+          final logsController = Get.find<MotorLogsController>();
+          futures.add(logsController.refreshCurrentTab());
+        }
       }
 
       await Future.wait(futures);

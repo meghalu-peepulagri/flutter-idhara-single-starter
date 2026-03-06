@@ -23,8 +23,6 @@ class ScheduleController extends GetxController {
     super.onClose();
   }
 
-  /// Calls POST /motor-schedules API.
-  /// Returns the CreateScheduleResponse on success, null on failure.
   Future<CreateScheduleResponse?> createSchedule({
     required CreateScheduleDto dto,
   }) async {
@@ -37,7 +35,7 @@ class ScheduleController extends GetxController {
         message = response.message;
         return response;
       } else {
-        message = response?.message ?? 'Failed to create schedule';
+        message = response?.errors?.daysOfWeek ?? 'Failed to create schedule';
         errorInstance = response?.toJson() ?? {};
         return null;
       }

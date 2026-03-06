@@ -62,7 +62,8 @@ class MotorControlWidget extends StatelessWidget {
                     child: RefreshIndicator(
                       onRefresh: controller.onrefresh,
                       child: Skeletonizer(
-                        enabled: controller.isRefreshing.value,
+                        enabled: controller.isMotorDetailsLoading.value ||
+                            controller.isRefreshing.value,
                         child: Padding(
                           padding: const EdgeInsetsDirectional.fromSTEB(
                               16.0, 0.0, 16.0, 0.0),

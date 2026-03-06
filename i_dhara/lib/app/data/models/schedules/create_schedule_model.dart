@@ -15,12 +15,14 @@ class CreateScheduleResponse {
   bool? success;
   String? message;
   Data? data;
+  Errors? errors;
 
   CreateScheduleResponse({
     this.status,
     this.success,
     this.message,
     this.data,
+    this.errors,
   });
 
   factory CreateScheduleResponse.fromJson(Map<String, dynamic> json) =>
@@ -29,6 +31,7 @@ class CreateScheduleResponse {
         success: json["success"],
         message: json["message"],
         data: json["data"] == null ? null : Data.fromJson(json["data"]),
+        errors: json["errors"] == null ? null : Errors.fromJson(json["errors"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -36,6 +39,7 @@ class CreateScheduleResponse {
         "success": success,
         "message": message,
         "data": data?.toJson(),
+        "errors": errors?.toJson(),
       };
 }
 
@@ -138,5 +142,21 @@ class Data {
         "acknowledgement": acknowledgement,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
+      };
+}
+
+class Errors {
+  String? daysOfWeek;
+
+  Errors({
+    this.daysOfWeek,
+  });
+
+  factory Errors.fromJson(Map<String, dynamic> json) => Errors(
+        daysOfWeek: json["days_of_week"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "days_of_week": daysOfWeek,
       };
 }
