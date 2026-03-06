@@ -5,8 +5,11 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
+import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/modules/schedule/schedule_controller.dart';
 import 'schedule_utils.dart';
 import 'schedule_widgets.dart';
 import 'schedule_bottom_sheets.dart';
@@ -22,6 +25,7 @@ class _SchedulePageState extends State<SchedulePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final MqttService _mqttService = MqttService();
+  late final ScheduleController _scheduleController;
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
   Motor? motor;
   bool _isScheduleEnabled = false;
@@ -46,6 +50,7 @@ class _SchedulePageState extends State<SchedulePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _scheduleController = Get.put(ScheduleController());
     final args = Get.arguments;
     if (args != null && args is Map<String, dynamic>) {
       motor = args['motor'] as Motor?;
@@ -145,44 +150,269 @@ class _SchedulePageState extends State<SchedulePage>
     });
   }
 
-  Future<void> _publishSchedule() async {
-    final isOneTimeTab = _tabController.index == 0;
-    final selectedDays =
-        isOneTimeTab ? _oneTimeSelectedDays : _cyclicSelectedDays;
-    final startTime = isOneTimeTab ? _oneTimeStartTime : _cyclicStartTime;
-    final endTime = isOneTimeTab ? _oneTimeEndTime : _cyclicEndTime;
-    final durationHours =
-        isOneTimeTab ? _oneTimeDurationHours : _cyclicDurationHours;
-    final durationMinutes =
-        isOneTimeTab ? _oneTimeDurationMinutes : _cyclicDurationMinutes;
-    final scheduleId = isOneTimeTab ? _oneTimeScheduleId : _cyclicScheduleId;
+  // ─── Gather current form values ──────────────────────────
+  bool get _isOneTimeTab => _tabController.index == 0;
+  Set<int> get _selectedDays =>
+      _isOneTimeTab ? _oneTimeSelectedDays : _cyclicSelectedDays;
+  TimeOfDay get _startTime =>
+      _isOneTimeTab ? _oneTimeStartTime : _cyclicStartTime;
+  TimeOfDay get _endTime => _isOneTimeTab ? _oneTimeEndTime : _cyclicEndTime;
+  int get _durationHours =>
+      _isOneTimeTab ? _oneTimeDurationHours : _cyclicDurationHours;
+  int get _durationMinutes =>
+      _isOneTimeTab ? _oneTimeDurationMinutes : _cyclicDurationMinutes;
+  int get _scheduleId => _isOneTimeTab ? _oneTimeScheduleId : _cyclicScheduleId;
 
-    final identifier = _resolveIdentifier(motor);
-    if (identifier.isEmpty) {
-      geterrorSnackBar('Motor identifier not found (MAC/PCB).');
+  // ─── Show Confirmation Dialog ────────────────────────────
+  void _showConfirmDialog() {
+    final typeLabel = _isOneTimeTab ? 'One Time' : 'Cyclic';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isDialogLoading = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icon
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEBF3FE),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.schedule_rounded,
+                          size: 32, color: Color(0xFF004E7E)),
+                    ),
+                    const SizedBox(height: 16),
+                    // Title
+                    Text(
+                      'Confirm Schedule',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF14181B),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Are you sure you want to create this schedule?',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: const Color(0xFF57636C),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Summary card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              const Color(0xFF004E7E).withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          _dialogRow('Type', typeLabel),
+                          const SizedBox(height: 6),
+                          _dialogRow('Start', formatTime24h(_startTime)),
+                          const SizedBox(height: 6),
+                          _dialogRow('End', formatTime24h(_endTime)),
+                          const SizedBox(height: 6),
+                          _dialogRow(
+                            'Duration',
+                            '${_durationHours}h ${_durationMinutes.toString().padLeft(2, '0')}m',
+                          ),
+                          const SizedBox(height: 6),
+                          _dialogRow(
+                            'Power Recovery',
+                            _isScheduleEnabled ? 'ON' : 'OFF',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Buttons
+                    Row(
+                      children: [
+                        // Cancel
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: OutlinedButton(
+                              onPressed: isDialogLoading
+                                  ? null
+                                  : () => Navigator.pop(ctx),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: isDialogLoading
+                                      ? const Color(0xFFBDBDBD)
+                                      : const Color(0xFF004E7E),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDialogLoading
+                                      ? const Color(0xFFBDBDBD)
+                                      : const Color(0xFF004E7E),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Confirm
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: isDialogLoading
+                                  ? null
+                                  : () async {
+                                      setDialogState(
+                                          () => isDialogLoading = true);
+                                      await _createSchedule();
+                                      if (ctx.mounted) {
+                                        Navigator.pop(ctx);
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF004E7E),
+                                disabledBackgroundColor:
+                                    const Color(0xFF004E7E),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: isDialogLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Confirm',
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _dialogRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: GoogleFonts.dmSans(
+                fontSize: 12, color: const Color(0xFF57636C))),
+        Text(value,
+            style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF14181B))),
+      ],
+    );
+  }
+
+  // ─── Confirm → POST API → MQTT publish ───────────────────
+  Future<void> _createSchedule() async {
+    final motorId = SharedPreference.getMotorId();
+    final starterId = SharedPreference.getStarterId();
+
+    // 1. Build DTO from form values
+    final dto = CreateScheduleDto(
+      motorId: motorId,
+      starterId: starterId,
+      scheduleType: _isOneTimeTab ? 'one_time' : 'cyclic',
+      startTime: formatTime24h(_startTime),
+      endTime: formatTime24h(_endTime),
+      daysOfWeek: _selectedDays.toList()..sort(),
+      runtimeMinutes: durationToMinutes(_durationHours, _durationMinutes),
+      powerLossRecovery: _isScheduleEnabled,
+      repeat: _isOneTimeTab ? 0 : 1,
+    );
+
+    // 2. Call POST API via controller
+    final response = await _scheduleController.createSchedule(dto: dto);
+
+    if (response == null) {
+      geterrorSnackBar(
+          _scheduleController.message ?? 'Failed to create schedule');
       return;
     }
 
-    final payloadDays = buildDaysBitmask(selectedDays);
+    getsuccessSnackBar(response.message ?? 'Schedule created successfully');
 
-    try {
-      await _mqttService.publishScheduleCommand(
-        identifier: identifier,
-        scheduleType: isOneTimeTab ? 1 : 2,
-        scheduleId: scheduleId,
-        startTime: formatTime24h(startTime),
-        endTime: formatTime24h(endTime),
-        durationMinutes: durationToMinutes(durationHours, durationMinutes),
-        repeat: isOneTimeTab ? 0 : 1,
-        daysBitmask: payloadDays,
-        powerRecovery: _isScheduleEnabled ? 1 : 0,
-        enabled: _isScheduleEnabled ? 1 : 0,
-      );
-    } catch (e) {
-      geterrorSnackBar('Failed to publish schedule: $e');
+    // 3. Publish MQTT (only after API success)
+    final identifier = _resolveIdentifier(motor);
+    if (identifier.isNotEmpty) {
+      try {
+        await _mqttService.publishScheduleCommand(
+          identifier: identifier,
+          scheduleType: _isOneTimeTab ? 1 : 2,
+          scheduleId: _scheduleId,
+          startTime: formatTime24h(_startTime),
+          endTime: formatTime24h(_endTime),
+          durationMinutes: durationToMinutes(_durationHours, _durationMinutes),
+          repeat: _isOneTimeTab ? 0 : 1,
+          daysBitmask: buildDaysBitmask(_selectedDays),
+          powerRecovery: _isScheduleEnabled ? 1 : 0,
+          enabled: _isScheduleEnabled ? 1 : 0,
+        );
+      } catch (e) {
+        geterrorSnackBar('Schedule saved but MQTT publish failed: $e');
+      }
+    }
+
+    // 4. Go back to schedule tab
+    if (mounted) {
+      Get.back();
     }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // BUILD UI
+  // ═══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     final motorName = motor?.aliasName ?? motor?.name ?? 'Motor';
@@ -415,7 +645,7 @@ class _SchedulePageState extends State<SchedulePage>
             () => setState(() => _isScheduleEnabled = !_isScheduleEnabled),
           ),
           const SizedBox(height: 12),
-          buildCreateScheduleButton(_publishSchedule),
+          buildCreateScheduleButton(_showConfirmDialog),
         ],
       ),
     );

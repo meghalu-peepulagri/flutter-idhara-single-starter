@@ -1,4 +1,6 @@
 import 'package:i_dhara/app/core/config/app_config.dart';
+import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
+import 'package:i_dhara/app/data/models/schedules/create_schedule_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repository.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
@@ -19,5 +21,21 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
       return res;
     }
     return null;
+  }
+
+  @override
+  Future<CreateScheduleResponse?> createschedule(CreateScheduleDto dto) async {
+    final body = dto.toJson();
+    final response =
+        await NetworkManager().post('/motor-schedules', data: body, {});
+
+    if (response.statusCode == 200 ||
+        response.statusCode == 422 ||
+        response.statusCode == 201) {
+      final res = CreateScheduleResponse.fromJson(response.data);
+      return res;
+    } else {
+      return null;
+    }
   }
 }

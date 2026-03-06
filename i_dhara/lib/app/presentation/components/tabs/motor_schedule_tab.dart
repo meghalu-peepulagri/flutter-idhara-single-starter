@@ -1,14 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart'
+    as motor_model;
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_utils.dart';
-import 'package:i_dhara/app/presentation/modules/schedule/schedule_widgets.dart';
-import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class MotorScheduleTab extends StatefulWidget {
   final MotorDetails? motorDetails;
@@ -18,342 +22,323 @@ class MotorScheduleTab extends StatefulWidget {
   State<MotorScheduleTab> createState() => _MotorScheduleTabState();
 }
 
-class _MotorScheduleTabState extends State<MotorScheduleTab>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MotorScheduleTabState extends State<MotorScheduleTab> {
+  final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
   final MqttService _mqttService = MqttService();
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
-  bool _isScheduleEnabled = false;
 
-  // OneTime state
-  final Set<int> _oneTimeSelectedDays = {};
-  TimeOfDay _oneTimeStartTime = const TimeOfDay(hour: 0, minute: 0);
-  TimeOfDay _oneTimeEndTime = const TimeOfDay(hour: 0, minute: 0);
-  int _oneTimeDurationHours = 0;
-  int _oneTimeDurationMinutes = 0;
-  final int _oneTimeScheduleId = 1;
-
-  // Cyclic state
-  final Set<int> _cyclicSelectedDays = {};
-  TimeOfDay _cyclicStartTime = const TimeOfDay(hour: 0, minute: 0);
-  TimeOfDay _cyclicEndTime = const TimeOfDay(hour: 0, minute: 0);
-  int _cyclicDurationHours = 0;
-  int _cyclicDurationMinutes = 0;
-  final int _cyclicScheduleId = 1;
+  List<Record> _schedules = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _fetchSchedules();
     _listenScheduleAck();
   }
 
   @override
   void dispose() {
     _scheduleAckSubscription?.cancel();
-    _tabController.dispose();
     super.dispose();
   }
 
-  // ─── OneTime auto-calc setters ───────────────────────────
-  void _setOneTimeStartTime(TimeOfDay t) {
-    setState(() {
-      _oneTimeStartTime = t;
-      _oneTimeEndTime =
-          calcEndTime(t, _oneTimeDurationHours, _oneTimeDurationMinutes);
-    });
-  }
-
-  void _setOneTimeEndTime(TimeOfDay t) {
-    setState(() {
-      _oneTimeEndTime = t;
-      int startMin = _oneTimeStartTime.hour * 60 + _oneTimeStartTime.minute;
-      int endMin = t.hour * 60 + t.minute;
-      if (endMin <= startMin) endMin += 24 * 60;
-      final diff = endMin - startMin;
-      _oneTimeDurationHours = diff ~/ 60;
-      _oneTimeDurationMinutes = diff % 60;
-    });
-  }
-
-  void _setOneTimeDuration(int h, int m) {
-    setState(() {
-      _oneTimeDurationHours = h;
-      _oneTimeDurationMinutes = m;
-      _oneTimeEndTime = calcEndTime(_oneTimeStartTime, h, m);
-    });
-  }
-
-  // ─── Cyclic auto-calc setters ────────────────────────────
-  void _setCyclicStartTime(TimeOfDay t) {
-    setState(() {
-      _cyclicStartTime = t;
-      _cyclicEndTime =
-          calcEndTime(t, _cyclicDurationHours, _cyclicDurationMinutes);
-    });
-  }
-
-  void _setCyclicEndTime(TimeOfDay t) {
-    setState(() {
-      _cyclicEndTime = t;
-      int startMin = _cyclicStartTime.hour * 60 + _cyclicStartTime.minute;
-      int endMin = t.hour * 60 + t.minute;
-      if (endMin <= startMin) endMin += 24 * 60;
-      final diff = endMin - startMin;
-      _cyclicDurationHours = diff ~/ 60;
-      _cyclicDurationMinutes = diff % 60;
-    });
-  }
-
-  void _setCyclicDuration(int h, int m) {
-    setState(() {
-      _cyclicDurationHours = h;
-      _cyclicDurationMinutes = m;
-      _cyclicEndTime = calcEndTime(_cyclicStartTime, h, m);
-    });
+  Future<void> _fetchSchedules() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _scheduleRepo.getScheduleList(1, 50);
+      if (mounted) {
+        setState(() {
+          _schedules = response?.data?.records ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   String _resolveIdentifier() {
     final starter = widget.motorDetails?.starter;
     final mac = starter?.macAddress?.trim() ?? '';
     if (mac.isNotEmpty) return mac;
-    final pcb = starter?.pcbNumber?.trim() ?? '';
-    return pcb;
+    return starter?.pcbNumber?.trim() ?? '';
   }
 
   void _listenScheduleAck() {
     _scheduleAckSubscription = _mqttService.scheduleAckStream.listen((ack) {
       if (!mounted) return;
-
-      final currentIdentifier = _resolveIdentifier();
-      final ackIdentifier = (ack['topic'] ?? '').toString();
-      if (currentIdentifier.isNotEmpty && ackIdentifier != currentIdentifier) {
-        return;
-      }
+      final currentId = _resolveIdentifier();
+      final ackId = (ack['topic'] ?? '').toString();
+      if (currentId.isNotEmpty && ackId != currentId) return;
 
       final status = ack['status'] as int? ?? 0;
       if (status == 1) {
-        getsuccessSnackBar('Schedule updated successfully');
+        getsuccessSnackBar('Schedule created successfully');
+        _fetchSchedules();
       } else {
-        geterrorSnackBar('Schedule update failed');
+        geterrorSnackBar('Schedule creation failed');
       }
     });
   }
 
-  Future<void> _publishSchedule() async {
-    final isOneTimeTab = _tabController.index == 0;
-    final selectedDays =
-        isOneTimeTab ? _oneTimeSelectedDays : _cyclicSelectedDays;
-    final startTime = isOneTimeTab ? _oneTimeStartTime : _cyclicStartTime;
-    final endTime = isOneTimeTab ? _oneTimeEndTime : _cyclicEndTime;
-    final durationHours =
-        isOneTimeTab ? _oneTimeDurationHours : _cyclicDurationHours;
-    final durationMinutes =
-        isOneTimeTab ? _oneTimeDurationMinutes : _cyclicDurationMinutes;
-    final scheduleId = isOneTimeTab ? _oneTimeScheduleId : _cyclicScheduleId;
-
-    final identifier = _resolveIdentifier();
-    if (identifier.isEmpty) {
-      geterrorSnackBar('Motor identifier not found (MAC/PCB).');
-      return;
-    }
-
-    final payloadDays = buildDaysBitmask(selectedDays);
-
-    try {
-      await _mqttService.publishScheduleCommand(
-        identifier: identifier,
-        scheduleType: isOneTimeTab ? 1 : 2,
-        scheduleId: scheduleId,
-        startTime: formatTime24h(startTime),
-        endTime: formatTime24h(endTime),
-        durationMinutes: durationToMinutes(durationHours, durationMinutes),
-        repeat: isOneTimeTab ? 0 : 1,
-        daysBitmask: payloadDays,
-        powerRecovery: _isScheduleEnabled ? 1 : 0,
-        enabled: _isScheduleEnabled ? 1 : 0,
-      );
-    } catch (e) {
-      geterrorSnackBar('Failed to publish schedule: $e');
-    }
+  void _navigateToCreateSchedule() {
+    final details = widget.motorDetails;
+    final motor = motor_model.Motor(
+      id: details?.id,
+      name: details?.name,
+      aliasName: details?.aliasName,
+      starter: details?.starter != null
+          ? motor_model.Starter(
+              id: details!.starter!.id,
+              name: details.starter!.name,
+              macAddress: details.starter!.macAddress,
+              pcbNumber: details.starter!.pcbNumber,
+              starterNumber: details.starter!.starterNumber,
+            )
+          : null,
+    );
+    Get.toNamed(
+      Routes.schedule,
+      arguments: {'motor': motor},
+    )?.then((_) {
+      _fetchSchedules();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return _buildListView();
+  }
+
+  Widget _buildListView() {
+    return Stack(
       children: [
-        const SizedBox(height: 8),
-        _buildTabBar(),
-        const SizedBox(height: 12),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _buildOneTimeTab(context),
-              _buildCyclicTab(context),
-            ],
+        _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF004E7E)))
+            : _schedules.isEmpty
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: _fetchSchedules,
+                    color: const Color(0xFF004E7E),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
+                      itemCount: _schedules.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) => _buildScheduleCard(_schedules[i]),
+                    ),
+                  ),
+        Positioned(
+          right: 4,
+          bottom: 16,
+          child: FloatingActionButton(
+            heroTag: 'schedule_fab',
+            onPressed: _navigateToCreateSchedule,
+            backgroundColor: const Color(0xFF004E7E),
+            child: const Icon(Icons.add, color: Colors.white, size: 28),
           ),
         ),
-        _buildBottomBar(),
       ],
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: false,
-        indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-          ),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicatorPadding: const EdgeInsets.all(3),
-        dividerColor: Colors.transparent,
-        labelColor: Colors.white,
-        unselectedLabelColor: const Color(0xFF57636C),
-        labelStyle:
-            GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
-        unselectedLabelStyle:
-            GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w500),
-        tabs: const [Tab(text: 'One Time'), Tab(text: 'Cyclic')],
-      ),
-    );
-  }
-
-  Widget _buildOneTimeTab(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          buildSectionLabel('Select Days'),
-          const SizedBox(height: 8),
-          buildDaySelector(
-            _oneTimeSelectedDays,
-            (days) => setState(() => _oneTimeSelectedDays
-              ..clear()
-              ..addAll(days)),
-          ),
-          const SizedBox(height: 16),
-          buildSectionLabel('Set Time'),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-                child: buildTimeCard(
-              label: 'Start Time',
-              time: _oneTimeStartTime,
-              icon: Icons.play_circle_outline_rounded,
-              onTap: () => showTimeBottomSheet(
-                  context, _oneTimeStartTime, _setOneTimeStartTime),
-            )),
-            const SizedBox(width: 10),
-            Expanded(
-                child: buildTimeCard(
-              label: 'End Time',
-              time: _oneTimeEndTime,
-              icon: Icons.stop_circle_outlined,
-              onTap: () => showTimeBottomSheet(
-                  context, _oneTimeEndTime, _setOneTimeEndTime),
-            )),
-          ]),
-          const SizedBox(height: 16),
-          buildDurationCard(
-            _oneTimeDurationHours,
-            _oneTimeDurationMinutes,
-            onTap: () => showDurationBottomSheet(context, _oneTimeDurationHours,
-                _oneTimeDurationMinutes, _setOneTimeDuration),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCyclicTab(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          buildSectionLabel('Select Days'),
-          const SizedBox(height: 8),
-          buildDaySelector(
-            _cyclicSelectedDays,
-            (days) => setState(() => _cyclicSelectedDays
-              ..clear()
-              ..addAll(days)),
-          ),
-          const SizedBox(height: 16),
-          buildSectionLabel('Set Time'),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-                child: buildTimeCard(
-              label: 'Start Time',
-              time: _cyclicStartTime,
-              icon: Icons.play_circle_outline_rounded,
-              onTap: () => showTimeBottomSheet(
-                  context, _cyclicStartTime, _setCyclicStartTime),
-            )),
-            const SizedBox(width: 10),
-            Expanded(
-                child: buildTimeCard(
-              label: 'End Time',
-              time: _cyclicEndTime,
-              icon: Icons.stop_circle_outlined,
-              onTap: () => showTimeBottomSheet(
-                  context, _cyclicEndTime, _setCyclicEndTime),
-            )),
-          ]),
-          const SizedBox(height: 16),
-          buildDurationCard(
-            _cyclicDurationHours,
-            _cyclicDurationMinutes,
-            onTap: () => showDurationBottomSheet(context, _cyclicDurationHours,
-                _cyclicDurationMinutes, _setCyclicDuration),
-          ),
-          const SizedBox(height: 12),
-          buildRepeatInfoCard(_cyclicSelectedDays),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+  Widget _buildEmptyState() {
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          buildPowerToggleRow(
-            _isScheduleEnabled,
-            () => setState(() => _isScheduleEnabled = !_isScheduleEnabled),
-          ),
+          Icon(Icons.schedule_rounded,
+              size: 56, color: const Color(0xFF004E7E).withValues(alpha: 0.3)),
           const SizedBox(height: 12),
-          buildCreateScheduleButton(_publishSchedule),
+          Text('No Schedules',
+              style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF14181B))),
+          const SizedBox(height: 4),
+          Text('Tap + to create a new schedule',
+              style: GoogleFonts.dmSans(
+                  fontSize: 13, color: const Color(0xFF57636C))),
         ],
       ),
     );
   }
+
+  Widget _buildScheduleCard(Record record) {
+    final isOneTime = record.scheduleType?.toLowerCase() == 'one_time';
+    final typeLabel = isOneTime ? 'One Time' : 'Cyclic';
+    final typeColor =
+        isOneTime ? const Color(0xFF2F80ED) : const Color(0xFFFFA500);
+    final startTime = record.startTime ?? '--:--';
+    final endTime = record.endTime ?? '--:--';
+    final durationMin = record.runtimeMinutes ?? 0;
+    final dH = durationMin ~/ 60;
+    final dM = durationMin % 60;
+    final powerOn = record.powerLossRecovery == true;
+    final status = record.scheduleStatus ?? 'unknown';
+    final isActive = status.toLowerCase() == 'active' ||
+        status.toLowerCase() == 'pending' ||
+        status.toLowerCase() == 'scheduled';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? typeColor.withValues(alpha: 0.3)
+              : const Color(0xFFE0E0E0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _typeBadge(typeLabel, typeColor, isOneTime),
+              _statusBadge(status, isActive),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+                child: _infoTile(Icons.play_circle_outline_rounded, 'Start',
+                    _formatApiTime(startTime), const Color(0xFF004E7E))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: _infoTile(Icons.stop_circle_outlined, 'End',
+                    _formatApiTime(endTime), const Color(0xFF004E7E))),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+                child: _infoTile(
+                    Icons.timer_outlined,
+                    'Duration',
+                    '${dH}h ${dM.toString().padLeft(2, '0')}m',
+                    const Color(0xFF004E7E))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: _infoTile(
+                    Icons.power_settings_new_rounded,
+                    'Power Recovery',
+                    powerOn ? 'ON' : 'OFF',
+                    powerOn ? Colors.green : Colors.red)),
+          ]),
+          if (!isOneTime &&
+              record.daysOfWeek != null &&
+              record.daysOfWeek!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 4,
+              children: record.daysOfWeek!.map((d) {
+                final label =
+                    (d >= 0 && d < dayLabels.length) ? dayLabels[d] : '?';
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEBF3FE),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(label,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF004E7E))),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _typeBadge(String label, Color color, bool isOneTime) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(isOneTime ? Icons.event_outlined : Icons.repeat_rounded,
+            size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(label,
+            style: GoogleFonts.dmSans(
+                fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      ]),
+    );
+  }
+
+  Widget _statusBadge(String status, bool isActive) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isActive
+            ? Colors.green.withValues(alpha: 0.12)
+            : Colors.grey.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        _capitalize(status),
+        style: GoogleFonts.dmSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isActive ? Colors.green : Colors.grey),
+      ),
+    );
+  }
+
+  Widget _infoTile(IconData icon, String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, size: 14, color: color),
+        ),
+        const SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: GoogleFonts.dmSans(
+                  fontSize: 10, color: const Color(0xFF57636C))),
+          Text(value,
+              style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF14181B))),
+        ]),
+      ]),
+    );
+  }
+
+  String _formatApiTime(String raw) {
+    final parts = raw.split(':');
+    if (parts.length >= 2) return '${parts[0]}:${parts[1]}';
+    return raw;
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }

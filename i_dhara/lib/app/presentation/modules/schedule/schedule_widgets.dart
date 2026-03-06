@@ -69,8 +69,8 @@ Widget _buildDayChip(int dayIndex, bool isSelected, VoidCallback onTap) {
     onTap: onTap,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: 52,
-      height: 48,
+      width: 40,
+      height: 36,
       decoration: BoxDecoration(
         gradient: isSelected
             ? const LinearGradient(
@@ -89,7 +89,7 @@ Widget _buildDayChip(int dayIndex, bool isSelected, VoidCallback onTap) {
         child: Text(
           dayLabels[dayIndex],
           style: GoogleFonts.dmSans(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: isSelected ? Colors.white : const Color(0xFF57636C),
           ),
@@ -108,33 +108,17 @@ Widget buildDaySelector(Set<int> selectedDays, Function(Set<int>) onChanged) {
   }
 
   return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(
-            4,
-            (i) => _buildDayChip(i, selectedDays.contains(i), () => toggle(i)),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            ...List.generate(3, (idx) {
-              final i = idx + 4;
-              return _buildDayChip(
-                  i, selectedDays.contains(i), () => toggle(i));
-            }),
-            const SizedBox(width: 52),
-          ],
-        ),
-      ],
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(
+        7,
+        (i) => _buildDayChip(i, selectedDays.contains(i), () => toggle(i)),
+      ),
     ),
   );
 }
