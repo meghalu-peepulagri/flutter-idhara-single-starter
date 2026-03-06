@@ -9,11 +9,10 @@ import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/components/schedules/create_schedule_card.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_dialogs.dart';
-import 'schedule_utils.dart';
-import 'schedule_widgets.dart';
-import 'schedule_bottom_sheets.dart';
+import 'package:i_dhara/app/presentation/modules/schedule/schedule_utils.dart';
 
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
@@ -22,182 +21,57 @@ class SchedulePage extends StatefulWidget {
   State<SchedulePage> createState() => _SchedulePageState();
 }
 
-class _SchedulePageState extends State<SchedulePage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final MqttService _mqttService = MqttService();
+class _SchedulePageState extends State<SchedulePage> {
+  final _formKey = GlobalKey<ScheduleFormState>();
+  final _mqttService = MqttService();
   late final ScheduleController _scheduleController;
-  StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
+  StreamSubscription<Map<String, dynamic>>? _scheduleAckSub;
   Motor? motor;
-  bool _isScheduleEnabled = false;
-
-  // OneTime state
-  final Set<int> _oneTimeSelectedDays = {};
-  TimeOfDay _oneTimeStartTime = const TimeOfDay(hour: 0, minute: 0);
-  TimeOfDay _oneTimeEndTime = const TimeOfDay(hour: 0, minute: 0);
-  int _oneTimeDurationHours = 0;
-  int _oneTimeDurationMinutes = 0;
-  final int _oneTimeScheduleId = 1;
-
-  // Cyclic state
-  final Set<int> _cyclicSelectedDays = {};
-  TimeOfDay _cyclicStartTime = const TimeOfDay(hour: 0, minute: 0);
-  TimeOfDay _cyclicEndTime = const TimeOfDay(hour: 0, minute: 0);
-  int _cyclicDurationHours = 0;
-  int _cyclicDurationMinutes = 0;
-  final int _cyclicScheduleId = 1;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _scheduleController = Get.put(ScheduleController());
     final args = Get.arguments;
-    if (args != null && args is Map<String, dynamic>) {
-      motor = args['motor'] as Motor?;
-    }
-    _listenScheduleAck();
+    if (args is Map<String, dynamic>) motor = args['motor'] as Motor?;
+    _scheduleAckSub = _mqttService.scheduleAckStream.listen((ack) {
+      if (!mounted) return;
+      final id = _resolveIdentifier();
+      final ackId = (ack['topic'] ?? '').toString();
+      if (id.isNotEmpty && ackId != id) return;
+      (ack['status'] as int? ?? 0) == 1
+          ? getsuccessSnackBar('Schedule updated successfully')
+          : geterrorSnackBar('Schedule update failed');
+    });
   }
 
   @override
   void dispose() {
-    _scheduleAckSubscription?.cancel();
-    _tabController.dispose();
+    _scheduleAckSub?.cancel();
     super.dispose();
   }
 
-  // ─── OneTime auto-calc setters ───────────────────────────
-  void _setOneTimeStartTime(TimeOfDay t) {
-    setState(() {
-      _oneTimeStartTime = t;
-      _oneTimeEndTime =
-          calcEndTime(t, _oneTimeDurationHours, _oneTimeDurationMinutes);
-    });
-  }
-
-  void _setOneTimeEndTime(TimeOfDay t) {
-    setState(() {
-      _oneTimeEndTime = t;
-      int startMin = _oneTimeStartTime.hour * 60 + _oneTimeStartTime.minute;
-      int endMin = t.hour * 60 + t.minute;
-      if (endMin <= startMin) endMin += 24 * 60;
-      final diff = endMin - startMin;
-      _oneTimeDurationHours = diff ~/ 60;
-      _oneTimeDurationMinutes = diff % 60;
-    });
-  }
-
-  void _setOneTimeDuration(int h, int m) {
-    setState(() {
-      _oneTimeDurationHours = h;
-      _oneTimeDurationMinutes = m;
-      _oneTimeEndTime = calcEndTime(_oneTimeStartTime, h, m);
-    });
-  }
-
-  // ─── Cyclic auto-calc setters ────────────────────────────
-  void _setCyclicStartTime(TimeOfDay t) {
-    setState(() {
-      _cyclicStartTime = t;
-      _cyclicEndTime =
-          calcEndTime(t, _cyclicDurationHours, _cyclicDurationMinutes);
-    });
-  }
-
-  void _setCyclicEndTime(TimeOfDay t) {
-    setState(() {
-      _cyclicEndTime = t;
-      int startMin = _cyclicStartTime.hour * 60 + _cyclicStartTime.minute;
-      int endMin = t.hour * 60 + t.minute;
-      if (endMin <= startMin) endMin += 24 * 60;
-      final diff = endMin - startMin;
-      _cyclicDurationHours = diff ~/ 60;
-      _cyclicDurationMinutes = diff % 60;
-    });
-  }
-
-  void _setCyclicDuration(int h, int m) {
-    setState(() {
-      _cyclicDurationHours = h;
-      _cyclicDurationMinutes = m;
-      _cyclicEndTime = calcEndTime(_cyclicStartTime, h, m);
-    });
-  }
-
-  String _resolveIdentifier(Motor? motor) {
+  String _resolveIdentifier() {
     final mac = motor?.starter?.macAddress?.trim() ?? '';
-    if (mac.isNotEmpty) return mac;
-    final pcb = motor?.starter?.pcbNumber?.trim() ?? '';
-    return pcb;
+    return mac.isNotEmpty ? mac : (motor?.starter?.pcbNumber?.trim() ?? '');
   }
 
-  void _listenScheduleAck() {
-    _scheduleAckSubscription = _mqttService.scheduleAckStream.listen((ack) {
-      if (!mounted) return;
-
-      final currentIdentifier = _resolveIdentifier(motor);
-      final ackIdentifier = (ack['topic'] ?? '').toString();
-      if (currentIdentifier.isNotEmpty && ackIdentifier != currentIdentifier) {
-        return;
-      }
-
-      final status = ack['status'] as int? ?? 0;
-      if (status == 1) {
-        getsuccessSnackBar('Schedule updated successfully');
-      } else {
-        geterrorSnackBar('Schedule update failed');
-      }
-    });
-  }
-
-  // ─── Gather current form values ──────────────────────────
-  bool get _isOneTimeTab => _tabController.index == 0;
-  Set<int> get _selectedDays =>
-      _isOneTimeTab ? _oneTimeSelectedDays : _cyclicSelectedDays;
-  TimeOfDay get _startTime =>
-      _isOneTimeTab ? _oneTimeStartTime : _cyclicStartTime;
-  TimeOfDay get _endTime => _isOneTimeTab ? _oneTimeEndTime : _cyclicEndTime;
-  int get _durationHours =>
-      _isOneTimeTab ? _oneTimeDurationHours : _cyclicDurationHours;
-  int get _durationMinutes =>
-      _isOneTimeTab ? _oneTimeDurationMinutes : _cyclicDurationMinutes;
-  int get _scheduleId => _isOneTimeTab ? _oneTimeScheduleId : _cyclicScheduleId;
-
-  // ─── Show confirm dialog (helper) ────────────────────────
-  void _onCreatePressed() {
-    showScheduleConfirmDialog(
-      context: context,
-      typeLabel: _isOneTimeTab ? 'One Time' : 'Cyclic',
-      startTime: formatTime24h(_startTime),
-      endTime: formatTime24h(_endTime),
-      duration:
-          '${_durationHours}h ${_durationMinutes.toString().padLeft(2, '0')}m',
-      powerRecovery: _isScheduleEnabled ? 'ON' : 'OFF',
-      onConfirm: _createSchedule,
-    );
-  }
-
-  // ─── Confirm → POST API → MQTT publish → navigate back ──
+  // Called by dialog onConfirm — POST API first, then MQTT on success
   Future<bool> _createSchedule() async {
-    final motorId = SharedPreference.getMotorId();
-    final starterId = SharedPreference.getStarterId();
-
-    // 1. Build DTO from form values
+    final form = _formKey.currentState!;
     final dto = CreateScheduleDto(
-      motorId: motorId,
-      starterId: starterId,
-      scheduleType: _isOneTimeTab ? 'one_time' : 'cyclic',
-      startTime: formatTime24h(_startTime),
-      endTime: formatTime24h(_endTime),
-      daysOfWeek: _selectedDays.toList()..sort(),
-      runtimeMinutes: durationToMinutes(_durationHours, _durationMinutes),
-      powerLossRecovery: _isScheduleEnabled,
-      repeat: _isOneTimeTab ? 0 : 1,
+      motorId: SharedPreference.getMotorId(),
+      starterId: SharedPreference.getStarterId(),
+      scheduleType: form.cyclicMode ? 'cyclic' : 'one_time',
+      startTime: formatTime24h(form.startTime),
+      endTime: formatTime24h(form.endTime),
+      daysOfWeek: form.selectedDays.toList()..sort(),
+      runtimeMinutes: form.durationMinutes,
+      powerLossRecovery: form.powerLossRecovery,
+      repeat: form.repeatWeekly ? 1 : 0,
     );
 
-    // 2. Call POST API via controller
     final response = await _scheduleController.createSchedule(dto: dto);
-
     if (response == null) {
       geterrorSnackBar(
           _scheduleController.message ?? 'Failed to create schedule');
@@ -206,44 +80,49 @@ class _SchedulePageState extends State<SchedulePage>
 
     getsuccessSnackBar(response.message ?? 'Schedule created successfully');
 
-    // 3. Publish MQTT (only after API success)
-    final identifier = _resolveIdentifier(motor);
-    if (identifier.isNotEmpty) {
+    // Publish MQTT only after API success
+    final id = _resolveIdentifier();
+    if (id.isNotEmpty) {
       try {
         await _mqttService.publishScheduleCommand(
-          identifier: identifier,
-          scheduleType: _isOneTimeTab ? 1 : 2,
-          scheduleId: _scheduleId,
-          startTime: formatTime24h(_startTime),
-          endTime: formatTime24h(_endTime),
-          durationMinutes: durationToMinutes(_durationHours, _durationMinutes),
-          repeat: _isOneTimeTab ? 0 : 1,
-          daysBitmask: buildDaysBitmask(_selectedDays),
-          powerRecovery: _isScheduleEnabled ? 1 : 0,
-          enabled: _isScheduleEnabled ? 1 : 0,
+          identifier: id,
+          scheduleType: form.cyclicMode ? 2 : 1,
+          scheduleId: 1,
+          startTime: formatTime24h(form.startTime),
+          endTime: formatTime24h(form.endTime),
+          durationMinutes: form.durationMinutes,
+          repeat: form.repeatWeekly ? 1 : 0,
+          daysBitmask: buildDaysBitmask(form.selectedDays),
+          powerRecovery: form.powerLossRecovery ? 1 : 0,
+          enabled: 1,
         );
       } catch (e) {
-        geterrorSnackBar('Schedule saved but MQTT publish failed: $e');
+        geterrorSnackBar('Saved but MQTT failed: $e');
       }
     }
 
-    // 4. Navigate back to schedule tab
-    if (mounted) {
-      Get.back(result: true);
-    }
+    if (mounted) Get.back(result: true);
     return true;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // BUILD UI
-  // ═══════════════════════════════════════════════════════════
+  void _onSaveTapped() {
+    final form = _formKey.currentState;
+    if (form == null) return;
+    showScheduleConfirmDialog(
+      context: context,
+      typeLabel: form.cyclicMode ? 'Cyclic' : 'One Time',
+      startTime: formatTime24h(form.startTime),
+      endTime: formatTime24h(form.endTime),
+      duration: form.durationText,
+      powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
+      onConfirm: _createSchedule,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final motorName = motor?.aliasName ?? motor?.name ?? 'Motor';
-    String displayName = motorName;
-    if (displayName.length > 16) {
-      displayName = '${displayName.substring(0, 16)}...';
-    }
+    final name = motor?.aliasName ?? motor?.name ?? 'Motor';
+    final displayName = name.length > 20 ? '${name.substring(0, 20)}...' : name;
 
     return Scaffold(
       backgroundColor: const Color(0xFFEBF3FE),
@@ -251,20 +130,13 @@ class _SchedulePageState extends State<SchedulePage>
         child: Column(
           children: [
             _buildHeader(displayName),
-            const SizedBox(height: 12),
-            _buildTabBar(),
-            const SizedBox(height: 12),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildOneTimeTab(context),
-                  _buildCyclicTab(context),
-                ],
+              child: ScheduleForm(
+                key: _formKey,
+                onSave: _onSaveTapped,
+                onBack: () => Get.back(),
               ),
             ),
-            _buildBottomBar(),
           ],
         ),
       ),
@@ -272,27 +144,27 @@ class _SchedulePageState extends State<SchedulePage>
   }
 
   Widget _buildHeader(String displayName) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Container(
+      color: const Color(0xFFEBF3FE),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Stack(
         alignment: Alignment.center,
         children: [
           Center(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Schedule',
+                Text('Create Schedule',
                     style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF004E7E),
-                    )),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF004E7E))),
                 const SizedBox(height: 2),
                 Text(displayName,
                     style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF57636C),
-                    )),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF57636C))),
               ],
             ),
           ),
@@ -301,175 +173,18 @@ class _SchedulePageState extends State<SchedulePage>
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: () => Get.back(),
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child:
-                    Icon(Icons.arrow_back, color: Color(0xFF004E7E), size: 20),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: const Icon(Icons.arrow_back_rounded,
+                    color: Color(0xFF004E7E), size: 18),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: TabBar(
-          controller: _tabController,
-          isScrollable: false,
-          indicator: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-            ),
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          indicatorPadding: const EdgeInsets.all(3),
-          dividerColor: Colors.transparent,
-          labelColor: Colors.white,
-          unselectedLabelColor: const Color(0xFF57636C),
-          labelStyle:
-              GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
-          unselectedLabelStyle:
-              GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w500),
-          tabs: const [Tab(text: 'One Time'), Tab(text: 'Cyclic')],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOneTimeTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          buildSectionLabel('Select Days'),
-          const SizedBox(height: 8),
-          buildDaySelector(
-            _oneTimeSelectedDays,
-            (days) => setState(() => _oneTimeSelectedDays
-              ..clear()
-              ..addAll(days)),
-          ),
-          const SizedBox(height: 16),
-          buildSectionLabel('Set Time'),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-                child: buildTimeCard(
-              label: 'Start Time',
-              time: _oneTimeStartTime,
-              icon: Icons.play_circle_outline_rounded,
-              onTap: () => showTimeBottomSheet(
-                  context, _oneTimeStartTime, _setOneTimeStartTime),
-            )),
-            const SizedBox(width: 10),
-            Expanded(
-                child: buildTimeCard(
-              label: 'End Time',
-              time: _oneTimeEndTime,
-              icon: Icons.stop_circle_outlined,
-              onTap: () => showTimeBottomSheet(
-                  context, _oneTimeEndTime, _setOneTimeEndTime),
-            )),
-          ]),
-          const SizedBox(height: 16),
-          buildDurationCard(
-            _oneTimeDurationHours,
-            _oneTimeDurationMinutes,
-            onTap: () => showDurationBottomSheet(context, _oneTimeDurationHours,
-                _oneTimeDurationMinutes, _setOneTimeDuration),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCyclicTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          buildSectionLabel('Select Days'),
-          const SizedBox(height: 8),
-          buildDaySelector(
-            _cyclicSelectedDays,
-            (days) => setState(() => _cyclicSelectedDays
-              ..clear()
-              ..addAll(days)),
-          ),
-          const SizedBox(height: 16),
-          buildSectionLabel('Set Time'),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-                child: buildTimeCard(
-              label: 'Start Time',
-              time: _cyclicStartTime,
-              icon: Icons.play_circle_outline_rounded,
-              onTap: () => showTimeBottomSheet(
-                  context, _cyclicStartTime, _setCyclicStartTime),
-            )),
-            const SizedBox(width: 10),
-            Expanded(
-                child: buildTimeCard(
-              label: 'End Time',
-              time: _cyclicEndTime,
-              icon: Icons.stop_circle_outlined,
-              onTap: () => showTimeBottomSheet(
-                  context, _cyclicEndTime, _setCyclicEndTime),
-            )),
-          ]),
-          const SizedBox(height: 16),
-          buildDurationCard(
-            _cyclicDurationHours,
-            _cyclicDurationMinutes,
-            onTap: () => showDurationBottomSheet(context, _cyclicDurationHours,
-                _cyclicDurationMinutes, _setCyclicDuration),
-          ),
-          const SizedBox(height: 12),
-          buildRepeatInfoCard(_cyclicSelectedDays),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          buildPowerToggleRow(
-            _isScheduleEnabled,
-            () => setState(() => _isScheduleEnabled = !_isScheduleEnabled),
-          ),
-          const SizedBox(height: 12),
-          buildCreateScheduleButton(_onCreatePressed),
         ],
       ),
     );

@@ -13,8 +13,8 @@ import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_pag
 import 'package:i_dhara/app/presentation/modules/qr_code/qr_code_page.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
-import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_page.dart';
+import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class AppPages {

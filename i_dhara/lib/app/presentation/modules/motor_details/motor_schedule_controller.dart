@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
+import 'package:i_dhara/app/data/models/devices/motor_model.dart' as motor_model;
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
-import 'package:i_dhara/app/data/models/devices/motor_model.dart'
-    as motor_model;
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 

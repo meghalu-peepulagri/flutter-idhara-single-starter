@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
-import 'package:i_dhara/app/presentation/components/tabs/schedule_card.dart';
+import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 
 class MotorScheduleTab extends StatelessWidget {
