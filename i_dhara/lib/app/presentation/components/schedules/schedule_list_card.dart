@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
-import 'package:i_dhara/app/presentation/modules/schedule/schedule_utils.dart';
 
 class ScheduleCard extends StatelessWidget {
   final Record record;

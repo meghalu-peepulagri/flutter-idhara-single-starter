@@ -3,15 +3,17 @@ import 'package:google_fonts/google_fonts.dart';
 
 // ─── Scroll Wheel ──────────────────────────────────────────
 Widget buildScrollWheel({
+  Key? key,
   required List<int> values,
   required int selected,
   required Function(int) onChanged,
   bool padZero = false,
 }) {
   final controller = FixedExtentScrollController(
-    initialItem: values.indexOf(selected),
+    initialItem: values.indexOf(selected).clamp(0, values.length - 1),
   );
   return Container(
+    key: key,
     width: 64,
     height: 140,
     decoration: BoxDecoration(

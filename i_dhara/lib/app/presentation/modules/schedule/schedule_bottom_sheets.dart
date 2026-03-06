@@ -5,10 +5,41 @@ import 'schedule_widgets.dart';
 void showTimeBottomSheet(
   BuildContext context,
   TimeOfDay current,
-  Function(TimeOfDay) onPicked,
-) {
+  Function(TimeOfDay) onPicked, {
+  TimeOfDay? minTime,
+}) {
+  // Minutes in 5-min steps
+  final minuteSteps = List.generate(12, (i) => i * 5); // 0,5,10,...,55
+
+  // Minimum total minutes (snapped to next 5-min step strictly after minTime)
+  int? minTotal;
+  if (minTime != null) {
+    final raw = minTime.hour * 60 + minTime.minute;
+    minTotal = ((raw ~/ 5) + 1) * 5;
+  }
+
+  bool isValid(int h, int m) {
+    if (minTotal == null) return true;
+    return h * 60 + m >= minTotal;
+  }
+
+  // Snap current to nearest 5-min step, clamp to minTotal if needed
   int selectedHour = current.hour;
-  int selectedMinute = current.minute;
+  int selectedMinute = (current.minute ~/ 5) * 5;
+
+  if (minTotal != null && selectedHour * 60 + selectedMinute < minTotal) {
+    selectedHour = (minTotal ~/ 60) % 24;
+    selectedMinute = minTotal % 60;
+  }
+
+  // Valid hours: hours that have at least one valid minute
+  List<int> validHours() => List.generate(24, (i) => i)
+      .where((h) => minuteSteps.any((m) => isValid(h, m)))
+      .toList();
+
+  // Valid minutes for a given hour
+  List<int> validMinutes(int h) =>
+      minuteSteps.where((m) => isValid(h, m)).toList();
 
   showModalBottomSheet(
     context: context,
@@ -17,6 +48,17 @@ void showTimeBottomSheet(
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setSheetState) {
+          final hours = validHours();
+          final minutes = validMinutes(selectedHour);
+
+          // Clamp selection if it became invalid after state changes
+          if (hours.isNotEmpty && !hours.contains(selectedHour)) {
+            selectedHour = hours.first;
+          }
+          if (minutes.isNotEmpty && !minutes.contains(selectedMinute)) {
+            selectedMinute = minutes.first;
+          }
+
           return Container(
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -34,14 +76,22 @@ void showTimeBottomSheet(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     buildScrollWheel(
-                      values: List.generate(24, (i) => i),
+                      key: ValueKey('h_$selectedHour'),
+                      values: hours.isNotEmpty ? hours : List.generate(24, (i) => i),
                       selected: selectedHour,
-                      onChanged: (v) => setSheetState(() => selectedHour = v),
+                      onChanged: (v) => setSheetState(() {
+                        selectedHour = v;
+                        final mins = validMinutes(v);
+                        if (mins.isNotEmpty && !mins.contains(selectedMinute)) {
+                          selectedMinute = mins.first;
+                        }
+                      }),
                       padZero: true,
                     ),
                     _buildColon(),
                     buildScrollWheel(
-                      values: List.generate(60, (i) => i),
+                      key: ValueKey('m_$selectedHour'),
+                      values: minutes.isNotEmpty ? minutes : minuteSteps,
                       selected: selectedMinute,
                       onChanged: (v) => setSheetState(() => selectedMinute = v),
                       padZero: true,

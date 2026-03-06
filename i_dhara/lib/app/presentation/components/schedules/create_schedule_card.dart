@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
-import 'package:i_dhara/app/presentation/modules/schedule/schedule_utils.dart';
 
 class ScheduleForm extends StatefulWidget {
   final VoidCallback onSave;
@@ -21,13 +21,12 @@ class ScheduleForm extends StatefulWidget {
 class ScheduleFormState extends State<ScheduleForm> {
   final Set<int> selectedDays = {};
 
-  int startHour = 6;
+  // ─── Pure 24h state ───────────────────────────────────────
+  int startHour = 0;
   int startMinute = 0;
-  bool startIsAm = true;
 
-  int endHour = 8;
+  int endHour = 0;
   int endMinute = 0;
-  bool endIsAm = true;
 
   bool cyclicMode = false;
   bool powerLossRecovery = false;
@@ -54,21 +53,13 @@ class ScheduleFormState extends State<ScheduleForm> {
     super.dispose();
   }
 
-  // ─── Public derived getters (used by page via GlobalKey) ─
-  int get start24Hour => startIsAm
-      ? (startHour == 12 ? 0 : startHour)
-      : (startHour == 12 ? 12 : startHour + 12);
-
-  int get end24Hour => endIsAm
-      ? (endHour == 12 ? 0 : endHour)
-      : (endHour == 12 ? 12 : endHour + 12);
-
-  TimeOfDay get startTime => TimeOfDay(hour: start24Hour, minute: startMinute);
-  TimeOfDay get endTime => TimeOfDay(hour: end24Hour, minute: endMinute);
+  // ─── Public getters (used by page via GlobalKey) ──────────
+  TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
+  TimeOfDay get endTime => TimeOfDay(hour: endHour, minute: endMinute);
 
   int get durationMinutes {
-    int s = start24Hour * 60 + startMinute;
-    int e = end24Hour * 60 + endMinute;
+    int s = startHour * 60 + startMinute;
+    int e = endHour * 60 + endMinute;
     if (e <= s) e += 1440;
     return e - s;
   }
@@ -82,17 +73,12 @@ class ScheduleFormState extends State<ScheduleForm> {
   // ─── Time picker callback ─────────────────────────────────
   void _onTimePicked(TimeOfDay t, bool isStart) {
     setState(() {
-      final h = t.hour;
-      final isAm = h < 12;
-      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
       if (isStart) {
-        startHour = h12;
+        startHour = t.hour;
         startMinute = t.minute;
-        startIsAm = isAm;
       } else {
-        endHour = h12;
+        endHour = t.hour;
         endMinute = t.minute;
-        endIsAm = isAm;
       }
     });
   }
@@ -102,6 +88,7 @@ class ScheduleFormState extends State<ScheduleForm> {
       context,
       isStart ? startTime : endTime,
       (picked) => _onTimePicked(picked, isStart),
+      minTime: isStart ? null : startTime,
     );
   }
 
@@ -191,7 +178,8 @@ class ScheduleFormState extends State<ScheduleForm> {
               color: sel ? null : Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color: sel ? Colors.transparent : const Color(0xFFDCDCDC)),
+                  color:
+                      sel ? Colors.transparent : const Color(0xFFDCDCDC)),
             ),
             child: Center(
               child: Text(
@@ -222,21 +210,22 @@ class ScheduleFormState extends State<ScheduleForm> {
           Row(
             children: [
               Expanded(
-                  child: _buildTimePicker(
-                      'START', startHour, startMinute, startIsAm, true)),
+                  child:
+                      _buildTimePicker('START', startHour, startMinute, true)),
               Container(
                   width: 1,
                   height: 60,
                   color: const Color(0xFFE5E7EB),
                   margin: const EdgeInsets.symmetric(horizontal: 12)),
               Expanded(
-                  child: _buildTimePicker(
-                      'END', endHour, endMinute, endIsAm, false)),
+                  child:
+                      _buildTimePicker('END', endHour, endMinute, false)),
             ],
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
             decoration: BoxDecoration(
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),
@@ -263,7 +252,7 @@ class ScheduleFormState extends State<ScheduleForm> {
   }
 
   Widget _buildTimePicker(
-      String label, int hour, int minute, bool isAm, bool isStart) {
+      String label, int hour, int minute, bool isStart) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -283,7 +272,8 @@ class ScheduleFormState extends State<ScheduleForm> {
             GestureDetector(
               onTap: () => _openTimePicker(isStart),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEBF3FE),
                   borderRadius: BorderRadius.circular(6),
@@ -309,7 +299,8 @@ class ScheduleFormState extends State<ScheduleForm> {
             GestureDetector(
               onTap: () => _openTimePicker(isStart),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEBF3FE),
                   borderRadius: BorderRadius.circular(6),
@@ -321,27 +312,6 @@ class ScheduleFormState extends State<ScheduleForm> {
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF004E7E)),
                 ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            // AM/PM toggle
-            GestureDetector(
-              onTap: () => setState(
-                  () => isStart ? startIsAm = !startIsAm : endIsAm = !endIsAm),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(isAm ? 'AM' : 'PM',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
               ),
             ),
           ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
@@ -12,7 +13,6 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_card.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_dialogs.dart';
-import 'package:i_dhara/app/presentation/modules/schedule/schedule_utils.dart';
 
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
