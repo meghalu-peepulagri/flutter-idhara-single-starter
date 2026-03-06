@@ -66,95 +66,6 @@ void showTimeBottomSheet(
   );
 }
 
-void showDurationBottomSheet(
-  BuildContext context,
-  int curH,
-  int curM,
-  Function(int, int) onPicked,
-) {
-  int selH = curH;
-  int selM = curM;
-
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildHandle(),
-                const SizedBox(height: 16),
-                _buildTitle('Set Duration'),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Column(
-                      children: [
-                        Text('Hours',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF57636C),
-                            )),
-                        const SizedBox(height: 4),
-                        buildScrollWheel(
-                          values: List.generate(24, (i) => i),
-                          selected: selH,
-                          onChanged: (v) => setSheetState(() => selH = v),
-                          padZero: true,
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: _buildColonText(),
-                    ),
-                    Column(
-                      children: [
-                        Text('Minutes',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF57636C),
-                            )),
-                        const SizedBox(height: 4),
-                        buildScrollWheel(
-                          values: List.generate(60, (i) => i),
-                          selected: selM,
-                          onChanged: (v) => setSheetState(() => selM = v),
-                          padZero: true,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                _buildBottomSheetButtons(
-                  ctx,
-                  onConfirm: () {
-                    onPicked(selH, selM);
-                    Navigator.of(ctx).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
 // ─── Shared helpers ────────────────────────────────────────
 
 Widget _buildHandle() {
@@ -189,17 +100,6 @@ Widget _buildColon() {
         fontWeight: FontWeight.w700,
         color: const Color(0xFF004E7E),
       ),
-    ),
-  );
-}
-
-Widget _buildColonText() {
-  return Text(
-    ' : ',
-    style: GoogleFonts.dmSans(
-      fontSize: 28,
-      fontWeight: FontWeight.w700,
-      color: const Color(0xFF004E7E),
     ),
   );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_utils.dart';
 
 class ScheduleForm extends StatefulWidget {
@@ -32,6 +33,27 @@ class ScheduleFormState extends State<ScheduleForm> {
   bool powerLossRecovery = false;
   bool repeatWeekly = false;
 
+  // ─── Switch controllers ───────────────────────────────────
+  late final ValueNotifier<bool> _cyclicController;
+  late final ValueNotifier<bool> _powerLossController;
+  late final ValueNotifier<bool> _repeatController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cyclicController = ValueNotifier(cyclicMode);
+    _powerLossController = ValueNotifier(powerLossRecovery);
+    _repeatController = ValueNotifier(repeatWeekly);
+  }
+
+  @override
+  void dispose() {
+    _cyclicController.dispose();
+    _powerLossController.dispose();
+    _repeatController.dispose();
+    super.dispose();
+  }
+
   // ─── Public derived getters (used by page via GlobalKey) ─
   int get start24Hour => startIsAm
       ? (startHour == 12 ? 0 : startHour)
@@ -57,29 +79,31 @@ class ScheduleFormState extends State<ScheduleForm> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
-  // ─── Spinner helpers ─────────────────────────────────────
-  void _adjustHour(bool inc, bool isStart) => setState(() {
-        if (isStart) {
-          startHour = inc
-              ? (startHour >= 12 ? 1 : startHour + 1)
-              : (startHour <= 1 ? 12 : startHour - 1);
-        } else {
-          endHour = inc
-              ? (endHour >= 12 ? 1 : endHour + 1)
-              : (endHour <= 1 ? 12 : endHour - 1);
-        }
-      });
+  // ─── Time picker callback ─────────────────────────────────
+  void _onTimePicked(TimeOfDay t, bool isStart) {
+    setState(() {
+      final h = t.hour;
+      final isAm = h < 12;
+      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      if (isStart) {
+        startHour = h12;
+        startMinute = t.minute;
+        startIsAm = isAm;
+      } else {
+        endHour = h12;
+        endMinute = t.minute;
+        endIsAm = isAm;
+      }
+    });
+  }
 
-  void _adjustMinute(bool inc, bool isStart) => setState(() {
-        if (isStart) {
-          startMinute = inc
-              ? (startMinute + 5) % 60
-              : (startMinute < 5 ? 55 : startMinute - 5);
-        } else {
-          endMinute =
-              inc ? (endMinute + 5) % 60 : (endMinute < 5 ? 55 : endMinute - 5);
-        }
-      });
+  void _openTimePicker(bool isStart) {
+    showTimeBottomSheet(
+      context,
+      isStart ? startTime : endTime,
+      (picked) => _onTimePicked(picked, isStart),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,25 +124,40 @@ class ScheduleFormState extends State<ScheduleForm> {
                 _buildTimingCard(),
                 const SizedBox(height: 24),
                 _buildToggle(
-                    Icons.sync_rounded,
-                    'Cyclic Mode',
-                    'Motor alternates ON / OFF',
-                    cyclicMode,
-                    (v) => setState(() => cyclicMode = v)),
+                  Icons.sync_rounded,
+                  'Cyclic Mode',
+                  'Motor alternates ON / OFF',
+                  cyclicMode,
+                  _cyclicController,
+                  (v) => setState(() {
+                    cyclicMode = v;
+                    _cyclicController.value = v;
+                  }),
+                ),
                 const SizedBox(height: 12),
                 _buildToggle(
-                    Icons.power_rounded,
-                    'Power Loss Recovery',
-                    'Auto-resume after power restored',
-                    powerLossRecovery,
-                    (v) => setState(() => powerLossRecovery = v)),
+                  Icons.power_rounded,
+                  'Power Loss Recovery',
+                  'Auto-resume after power restored',
+                  powerLossRecovery,
+                  _powerLossController,
+                  (v) => setState(() {
+                    powerLossRecovery = v;
+                    _powerLossController.value = v;
+                  }),
+                ),
                 const SizedBox(height: 12),
                 _buildToggle(
-                    Icons.repeat_rounded,
-                    'Repeat Weekly',
-                    'Auto-repeat on selected days',
-                    repeatWeekly,
-                    (v) => setState(() => repeatWeekly = v)),
+                  Icons.repeat_rounded,
+                  'Repeat Weekly',
+                  'Auto-repeat on selected days',
+                  repeatWeekly,
+                  _repeatController,
+                  (v) => setState(() {
+                    repeatWeekly = v;
+                    _repeatController.value = v;
+                  }),
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -187,7 +226,7 @@ class ScheduleFormState extends State<ScheduleForm> {
                       'START', startHour, startMinute, startIsAm, true)),
               Container(
                   width: 1,
-                  height: 72,
+                  height: 60,
                   color: const Color(0xFFE5E7EB),
                   margin: const EdgeInsets.symmetric(horizontal: 12)),
               Expanded(
@@ -228,33 +267,64 @@ class ScheduleFormState extends State<ScheduleForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF9CA3AF),
-                letterSpacing: 0.8)),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF9CA3AF),
+              letterSpacing: 0.8),
+        ),
         const SizedBox(height: 6),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _spinner(
-                hour.toString().padLeft(2, '0'),
-                () => _adjustHour(true, isStart),
-                () => _adjustHour(false, isStart)),
+            // Hour — tap to open picker
+            GestureDetector(
+              onTap: () => _openTimePicker(isStart),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF3FE),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  hour.toString().padLeft(2, '0'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF004E7E)),
+                ),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 3),
               child: Text(':',
                   style: GoogleFonts.dmSans(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF1F2937))),
             ),
-            _spinner(
-                minute.toString().padLeft(2, '0'),
-                () => _adjustMinute(true, isStart),
-                () => _adjustMinute(false, isStart)),
+            // Minute — tap to open picker
+            GestureDetector(
+              onTap: () => _openTimePicker(isStart),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEBF3FE),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  minute.toString().padLeft(2, '0'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF004E7E)),
+                ),
+              ),
+            ),
             const SizedBox(width: 6),
+            // AM/PM toggle
             GestureDetector(
               onTap: () => setState(
                   () => isStart ? startIsAm = !startIsAm : endIsAm = !endIsAm),
@@ -280,31 +350,14 @@ class ScheduleFormState extends State<ScheduleForm> {
     );
   }
 
-  Widget _spinner(String value, VoidCallback onUp, VoidCallback onDown) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-            onTap: onUp,
-            child: const Icon(Icons.keyboard_arrow_up_rounded,
-                size: 20, color: Color(0xFF9CA3AF))),
-        Text(value,
-            style: GoogleFonts.dmSans(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1F2937))),
-        GestureDetector(
-            onTap: onDown,
-            child: const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 20, color: Color(0xFF9CA3AF))),
-      ],
-    );
-  }
-
-  Widget _buildToggle(IconData icon, String title, String subtitle, bool value,
-      ValueChanged<bool> onChanged) {
-    final switchController = ValueNotifier<bool>(value);
-
+  Widget _buildToggle(
+    IconData icon,
+    String title,
+    String subtitle,
+    bool value,
+    ValueNotifier<bool> controller,
+    ValueChanged<bool> onChanged,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -332,23 +385,15 @@ class ScheduleFormState extends State<ScheduleForm> {
               ],
             ),
           ),
-          SizedBox(
-            height: 25,
-            child: GestureDetector(
-              onTap: () => onChanged(!value),
-              child: AbsorbPointer(
-                child: AdvancedSwitch(
-                  controller: switchController,
-                  initialValue: value,
-                  activeColor: const Color(0xFF34C759),
-                  inactiveColor: const Color(0xFFE0E0E0),
-                  borderRadius: const BorderRadius.all(Radius.circular(15)),
-                  width: 46,
-                  height: 24,
-                  enabled: true,
-                ),
-              ),
-            ),
+          AdvancedSwitch(
+            controller: controller,
+            activeColor: const Color(0xFF34C759),
+            inactiveColor: const Color(0xFFE0E0E0),
+            borderRadius: const BorderRadius.all(Radius.circular(15)),
+            width: 46,
+            height: 24,
+            enabled: true,
+            onChanged: (v) => onChanged(v as bool),
           ),
         ],
       ),

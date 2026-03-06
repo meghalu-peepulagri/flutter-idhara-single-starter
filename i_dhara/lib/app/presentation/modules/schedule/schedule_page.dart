@@ -56,6 +56,8 @@ class _SchedulePageState extends State<SchedulePage> {
     return mac.isNotEmpty ? mac : (motor?.starter?.pcbNumber?.trim() ?? '');
   }
 
+  bool _scheduleCreated = false;
+
   // Called by dialog onConfirm — POST API first, then MQTT on success
   Future<bool> _createSchedule() async {
     final form = _formKey.currentState!;
@@ -75,7 +77,7 @@ class _SchedulePageState extends State<SchedulePage> {
     if (response == null) {
       geterrorSnackBar(
           _scheduleController.message ?? 'Failed to create schedule');
-      return false;
+      return false; // keep dialog open
     }
 
     getsuccessSnackBar(response.message ?? 'Schedule created successfully');
@@ -101,14 +103,15 @@ class _SchedulePageState extends State<SchedulePage> {
       }
     }
 
-    if (mounted) Get.back(result: true);
-    return true;
+    _scheduleCreated = true;
+    return true; // dialog closes itself, then _onSaveTapped navigates
   }
 
-  void _onSaveTapped() {
+  void _onSaveTapped() async {
     final form = _formKey.currentState;
     if (form == null) return;
-    showScheduleConfirmDialog(
+    _scheduleCreated = false;
+    await showScheduleConfirmDialog(
       context: context,
       typeLabel: form.cyclicMode ? 'Cyclic' : 'One Time',
       startTime: formatTime24h(form.startTime),
@@ -117,6 +120,8 @@ class _SchedulePageState extends State<SchedulePage> {
       powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
       onConfirm: _createSchedule,
     );
+    // Navigate to schedule tab only after dialog closes on success
+    if (_scheduleCreated && mounted) Get.back(result: true);
   }
 
   @override
