@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
+import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widgets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
 
 class ScheduleForm extends StatefulWidget {
@@ -21,18 +21,17 @@ class ScheduleForm extends StatefulWidget {
 class ScheduleFormState extends State<ScheduleForm> {
   final Set<int> selectedDays = {};
 
-  // ─── Pure 24h state ───────────────────────────────────────
   int startHour = 0;
   int startMinute = 0;
-
   int endHour = 0;
   int endMinute = 0;
 
   bool cyclicMode = false;
+  int cyclicOnMinutes = 20;
+  int cyclicOffMinutes = 15;
   bool powerLossRecovery = false;
   bool repeatWeekly = false;
 
-  // ─── Switch controllers ───────────────────────────────────
   late final ValueNotifier<bool> _cyclicController;
   late final ValueNotifier<bool> _powerLossController;
   late final ValueNotifier<bool> _repeatController;
@@ -53,7 +52,6 @@ class ScheduleFormState extends State<ScheduleForm> {
     super.dispose();
   }
 
-  // ─── Public getters (used by page via GlobalKey) ──────────
   TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
   TimeOfDay get endTime => TimeOfDay(hour: endHour, minute: endMinute);
 
@@ -70,27 +68,23 @@ class ScheduleFormState extends State<ScheduleForm> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
-  // ─── Time picker callback ─────────────────────────────────
-  void _onTimePicked(TimeOfDay t, bool isStart) {
-    setState(() {
-      if (isStart) {
-        startHour = t.hour;
-        startMinute = t.minute;
-      } else {
-        endHour = t.hour;
-        endMinute = t.minute;
-      }
-    });
-  }
+  //  Time picker
+  void _onTimePicked(TimeOfDay t, bool isStart) => setState(() {
+        if (isStart) {
+          startHour = t.hour;
+          startMinute = t.minute;
+        } else {
+          endHour = t.hour;
+          endMinute = t.minute;
+        }
+      });
 
-  void _openTimePicker(bool isStart) {
-    showTimeBottomSheet(
-      context,
-      isStart ? startTime : endTime,
-      (picked) => _onTimePicked(picked, isStart),
-      minTime: isStart ? null : startTime,
-    );
-  }
+  void _openTimePicker(bool isStart) => showTimeBottomSheet(
+        context,
+        isStart ? startTime : endTime,
+        (picked) => _onTimePicked(picked, isStart),
+        minTime: isStart ? null : startTime,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -102,45 +96,54 @@ class ScheduleFormState extends State<ScheduleForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionLabel('Select Days'),
+                scheduleSectionLabel('Select Days'),
                 const SizedBox(height: 10),
                 _buildDayChips(),
                 const SizedBox(height: 24),
-                _sectionLabel('Schedule Timing'),
+                scheduleSectionLabel('Schedule Timing'),
                 const SizedBox(height: 10),
                 _buildTimingCard(),
                 const SizedBox(height: 24),
-                _buildToggle(
-                  Icons.sync_rounded,
-                  'Cyclic Mode',
-                  'Motor alternates ON / OFF',
-                  cyclicMode,
-                  _cyclicController,
-                  (v) => setState(() {
+                ScheduleCyclicCard(
+                  cyclicMode: cyclicMode,
+                  cyclicOnMinutes: cyclicOnMinutes,
+                  cyclicOffMinutes: cyclicOffMinutes,
+                  cyclicController: _cyclicController,
+                  onCyclicChanged: (v) => setState(() {
                     cyclicMode = v;
                     _cyclicController.value = v;
                   }),
+                  onOnDecrement: () => setState(() {
+                    if (cyclicOnMinutes > 5) cyclicOnMinutes -= 5;
+                  }),
+                  onOnIncrement: () => setState(() {
+                    if (cyclicOnMinutes < 120) cyclicOnMinutes += 5;
+                  }),
+                  onOffDecrement: () => setState(() {
+                    if (cyclicOffMinutes > 5) cyclicOffMinutes -= 5;
+                  }),
+                  onOffIncrement: () => setState(() {
+                    if (cyclicOffMinutes < 120) cyclicOffMinutes += 5;
+                  }),
                 ),
                 const SizedBox(height: 12),
-                _buildToggle(
-                  Icons.power_rounded,
-                  'Power Loss Recovery',
-                  'Auto-resume after power restored',
-                  powerLossRecovery,
-                  _powerLossController,
-                  (v) => setState(() {
+                buildScheduleToggle(
+                  icon: Icons.power_rounded,
+                  title: 'Power Loss Recovery',
+                  subtitle: 'Auto-resume after power restored',
+                  controller: _powerLossController,
+                  onChanged: (v) => setState(() {
                     powerLossRecovery = v;
                     _powerLossController.value = v;
                   }),
                 ),
                 const SizedBox(height: 12),
-                _buildToggle(
-                  Icons.repeat_rounded,
-                  'Repeat Weekly',
-                  'Auto-repeat on selected days',
-                  repeatWeekly,
-                  _repeatController,
-                  (v) => setState(() {
+                buildScheduleToggle(
+                  icon: Icons.repeat_rounded,
+                  title: 'Repeat Weekly',
+                  subtitle: 'Auto-repeat on selected days',
+                  controller: _repeatController,
+                  onChanged: (v) => setState(() {
                     repeatWeekly = v;
                     _repeatController.value = v;
                   }),
@@ -150,7 +153,7 @@ class ScheduleFormState extends State<ScheduleForm> {
             ),
           ),
         ),
-        _buildBottomBar(),
+        ScheduleFormBottomBar(onBack: widget.onBack, onSave: widget.onSave),
       ],
     );
   }
@@ -178,18 +181,14 @@ class ScheduleFormState extends State<ScheduleForm> {
               color: sel ? null : Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color:
-                      sel ? Colors.transparent : const Color(0xFFDCDCDC)),
+                  color: sel ? Colors.transparent : const Color(0xFFDCDCDC)),
             ),
             child: Center(
-              child: Text(
-                dayLabels[i],
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: sel ? Colors.white : const Color(0xFF57636C),
-                ),
-              ),
+              child: Text(dayLabels[i],
+                  style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: sel ? Colors.white : const Color(0xFF57636C))),
             ),
           ),
         );
@@ -218,14 +217,12 @@ class ScheduleFormState extends State<ScheduleForm> {
                   color: const Color(0xFFE5E7EB),
                   margin: const EdgeInsets.symmetric(horizontal: 12)),
               Expanded(
-                  child:
-                      _buildTimePicker('END', endHour, endMinute, false)),
+                  child: _buildTimePicker('END', endHour, endMinute, false)),
             ],
           ),
           const SizedBox(height: 14),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
             decoration: BoxDecoration(
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),
@@ -236,13 +233,11 @@ class ScheduleFormState extends State<ScheduleForm> {
                 const Icon(Icons.timer_outlined,
                     size: 14, color: Color(0xFF004E7E)),
                 const SizedBox(width: 6),
-                Text(
-                  'Duration: $durationText',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF004E7E)),
-                ),
+                Text('Duration: $durationText',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF475569))),
               ],
             ),
           ),
@@ -251,40 +246,32 @@ class ScheduleFormState extends State<ScheduleForm> {
     );
   }
 
-  Widget _buildTimePicker(
-      String label, int hour, int minute, bool isStart) {
+  Widget _buildTimePicker(String label, int hour, int minute, bool isStart) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF9CA3AF),
-              letterSpacing: 0.8),
-        ),
+        Text(label,
+            style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B),
+                letterSpacing: 0.8)),
         const SizedBox(height: 6),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Hour — tap to open picker
             GestureDetector(
               onTap: () => _openTimePicker(isStart),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  hour.toString().padLeft(2, '0'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF004E7E)),
-                ),
+                    color: const Color(0xFFEBF3FE),
+                    borderRadius: BorderRadius.circular(6)),
+                child: Text(hour.toString().padLeft(2, '0'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0F172A))),
               ),
             ),
             Padding(
@@ -292,26 +279,21 @@ class ScheduleFormState extends State<ScheduleForm> {
               child: Text(':',
                   style: GoogleFonts.dmSans(
                       fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1F2937))),
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A))),
             ),
-            // Minute — tap to open picker
             GestureDetector(
               onTap: () => _openTimePicker(isStart),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  minute.toString().padLeft(2, '0'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF004E7E)),
-                ),
+                    color: const Color(0xFFEBF3FE),
+                    borderRadius: BorderRadius.circular(6)),
+                child: Text(minute.toString().padLeft(2, '0'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0F172A))),
               ),
             ),
           ],
@@ -319,132 +301,4 @@ class ScheduleFormState extends State<ScheduleForm> {
       ],
     );
   }
-
-  Widget _buildToggle(
-    IconData icon,
-    String title,
-    String subtitle,
-    bool value,
-    ValueNotifier<bool> controller,
-    ValueChanged<bool> onChanged,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF6B7280)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1F2937))),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11, color: const Color(0xFF9CA3AF))),
-              ],
-            ),
-          ),
-          AdvancedSwitch(
-            controller: controller,
-            activeColor: const Color(0xFF34C759),
-            inactiveColor: const Color(0xFFE0E0E0),
-            borderRadius: const BorderRadius.all(Radius.circular(15)),
-            width: 46,
-            height: 24,
-            enabled: true,
-            onChanged: (v) => onChanged(v as bool),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, -2))
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: 48,
-              child: OutlinedButton(
-                onPressed: widget.onBack,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF004E7E)),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: Text('Cancel',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E))),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                      color: const Color(0xFF004E7E).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4))
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: widget.onSave,
-                  child: Center(
-                    child: Text('Save Schedule',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white)),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String text) => Text(
-        text,
-        style: GoogleFonts.dmSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF14181B)),
-      );
 }

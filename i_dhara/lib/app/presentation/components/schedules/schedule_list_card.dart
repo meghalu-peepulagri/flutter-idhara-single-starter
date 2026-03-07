@@ -134,7 +134,7 @@ class ScheduleCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Row 3: Days + Next run
+          // Row 3: Days
           Row(
             children: [
               if (record.daysOfWeek != null && record.daysOfWeek!.isNotEmpty)
@@ -165,29 +165,6 @@ class ScheduleCard extends StatelessWidget {
                     }).toList(),
                   ),
                 )
-              else
-                const Expanded(child: SizedBox()),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.bolt_rounded,
-                      size: 14,
-                      color: isActive
-                          ? const Color(0xFFFFA500)
-                          : const Color(0xFF9E9E9E)),
-                  const SizedBox(width: 3),
-                  Text(
-                    isActive ? 'Next: ${_formatTo12h(startTime)}' : 'Paused',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: isActive
-                          ? const Color(0xFF004E7E)
-                          : const Color(0xFF9E9E9E),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
 

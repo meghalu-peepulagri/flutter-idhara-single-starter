@@ -164,12 +164,12 @@ class _SchedulePageState extends State<SchedulePage> {
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF004E7E))),
-                const SizedBox(height: 2),
-                Text(displayName,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF57636C))),
+                // const SizedBox(height: 2),
+                // Text(displayName,
+                //     style: GoogleFonts.dmSans(
+                //         fontSize: 12,
+                //         fontWeight: FontWeight.w400,
+                //         color: const Color(0xFF57636C))),
               ],
             ),
           ),
@@ -180,13 +180,8 @@ class _SchedulePageState extends State<SchedulePage> {
               onTap: () => Get.back(),
               child: Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
                 child: const Icon(Icons.arrow_back_rounded,
-                    color: Color(0xFF004E7E), size: 18),
+                    color: Color(0xFF004E7E), size: 20),
               ),
             ),
           ),
