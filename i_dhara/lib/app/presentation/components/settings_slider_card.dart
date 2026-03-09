@@ -134,9 +134,11 @@ class GradientTrackShape extends SfTrackShape {
     if (showBoundaryLine) {
       final totalWidth = trackRect.width;
       final valueRange = maxLimit - minLimit;
-      final boundaryPosition = ((lowMaxLimit + highMinLimit) / 2 - minLimit) /
-          valueRange *
-          totalWidth;
+      final boundaryValue = highMaxLimit > 100
+          ? 100.0
+          : (lowMaxLimit + highMinLimit) / 2;
+      final boundaryPosition =
+          (boundaryValue - minLimit) / valueRange * totalWidth;
       final boundaryX = trackRect.left + boundaryPosition;
 
       final bluePaint = Paint()
@@ -485,10 +487,16 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       offsetLeft: false,
                     ),
                     onChanged: (SfRangeValues newValues) {
+                      final effectiveLowMax = widget.lowMaxLimit > 100
+                          ? 100.0.clamp(widget.lowMinLimit, widget.lowMaxLimit)
+                          : widget.lowMaxLimit;
                       double start = (newValues.start as double)
-                          .clamp(widget.lowMinLimit, widget.lowMaxLimit);
+                          .clamp(widget.lowMinLimit, effectiveLowMax);
+                      final effectiveHighMin = widget.highMaxLimit > 120
+                          ? 100.0.clamp(widget.highMinLimit, widget.highMaxLimit)
+                          : widget.highMinLimit;
                       double end = (newValues.end as double)
-                          .clamp(widget.highMinLimit, widget.highMaxLimit);
+                          .clamp(effectiveHighMin, widget.highMaxLimit);
                       setState(() {
                         isDragging = true;
                         tempLowValue = start;
@@ -506,10 +514,16 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       widget.onChanged(start, end);
                     },
                     onChangeEnd: (SfRangeValues newValues) {
+                      final effectiveLowMax = widget.lowMaxLimit > 100
+                          ? 100.0.clamp(widget.lowMinLimit, widget.lowMaxLimit)
+                          : widget.lowMaxLimit;
                       double start = (newValues.start as double)
-                          .clamp(widget.lowMinLimit, widget.lowMaxLimit);
+                          .clamp(widget.lowMinLimit, effectiveLowMax);
+                      final effectiveHighMin = widget.highMaxLimit > 120
+                          ? 100.0.clamp(widget.highMinLimit, widget.highMaxLimit)
+                          : widget.highMinLimit;
                       double end = (newValues.end as double)
-                          .clamp(widget.highMinLimit, widget.highMaxLimit);
+                          .clamp(effectiveHighMin, widget.highMaxLimit);
                       setState(() {
                         final percentLow = start.toInt() / 100;
                         calculatedLow = percentLow * controller.flc.value;

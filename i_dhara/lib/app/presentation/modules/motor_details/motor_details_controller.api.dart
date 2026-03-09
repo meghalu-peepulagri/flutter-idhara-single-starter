@@ -166,8 +166,11 @@ extension AnalyticsControllerApi on AnalyticsController {
       if (response != null && response.data != null) {
         motorRuntimeData.value = response.data!.records ?? [];
 
-        // Use the API's total or calculate from filtered data
-        motortotalRuntime.value = response.data!.totalRunOnTime ?? '';
+        // Use the API's total — strip seconds (HH:MM:SS → HH:MM)
+        final raw = response.data!.totalRunOnTime ?? '';
+        final timeParts = raw.split(':');
+        motortotalRuntime.value =
+            timeParts.length == 3 ? '${timeParts[0]}:${timeParts[1]}' : raw;
 
         if (response.data!.records != null) {
           chartData.value =
@@ -189,7 +192,7 @@ extension AnalyticsControllerApi on AnalyticsController {
           int hours = totalPowerDuration.inHours;
           int minutes = (totalPowerDuration.inMinutes % 60);
           int seconds = (totalPowerDuration.inSeconds % 60);
-          powerTotalRuntime.value = '$hours h $minutes m $seconds sec';
+          powerTotalRuntime.value = '$hours h $minutes m';
         }
       } else {
         motorRuntimeData.clear();

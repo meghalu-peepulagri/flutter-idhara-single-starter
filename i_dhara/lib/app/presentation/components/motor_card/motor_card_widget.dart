@@ -288,11 +288,16 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   bool _canControlMotor(MotorData? motorData) {
     if (!_isMotorAvailable()) return false;
+    final int signalBars = _getSignalBars(motorData);
+
+    // If motor is in test run, skip power check — only signal matters
+    if (_isNewDeviceWithoutAck(motorData)) {
+      return signalBars > 0;
+    }
+
     final isPowerOn = (motorData?.hasReceivedData == true)
         ? motorData!.power == 1
         : (widget.motor.starter?.power ?? 0) == 1;
-
-    int signalBars = _getSignalBars(motorData);
     return isPowerOn && signalBars > 0;
   }
 
@@ -488,9 +493,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           }
         }
 
-        final isManualMode = _localModeController.value == 0;
-        final isSwitchDisabled =
-            _isWaitingForSwitchAck || !(canControl && isManualMode);
+        final isSwitchDisabled = _isWaitingForSwitchAck || !(canControl);
 
         return Container(
           decoration: BoxDecoration(
