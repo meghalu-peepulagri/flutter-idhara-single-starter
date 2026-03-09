@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 class ScheduleCard extends StatelessWidget {
   final Record record;
-  const ScheduleCard({super.key, required this.record});
+  final VoidCallback? onDelete;
+  const ScheduleCard({super.key, required this.record, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -101,12 +104,13 @@ class ScheduleCard extends StatelessWidget {
                           color: const Color(0xFF1A1A2E))),
                 ],
               ),
-              Container(
-                width: 1,
-                height: 36,
-                color: const Color(0xFFECECEC),
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-              ),
+              if (isCyclic)
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: const Color(0xFFECECEC),
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                ),
               // Center section: ON+OFF for cyclic, empty for time-based
               if (isCyclic)
                 Expanded(
@@ -183,12 +187,13 @@ class ScheduleCard extends StatelessWidget {
                 )
               else
                 const Expanded(child: SizedBox()),
-              Container(
-                width: 1,
-                height: 36,
-                color: const Color(0xFFECECEC),
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-              ),
+              if (isCyclic)
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: const Color(0xFFECECEC),
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                ),
               // Type + Repeat
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,7 +313,22 @@ class ScheduleCard extends StatelessWidget {
               InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: () {
-                  // TODO: delete schedule
+                  showDialog(
+                    context: context,
+                    builder: (_) => PopupDialog(
+                      title: 'Delete Schedule',
+                      description:
+                          'This schedule will be deleted permanently. Do you wish to go ahead?',
+                      iconAssetPath: 'assets/images/schedule.svg',
+                      buttonlable: 'Delete',
+                      onDelete: () {
+                        Navigator.pop(context);
+                        SharedPreference.setscheduleid(record.id ?? 0);
+                        onDelete?.call();
+                      },
+                      onCancel: () => Navigator.pop(context),
+                    ),
+                  );
                 },
                 child: Container(
                   padding: const EdgeInsets.all(6),

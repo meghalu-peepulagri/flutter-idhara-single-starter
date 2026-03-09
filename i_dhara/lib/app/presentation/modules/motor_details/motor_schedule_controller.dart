@@ -61,6 +61,21 @@ class MotorScheduleController extends GetxController {
     }
   }
 
+  Future<void> fetchDeleteSchedule() async {
+    isLoading.value = true;
+    try {
+      final response = await _scheduleRepo.scheduleDelete();
+      if (response != null && response.success == true) {
+        fetchSchedules();
+        getsuccessSnackBar(response.message ?? 'Schedule deleted successfully');
+      }
+    } catch (_) {
+      // silently fail
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   void navigateToCreateSchedule() {
     final details = motorDetails;
     final motor = motor_model.Motor(

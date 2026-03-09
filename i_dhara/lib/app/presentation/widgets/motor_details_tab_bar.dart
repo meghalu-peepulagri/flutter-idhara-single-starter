@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../modules/motor_details/motor_details_controller.dart';
 
 class MotorDetailsTabBar extends StatefulWidget {
@@ -125,8 +126,8 @@ class _MotorDetailsTabBarState extends State<MotorDetailsTabBar>
                 child: Row(
                   children: [
                     _buildSvgTab(context, 'Mode', 0, 'assets/images/Mode.svg'),
-                    _buildIconTab(
-                        context, 'Schedule', 1, Icons.schedule_rounded),
+                    _buildSvgTab(
+                        context, 'Schedule', 1, 'assets/images/schedule.svg'),
                     _buildSvgTab(
                         context, 'Analytics', 2, 'assets/images/Graph.svg'),
                     _buildSvgTab(context, 'Logs', 3, 'assets/images/Logs.svg'),
@@ -176,27 +177,6 @@ class _MotorDetailsTabBarState extends State<MotorDetailsTabBar>
               isSelected ? const Color(0xFF004E7E) : const Color(0xFF6B7280),
               BlendMode.srcIn,
             ),
-          ),
-          const SizedBox(width: 4),
-          _tabLabel(label, isSelected),
-        ]);
-      }),
-    );
-  }
-
-  Widget _buildIconTab(
-      BuildContext context, String label, int index, IconData icon) {
-    return InkWell(
-      onTap: () => widget.controller.onTabChanged(index),
-      borderRadius: BorderRadius.circular(8.0),
-      child: Obx(() {
-        final isSelected = widget.controller.selectedTabIndex.value == index;
-        return _tabContainer(isSelected, [
-          Icon(
-            icon,
-            size: 16,
-            color:
-                isSelected ? const Color(0xFF004E7E) : const Color(0xFF6B7280),
           ),
           const SizedBox(width: 4),
           _tabLabel(label, isSelected),
