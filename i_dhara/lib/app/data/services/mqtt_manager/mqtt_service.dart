@@ -78,7 +78,8 @@ class MotorData {
 /// Tracks pending commands for retry mechanism
 class PendingCommand {
   final String motorId;
-  final int commandType; // 1 = motor control, 2 = mode change, 4 = settings, 23 = schedule
+  final int
+      commandType; // 1 = motor control, 2 = mode change, 4 = settings, 23 = schedule
   final dynamic commandData;
   final int sequenceNumber;
   final String? pcbnumber; // For settings/schedule commands (type 4/23)
@@ -472,8 +473,10 @@ class MqttService {
     required int scheduleType,
     required int scheduleId,
     required String startTime,
-    required String endTime,
-    required int durationMinutes,
+    String? endTime,
+    int? durationMinutes,
+    int? cyclicOnMinutes,
+    int? cyclicOffMinutes,
     required int repeat,
     required int daysBitmask,
     required int powerRecovery,
@@ -500,10 +503,16 @@ class MqttService {
       'id': scheduleId,
       'start': startTime,
       'end': endTime,
-      'dur': durationMinutes,
+      if (scheduleType == 1) ...{
+        'dur': durationMinutes,
+        'pwr_rec': powerRecovery,
+      },
+      if (scheduleType == 2) ...{
+        'on': cyclicOnMinutes,
+        'off': cyclicOffMinutes,
+      },
       'rep': repeat,
       'days': daysBitmask,
-      'pwr_rec': powerRecovery,
       'en': enabled,
     };
 
@@ -1086,7 +1095,8 @@ class MqttService {
     final idRaw = payloadData['id'];
     final statusRaw = payloadData['status'];
 
-    final schType = schTypeRaw is int ? schTypeRaw : int.tryParse('$schTypeRaw');
+    final schType =
+        schTypeRaw is int ? schTypeRaw : int.tryParse('$schTypeRaw');
     final scheduleId = idRaw is int ? idRaw : int.tryParse('$idRaw');
     final status = statusRaw is int ? statusRaw : int.tryParse('$statusRaw');
 

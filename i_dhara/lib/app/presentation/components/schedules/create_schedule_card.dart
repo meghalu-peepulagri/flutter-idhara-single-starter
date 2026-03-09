@@ -112,6 +112,10 @@ class ScheduleFormState extends State<ScheduleForm> {
                   onCyclicChanged: (v) => setState(() {
                     cyclicMode = v;
                     _cyclicController.value = v;
+                    if (v) {
+                      powerLossRecovery = false;
+                      _powerLossController.value = false;
+                    }
                   }),
                   onOnDecrement: () => setState(() {
                     if (cyclicOnMinutes > 5) cyclicOnMinutes -= 5;
@@ -132,6 +136,7 @@ class ScheduleFormState extends State<ScheduleForm> {
                   title: 'Power Loss Recovery',
                   subtitle: 'Auto-resume after power restored',
                   controller: _powerLossController,
+                  enabled: !cyclicMode,
                   onChanged: (v) => setState(() {
                     powerLossRecovery = v;
                     _powerLossController.value = v;

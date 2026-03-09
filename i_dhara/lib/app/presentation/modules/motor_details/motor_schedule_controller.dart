@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
-import 'package:i_dhara/app/data/models/devices/motor_model.dart' as motor_model;
+import 'package:i_dhara/app/data/models/devices/motor_model.dart'
+    as motor_model;
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
@@ -40,8 +41,19 @@ class MotorScheduleController extends GetxController {
   Future<void> fetchSchedules() async {
     isLoading.value = true;
     try {
-      final response = await _scheduleRepo.getScheduleList(1, 50);
+      final response = await _scheduleRepo.getScheduleList(1, 10);
       schedules.value = response?.data?.records ?? [];
+    } catch (_) {
+      // silently fail
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> fetchacknowledgement() async {
+    isLoading.value = true;
+    try {
+      final response = await _scheduleRepo.scheduleAcknowledgement();
     } catch (_) {
       // silently fail
     } finally {

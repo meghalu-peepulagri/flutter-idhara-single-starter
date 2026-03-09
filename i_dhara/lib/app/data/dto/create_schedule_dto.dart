@@ -3,7 +3,10 @@ class CreateScheduleDto {
   final int starterId;
   final String scheduleType;
   final String startTime;
-  final String endTime;
+  final String? endTime;
+  final String? scheduleDate;
+  final int? cycleOnMinutes;
+  final int? cycleOffMinutes;
   final List<int> daysOfWeek;
   final int runtimeMinutes;
   final bool powerLossRecovery;
@@ -14,7 +17,10 @@ class CreateScheduleDto {
     required this.starterId,
     required this.scheduleType,
     required this.startTime,
-    required this.endTime,
+    this.endTime,
+    this.scheduleDate,
+    this.cycleOnMinutes,
+    this.cycleOffMinutes,
     required this.daysOfWeek,
     required this.runtimeMinutes,
     required this.powerLossRecovery,
@@ -27,7 +33,10 @@ class CreateScheduleDto {
       'starter_id': starterId,
       'schedule_type': scheduleType,
       'start_time': startTime,
+      if (scheduleDate != null) 'schedule_date': scheduleDate,
       'end_time': endTime,
+      if (cycleOnMinutes != null) 'cycle_on_minutes': cycleOnMinutes,
+      if (cycleOffMinutes != null) 'cycle_off_minutes': cycleOffMinutes,
       'days_of_week': daysOfWeek,
       'runtime_minutes': runtimeMinutes,
       'power_loss_recovery': powerLossRecovery,

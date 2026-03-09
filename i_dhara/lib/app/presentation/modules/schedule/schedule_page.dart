@@ -58,15 +58,25 @@ class _SchedulePageState extends State<SchedulePage> {
 
   bool _scheduleCreated = false;
 
+  String _todayDate() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
   // Called by dialog onConfirm — POST API first, then MQTT on success
   Future<bool> _createSchedule() async {
     final form = _formKey.currentState!;
+    final isCyclic = form.cyclicMode;
+
     final dto = CreateScheduleDto(
       motorId: SharedPreference.getMotorId(),
       starterId: SharedPreference.getStarterId(),
-      scheduleType: form.cyclicMode ? 'cyclic' : 'one_time',
+      scheduleType: (isCyclic && form.repeatWeekly) ? 'CYCLIC' : 'TIME_BASED',
       startTime: formatTime24h(form.startTime),
-      endTime: formatTime24h(form.endTime),
+      endTime: isCyclic ? null : formatTime24h(form.endTime),
+      scheduleDate: isCyclic ? _todayDate() : null,
+      cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
+      cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
       daysOfWeek: form.selectedDays.toList()..sort(),
       runtimeMinutes: form.durationMinutes,
       powerLossRecovery: form.powerLossRecovery,
@@ -88,11 +98,13 @@ class _SchedulePageState extends State<SchedulePage> {
       try {
         await _mqttService.publishScheduleCommand(
           identifier: id,
-          scheduleType: form.cyclicMode ? 2 : 1,
+          scheduleType: (isCyclic && form.repeatWeekly) ? 2 : 1,
           scheduleId: 1,
           startTime: formatTime24h(form.startTime),
           endTime: formatTime24h(form.endTime),
           durationMinutes: form.durationMinutes,
+          cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
+          cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
           repeat: form.repeatWeekly ? 1 : 0,
           daysBitmask: buildDaysBitmask(form.selectedDays),
           powerRecovery: form.powerLossRecovery ? 1 : 0,

@@ -18,47 +18,51 @@ Widget buildScheduleToggle({
   required String subtitle,
   required ValueNotifier<bool> controller,
   required ValueChanged<bool> onChanged,
+  bool enabled = true,
 }) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFE5E7EB)),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, size: 18, color: const Color(0xFF6B7280)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF0F172A))),
-              const SizedBox(height: 4),
-              Text(subtitle,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF64748B))),
-            ],
+  return Opacity(
+    opacity: enabled ? 1.0 : 0.4,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF6B7280)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF0F172A))),
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF64748B))),
+              ],
+            ),
           ),
-        ),
-        AdvancedSwitch(
-          controller: controller,
-          activeColor: const Color(0xFF34C759),
-          inactiveColor: const Color(0xFFE0E0E0),
-          borderRadius: const BorderRadius.all(Radius.circular(15)),
-          width: 46,
-          height: 24,
-          enabled: true,
-          onChanged: (v) => onChanged(v as bool),
-        ),
-      ],
+          AdvancedSwitch(
+            controller: controller,
+            activeColor: const Color(0xFF34C759),
+            inactiveColor: const Color(0xFFE0E0E0),
+            borderRadius: const BorderRadius.all(Radius.circular(15)),
+            width: 46,
+            height: 24,
+            enabled: enabled,
+            onChanged: enabled ? (v) => onChanged(v as bool) : null,
+          ),
+        ],
+      ),
     ),
   );
 }

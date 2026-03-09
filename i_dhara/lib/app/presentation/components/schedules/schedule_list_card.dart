@@ -19,7 +19,11 @@ class ScheduleCard extends StatelessWidget {
     final isActive = status.toLowerCase() == 'active' ||
         status.toLowerCase() == 'pending' ||
         status.toLowerCase() == 'scheduled';
-    final isOneTime = record.scheduleType?.toLowerCase() == 'one_time';
+    final isCyclic = record.scheduleType?.toLowerCase() == 'cyclic';
+    final isRepeated = record.repeat == 1;
+    final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
+    final offMin =
+        isCyclic ? (record.cycleOffMinutes as num?)?.toInt() ?? 0 : 0;
     final switchController = ValueNotifier<bool>(isActive);
 
     return Container(
@@ -71,64 +75,146 @@ class ScheduleCard extends StatelessWidget {
           ),
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.timer_outlined,
-                            size: 13, color: Color(0xFF57636C)),
-                        const SizedBox(width: 4),
-                        Text('Runtime',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: const Color(0xFF94A3B8),
-                              fontWeight: FontWeight.w500,
-                            )),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text('${dH}h ${dM.toString().padLeft(2, '0')}m',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 14,
+              // Duration (always on the left)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timer_outlined,
+                          size: 13, color: Color(0xFF57636C)),
+                      const SizedBox(width: 4),
+                      Text('Duration',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: const Color(0xFF94A3B8),
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1A1A2E))),
-                  ],
-                ),
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('${dH}h ${dM.toString().padLeft(2, '0')}m',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF1A1A2E))),
+                ],
               ),
-
-              // const Spacer(),
-              const SizedBox(width: 50),
-              const Expanded(child: SizedBox()),
-              // Time type
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.calendar_today_outlined,
-                            size: 13, color: Color(0xFF57636C)),
-                        const SizedBox(width: 4),
-                        Text('Time',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: const Color(0xFF94A3B8),
-                              fontWeight: FontWeight.w500,
-                            )),
-                      ],
-                    ),
+              Container(
+                width: 1,
+                height: 36,
+                color: const Color(0xFFECECEC),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              // Center section: ON+OFF for cyclic, empty for time-based
+              if (isCyclic)
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ON
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFF34C759),
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Text('ON',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: const Color(0xFF94A3B8),
+                                    fontWeight: FontWeight.w500,
+                                  )),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text('${onMin}min',
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF34C759))),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      // OFF
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFFEF4444),
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Text('OFF',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: const Color(0xFF94A3B8),
+                                    fontWeight: FontWeight.w500,
+                                  )),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text('${offMin}min',
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFEF4444))),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const Expanded(child: SizedBox()),
+              Container(
+                width: 1,
+                height: 36,
+                color: const Color(0xFFECECEC),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              // Type + Repeat
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isCyclic ? 'Cyclic' : 'Time Based',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1A1A2E))),
+                  if (isRepeated) ...[
                     const SizedBox(height: 4),
-                    Text(isOneTime ? 'One Time' : 'Time Based',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1A1A2E))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEBF3FE),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text('Weekly',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF004E7E))),
+                    ),
                   ],
-                ),
+                ],
               ),
             ],
           ),
