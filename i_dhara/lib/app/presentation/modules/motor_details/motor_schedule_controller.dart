@@ -5,10 +5,10 @@ import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart'
     as motor_model;
-import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class MotorScheduleController extends GetxController {
@@ -18,13 +18,16 @@ class MotorScheduleController extends GetxController {
 
   var schedules = <Record>[].obs;
   var isLoading = true.obs;
-
-  MotorDetails? motorDetails;
+  var isRefreshing = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     fetchSchedules();
+    _listenScheduleAck();
+    ever(Get.find<AnalyticsController>().selectedTabIndex, (int index) {
+      if (index == 1) fetchSchedules();
+    });
   }
 
   @override
@@ -33,13 +36,12 @@ class MotorScheduleController extends GetxController {
     super.onClose();
   }
 
-  void setMotorDetails(MotorDetails? details) {
-    motorDetails = details;
-    _listenScheduleAck();
-  }
-
-  Future<void> fetchSchedules() async {
-    isLoading.value = true;
+  Future<void> fetchSchedules({bool isRefresh = false}) async {
+    if (isRefresh) {
+      isRefreshing.value = true;
+    } else {
+      isLoading.value = true;
+    }
     try {
       final response = await _scheduleRepo.getScheduleList(1, 10);
       schedules.value = response?.data?.records ?? [];
@@ -47,13 +49,14 @@ class MotorScheduleController extends GetxController {
       // silently fail
     } finally {
       isLoading.value = false;
+      isRefreshing.value = false;
     }
   }
 
   Future<void> fetchacknowledgement() async {
     isLoading.value = true;
     try {
-      final response = await _scheduleRepo.scheduleAcknowledgement();
+      await _scheduleRepo.scheduleAcknowledgement();
     } catch (_) {
       // silently fail
     } finally {
@@ -77,7 +80,7 @@ class MotorScheduleController extends GetxController {
   }
 
   void navigateToCreateSchedule() {
-    final details = motorDetails;
+    final details = Get.find<AnalyticsController>().motorDetails.value;
     final motor = motor_model.Motor(
       id: details?.id,
       name: details?.name,
@@ -101,7 +104,7 @@ class MotorScheduleController extends GetxController {
   }
 
   String _resolveIdentifier() {
-    final starter = motorDetails?.starter;
+    final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
     final mac = starter?.macAddress?.trim() ?? '';
     if (mac.isNotEmpty) return mac;
     return starter?.pcbNumber?.trim() ?? '';

@@ -166,7 +166,7 @@ class MotorControlWidget extends StatelessWidget {
   Widget _buildTabContent(BuildContext context) {
     return switch (controller.selectedTabIndex.value) {
       0 => MotorModeTab(controller: controller),
-      1 => MotorScheduleTab(motorDetails: controller.motorDetails.value),
+      1 => const MotorScheduleTab(),
       2 => MotorRuntimeTab(controller: controller),
       3 => MotorLogsTab(initialFilter: controller.logFilter.value),
       _ => MotorRuntimeTab(controller: controller),

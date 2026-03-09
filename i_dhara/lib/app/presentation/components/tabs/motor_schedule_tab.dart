@@ -2,61 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class MotorScheduleTab extends StatelessWidget {
-  final MotorDetails? motorDetails;
-  const MotorScheduleTab({super.key, this.motorDetails});
+  const MotorScheduleTab({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(MotorScheduleController());
-    controller.setMotorDetails(motorDetails);
 
     return Stack(
       children: [
         Obx(() {
           final isLoading = controller.isLoading.value;
+          final isRefreshing = controller.isRefreshing.value;
           final schedules = controller.schedules;
           final totalRecords = schedules.length;
 
+          // First load — show lottie
           if (isLoading) {
             return const Padding(
               padding: EdgeInsets.only(bottom: 50, right: 50),
               child: Center(child: AppLottieLoading()),
             );
           }
+
           if (schedules.isEmpty) {
             return _buildEmptyState();
           }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
-                child: Text(
-                  '$totalRecords / $totalRecords schedules',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF57636C),
+
+          return Skeletonizer(
+            enabled: isRefreshing,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                  child: Text(
+                    '$totalRecords / $totalRecords schedules',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF57636C),
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
-                  itemCount: schedules.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => ScheduleCard(
-                    record: schedules[i],
-                    onDelete: controller.fetchDeleteSchedule,
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
+                    itemCount: schedules.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) => ScheduleCard(
+                      record: schedules[i],
+                      onDelete: controller.fetchDeleteSchedule,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         }),
         Positioned(

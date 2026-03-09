@@ -16,6 +16,7 @@ import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
