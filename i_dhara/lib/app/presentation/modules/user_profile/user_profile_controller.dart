@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:i_dhara/app/data/models/user_profile/user_profile_model.dart';
 import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -16,6 +17,8 @@ class UserProfileController extends GetxController with ConnectivityMixin {
   final Rxn<UserProfile> userProfile = Rxn<UserProfile>();
   final isLoading = true.obs;
   final isRefreshing = false.obs;
+  final appVersion = ''.obs;
+  final appBuildNumber = ''.obs;
 
   @override
   Future<void> onRetry() async {
@@ -26,7 +29,14 @@ class UserProfileController extends GetxController with ConnectivityMixin {
   @override
   void onInit() {
     fetchUserProfile();
+    _fetchAppVersion();
     super.onInit();
+  }
+
+  Future<void> _fetchAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    appVersion.value = info.version;
+    appBuildNumber.value = info.buildNumber;
   }
 
   Future<void> onRefresh() async {

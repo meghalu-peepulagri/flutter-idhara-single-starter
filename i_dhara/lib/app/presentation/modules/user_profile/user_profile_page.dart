@@ -117,6 +117,8 @@ class ProfileWidget extends StatelessWidget {
                                 await controller.fetchFcmToken();
                               },
                             ),
+                            const SizedBox(height: 32),
+                            _AppVersionInfo(controller: controller),
                           ],
                         ),
                       ),
@@ -623,6 +625,34 @@ class _LogoutButtonState extends State<_LogoutButton> {
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App Version Info
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AppVersionInfo extends StatelessWidget {
+  final UserProfileController controller;
+  const _AppVersionInfo({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final version = controller.appVersion.value;
+      final build = controller.appBuildNumber.value;
+      if (version.isEmpty) return const SizedBox.shrink();
+      return Center(
+        child: Text(
+          'Version $version (Build $build)',
+          style: GoogleFonts.dmSans(
+            color: _kSubtext,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    });
   }
 }
 
