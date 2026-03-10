@@ -162,9 +162,9 @@ class MotorScheduleController extends GetxController {
 
   // --- Navigation ---
 
-  void navigateToCreateSchedule() {
+  motor_model.Motor _buildMotorFromDetails() {
     final details = Get.find<AnalyticsController>().motorDetails.value;
-    final motor = motor_model.Motor(
+    return motor_model.Motor(
       id: details?.id,
       name: details?.name,
       aliasName: details?.aliasName,
@@ -178,9 +178,24 @@ class MotorScheduleController extends GetxController {
             )
           : null,
     );
+  }
+
+  void navigateToCreateSchedule() {
     Get.toNamed(
       Routes.schedule,
-      arguments: {'motor': motor},
+      arguments: {'motor': _buildMotorFromDetails()},
+    )?.then((_) {
+      fetchSchedules();
+    });
+  }
+
+  void navigateToEditSchedule(Record record) {
+    Get.toNamed(
+      Routes.schedule,
+      arguments: {
+        'motor': _buildMotorFromDetails(),
+        'record': record,
+      },
     )?.then((_) {
       fetchSchedules();
     });

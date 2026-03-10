@@ -60,6 +60,7 @@ class MotorScheduleTab extends StatelessWidget {
                       record: schedules[i],
                       onDelete: controller.deleteSchedule,
                       onToggle: controller.toggleSchedule,
+                      onEdit: controller.navigateToEditSchedule,
                     ),
                   ),
                 ),

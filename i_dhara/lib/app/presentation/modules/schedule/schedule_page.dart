@@ -8,6 +8,7 @@ import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_card.dart';
@@ -26,28 +27,41 @@ class _SchedulePageState extends State<SchedulePage> {
   final _mqttService = MqttService();
   late final ScheduleController _scheduleController;
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSub;
+  Completer<bool>? _ackCompleter;
   Motor? motor;
+  Record? _editRecord;
+  bool _isEditMode = false;
 
   @override
   void initState() {
     super.initState();
     _scheduleController = Get.put(ScheduleController());
     final args = Get.arguments;
-    if (args is Map<String, dynamic>) motor = args['motor'] as Motor?;
-    _scheduleAckSub = _mqttService.scheduleAckStream.listen((ack) {
-      if (!mounted) return;
-      final id = _resolveIdentifier();
-      final ackId = (ack['topic'] ?? '').toString();
-      if (id.isNotEmpty && ackId != id) return;
-      (ack['status'] as int? ?? 0) == 1
-          ? getsuccessSnackBar('Schedule updated successfully')
-          : geterrorSnackBar('Schedule update failed');
-    });
+    if (args is Map<String, dynamic>) {
+      motor = args['motor'] as Motor?;
+      _editRecord = args['record'] as Record?;
+      _isEditMode = _editRecord != null;
+    }
+    if (_isEditMode) {
+      _scheduleAckSub = _mqttService.scheduleAckStream.listen((ack) {
+        if (!mounted) return;
+        final currentId = _resolveIdentifier();
+        final ackId = (ack['topic'] ?? '').toString();
+        if (currentId.isNotEmpty && ackId != currentId) return;
+        final status = ack['status'] as int? ?? 0;
+        if (_ackCompleter != null && !_ackCompleter!.isCompleted) {
+          _ackCompleter!.complete(status == 1);
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     _scheduleAckSub?.cancel();
+    if (_ackCompleter != null && !_ackCompleter!.isCompleted) {
+      _ackCompleter!.complete(false);
+    }
     super.dispose();
   }
 
@@ -56,19 +70,16 @@ class _SchedulePageState extends State<SchedulePage> {
     return mac.isNotEmpty ? mac : (motor?.starter?.pcbNumber?.trim() ?? '');
   }
 
-  bool _scheduleCreated = false;
+  bool _scheduleSaved = false;
 
   String _todayDate() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
-  // Called by dialog onConfirm — POST API first, then MQTT on success
-  Future<bool> _createSchedule() async {
-    final form = _formKey.currentState!;
+  CreateScheduleDto _buildDto(ScheduleFormState form) {
     final isCyclic = form.cyclicMode;
-
-    final dto = CreateScheduleDto(
+    return CreateScheduleDto(
       motorId: SharedPreference.getMotorId(),
       starterId: SharedPreference.getStarterId(),
       scheduleType: (isCyclic && form.repeatWeekly) ? 'CYCLIC' : 'TIME_BASED',
@@ -86,20 +97,25 @@ class _SchedulePageState extends State<SchedulePage> {
       repeat: form.repeatWeekly ? 1 : 0,
       enabled: true,
     );
+  }
+
+  Future<bool> _createSchedule() async {
+    final form = _formKey.currentState!;
+    final dto = _buildDto(form);
 
     final response = await _scheduleController.createSchedule(dto: dto);
     if (response == null) {
       geterrorSnackBar(
           _scheduleController.message ?? 'Failed to create schedule');
-      return false; // keep dialog open
+      return false;
     }
 
     SharedPreference.setscheduleid(response.data?.id ?? 0);
     getsuccessSnackBar(response.message ?? 'Schedule created successfully');
 
-    // Publish MQTT only after API success
     final id = _resolveIdentifier();
     if (id.isNotEmpty) {
+      final isCyclic = form.cyclicMode;
       try {
         await _mqttService.publishScheduleCommand(
           identifier: id,
@@ -120,36 +136,104 @@ class _SchedulePageState extends State<SchedulePage> {
       }
     }
 
-    _scheduleCreated = true;
-    return true; // dialog closes itself, then _onSaveTapped navigates
+    _scheduleSaved = true;
+    return true;
+  }
+
+  Future<bool> _updateSchedule() async {
+    final form = _formKey.currentState!;
+    final id = _resolveIdentifier();
+
+    // Step 1: Publish MQTT T:23 — dialog stays loading while we await ACK
+    _ackCompleter = Completer<bool>();
+    final isCyclic = form.cyclicMode;
+    try {
+      await _mqttService.publishScheduleCommand(
+        identifier: id,
+        scheduleType: (isCyclic && form.repeatWeekly) ? 2 : 1,
+        scheduleId: _editRecord?.scheduleId ?? 1,
+        startTime: formatTime24h(form.startTime),
+        endTime: formatTime24h(form.endTime),
+        durationMinutes: form.durationMinutes,
+        cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
+        cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
+        repeat: form.repeatWeekly ? 1 : 0,
+        daysBitmask: buildDaysBitmask(form.selectedDays),
+        powerRecovery: form.powerLossRecovery ? 1 : 0,
+        enabled: 1,
+      );
+    } catch (e) {
+      _ackCompleter = null;
+      geterrorSnackBar('MQTT failed: $e');
+      return false;
+    }
+
+    // Step 2: Wait for T:54 ACK — dialog still loading (30s timeout)
+    final ackSuccess = await _ackCompleter!.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        _ackCompleter = null;
+        return false;
+      },
+    );
+    _ackCompleter = null;
+
+    if (!ackSuccess) {
+      geterrorSnackBar('No response from device. Please try again.');
+      return false; // stops dialog loading, keeps dialog open
+    }
+
+    // Step 3: ACK success → call PATCH API
+    SharedPreference.setscheduleid(_editRecord?.id ?? 0);
+    final dto = _buildDto(form);
+    final response = await _scheduleController.updateSchedule(dto: dto);
+    if (response == null) {
+      geterrorSnackBar(
+          _scheduleController.message ?? 'Failed to update schedule');
+      return false;
+    }
+
+    getsuccessSnackBar(response.message ?? 'Schedule updated successfully');
+    _scheduleSaved = true;
+    return true; // dialog closes, _onSaveTapped navigates back
   }
 
   void _onSaveTapped() async {
     final form = _formKey.currentState;
     if (form == null) return;
-    _scheduleCreated = false;
+    _scheduleSaved = false;
     final isCyclic = form.cyclicMode;
     await showScheduleConfirmDialog(
       context: context,
-      typeLabel: (isCyclic && form.repeatWeekly)
-          ? 'Cyclic'
-          : isCyclic
-              ? 'Time Based'
-              : 'Time Based',
+      typeLabel: (isCyclic && form.repeatWeekly) ? 'Cyclic' : 'Time Based',
       startTime: formatTime24h(form.startTime),
       endTime: formatTime24h(form.endTime),
       duration: form.durationText,
       powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
-      onConfirm: _createSchedule,
+      onConfirm: _isEditMode ? _updateSchedule : _createSchedule,
     );
-    // Navigate back to motor details after dialog closes on success
-    if (_scheduleCreated && mounted) Navigator.of(context).pop(true);
+    if (_scheduleSaved && mounted) Navigator.of(context).pop(true);
+  }
+
+  (int, int) _parseTime(String? time) {
+    if (time == null) return (0, 0);
+    final parts = time.split(':');
+    if (parts.length < 2) return (0, 0);
+    return (int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
   }
 
   @override
   Widget build(BuildContext context) {
     final name = motor?.aliasName ?? motor?.name ?? 'Motor';
     final displayName = name.length > 20 ? '${name.substring(0, 20)}...' : name;
+
+    final record = _editRecord;
+    // cyclic=true + repeat=true  → scheduleType='CYCLIC'
+    // cyclic=true + repeat=false → scheduleType='TIME_BASED' but cycleOnMinutes is set
+    final isCyclic = record?.scheduleType?.toLowerCase() == 'cyclic' ||
+        record?.cycleOnMinutes != null;
+    final (sh, sm) = _parseTime(record?.startTime);
+    final (eh, em) = _parseTime(record?.endTime);
 
     return Scaffold(
       backgroundColor: const Color(0xFFEBF3FE),
@@ -162,6 +246,23 @@ class _SchedulePageState extends State<SchedulePage> {
                 key: _formKey,
                 onSave: _onSaveTapped,
                 onBack: () => Get.back(),
+                initialStartHour: record != null ? sh : null,
+                initialStartMinute: record != null ? sm : null,
+                initialEndHour: record != null ? eh : null,
+                initialEndMinute: record != null ? em : null,
+                initialDays: record?.daysOfWeek != null
+                    ? Set<int>.from(record!.daysOfWeek!)
+                    : null,
+                initialCyclicMode: record != null ? isCyclic : null,
+                initialCyclicOnMinutes: record != null
+                    ? (record.cycleOnMinutes as num?)?.toInt()
+                    : null,
+                initialCyclicOffMinutes: record != null
+                    ? (record.cycleOffMinutes as num?)?.toInt()
+                    : null,
+                initialPowerLossRecovery: record?.powerLossRecovery,
+                initialRepeatWeekly:
+                    record != null ? (record.repeat == 1) : null,
               ),
             ),
           ],
@@ -178,21 +279,12 @@ class _SchedulePageState extends State<SchedulePage> {
         alignment: Alignment.center,
         children: [
           Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Create Schedule',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E))),
-                // const SizedBox(height: 2),
-                // Text(displayName,
-                //     style: GoogleFonts.dmSans(
-                //         fontSize: 12,
-                //         fontWeight: FontWeight.w400,
-                //         color: const Color(0xFF57636C))),
-              ],
+            child: Text(
+              _isEditMode ? 'Edit Schedule' : 'Create Schedule',
+              style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF004E7E)),
             ),
           ),
           Align(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
 import 'package:i_dhara/app/data/models/schedules/create_schedule_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_update_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
 
 class ScheduleController extends GetxController {
@@ -37,6 +38,28 @@ class ScheduleController extends GetxController {
       } else {
         message = response?.errors?.daysOfWeek ?? 'Failed to create schedule';
         errorInstance = response?.toJson() ?? {};
+        return null;
+      }
+    } catch (e) {
+      isLoading.value = false;
+      message = 'Error: $e';
+      return null;
+    }
+  }
+
+  Future<ScheduleUpdateResponse?> updateSchedule({
+    required CreateScheduleDto dto,
+  }) async {
+    isLoading.value = true;
+    try {
+      final response = await _scheduleRepo.scheduleupdate(dto);
+      isLoading.value = false;
+
+      if (response != null && response.success == true) {
+        message = response.message;
+        return response;
+      } else {
+        message = response?.message ?? 'Failed to update schedule';
         return null;
       }
     } catch (e) {

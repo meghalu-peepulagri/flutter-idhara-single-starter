@@ -8,10 +8,32 @@ class ScheduleForm extends StatefulWidget {
   final VoidCallback onSave;
   final VoidCallback onBack;
 
+  // Optional initial values for edit mode
+  final int? initialStartHour;
+  final int? initialStartMinute;
+  final int? initialEndHour;
+  final int? initialEndMinute;
+  final Set<int>? initialDays;
+  final bool? initialCyclicMode;
+  final int? initialCyclicOnMinutes;
+  final int? initialCyclicOffMinutes;
+  final bool? initialPowerLossRecovery;
+  final bool? initialRepeatWeekly;
+
   const ScheduleForm({
     super.key,
     required this.onSave,
     required this.onBack,
+    this.initialStartHour,
+    this.initialStartMinute,
+    this.initialEndHour,
+    this.initialEndMinute,
+    this.initialDays,
+    this.initialCyclicMode,
+    this.initialCyclicOnMinutes,
+    this.initialCyclicOffMinutes,
+    this.initialPowerLossRecovery,
+    this.initialRepeatWeekly,
   });
 
   @override
@@ -19,18 +41,18 @@ class ScheduleForm extends StatefulWidget {
 }
 
 class ScheduleFormState extends State<ScheduleForm> {
-  final Set<int> selectedDays = {};
+  late final Set<int> selectedDays;
 
-  int startHour = 0;
-  int startMinute = 0;
-  int endHour = 0;
-  int endMinute = 0;
+  late int startHour;
+  late int startMinute;
+  late int endHour;
+  late int endMinute;
 
-  bool cyclicMode = false;
-  int cyclicOnMinutes = 20;
-  int cyclicOffMinutes = 15;
-  bool powerLossRecovery = false;
-  bool repeatWeekly = false;
+  late bool cyclicMode;
+  late int cyclicOnMinutes;
+  late int cyclicOffMinutes;
+  late bool powerLossRecovery;
+  late bool repeatWeekly;
 
   late final ValueNotifier<bool> _cyclicController;
   late final ValueNotifier<bool> _powerLossController;
@@ -39,6 +61,16 @@ class ScheduleFormState extends State<ScheduleForm> {
   @override
   void initState() {
     super.initState();
+    selectedDays = Set<int>.from(widget.initialDays ?? {});
+    startHour = widget.initialStartHour ?? 0;
+    startMinute = widget.initialStartMinute ?? 0;
+    endHour = widget.initialEndHour ?? 0;
+    endMinute = widget.initialEndMinute ?? 0;
+    cyclicMode = widget.initialCyclicMode ?? false;
+    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
+    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
+    powerLossRecovery = widget.initialPowerLossRecovery ?? false;
+    repeatWeekly = widget.initialRepeatWeekly ?? false;
     _cyclicController = ValueNotifier(cyclicMode);
     _powerLossController = ValueNotifier(powerLossRecovery);
     _repeatController = ValueNotifier(repeatWeekly);

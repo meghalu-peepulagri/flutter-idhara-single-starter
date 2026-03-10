@@ -9,8 +9,13 @@ class ScheduleCard extends StatelessWidget {
   final Record record;
   final Future<bool> Function(Record record)? onDelete;
   final void Function(Record record, bool enabled)? onToggle;
+  final void Function(Record record)? onEdit;
   const ScheduleCard(
-      {super.key, required this.record, this.onDelete, this.onToggle});
+      {super.key,
+      required this.record,
+      this.onDelete,
+      this.onToggle,
+      this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -279,8 +284,24 @@ class ScheduleCard extends StatelessWidget {
                 child: GestureDetector(
                   onTap: () {
                     final newValue = !switchController.value;
-                    switchController.value = newValue;
-                    onToggle?.call(record, newValue);
+                    showDialog(
+                      context: context,
+                      builder: (dialogCtx) => PopupDialog(
+                        title: newValue ? 'Restart Schedule' : 'Stop Schedule',
+                        description: newValue
+                            ? 'Do you want to Restart this schedule?'
+                            : 'Do you want to Stop this schedule?',
+                        iconAssetPath: 'assets/images/schedule.svg',
+                        buttonlable: newValue ? 'Restart' : 'Stop',
+                        isactive: newValue,
+                        onDelete: () {
+                          Navigator.pop(dialogCtx);
+                          switchController.value = newValue;
+                          onToggle?.call(record, newValue);
+                        },
+                        onCancel: () => Navigator.pop(dialogCtx),
+                      ),
+                    );
                   },
                   child: AbsorbPointer(
                     child: AdvancedSwitch(
@@ -299,9 +320,7 @@ class ScheduleCard extends StatelessWidget {
               const Spacer(),
               InkWell(
                 borderRadius: BorderRadius.circular(6),
-                onTap: () {
-                  // TODO: edit schedule
-                },
+                onTap: () => onEdit?.call(record),
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
