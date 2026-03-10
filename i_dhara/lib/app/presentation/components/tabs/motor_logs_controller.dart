@@ -37,6 +37,17 @@ class MotorLogsController extends GetxController {
 
   var logsData = <LogResponse>[].obs;
 
+  // Multi-select filter state — stores display names e.g. {'Faults', 'PUMP ON'}
+  var selectedFilters = <String>{}.obs;
+
+  static const Map<String, String> _filterToLogType = {
+    'Faults': 'fault',
+    'Alerts': 'alert',
+    'PUMP ON': 'on',
+    'PUMP OFF': 'off',
+    'PUMP MODE': 'mode',
+  };
+
   @override
   void onInit() {
     super.onInit();
@@ -105,8 +116,47 @@ class MotorLogsController extends GetxController {
     totalPages.value = 1;
   }
 
+  Future<void> fetchLogsWithFilters(Set<String> filters,
+      {bool append = false}) async {
+    try {
+      if (!append) {
+        if (!isRefreshing.value) isLoading.value = true;
+        resetPagination();
+        motorLogsList.clear();
+      }
+
+      final logTypes =
+          filters.map((f) => _filterToLogType[f] ?? f.toLowerCase()).join(',');
+
+      final response =
+          await _motorRepo.getMotorLogs(page.value, limit.value, logTypes);
+
+      if (response != null &&
+          response.success == true &&
+          response.data?.records != null) {
+        if (append) {
+          motorLogsList.addAll(response.data!.records!);
+        } else {
+          motorLogsList.value = response.data!.records!;
+        }
+
+        if (response.data!.paginationInfo != null) {
+          currentPage.value =
+              response.data!.paginationInfo!.currentPage ?? page.value;
+          totalPages.value = response.data!.paginationInfo!.totalPages ?? 1;
+          hasMoreData.value = currentPage.value < totalPages.value;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching filtered logs: $e');
+    } finally {
+      isLoading.value = false;
+      isRefreshing.value = false;
+      isInitialLoading.value = false;
+    }
+  }
+
   Future<void> loadMoreData() async {
-    // Prevent multiple simultaneous calls
     if (isLoadingMore.value) return;
 
     if (currentPage.value >= totalPages.value) {
@@ -118,26 +168,17 @@ class MotorLogsController extends GetxController {
     page.value = currentPage.value + 1;
 
     try {
-      if (currentFilter.value == 'All' || currentFilter.value.isEmpty) {
+      if (selectedFilters.isEmpty) {
         await fetchAllLogs(append: true);
-      } else if (currentFilter.value == 'Faults') {
-        await fetchMotorFaults(append: true);
-      } else if (currentFilter.value == 'Alerts') {
-        await fetchMotorAlerts(append: true);
-      } else if (_isPumpFilter(currentFilter.value)) {
-        await fetchMotorLogs(currentFilter.value, append: true);
+      } else {
+        await fetchLogsWithFilters(selectedFilters.toSet(), append: true);
       }
     } catch (e) {
       debugPrint('Error loading more data: $e');
-      // Revert page on error
       page.value = currentPage.value;
     } finally {
       isLoadingMore.value = false;
     }
-  }
-
-  bool _isPumpFilter(String filter) {
-    return filter == 'ON' || filter == 'OFF' || filter == 'MODE';
   }
 
   Future<void> fetchMotorFaults({bool append = false}) async {
@@ -292,31 +333,21 @@ class MotorLogsController extends GetxController {
   Future<void> refreshLocations() async {
     isRefreshing.value = true;
     resetPagination();
-
-    if (currentFilter.value == 'All' || currentFilter.value.isEmpty) {
+    if (selectedFilters.isEmpty) {
       await fetchAllLogs();
-    } else if (currentFilter.value == 'Faults') {
-      await fetchMotorFaults();
-    } else if (currentFilter.value == 'Alerts') {
-      await fetchMotorAlerts();
-    } else if (_isPumpFilter(currentFilter.value)) {
-      await fetchMotorLogs(currentFilter.value);
+    } else {
+      await fetchLogsWithFilters(selectedFilters.toSet());
     }
   }
 
   Future<void> refreshCurrentTab() async {
     isRefreshing.value = true;
     resetPagination();
-
     try {
-      if (currentFilter.value == 'All' || currentFilter.value.isEmpty) {
+      if (selectedFilters.isEmpty) {
         await fetchAllLogs();
-      } else if (currentFilter.value == 'Faults') {
-        await fetchMotorFaults();
-      } else if (currentFilter.value == 'Alerts') {
-        await fetchMotorAlerts();
-      } else if (_isPumpFilter(currentFilter.value)) {
-        await fetchMotorLogs(currentFilter.value);
+      } else {
+        await fetchLogsWithFilters(selectedFilters.toSet());
       }
     } finally {
       isRefreshing.value = false;

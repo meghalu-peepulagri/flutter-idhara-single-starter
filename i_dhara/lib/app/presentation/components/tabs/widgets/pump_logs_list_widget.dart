@@ -6,12 +6,13 @@ import 'package:intl/intl.dart';
 
 class PumpLogsListWidget extends StatelessWidget {
   final List<MotorLogs> logs;
+  // Empty string means multi-filter: derive color/icon per-log from log.action
   final String filterType;
 
   const PumpLogsListWidget({
     super.key,
     required this.logs,
-    required this.filterType,
+    this.filterType = '',
   });
 
   @override
@@ -35,8 +36,11 @@ class PumpLogsListWidget extends StatelessWidget {
   Widget _buildPumpLogCard(MotorLogs log) {
     final String message = log.message ?? 'No message';
     final DateTime? createdAt = log.createdAt;
-    final Color typeColor = _getFilterColor(filterType);
-    final IconData typeIcon = _getPumpIcon(filterType);
+    // When filterType is empty (multi-select), derive color/icon from each log's action
+    final String colorKey =
+        filterType.isNotEmpty ? filterType : (log.action?.toUpperCase() ?? '');
+    final Color typeColor = _getFilterColor(colorKey);
+    final IconData typeIcon = _getPumpIcon(colorKey);
 
     return IntrinsicHeight(
       child: Row(
@@ -125,13 +129,18 @@ class PumpLogsListWidget extends StatelessWidget {
   Color _getFilterColor(String filter) {
     switch (filter) {
       case 'Faults':
+      case 'FAULT':
         return const Color(0xFFEF4444);
       case 'Alerts':
+      case 'ALERT':
         return const Color(0xFFF59E0B);
+      case 'PUMP ON':
       case 'ON':
         return const Color(0xFF10B981);
+      case 'PUMP OFF':
       case 'OFF':
         return const Color(0xFFEF4444);
+      case 'PUMP MODE':
       case 'MODE':
         return const Color(0xFF8B5CF6);
       default:
@@ -141,12 +150,21 @@ class PumpLogsListWidget extends StatelessWidget {
 
   IconData _getPumpIcon(String filter) {
     switch (filter) {
+      case 'PUMP ON':
       case 'ON':
         return Icons.power_settings_new;
+      case 'PUMP OFF':
       case 'OFF':
         return Icons.power_off;
+      case 'PUMP MODE':
       case 'MODE':
         return Icons.refresh;
+      case 'Faults':
+      case 'FAULT':
+        return Icons.warning_amber_outlined;
+      case 'Alerts':
+      case 'ALERT':
+        return Icons.notifications_outlined;
       default:
         return Icons.info_outline;
     }

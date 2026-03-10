@@ -91,17 +91,15 @@ class MotorsRepositoryImpl implements MotorsRepository {
 
   @override
   Future<MotorLogsResponse?> getMotorLogs(
-      int? page, int? limit, String action) async {
+      int? page, int? limit, String logTypes) async {
     Map<String, dynamic> params = {
-      'entity': 'MOTOR',
-      'entity_id': SharedPreference.getMotorId(),
-      'action': action,
+      'log_type': logTypes,
       'page': page,
       'page_size': 15,
-      'is_assigned': "true"
     };
-    final response =
-        await NetworkManager().get('/activities', queryParameters: params);
+    final response = await NetworkManager().get(
+        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/logs',
+        queryParameters: params);
     if (response.statusCode == 200) {
       final res = MotorLogsResponse.fromJson(response.data);
       return res;

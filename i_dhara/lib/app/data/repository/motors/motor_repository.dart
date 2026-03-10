@@ -12,6 +12,6 @@ abstract class MotorsRepository {
 
   Future<FaultsResponse?> getMotorFaults(int? page, int? limit);
   Future<MotorAlertsResponse?> getMotorAlerts(int? page, int? limit);
-  Future<MotorLogsResponse?> getMotorLogs(int? page, int? limit, String action);
+  Future<MotorLogsResponse?> getMotorLogs(int? page, int? limit, String logTypes);
   Future<AlllogsResponse?> getAllLogs(int? page, int? limit);
 }
