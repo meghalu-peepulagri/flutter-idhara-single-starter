@@ -19,6 +19,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
+import 'app/data/services/mqtt_manager/mqtt_service.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -210,6 +211,17 @@ void main() async {
 
     await FlutterFlowTheme.initialize();
     Get.put<ConnectivityService>(ConnectivityService(), permanent: true);
+
+    // If the user is already logged in (returning user), start the global MQTT
+    // connection immediately so it is live before Dashboard finishes loading.
+    if (SharedPreference.getAccessToken().isNotEmpty) {
+      MqttService().initializeMqttClient().then((_) {
+        debugPrint('Startup: Global MQTT connection established');
+      }).catchError((e) {
+        debugPrint('Startup: MQTT init failed: $e');
+      });
+    }
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,

@@ -171,6 +171,10 @@ extension AnalyticsControllerMqtt on AnalyticsController {
           print(
               'Signal Quality updated to ${motorData.signalStrength} (bars=${motorData.signalBars})');
         }
+      } else {
+        // Signal is stale — fall back to API value, matching dashboard behavior
+        signalQuality.value =
+            motorDetails.value?.starter?.signalQuality ?? 0;
       }
     } else {
       if (kDebugMode) {

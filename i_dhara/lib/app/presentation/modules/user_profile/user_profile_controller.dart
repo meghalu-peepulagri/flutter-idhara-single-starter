@@ -6,6 +6,7 @@ import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../data/repository/auth/auth_repository_impl.dart';
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
 import '../../../data/services/storages/shared_preference.dart';
 import '../dashboard/dashboard_controller.dart';
 import '../devices/devices_controller.dart';
@@ -49,6 +50,9 @@ class UserProfileController extends GetxController with ConnectivityMixin {
   Future<void> fetchFcmToken() async {
     final response = await AuthRepositoryImpl().fetchlogout();
     if (response?.status == 200 || response?.status == 201) {
+      // Disconnect MQTT before clearing state so the broker connection is
+      // closed cleanly and the singleton is reset for the next login session.
+      MqttService().disconnectOnly();
       await SharedPreference.clear();
       FirebaseMessaging.instance.getToken().then((value) {
         SharedPreference.setFcmToken(value!);

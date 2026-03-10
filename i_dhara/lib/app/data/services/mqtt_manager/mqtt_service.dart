@@ -465,6 +465,26 @@ class MqttService {
     }
   }
 
+  /// Disconnect MQTT and reset all state without disposing ValueNotifiers.
+  /// Call this on logout so the singleton is ready for a fresh connection on
+  /// the next login. Do NOT call [dispose()] on logout — that destroys the
+  /// shared ValueNotifiers and breaks any active listeners.
+  void disconnectOnly() {
+    debugPrint('MQTT: disconnectOnly — cleaning up for logout');
+    for (var cmd in _pendingCommands.values) {
+      cmd.cancelTimer();
+    }
+    _pendingCommands.clear();
+    _testRunMotors.clear();
+    _mqttClient?.disconnect();
+    _mqttClient = null;
+    _messageListenerAttached = false;
+    isConnected = false;
+    _motors = {};
+    _motorDataMap.clear();
+    _dataUpdateNotifier.value++;
+  }
+
   /// Build motor data map from motors
   void _buildMotorDataMap() {
     _motorDataMap.clear();

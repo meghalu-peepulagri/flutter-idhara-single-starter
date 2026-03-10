@@ -60,8 +60,80 @@ class DashboardController extends GetxController with ConnectivityMixin {
   @override
   void onInit() {
     super.onInit();
-    _loadAllData();
     _requestPermissionAndLoad();
+    if (_canRestoreFromMqtt()) {
+      // MQTT is already connected with live motor data (e.g. navigating back
+      // from Motor Details). Restore the motor list from the singleton and
+      // skip the API call entirely — real-time updates come from MQTT.
+      _restoreFromMqtt();
+    } else {
+      // First load after login, after logout+login, or when MQTT has no data.
+      // Fetch motors from the API and then establish the MQTT connection.
+      _loadAllData();
+    }
+  }
+
+  /// Returns true when the MQTT singleton already holds a live connection with
+  /// motor data from a previous Dashboard session.
+  bool _canRestoreFromMqtt() {
+    final mqtt = MqttService();
+    return mqtt.isConnected && mqtt.motors.isNotEmpty;
+  }
+
+  /// Restore the motor list from the MQTT singleton without hitting the API.
+  ///
+  /// The MQTT service is a singleton that persists across controller instances.
+  /// Its [motors] map holds the full [Motor] objects updated in real time by
+  /// [_onMqttUpdate]. By reading those objects we get the latest state, mode,
+  /// voltage and current without a network round-trip.
+  ///
+  /// Crucially we do NOT call [MqttService(initialMotors: ...)] here because
+  /// that would rebuild [motorDataMap] and reset [hasReceivedData] to false on
+  /// every entry, losing live data. We only get the singleton reference and
+  /// attach a fresh listener.
+  Future<void> _restoreFromMqtt() async {
+    try {
+      isLoading.value = true;
+
+      // Deduplicate motors: the MQTT motor map stores 4 entries per motor
+      // (one per group G01–G04) pointing to the same Motor object.
+      final seen = <int>{};
+      final restored = <Motor>[];
+      for (final motor in MqttService().motors.values) {
+        if (motor.id != null && seen.add(motor.id!)) {
+          restored.add(motor);
+        }
+      }
+
+      allMotors.value = restored;
+      motors.value = restored.toList();
+
+      // Rebuild _motorIdToGroupId so toggleMotor / changeMotorMode work.
+      // We intentionally discard the returned map — the MQTT service already
+      // has its motorDataMap intact; rebuilding it would wipe live data.
+      _buildMotorMap(allMotors);
+
+      // Set pagination to a safe state: currentPage == totalPages prevents
+      // the scroll listener from firing an unintended loadMoreMotors call.
+      currentPage.value = 1;
+      totalPages.value = 1;
+
+      // Attach to the existing singleton connection.
+      if (mqttInitialized) {
+        mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
+      }
+      mqttService = MqttService(); // singleton reference — no rebuild
+      mqttInitialized = true;
+      mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
+
+      // Sync the UI immediately with whatever MQTT has already received.
+      _onMqttUpdate();
+
+      // Locations are needed for the filter dropdown — fast, non-critical.
+      await fetchLocationDropDown();
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   Future<void> refreshDashboard() async {
@@ -378,11 +450,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
         // Build motor map
         final motorMap = _buildMotorMap(allMotors);
 
-        // Always clean up the previous service's listener before replacing it.
-        // Without this, refreshDashboard() creates a new MqttService but the
-        // old one still holds the listener callback — and the new service never
-        // gets one, so real-time MQTT updates are silently dropped after any
-        // refresh call.
+        // Update the singleton motor map with the freshly fetched motors.
+        // If the listener was already registered (e.g. after a refresh), remove
+        // it first so we don't double-fire on every MQTT notification.
         if (mqttInitialized) {
           mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
         }
@@ -390,16 +460,22 @@ class DashboardController extends GetxController with ConnectivityMixin {
         mqttInitialized = true;
         mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
 
-        // Initialize MQTT in the background to avoid blocking the UI refresh
-        debugPrint('DASHBOARD: Initializing MQTT client...');
-        mqttService.initializeMqttClient().then((_) {
-          debugPrint('DASHBOARD: MQTT client initialized successfully');
-          if (motorMap.isNotEmpty) {
-            _onMqttUpdate();
-          }
-        }).catchError((e) {
-          debugPrint('DASHBOARD: MQTT initialization failed: $e');
-        });
+        if (mqttService.isConnected) {
+          // MQTT is already connected (global connection established at login
+          // or by a previous screen). Just sync the UI with current data.
+          debugPrint('DASHBOARD: MQTT already connected — reusing connection');
+          if (motorMap.isNotEmpty) _onMqttUpdate();
+        } else {
+          // Not connected yet (first launch or after logout+login). Establish
+          // the connection in the background so the UI is not blocked.
+          debugPrint('DASHBOARD: Initializing MQTT client...');
+          mqttService.initializeMqttClient().then((_) {
+            debugPrint('DASHBOARD: MQTT client initialized successfully');
+            if (motorMap.isNotEmpty) _onMqttUpdate();
+          }).catchError((e) {
+            debugPrint('DASHBOARD: MQTT initialization failed: $e');
+          });
+        }
       } else {
         errorMessage.value = 'Failed to load motors';
       }

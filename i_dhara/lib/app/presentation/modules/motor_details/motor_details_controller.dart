@@ -159,7 +159,10 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
     _mqttUpdateSubscription?.cancel();
     if (mqttInitialized) {
       mqttService.dataUpdateNotifier.removeListener(_onMqttDataUpdate);
-      mqttService.dispose();
+      // Do NOT call mqttService.dispose() — MQTT is a global singleton shared
+      // across Dashboard and Motor Details. Disposing here disconnects the
+      // broker connection for everyone. Cleanup happens only on logout via
+      // MqttService().disconnectOnly().
     }
     monthScrollController.dispose();
     controller.dispose();
