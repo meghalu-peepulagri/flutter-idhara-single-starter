@@ -121,6 +121,7 @@ class MotorScheduleController extends GetxController {
       if (status == 1) {
         getsuccessSnackBar('Schedule created successfully');
         fetchSchedules();
+        fetchacknowledgement();
       } else {
         geterrorSnackBar('Schedule creation failed');
       }

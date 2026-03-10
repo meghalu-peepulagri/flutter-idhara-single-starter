@@ -75,12 +75,16 @@ class _SchedulePageState extends State<SchedulePage> {
       startTime: formatTime24h(form.startTime),
       endTime: isCyclic ? null : formatTime24h(form.endTime),
       scheduleDate: isCyclic ? _todayDate() : null,
+      scheduleStartDate: null,
+      scheduleEndDate: null,
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
       daysOfWeek: form.selectedDays.toList()..sort(),
+      bitwiseDays: buildDaysBitmask(form.selectedDays),
       runtimeMinutes: form.durationMinutes,
       powerLossRecovery: form.powerLossRecovery,
       repeat: form.repeatWeekly ? 1 : 0,
+      enabled: true,
     );
 
     final response = await _scheduleController.createSchedule(dto: dto);
@@ -90,6 +94,7 @@ class _SchedulePageState extends State<SchedulePage> {
       return false; // keep dialog open
     }
 
+    SharedPreference.setscheduleid(response.data?.id ?? 0);
     getsuccessSnackBar(response.message ?? 'Schedule created successfully');
 
     // Publish MQTT only after API success
@@ -99,7 +104,7 @@ class _SchedulePageState extends State<SchedulePage> {
         await _mqttService.publishScheduleCommand(
           identifier: id,
           scheduleType: (isCyclic && form.repeatWeekly) ? 2 : 1,
-          scheduleId: 1,
+          scheduleId: response.data?.scheduleId ?? 1,
           startTime: formatTime24h(form.startTime),
           endTime: formatTime24h(form.endTime),
           durationMinutes: form.durationMinutes,

@@ -1,7 +1,7 @@
 import 'package:i_dhara/app/core/config/app_config.dart';
 import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
 import 'package:i_dhara/app/data/models/schedules/create_schedule_model.dart';
-import 'package:i_dhara/app/data/models/schedules/scedule_acknowledgement_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_acknowledgement_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_delete_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repository.dart';
@@ -43,7 +43,8 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
 
   @override
   Future<ScheduleAcknowledgement?> scheduleAcknowledgement() async {
-    final response = await NetworkManager().patch('/motor-schedules/1/ack');
+    final response = await NetworkManager()
+        .patch('/motor-schedules/${SharedPreference.getscheduleid()}/ack');
 
     if (response.statusCode == 200 ||
         response.statusCode == 422 ||
