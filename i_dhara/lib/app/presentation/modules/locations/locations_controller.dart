@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
@@ -27,7 +28,7 @@ class LocationsController extends GetxController with ConnectivityMixin {
   @override
   void onInit() {
     super.onInit();
-    fetchLocations();
+    fetchLocations(enableRetry: true);
     debounce<String>(
       searchQuery,
       (_) => fetchLocations(),
@@ -53,14 +54,23 @@ class LocationsController extends GetxController with ConnectivityMixin {
     super.onClose();
   }
 
-  Future<void> fetchLocations({String? search}) async {
+  Future<void> fetchLocations({String? search, bool enableRetry = false}) async {
     try {
       if (!isRefreshing.value) isLoading.value = true;
-      final response = await _locationRepo.getAllLocations(
-        page.value,
-        limit.value,
-        searchQuery.value.isEmpty ? null : searchQuery.value,
-      );
+      final response = enableRetry
+          ? await withRetry(
+              call: () => _locationRepo.getAllLocations(
+                page.value,
+                limit.value,
+                searchQuery.value.isEmpty ? null : searchQuery.value,
+              ),
+              isSuccess: (r) => r != null && r.success == true && r.data != null,
+            )
+          : await _locationRepo.getAllLocations(
+              page.value,
+              limit.value,
+              searchQuery.value.isEmpty ? null : searchQuery.value,
+            );
 
       if (response != null &&
           response.success == true &&

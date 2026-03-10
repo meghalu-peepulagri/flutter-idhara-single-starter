@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
@@ -95,11 +96,20 @@ class DevicesController extends GetxController with ConnectivityMixin {
         page.value = 1;
       }
 
-      final response = await _repository.getDevices(
-        page.value,
-        searchQuery.value.isEmpty ? null : searchQuery.value,
-        limit.value,
-      );
+      final response = isInitial
+          ? await withRetry(
+              call: () => _repository.getDevices(
+                page.value,
+                searchQuery.value.isEmpty ? null : searchQuery.value,
+                limit.value,
+              ),
+              isSuccess: (r) => r != null && r.data != null,
+            )
+          : await _repository.getDevices(
+              page.value,
+              searchQuery.value.isEmpty ? null : searchQuery.value,
+              limit.value,
+            );
 
       if (response != null && response.data != null) {
         final newList = response.data!.records ?? [];
@@ -183,7 +193,7 @@ class DevicesController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       // Handle error if needed
-      print("Error replacing location: $e");
+      debugPrint('Error replacing location: $e');
     } finally {
       isLocationReplacing.value = false;
     }

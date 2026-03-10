@@ -128,15 +128,20 @@ class NetworkManager {
               case 500:
                 geterrorSnackBar("Internal Server Error");
                 return error.response;
+              case 502:
+                geterrorSnackBar("Bad Gateway");
+                return error.response;
               case 555:
                 geterrorSnackBar(errorsMap["internal_server_error"]);
+                return error.response;
+              default:
+                geterrorSnackBar("Internal Server error");
                 return error.response;
             }
           } else {
             throw NetworkException("No response from server.");
           }
 
-          throw UnimplementedError();
         case DioExceptionType.cancel:
           throw UnimplementedError();
         case DioExceptionType.connectionError:

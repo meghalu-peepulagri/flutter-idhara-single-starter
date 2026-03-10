@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
@@ -97,18 +98,17 @@ class DashboardController extends GetxController with ConnectivityMixin {
         }
       } catch (e) {
         errorMessage.value = 'Error updating settings: $e';
-        print('Error updating user settings: $e');
+        debugPrint('Error updating user settings: $e');
       }
     } finally {
       await fetchUserSettings2();
     }
   }
-
   Future<void> _loadAllData() async {
     try {
       isLoading.value = true;
       await Future.wait([
-        fetchMotors(),
+        fetchMotors(enableRetry: true),
         fetchLocationDropDown(),
       ]);
     } finally {
@@ -163,6 +163,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
         '✓ Motor map: ${motorMap.length} entries for ${motorsList.length} motors');
     return motorMap;
   }
+
 
   Future<void> refreshMotors() async {
     isRefreshing.value = true;
@@ -261,7 +262,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error loading more: $e';
-      print('Error loading more motors: $e');
+      debugPrint('Error loading more motors: $e');
     } finally {
       isLoadingMore.value = false;
     }
@@ -304,7 +305,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
+      debugPrint('Error fetching user settings: $e');
     }
   }
 
@@ -320,7 +321,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
+      debugPrint('Error updating user settings: $e');
     }
   }
 
@@ -354,11 +355,16 @@ class DashboardController extends GetxController with ConnectivityMixin {
     return await updateTestRunStatus(motorId, TestRunStatus.completed);
   }
 
-  Future<void> fetchMotors() async {
+  Future<void> fetchMotors({bool enableRetry = false}) async {
     try {
-      final response =
-          await MotorsRepositoryImpl().getMotors(page.value, limit.value);
-      print("line 365 --> $response");
+      final response = enableRetry
+          ? await withRetry(
+              call: () =>
+                  MotorsRepositoryImpl().getMotors(page.value, limit.value),
+              isSuccess: (r) => r != null && r.data != null,
+            )
+          : await MotorsRepositoryImpl().getMotors(page.value, limit.value);
+      debugPrint('fetchMotors response: $response');
 
       if (response != null && response.data != null) {
         this.response = response.data;

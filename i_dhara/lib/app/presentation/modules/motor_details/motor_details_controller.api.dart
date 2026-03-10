@@ -213,12 +213,17 @@ extension AnalyticsControllerApi on AnalyticsController {
     }
   }
 
-  Future<void> fetchMotorDetails() async {
+  Future<void> fetchMotorDetails({bool enableRetry = false}) async {
     if (!isRefreshing.value) {
       isMotorDetailsLoading.value = true;
     }
     try {
-      final response = await MotorsRepositoryImpl().getMotorDetails();
+      final response = enableRetry
+          ? await withRetry(
+              call: () => MotorsRepositoryImpl().getMotorDetails(),
+              isSuccess: (r) => r != null && r.data != null,
+            )
+          : await MotorsRepositoryImpl().getMotorDetails();
 
       if (response != null && response.data != null) {
         motorDetails.value = response.data;
