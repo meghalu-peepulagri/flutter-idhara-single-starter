@@ -4,12 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
-import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 class ScheduleCard extends StatelessWidget {
   final Record record;
-  final VoidCallback? onDelete;
-  const ScheduleCard({super.key, required this.record, this.onDelete});
+  final Future<bool> Function(Record record)? onDelete;
+  final void Function(Record record, bool enabled)? onToggle;
+  const ScheduleCard(
+      {super.key, required this.record, this.onDelete, this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +278,9 @@ class ScheduleCard extends StatelessWidget {
                 height: 25,
                 child: GestureDetector(
                   onTap: () {
-                    // TODO: toggle schedule enable/disable
+                    final newValue = !switchController.value;
+                    switchController.value = newValue;
+                    onToggle?.call(record, newValue);
                   },
                   child: AbsorbPointer(
                     child: AdvancedSwitch(
@@ -315,18 +318,18 @@ class ScheduleCard extends StatelessWidget {
                 onTap: () {
                   showDialog(
                     context: context,
-                    builder: (_) => PopupDialog(
+                    barrierDismissible: false,
+                    builder: (dialogCtx) => PopupDialog(
                       title: 'Delete Schedule',
                       description:
                           'This schedule will be deleted permanently. Do you wish to go ahead?',
                       iconAssetPath: 'assets/images/schedule.svg',
                       buttonlable: 'Delete',
-                      onDelete: () {
-                        Navigator.pop(context);
-                        SharedPreference.setscheduleid(record.id ?? 0);
-                        onDelete?.call();
+                      onDelete: () async {
+                        await onDelete?.call(record);
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                       },
-                      onCancel: () => Navigator.pop(context),
+                      onCancel: () => Navigator.pop(dialogCtx),
                     ),
                   );
                 },

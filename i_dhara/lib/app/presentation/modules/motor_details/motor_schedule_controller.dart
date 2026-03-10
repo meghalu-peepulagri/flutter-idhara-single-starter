@@ -8,6 +8,7 @@ import 'package:i_dhara/app/data/models/devices/motor_model.dart'
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -15,16 +16,24 @@ class MotorScheduleController extends GetxController {
   final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
   final MqttService _mqttService = MqttService();
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
+  StreamSubscription<Map<String, dynamic>>? _scheduleActionAckSubscription;
 
   var schedules = <Record>[].obs;
   var isLoading = true.obs;
   var isRefreshing = false.obs;
+
+  // Track pending actions: scheduleId -> cmd (1=stop, 2=restart, 3=delete)
+  final _pendingActions = <int, int>{};
+
+  // Completers for delete: resolved when T:55 ACK arrives for cmd=3
+  final _deleteCompleters = <int, Completer<bool>>{};
 
   @override
   void onInit() {
     super.onInit();
     fetchSchedules();
     _listenScheduleAck();
+    _listenScheduleActionAck();
     ever(Get.find<AnalyticsController>().selectedTabIndex, (int index) {
       if (index == 1) fetchSchedules();
     });
@@ -33,6 +42,7 @@ class MotorScheduleController extends GetxController {
   @override
   void onClose() {
     _scheduleAckSubscription?.cancel();
+    _scheduleActionAckSubscription?.cancel();
     super.onClose();
   }
 
@@ -54,30 +64,103 @@ class MotorScheduleController extends GetxController {
   }
 
   Future<void> fetchacknowledgement() async {
-    isLoading.value = true;
     try {
       await _scheduleRepo.scheduleAcknowledgement();
     } catch (_) {
       // silently fail
-    } finally {
-      isLoading.value = false;
     }
   }
 
-  Future<void> fetchDeleteSchedule() async {
-    isLoading.value = true;
+  // --- Schedule Actions (T:24): stop/restart/delete ---
+
+  int _getScheduleType(Record record) {
+    return record.scheduleType?.toLowerCase() == 'cyclic' ? 2 : 1;
+  }
+
+  /// Publish schedule action: cmd 1=stop, 2=restart, 3=delete
+  Future<void> publishScheduleAction(Record record, int cmd) async {
+    final id = _resolveIdentifier();
+    if (id.isEmpty) return;
+    final scheduleId = record.scheduleId ?? 0;
+    final scheduleType = _getScheduleType(record);
+    _pendingActions[scheduleId] = cmd;
     try {
-      final response = await _scheduleRepo.scheduleDelete();
-      if (response != null && response.success == true) {
-        fetchSchedules();
-        getsuccessSnackBar(response.message ?? 'Schedule deleted successfully');
-      }
-    } catch (_) {
-      // silently fail
-    } finally {
-      isLoading.value = false;
+      await _mqttService.publishScheduleActionCommand(
+        identifier: id,
+        scheduleType: scheduleType,
+        scheduleId: scheduleId,
+        cmd: cmd,
+      );
+    } catch (e) {
+      _pendingActions.remove(scheduleId);
+      geterrorSnackBar('Failed to send command: $e');
     }
   }
+
+  /// Delete: publish MQTT cmd:3, wait for ACK, returns true=success false=failed
+  Future<bool> deleteSchedule(Record record) async {
+    final scheduleId = record.scheduleId ?? 0;
+    final completer = Completer<bool>();
+    _deleteCompleters[scheduleId] = completer;
+    await publishScheduleAction(record, 3);
+    return completer.future;
+  }
+
+  /// Toggle: publish MQTT cmd:2 (restart/on) or cmd:1 (stop/off)
+  Future<void> toggleSchedule(Record record, bool enabled) async {
+    await publishScheduleAction(record, enabled ? 2 : 1);
+  }
+
+  void _listenScheduleActionAck() {
+    _scheduleActionAckSubscription?.cancel();
+    _scheduleActionAckSubscription =
+        _mqttService.scheduleActionAckStream.listen((ack) async {
+      final currentId = _resolveIdentifier();
+      final ackId = (ack['topic'] ?? '').toString();
+      if (currentId.isNotEmpty && ackId != currentId) return;
+
+      final status = ack['status'] as int? ?? 0;
+      final scheduleId = ack['id'] as int? ?? 0;
+      final cmd = _pendingActions.remove(scheduleId);
+
+      if (status == 1) {
+        if (cmd == 3) {
+          await _deleteScheduleAfterAck(scheduleId);
+          _deleteCompleters.remove(scheduleId)?.complete(true);
+        } else {
+          getsuccessSnackBar(
+              cmd == 1 ? 'Schedule stopped' : 'Schedule restarted');
+          fetchSchedules();
+        }
+      } else {
+        if (cmd == 3) {
+          _deleteCompleters.remove(scheduleId)?.complete(false);
+        }
+        geterrorSnackBar(
+            cmd == null ? 'Schedule action: No response from device'
+                : 'Schedule action failed');
+        // Refresh to revert any optimistic UI changes (e.g. toggle switch)
+        fetchSchedules();
+      }
+    });
+  }
+
+  Future<void> _deleteScheduleAfterAck(int scheduleId) async {
+    final record =
+        schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
+    if (record != null) {
+      SharedPreference.setscheduleid(record.id ?? 0);
+      schedules.remove(record);
+    }
+    getsuccessSnackBar('Schedule deleted successfully');
+    try {
+      await _scheduleRepo.scheduleDelete();
+    } catch (_) {
+      // silently fail
+    }
+  }
+
+  // --- Navigation ---
 
   void navigateToCreateSchedule() {
     final details = Get.find<AnalyticsController>().motorDetails.value;
@@ -104,11 +187,14 @@ class MotorScheduleController extends GetxController {
   }
 
   String _resolveIdentifier() {
-    final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
+    final starter =
+        Get.find<AnalyticsController>().motorDetails.value?.starter;
     final mac = starter?.macAddress?.trim() ?? '';
     if (mac.isNotEmpty) return mac;
     return starter?.pcbNumber?.trim() ?? '';
   }
+
+  // --- Schedule Create ACK (T:54) ---
 
   void _listenScheduleAck() {
     _scheduleAckSubscription?.cancel();

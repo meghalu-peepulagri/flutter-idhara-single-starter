@@ -55,8 +55,11 @@ class MotorScheduleTab extends StatelessWidget {
                     itemCount: schedules.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => ScheduleCard(
+                      key: ValueKey(
+                          schedules[i].scheduleId ?? schedules[i].id ?? i),
                       record: schedules[i],
-                      onDelete: controller.fetchDeleteSchedule,
+                      onDelete: controller.deleteSchedule,
+                      onToggle: controller.toggleSchedule,
                     ),
                   ),
                 ),
