@@ -128,17 +128,22 @@ class _SchedulePageState extends State<SchedulePage> {
     final form = _formKey.currentState;
     if (form == null) return;
     _scheduleCreated = false;
+    final isCyclic = form.cyclicMode;
     await showScheduleConfirmDialog(
       context: context,
-      typeLabel: form.cyclicMode ? 'Cyclic' : 'One Time',
+      typeLabel: (isCyclic && form.repeatWeekly)
+          ? 'Cyclic'
+          : isCyclic
+              ? 'Time Based'
+              : 'Time Based',
       startTime: formatTime24h(form.startTime),
       endTime: formatTime24h(form.endTime),
       duration: form.durationText,
       powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
       onConfirm: _createSchedule,
     );
-    // Navigate to schedule tab only after dialog closes on success
-    if (_scheduleCreated && mounted) Get.back(result: true);
+    // Navigate back to motor details after dialog closes on success
+    if (_scheduleCreated && mounted) Navigator.of(context).pop(true);
   }
 
   @override
