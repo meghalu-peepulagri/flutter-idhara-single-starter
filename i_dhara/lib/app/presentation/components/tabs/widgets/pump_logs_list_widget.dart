@@ -33,12 +33,23 @@ class PumpLogsListWidget extends StatelessWidget {
     );
   }
 
+  String logtype(MotorLogs log) {
+    if (log.action == "FAULT" || log.action == "ALERT") {
+      return log.action ?? '';
+    } else {
+      return log.message ?? '';
+    }
+  }
+
   Widget _buildPumpLogCard(MotorLogs log) {
     final String message = log.message ?? 'No message';
     final DateTime? createdAt = log.createdAt;
     // When filterType is empty (multi-select), derive color/icon from each log's action
     final String colorKey =
-        filterType.isNotEmpty ? filterType : (log.action?.toUpperCase() ?? '');
+        filterType.isNotEmpty ? filterType : (logtype(log) ?? '');
+
+    print("line 43 ------>$colorKey");
+
     final Color typeColor = _getFilterColor(colorKey);
     final IconData typeIcon = _getPumpIcon(colorKey);
 
@@ -127,12 +138,17 @@ class PumpLogsListWidget extends StatelessWidget {
   }
 
   Color _getFilterColor(String filter) {
-    switch (filter) {
+    String type = getCategoryFromMessage(filter) == "DEFAULT"
+        ? filter
+        : getCategoryFromMessage(filter);
+    switch (type) {
       case 'Faults':
       case 'FAULT':
+      case 'FAULTS':
         return const Color(0xFFEF4444);
       case 'Alerts':
       case 'ALERT':
+      case 'ALERTS':
         return const Color(0xFFF59E0B);
       case 'PUMP ON':
       case 'ON':
@@ -143,13 +159,44 @@ class PumpLogsListWidget extends StatelessWidget {
       case 'PUMP MODE':
       case 'MODE':
         return const Color(0xFF8B5CF6);
+
       default:
         return const Color(0xFF6B7280);
     }
   }
 
+  String getCategoryFromMessage(String message) {
+    final msg = message.toLowerCase();
+
+    // OFF category
+    if (msg.contains("state updated to 'off'") ||
+        msg.contains("pump is stopped in manual mode") ||
+        msg.contains("pump is off in auto mode")) {
+      return "OFF";
+    }
+
+    // ON category
+    if (msg.contains("state updated to 'on'") ||
+        msg.contains("pump is running in manual mode")) {
+      return "ON";
+    }
+
+    // MODE category
+    if (msg.contains("switched from manual to auto") ||
+        msg.contains("switched from auto to manual") ||
+        msg.contains("mode updated from 'manual' to 'auto'") ||
+        msg.contains("mode updated from 'auto' to 'manual'")) {
+      return "MODE";
+    }
+
+    return "DEFAULT";
+  }
+
   IconData _getPumpIcon(String filter) {
-    switch (filter) {
+    String type = getCategoryFromMessage(filter) == "DEFAULT"
+        ? filter
+        : getCategoryFromMessage(filter);
+    switch (type) {
       case 'PUMP ON':
       case 'ON':
         return Icons.power_settings_new;
@@ -161,9 +208,11 @@ class PumpLogsListWidget extends StatelessWidget {
         return Icons.refresh;
       case 'Faults':
       case 'FAULT':
+      case 'FAULTS':
         return Icons.warning_amber_outlined;
       case 'Alerts':
       case 'ALERT':
+      case 'ALERTS':
         return Icons.notifications_outlined;
       default:
         return Icons.info_outline;
