@@ -688,6 +688,7 @@ class MqttService {
             handleDefaultSettings(identifier, payloadData);
             break;
           case 35:
+            _handleLiveData(identifier, payloadData);
           case 41:
             _handleLiveData(identifier, payloadData);
             break;
@@ -734,6 +735,25 @@ class MqttService {
     if (newState == null) {
       debugPrint(
           '    Motor ACK: Could not parse state from payloadData=$payloadData');
+      return;
+    }
+
+    // Validate: ACK state must be 0 or 1. Anything else is treated as a
+    // failure — revert the motor to its previous state so the UI is correct.
+    if (newState != 0 && newState != 1) {
+      debugPrint(
+          '   ⚠️ Motor ACK: Invalid state=$newState (expected 0 or 1) — reverting to previous state');
+      final revertId = _findMotorWithPendingCommand(identifier, 1) ??
+          _findAnyMotorWithIdentifier(identifier);
+      if (revertId != null) {
+        final revertData = _motorDataMap[revertId];
+        if (revertData != null) {
+          // Restore notifier so any UI listener sees the correct previous state.
+          revertData.controller.value = revertData.state == 1;
+          _clearPendingCommand(revertId, 1);
+        }
+      }
+      _dataUpdateNotifier.value++;
       return;
     }
 
@@ -820,7 +840,19 @@ class MqttService {
 
     if (newMode == null || (newMode != 0 && newMode != 1)) {
       debugPrint(
-          '   ⚠️ Mode ACK: Invalid mode value: $payloadData (parsed as $newMode)');
+          '   ⚠️ Mode ACK: Invalid mode value: $payloadData (parsed as $newMode) — reverting to previous mode');
+      // Explicitly restore the mode notifier so the UI snaps back to the
+      // previous mode instead of staying in a stale/intermediate state.
+      final revertId = _findMotorWithPendingCommand(identifier, 2) ??
+          _findAnyMotorWithIdentifier(identifier);
+      if (revertId != null) {
+        final revertData = _motorDataMap[revertId];
+        if (revertData != null) {
+          revertData.modeswitchcontroller.value = revertData.modeIndex;
+          _clearPendingCommand(revertId, 2);
+        }
+      }
+      _dataUpdateNotifier.value++;
       return;
     }
 
@@ -885,7 +917,6 @@ class MqttService {
 
   /// Handle live data (type 35, 41)
   void _handleLiveData(String identifier, dynamic payloadData) {
-    print("line 858 $payloadData");
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('   ⚠️ Live data payload is not a Map: $payloadData');
       return;
@@ -939,6 +970,9 @@ class MqttService {
 
       // Update motor data from payload
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
+
+      motorData.updateSignalStrength(13);
+      motorData.hasReceivedData = true;
 
       motorData.hasReceivedData = true;
       motorData.hasReceivedLiveData = true;

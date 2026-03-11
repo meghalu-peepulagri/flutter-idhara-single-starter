@@ -77,22 +77,19 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   final List<double> _flcData = [];
   final ValueNotifier<double> _avgCurrent = ValueNotifier(0);
   final ValueNotifier<double> _overalCurrent = ValueNotifier(0);
-  // MQTT key for the motor being measured; set in _startMeasuring so
-  // _checkUpdates can read live data directly from motorDataMap.
   String _mqttMotorId = '';
-  // Holds the measured FLC so _buildSuccessPhase can display it even after
-  // _resetPreCheckState() has zeroed _overalCurrent.
   double _finalFLC = 0.0;
 
   // --- Common state ---
   _TestRunPhase _phase = _TestRunPhase.preCheck;
   DashboardController? _controller;
 
-  // Independent fresh-data flags per topic type.
-  // Signal icon (T:40) only unlocks after a heartbeat arrives.
-  // Power/voltage icons (T:35/T:41) only unlock after live data arrives.
   bool _freshSignalReceived = false;
   bool _freshLiveDataReceived = false;
+  // Dedicated notifier so the Network Connectivity builder rebuilds
+  // immediately whenever signal is confirmed (T:40 heartbeat OR T:41/T:35
+  // live data), without depending on heartbeatNotifier alone.
+  final ValueNotifier<bool> _freshSignalNotifier = ValueNotifier(false);
 
   bool get _isPowerOn {
     if (widget.motorData != null && widget.motorData!.hasReceivedLiveData) {
@@ -192,9 +189,12 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         widget.mqttService.heartbeatNotifier
             .removeListener(_onFirstHeartbeat); // guard double-add
         widget.mqttService.heartbeatNotifier.addListener(_onFirstHeartbeat);
-        // liveDataNotifier is NOT registered here.
-        // It is registered inside _onFirstHeartbeat only when network is
-        // confirmed OK (signal bars >= 1), enforcing the network-first priority.
+        // Also listen directly to liveDataNotifier — if T:41 arrives before
+        // T:40 heartbeat, receiving live data implies network connectivity and
+        // unlocks the signal icon before checking power & voltage.
+        widget.mqttService.liveDataNotifier
+            .removeListener(_onFirstLiveData); // guard double-add
+        widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
       }
     });
     _startPreCheckTimeout();
@@ -241,6 +241,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() => _freshSignalReceived = true);
+        _freshSignalNotifier.value = true;
 
         if (_getSignalBars(widget.motorData) >= 1) {
           // Network confirmed OK — now safe to listen for live data.
@@ -258,15 +259,29 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     }
   }
 
-  /// Called on the first T:35/T:41 live-data update (registered only after
-  /// network is confirmed OK) — unlocks power & voltage icons and checks them.
+  /// Called on the first T:35/T:41 live-data update — unlocks power & voltage
+  /// icons and checks them. If T:41 arrives before T:40, receiving live data
+  /// implies network connectivity, so the signal icon is unlocked first in a
+  /// separate frame before power / voltage are evaluated.
   void _onFirstLiveData() {
     if (!_freshLiveDataReceived && mounted) {
       widget.mqttService.liveDataNotifier.removeListener(_onFirstLiveData);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() => _freshLiveDataReceived = true);
-        _checkPowerVoltageNow();
+        // Step 1 — T:35/T:41 implies network connectivity.
+        // Unlock signal icon first so the UI confirms network before checking
+        // the remaining conditions.
+        if (!_freshSignalReceived) {
+          setState(() => _freshSignalReceived = true);
+          _freshSignalNotifier.value = true;
+        }
+        // Step 2 — After the signal rebuild, unlock live data and evaluate
+        // power status and voltage range in the next frame.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() => _freshLiveDataReceived = true);
+          _checkPowerVoltageNow();
+        });
       });
     }
   }
@@ -327,6 +342,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     // Reset both fresh flags and re-register type-specific listeners after
     // a 1-second delay so loading icons are shown when coming back online.
     _freshSignalReceived = false;
+    _freshSignalNotifier.value = false;
     _freshLiveDataReceived = false;
     _preCheckTimedOut = false;
     _connectionSnackBarShown = false;
@@ -335,8 +351,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       if (mounted) {
         widget.mqttService.heartbeatNotifier.removeListener(_onFirstHeartbeat);
         widget.mqttService.heartbeatNotifier.addListener(_onFirstHeartbeat);
-        // liveDataNotifier is registered inside _onFirstHeartbeat only when
-        // network is confirmed OK — same network-first gate as on initial open.
+        // Also listen directly to liveDataNotifier — if T:41 arrives before
+        // T:40, receiving live data implies network connectivity.
+        widget.mqttService.liveDataNotifier.removeListener(_onFirstLiveData);
+        widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
       }
     });
     setState(() {
@@ -366,6 +384,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     mqttStreamSubscription?.cancel();
     _avgCurrent.dispose();
     _overalCurrent.dispose();
+    _freshSignalNotifier.dispose();
     super.dispose();
   }
 
@@ -930,11 +949,12 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Network Connectivity — reacts only to T:40 heartbeat
-                  ValueListenableBuilder(
-                    valueListenable: widget.mqttService.heartbeatNotifier,
-                    builder: (context, _, __) {
-                      final int? signal = _freshSignalReceived
+                  // Network Connectivity — rebuilds whenever signal is
+                  // confirmed via T:40 heartbeat OR T:41/T:35 live data.
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _freshSignalNotifier,
+                    builder: (context, freshSignal, __) {
+                      final int? signal = freshSignal
                           ? _getSignalBars(widget.motorData)
                           : (_preCheckTimedOut ? 0 : null);
                       return _buildVerificationCloudConnection(
