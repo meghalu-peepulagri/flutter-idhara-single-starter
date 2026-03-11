@@ -53,6 +53,7 @@ Widget buildScheduleToggle({
           ),
           AdvancedSwitch(
             controller: controller,
+            initialValue: controller.value,
             activeColor: const Color(0xFF34C759),
             inactiveColor: const Color(0xFFE0E0E0),
             borderRadius: const BorderRadius.all(Radius.circular(15)),
@@ -128,6 +129,7 @@ class ScheduleCyclicCard extends StatelessWidget {
               ),
               AdvancedSwitch(
                 controller: cyclicController,
+                initialValue: cyclicController.value,
                 activeColor: const Color(0xFF34C759),
                 inactiveColor: const Color(0xFFE0E0E0),
                 borderRadius: const BorderRadius.all(Radius.circular(15)),
