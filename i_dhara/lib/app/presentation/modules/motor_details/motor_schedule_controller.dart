@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
@@ -23,6 +24,13 @@ class MotorScheduleController extends GetxController {
   var isRefreshing = false.obs;
   var page = 1.obs;
   var limit = 10.obs;
+  var totalPages = 1.obs;
+  var currentPage = 0.obs;
+  var isHasMoreLoading = false.obs;
+  var isInitialLoading = true.obs;
+  var totalRecords = 0.obs;
+
+  final scrollController = ScrollController();
 
   // Track pending actions: scheduleId -> cmd (1=stop, 2=restart, 3=delete)
   final _pendingActions = <int, int>{};
@@ -36,6 +44,7 @@ class MotorScheduleController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    scrollController.addListener(_onScroll);
     fetchSchedules();
     _listenScheduleAck();
     _listenScheduleActionAck();
@@ -44,8 +53,17 @@ class MotorScheduleController extends GetxController {
     });
   }
 
+  void _onScroll() {
+    if (scrollController.position.pixels >=
+        scrollController.position.maxScrollExtent - 200) {
+      loadMoreSchedules();
+    }
+  }
+
   @override
   void onClose() {
+    scrollController.removeListener(_onScroll);
+    scrollController.dispose();
     _scheduleAckSubscription?.cancel();
     _scheduleActionAckSubscription?.cancel();
     super.onClose();
@@ -54,18 +72,50 @@ class MotorScheduleController extends GetxController {
   Future<void> fetchSchedules({bool isRefresh = false}) async {
     if (isRefresh) {
       isRefreshing.value = true;
+      page.value = 1;
     } else {
       isLoading.value = true;
+      page.value = 1;
     }
     try {
       final response =
           await _scheduleRepo.getScheduleList(page.value, limit.value);
       schedules.value = response?.data?.records ?? [];
+
+      final pagination = response?.data?.paginationInfo;
+      currentPage.value = pagination?.currentPage ?? page.value;
+      totalPages.value = pagination?.totalPages ?? 1;
+      totalRecords.value = pagination?.totalRecords ?? schedules.length;
     } catch (_) {
       // silently fail
     } finally {
       isLoading.value = false;
       isRefreshing.value = false;
+      isInitialLoading.value = false;
+      isHasMoreLoading.value = false;
+    }
+  }
+
+  Future<void> loadMoreSchedules() async {
+    if (isHasMoreLoading.value) return;
+    if (currentPage.value >= totalPages.value) return;
+
+    isHasMoreLoading.value = true;
+    page.value = currentPage.value + 1;
+    try {
+      final response =
+          await _scheduleRepo.getScheduleList(page.value, limit.value);
+      final newRecords = response?.data?.records ?? [];
+      schedules.addAll(newRecords);
+
+      final pagination = response?.data?.paginationInfo;
+      currentPage.value = pagination?.currentPage ?? page.value;
+      totalPages.value = pagination?.totalPages ?? totalPages.value;
+      totalRecords.value = pagination?.totalRecords ?? totalRecords.value;
+    } catch (_) {
+      // silently fail
+    } finally {
+      isHasMoreLoading.value = false;
     }
   }
 

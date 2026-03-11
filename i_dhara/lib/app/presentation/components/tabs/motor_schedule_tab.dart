@@ -19,7 +19,7 @@ class MotorScheduleTab extends StatelessWidget {
           final isLoading = controller.isLoading.value;
           final isRefreshing = controller.isRefreshing.value;
           final schedules = controller.schedules;
-          final totalRecords = schedules.length;
+          final totalRecords = controller.totalRecords.value;
 
           // First load — show lottie
           if (isLoading) {
@@ -41,7 +41,7 @@ class MotorScheduleTab extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
                   child: Text(
-                    '$totalRecords / $totalRecords schedules',
+                    '${schedules.length} / $totalRecords schedules',
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -50,19 +50,39 @@ class MotorScheduleTab extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
-                    itemCount: schedules.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => ScheduleCard(
-                      key: ValueKey(
-                          schedules[i].scheduleId ?? schedules[i].id ?? i),
-                      record: schedules[i],
-                      onDelete: controller.deleteSchedule,
-                      onToggle: controller.toggleSchedule,
-                      onEdit: controller.navigateToEditSchedule,
-                    ),
-                  ),
+                  child: Obx(() {
+                    final isLoadingMore = controller.isHasMoreLoading.value;
+                    return ListView.separated(
+                      controller: controller.scrollController,
+                      padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
+                      itemCount: schedules.length + (isLoadingMore ? 1 : 0),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) {
+                        if (i == schedules.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return ScheduleCard(
+                          key: ValueKey(
+                              schedules[i].scheduleId ?? schedules[i].id ?? i),
+                          record: schedules[i],
+                          onDelete: controller.deleteSchedule,
+                          onToggle: controller.toggleSchedule,
+                          onEdit: controller.navigateToEditSchedule,
+                        );
+                      },
+                    );
+                  }),
                 ),
               ],
             ),
