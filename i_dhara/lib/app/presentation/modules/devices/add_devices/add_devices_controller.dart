@@ -87,8 +87,8 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
         Get.delete<DashboardController>();
       }
 
-      // Navigate to dashboard
-      Get.offAllNamed(Routes.dashboard);
+      // Navigate to dashboard and force a fresh data load
+      Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
     } else if (response?.errors != null) {
       errorInstance.clear();
       errorInstance.addAll(response!.errors!.toJson());

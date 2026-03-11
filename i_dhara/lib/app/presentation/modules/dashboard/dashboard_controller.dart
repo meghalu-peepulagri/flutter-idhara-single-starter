@@ -61,14 +61,16 @@ class DashboardController extends GetxController with ConnectivityMixin {
   void onInit() {
     super.onInit();
     _requestPermissionAndLoad();
-    if (_canRestoreFromMqtt()) {
+    final args = Get.arguments;
+    final forceRefresh = args != null && args['refresh'] == true;
+    if (!forceRefresh && _canRestoreFromMqtt()) {
       // MQTT is already connected with live motor data (e.g. navigating back
       // from Motor Details). Restore the motor list from the singleton and
       // skip the API call entirely — real-time updates come from MQTT.
       _restoreFromMqtt();
     } else {
-      // First load after login, after logout+login, or when MQTT has no data.
-      // Fetch motors from the API and then establish the MQTT connection.
+      // First load after login, after logout+login, when MQTT has no data,
+      // or when returning after a device add/delete (forceRefresh=true).
       _loadAllData();
     }
   }

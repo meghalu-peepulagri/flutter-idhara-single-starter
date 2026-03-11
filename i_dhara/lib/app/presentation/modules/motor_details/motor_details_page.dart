@@ -90,8 +90,6 @@ class MotorControlWidget extends StatelessWidget {
   }
 
   String motorName(String starter, String? alias) {
-    print("line 93 $starter $alias");
-
     if (alias != null && alias.trim().isNotEmpty) {
       return alias;
     }
@@ -112,9 +110,6 @@ class MotorControlWidget extends StatelessWidget {
                   controller.motorDetails.value?.starter?.starterNumber ?? "";
 
               String displayName = motorName(starterNumber, alias);
-              if (displayName.length > 16) {
-                displayName = '${displayName.substring(0, 16)}...';
-              }
               return Text(
                 displayName,
                 style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -131,8 +126,6 @@ class MotorControlWidget extends StatelessWidget {
                           FlutterFlowTheme.of(context).bodyMedium.fontStyle,
                     ),
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               );
             }),
           ),

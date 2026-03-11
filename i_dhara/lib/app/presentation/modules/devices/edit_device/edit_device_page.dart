@@ -27,6 +27,7 @@ class EditDevicePage extends StatefulWidget {
 
 class _EditDevicePageState extends State<EditDevicePage> {
   late EditDeviceController _model;
+  final Map<String, dynamic> _localErrors = {};
 
   final DevicesController devicesController = Get.find<DevicesController>();
 
@@ -127,19 +128,21 @@ class _EditDevicePageState extends State<EditDevicePage> {
                         ),
                         const SizedBox(height: 8.0),
                         TextFieldComponent(
+                          maxlength: 21,
                           controller: _model.textController!,
-                          errors: _model.errorInstance,
+                          errors: _localErrors,
                           errorKey: 'name',
                           hintText: 'Enter Pump name',
                           readOnly: false,
                           onChanged: (value) {
-                            if (value.isNotEmpty) {
-                              setState(() {
-                                _model.errorInstance =
-                                    Map.from(_model.errorInstance)
-                                      ..remove('name');
-                              });
-                            }
+                            setState(() {
+                              if (value.length > 20) {
+                                _localErrors['name'] =
+                                    'Pump name must not exceed 20 above characters';
+                              } else {
+                                _localErrors.remove('name');
+                              }
+                            });
                           },
                         ),
                       ],
@@ -208,6 +211,8 @@ class _EditDevicePageState extends State<EditDevicePage> {
                               _model.message = devicesController.message ?? '';
                               _model.errorInstance =
                                   devicesController.errorInstance;
+                              _localErrors
+                                  .addAll(devicesController.errorInstance);
                             });
 
                             return;

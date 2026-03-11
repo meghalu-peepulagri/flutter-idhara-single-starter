@@ -146,6 +146,19 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return false;
   }
 
+  /// True when the network check has completed AND passed (signal ≥ 1).
+  bool get _networkVerified =>
+      _freshSignalReceived && _getSignalBars(widget.motorData) >= 1;
+
+  /// True when the power check has completed AND passed.
+  /// Only evaluated after [_networkVerified] is true.
+  bool get _powerVerified {
+    if (!_networkVerified) return false;
+    final liveReady = _freshLiveDataReceived &&
+        (widget.motorData?.hasReceivedLiveData ?? false);
+    return liveReady && _isPowerOn;
+  }
+
   bool get isActive {
     if (!_freshSignalReceived || !_freshLiveDataReceived) return false;
     final signal = _getSignalBars(widget.motorData);
@@ -966,24 +979,32 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Power Supply Status — reacts only to T:35 / T:41 live data
-                  ValueListenableBuilder(
-                    valueListenable: widget.mqttService.liveDataNotifier,
-                    builder: (context, _, __) {
+                  // Power Supply Status — sequential step 2.
+                  // Stays loading until network (step 1) is confirmed first.
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      widget.mqttService.liveDataNotifier,
+                      _freshSignalNotifier,
+                    ]),
+                    builder: (context, _) {
                       final int? powerVerified;
                       final bool liveReady = _freshLiveDataReceived &&
                           (widget.motorData?.hasReceivedLiveData ?? false);
-                      if (_isNetworkFalse) {
-                        // No network → power is definitively unavailable
+                      if (!_freshSignalReceived && !_preCheckTimedOut) {
+                        // Gate: network check not done yet → keep loading.
+                        powerVerified = null;
+                      } else if (_isNetworkFalse || !_networkVerified) {
+                        // Network failed → power is blocked.
                         powerVerified = 0;
                       } else if (liveReady) {
-                        // Real data available — show actual power state
+                        // Network OK, live data available → evaluate power.
                         powerVerified = _isPowerOn ? 1 : 0;
                       } else if (_preCheckTimedOut) {
-                        // Still loading after 15 s → treat as false
+                        // Network OK but timed out before live data arrived.
                         powerVerified = 0;
                       } else {
-                        powerVerified = null; // still loading
+                        // Network OK, still waiting for live data.
+                        powerVerified = null;
                       }
                       return _buildVerificationInputPower(
                           'Power Supply Status', powerVerified);
@@ -991,10 +1012,15 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Voltage Range — reacts only to T:35 / T:41 live data
-                  ValueListenableBuilder(
-                    valueListenable: widget.mqttService.liveDataNotifier,
-                    builder: (context, _, __) {
+                  // Voltage Range — sequential step 3.
+                  // Stays loading until both network (step 1) and power
+                  // (step 2) are confirmed first.
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      widget.mqttService.liveDataNotifier,
+                      _freshSignalNotifier,
+                    ]),
+                    builder: (context, _) {
                       return _buildVoltageVerification();
                     },
                   ),
@@ -1684,11 +1710,36 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     final hasData = _freshLiveDataReceived &&
         widget.motorData != null &&
         widget.motorData!.hasReceivedLiveData;
-    // Force to false when network is gone OR timeout fired and data never arrived
-    final forceFalse = _isNetworkFalse || (_preCheckTimedOut && !hasData);
-    final showLoading = !hasData && !forceFalse;
-    final voltageOk = hasData && _isVoltageInRange;
-    final error = hasData ? _voltageError : null;
+    final networkDone = _freshSignalReceived || _preCheckTimedOut;
+
+    // Sequential gates — voltage is only evaluated after network AND power pass.
+    final bool showLoading;
+    final bool forceFail;
+
+    if (!networkDone) {
+      // Gate 1: still waiting for network result → loading.
+      showLoading = true;
+      forceFail = false;
+    } else if (!_networkVerified) {
+      // Gate 2: network failed → voltage is blocked.
+      showLoading = false;
+      forceFail = true;
+    } else if (!hasData && !_preCheckTimedOut) {
+      // Gate 3: network OK, waiting for live data (power step) → loading.
+      showLoading = true;
+      forceFail = false;
+    } else if (!_powerVerified) {
+      // Gate 4: power failed or timed out → voltage is blocked.
+      showLoading = false;
+      forceFail = true;
+    } else {
+      // All previous checks passed → evaluate actual voltage.
+      showLoading = false;
+      forceFail = false;
+    }
+
+    final voltageOk = !showLoading && !forceFail && hasData && _isVoltageInRange;
+    final error = (!showLoading && !forceFail && hasData) ? _voltageError : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

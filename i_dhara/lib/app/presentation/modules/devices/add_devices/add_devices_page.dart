@@ -445,73 +445,41 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildLabel(context, 'Pump Name', isMandatory: true),
-            ),
-            SizedBox(
-              width: MediaQuery.sizeOf(context).width * 0.2,
-              child: const Row(
-                children: [
-                  Text(
-                    'HP',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '*',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ].divide(const SizedBox(width: 8)),
+        _buildLabel(context, 'Pump Name', isMandatory: true),
+        const SizedBox(height: 8),
+        TextFieldComponent(
+          maxlength: 20,
+          controller: _model.textController2!,
+          errors: _model.errorInstance,
+          errorKey: 'motor_name',
+          hintText: 'Enter Pump Name',
+          readOnly: false,
+          onChanged: (value) {
+            setState(() {
+              if (value.length > 19) {
+                _model.errorInstance['motor_name'] =
+                    'Pump name must not exceed 20 above characters';
+              } else {
+                _model.errorInstance.remove('motor_name');
+              }
+            });
+          },
         ),
-        const SizedBox(height: 6),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextFieldComponent(
-                controller: _model.textController2!,
-                errors: _model.errorInstance,
-                errorKey: 'motor_name',
-                hintText: 'Enter Pump Name',
-                readOnly: false,
-                onChanged: (value) {
-                  if (_model.errorInstance.containsKey('motor_name')) {
-                    setState(() {
-                      _model.errorInstance.remove('motor_name');
-                    });
-                  }
-                },
-              ),
-            ),
-            SizedBox(
-              width: MediaQuery.sizeOf(context).width * 0.2,
-              child: AddHorsePowerFieldWidget(
-                controller: _model.textController3!,
-                errors: _model.errorInstance,
-                hintText: 'Enter HP',
-                errorKey: 'hp',
-                onChanged: (value) {
-                  if (_model.errorInstance.containsKey('hp')) {
-                    setState(() {
-                      _model.errorInstance.remove('hp');
-                    });
-                  }
-                },
-              ),
-            ),
-          ].divide(const SizedBox(width: 8)),
+        const SizedBox(height: 16),
+        _buildLabel(context, 'HP', isMandatory: true),
+        const SizedBox(height: 8),
+        AddHorsePowerFieldWidget(
+          controller: _model.textController3!,
+          errors: _model.errorInstance,
+          hintText: 'Enter HP',
+          errorKey: 'hp',
+          onChanged: (value) {
+            if (_model.errorInstance.containsKey('hp')) {
+              setState(() {
+                _model.errorInstance.remove('hp');
+              });
+            }
+          },
         ),
       ],
     );
