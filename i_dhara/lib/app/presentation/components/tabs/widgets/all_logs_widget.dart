@@ -27,73 +27,102 @@ class AllLogsWidget extends StatelessWidget {
     );
   }
 
-  Color getMotorStateIconColor(String logType, String action, String msg) {
-    final message = msg.toString().toUpperCase();
+  String getCategoryFromMessage(String message) {
+    final msg = message.toLowerCase();
 
-    // Step 1: Check log type
-    if (logType == 'activity') {
-      // Step 2: Check action
-      if (action == 'MOTOR_STATE_SYNC') {
-        // Step 3: Check message contains ON or OFF
-        if (message.contains('ON')) {
-          return const Color(0xFF10B981); // ON Icon
-        } else if (message.contains('OFF')) {
-          return const Color(0xFFEF4444);
-        }
-      } else if (message.contains('MODE UPDATED')) {
+    // OFF category
+    if (msg.contains("state updated to 'off'") ||
+        msg.contains("pump is stopped in manual mode") ||
+        msg.contains("pump is off in auto mode")) {
+      return "OFF";
+    }
+
+    // ON category
+    if (msg.contains("state updated to 'on'") ||
+        msg.contains("pump is running in manual mode") ||
+        msg.contains("pump is now on")) {
+      return "ON";
+    }
+
+    // MODE category
+    if (msg.contains("switched from manual to auto") ||
+        msg.contains("switched from auto to manual") ||
+        msg.contains("mode updated from 'manual' to 'auto'") ||
+        msg.contains("mode updated from 'auto' to 'manual'")) {
+      return "MODE";
+    }
+
+    return "DEFAULT";
+  }
+
+  Color _getFilterColor(String filter) {
+    String type = getCategoryFromMessage(filter) == "DEFAULT"
+        ? filter
+        : getCategoryFromMessage(filter);
+    switch (type) {
+      case 'Faults':
+      case 'FAULT':
+      case 'FAULTS':
+        return const Color(0xFFEF4444);
+      case 'Alerts':
+      case 'ALERT':
+      case 'ALERTS':
+        return const Color(0xFFF59E0B);
+      case 'PUMP ON':
+      case 'ON':
+        return const Color(0xFF10B981);
+      case 'PUMP OFF':
+      case 'OFF':
+        return const Color(0xFFEF4444);
+      case 'PUMP MODE':
+      case 'MODE':
         return const Color(0xFF8B5CF6);
-      }
+      default:
+        return const Color(0xFF6B7280);
     }
-
-    // Step 4: Default Icon
-    return const Color(0xFF6B7280);
   }
 
-  IconData getMotorStateIcon(String logType, String action, String msg) {
-    final message = msg.toString().toUpperCase();
-
-    // Step 1: Check log type
-    if (logType == 'activity') {
-      // Step 2: Check action
-      if (action == 'MOTOR_STATE_SYNC') {
-        // Step 3: Check message contains ON or OFF
-        if (message.contains('ON')) {
-          return Icons.power_settings_new; // ON Icon
-        } else if (message.contains('OFF')) {
-          return Icons.power_off; // OFF Icon
-        }
-      } else if (message.contains('MODE UPDATED')) {
-        return Icons.loop;
-      }
+  IconData _getPumpIcon(String filter) {
+    String type = getCategoryFromMessage(filter) == "DEFAULT"
+        ? filter
+        : getCategoryFromMessage(filter);
+    switch (type) {
+      case 'PUMP ON':
+      case 'ON':
+        return Icons.power_settings_new;
+      case 'PUMP OFF':
+      case 'OFF':
+        return Icons.power_off;
+      case 'PUMP MODE':
+      case 'MODE':
+        return Icons.refresh;
+      case 'Faults':
+      case 'FAULT':
+      case 'FAULTS':
+        return Icons.warning_amber_outlined;
+      case 'Alerts':
+      case 'ALERT':
+      case 'ALERTS':
+        return Icons.notifications_outlined;
+      default:
+        return Icons.info_outline;
     }
-
-    // Step 4: Default Icon
-    return Icons.info_outline;
   }
 
-  ({Color color, IconData icon, String label}) _getLogTypeStyle(
-      String? logType, String action, String message) {
+  ({Color color, IconData icon}) _getLogTypeStyle(
+      String? logType, String message) {
+    String colorKey;
     switch (logType) {
       case 'fault':
-        return (
-          color: const Color(0xFFEF4444),
-          icon: Icons.warning_amber_outlined,
-          label: 'Fault',
-        );
+        colorKey = 'FAULT';
+        break;
       case 'alert':
-        return (
-          color: const Color(0xFFF59E0B),
-          icon: Icons.warning_amber_outlined,
-          label: 'Alert',
-        );
-      case 'activity':
+        colorKey = 'ALERT';
+        break;
       default:
-        return (
-          color: getMotorStateIconColor(logType.toString(), action, message),
-          icon: getMotorStateIcon(logType.toString(), action, message),
-          label: 'Activity',
-        );
+        colorKey = message;
     }
+    return (color: _getFilterColor(colorKey), icon: _getPumpIcon(colorKey));
   }
 
   Widget _buildAlertCard(LogResponse log) {
@@ -101,8 +130,7 @@ class AllLogsWidget extends StatelessWidget {
         (log.message?.isNotEmpty == true ? log.message : log.description) ??
             'No description';
     final DateTime? timestamp = log.timestamp;
-    final style = _getLogTypeStyle(
-        log.logType, log.action.toString(), log.message.toString());
+    final style = _getLogTypeStyle(log.logType, log.message.toString());
 
     return IntrinsicHeight(
       child: Row(

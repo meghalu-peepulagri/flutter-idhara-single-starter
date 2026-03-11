@@ -123,9 +123,8 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: isSelected
-                                  ? color
-                                  : const Color(0xFF1F2937),
+                              color:
+                                  isSelected ? color : const Color(0xFF1F2937),
                             ),
                           ),
                         ],
@@ -214,7 +213,8 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                             children: selectedFilters.map((f) {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
-                                child: _buildFilterChip(f, () => _removeFilter(f)),
+                                child:
+                                    _buildFilterChip(f, () => _removeFilter(f)),
                               );
                             }).toList(),
                           ),
@@ -281,7 +281,6 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                     )
                   else
                     _buildLogsContent(),
-
                   if (logsController.isLoadingMore.value)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -314,9 +313,6 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
     }
     return PumpLogsListWidget(
       logs: logsController.motorLogsList,
-      // Pass single filter name only when exactly one is selected so the
-      // widget uses a consistent colour; with multiple selections it derives
-      // colour per-log from log.action.
       filterType: selectedFilters.length == 1 ? selectedFilters.first : '',
     );
   }

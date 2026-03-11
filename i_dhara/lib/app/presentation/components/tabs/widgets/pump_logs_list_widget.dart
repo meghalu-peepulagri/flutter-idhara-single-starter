@@ -179,7 +179,8 @@ class PumpLogsListWidget extends StatelessWidget {
 
     // ON category
     if (msg.contains("state updated to 'on'") ||
-        msg.contains("pump is running in manual mode")) {
+        msg.contains("pump is running in manual mode") ||
+        msg.contains("pump is now on")) {
       return "ON";
     }
 
