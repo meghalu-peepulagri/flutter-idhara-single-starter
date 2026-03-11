@@ -8,7 +8,7 @@ import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 class ScheduleCard extends StatelessWidget {
   final Record record;
   final Future<bool> Function(Record record)? onDelete;
-  final void Function(Record record, bool enabled)? onToggle;
+  final Future<bool> Function(Record record, bool enabled)? onToggle;
   final void Function(Record record)? onEdit;
   const ScheduleCard(
       {super.key,
@@ -284,22 +284,32 @@ class ScheduleCard extends StatelessWidget {
                 child: GestureDetector(
                   onTap: () {
                     final newValue = !switchController.value;
+                    bool isProcessing = false;
                     showDialog(
                       context: context,
+                      barrierDismissible: false,
                       builder: (dialogCtx) => PopupDialog(
                         title: newValue ? 'Restart Schedule' : 'Stop Schedule',
                         description: newValue
-                            ? 'Do you want to Restart this schedule?'
-                            : 'Do you want to Stop this schedule?',
+                            ? 'Are you sure you want to restart this schedule?'
+                            : 'Are you sure you want to stop this schedule?',
                         iconAssetPath: 'assets/images/schedule.svg',
                         buttonlable: newValue ? 'Restart' : 'Stop',
                         isactive: newValue,
-                        onDelete: () {
-                          Navigator.pop(dialogCtx);
-                          switchController.value = newValue;
-                          onToggle?.call(record, newValue);
+                        onDelete: () async {
+                          isProcessing = true;
+                          try {
+                            final success =
+                                await onToggle?.call(record, newValue) ?? false;
+                            if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                            if (success) switchController.value = newValue;
+                          } finally {
+                            isProcessing = false;
+                          }
                         },
-                        onCancel: () => Navigator.pop(dialogCtx),
+                        onCancel: () {
+                          if (!isProcessing) Navigator.pop(dialogCtx);
+                        },
                       ),
                     );
                   },

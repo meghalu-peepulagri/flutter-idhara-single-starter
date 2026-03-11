@@ -21,12 +21,17 @@ class MotorScheduleController extends GetxController {
   var schedules = <Record>[].obs;
   var isLoading = true.obs;
   var isRefreshing = false.obs;
+  var page = 1.obs;
+  var limit = 10.obs;
 
   // Track pending actions: scheduleId -> cmd (1=stop, 2=restart, 3=delete)
   final _pendingActions = <int, int>{};
 
-  // Completers for delete: resolved when T:55 ACK arrives for cmd=3
+  // Completers for delete (cmd=3): resolved when ACK arrives
   final _deleteCompleters = <int, Completer<bool>>{};
+
+  // Completers for stop/restart (cmd=1/2): resolved after ACK + post API
+  final _toggleCompleters = <int, Completer<bool>>{};
 
   @override
   void onInit() {
@@ -53,7 +58,8 @@ class MotorScheduleController extends GetxController {
       isLoading.value = true;
     }
     try {
-      final response = await _scheduleRepo.getScheduleList(1, 10);
+      final response =
+          await _scheduleRepo.getScheduleList(page.value, limit.value);
       schedules.value = response?.data?.records ?? [];
     } catch (_) {
       // silently fail
@@ -93,11 +99,14 @@ class MotorScheduleController extends GetxController {
       );
     } catch (e) {
       _pendingActions.remove(scheduleId);
+      _deleteCompleters.remove(scheduleId)?.complete(false);
+      _toggleCompleters.remove(scheduleId)?.complete(false);
       geterrorSnackBar('Failed to send command: $e');
     }
   }
 
-  /// Delete: publish MQTT cmd:3, wait for ACK, returns true=success false=failed
+  /// Delete: publish MQTT cmd:3, wait for ACK, then call delete API.
+  /// Returns true on success, false on failure.
   Future<bool> deleteSchedule(Record record) async {
     final scheduleId = record.scheduleId ?? 0;
     final completer = Completer<bool>();
@@ -106,40 +115,74 @@ class MotorScheduleController extends GetxController {
     return completer.future;
   }
 
-  /// Toggle: publish MQTT cmd:2 (restart/on) or cmd:1 (stop/off)
-  Future<void> toggleSchedule(Record record, bool enabled) async {
+  /// Stop/Restart: publish MQTT cmd:1 (stop) or cmd:2 (restart),
+  /// wait for ACK, then call stop/restart API.
+  /// Returns true on success, false on failure.
+  Future<bool> toggleSchedule(Record record, bool enabled) async {
+    final scheduleId = record.scheduleId ?? 0;
+    final completer = Completer<bool>();
+    _toggleCompleters[scheduleId] = completer;
     await publishScheduleAction(record, enabled ? 2 : 1);
+    return completer.future;
   }
 
   void _listenScheduleActionAck() {
     _scheduleActionAckSubscription?.cancel();
     _scheduleActionAckSubscription =
         _mqttService.scheduleActionAckStream.listen((ack) async {
-      final currentId = _resolveIdentifier();
-      final ackId = (ack['topic'] ?? '').toString();
-      if (currentId.isNotEmpty && ackId != currentId) return;
+      int scheduleId = 0;
+      try {
+        final currentId = _resolveIdentifier();
+        final ackId = (ack['topic'] ?? '').toString();
+        if (currentId.isNotEmpty && ackId != currentId) return;
 
-      final status = ack['status'] as int? ?? 0;
-      final scheduleId = ack['id'] as int? ?? 0;
-      final cmd = _pendingActions.remove(scheduleId);
+        final status = ack['status'] as int? ?? 0;
+        scheduleId = ack['id'] as int? ?? 0;
+        final cmd = _pendingActions.remove(scheduleId);
 
-      if (status == 1) {
-        if (cmd == 3) {
-          await _deleteScheduleAfterAck(scheduleId);
-          _deleteCompleters.remove(scheduleId)?.complete(true);
+        if (status == 1) {
+          if (cmd == 3) {
+            // ── DELETE: set id, call delete API, complete completer ──
+            await _deleteScheduleAfterAck(scheduleId);
+            _deleteCompleters.remove(scheduleId)?.complete(true);
+          } else if (cmd == 1 || cmd == 2) {
+            // ── STOP / RESTART: set id, call post API, complete completer ──
+            final record =
+                schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
+            if (record != null) {
+              await SharedPreference.setscheduleid(record.id ?? 0);
+            }
+            try {
+              final response = await _scheduleRepo.scheduleStopAndRestart(cmd!);
+              if (response != null) {
+                getsuccessSnackBar(
+                    cmd == 1 ? 'Schedule stopped' : 'Schedule restarted');
+                _toggleCompleters.remove(scheduleId)?.complete(true);
+              } else {
+                geterrorSnackBar('Failed to update schedule status');
+                _toggleCompleters.remove(scheduleId)?.complete(false);
+              }
+            } catch (_) {
+              geterrorSnackBar('Failed to update schedule status');
+              _toggleCompleters.remove(scheduleId)?.complete(false);
+            }
+            fetchSchedules();
+          } else {
+            fetchSchedules();
+          }
         } else {
-          getsuccessSnackBar(
-              cmd == 1 ? 'Schedule stopped' : 'Schedule restarted');
+          // ── ACK FAILURE / TIMEOUT ──
+          geterrorSnackBar(cmd == null
+              ? 'Schedule action: No response from device'
+              : 'Schedule action failed');
+          _deleteCompleters.remove(scheduleId)?.complete(false);
+          _toggleCompleters.remove(scheduleId)?.complete(false);
           fetchSchedules();
         }
-      } else {
-        if (cmd == 3) {
-          _deleteCompleters.remove(scheduleId)?.complete(false);
-        }
-        geterrorSnackBar(
-            cmd == null ? 'Schedule action: No response from device'
-                : 'Schedule action failed');
-        // Refresh to revert any optimistic UI changes (e.g. toggle switch)
+      } catch (e) {
+        // Safety net: always resolve completers so dialogs never get stuck
+        _deleteCompleters.remove(scheduleId)?.complete(false);
+        _toggleCompleters.remove(scheduleId)?.complete(false);
         fetchSchedules();
       }
     });
@@ -202,8 +245,7 @@ class MotorScheduleController extends GetxController {
   }
 
   String _resolveIdentifier() {
-    final starter =
-        Get.find<AnalyticsController>().motorDetails.value?.starter;
+    final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
     final mac = starter?.macAddress?.trim() ?? '';
     if (mac.isNotEmpty) return mac;
     return starter?.pcbNumber?.trim() ?? '';

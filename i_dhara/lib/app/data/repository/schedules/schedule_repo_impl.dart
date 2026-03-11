@@ -4,6 +4,7 @@ import 'package:i_dhara/app/data/models/schedules/create_schedule_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_acknowledgement_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_delete_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_stop_restart_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_update_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repository.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
@@ -75,13 +76,33 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
   @override
   Future<ScheduleUpdateResponse?> scheduleupdate(CreateScheduleDto dto) async {
     final body = dto.toJson();
-    final response = await NetworkManager()
-        .patch('/motor-schedules/${SharedPreference.getscheduleid()}', data: body);
+    final response = await NetworkManager().patch(
+        '/motor-schedules/${SharedPreference.getscheduleid()}',
+        data: body);
 
     if (response.statusCode == 200 ||
         response.statusCode == 422 ||
         response.statusCode == 201) {
       final res = ScheduleUpdateResponse.fromJson(response.data);
+      return res;
+    } else {
+      return null;
+    }
+  }
+
+  @override
+  Future<ScheduleStopAndRestartResponse?> scheduleStopAndRestart(
+      int cmd) async {
+    final body = {"cmd": cmd};
+    final response = await NetworkManager().post(
+        '/motor-schedules/update-status/${SharedPreference.getscheduleid()}',
+        data: body,
+        {});
+
+    if (response.statusCode == 200 ||
+        response.statusCode == 422 ||
+        response.statusCode == 201) {
+      final res = ScheduleStopAndRestartResponse.fromJson(response.data);
       return res;
     } else {
       return null;
