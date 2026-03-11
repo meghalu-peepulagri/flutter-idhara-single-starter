@@ -98,6 +98,7 @@ enum LocationPermissionStatus {
   denied,
   deniedForever,
   serviceDisabled,
+  bothDisabled,
 }
 
 class WeatherData {

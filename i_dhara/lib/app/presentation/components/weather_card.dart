@@ -22,7 +22,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
 
   WeatherData? _weatherData;
   LocationPermissionStatus? _permissionStatus;
-  bool _hasRequestedPermission = false;
+  final bool _hasRequestedPermission = false;
   Timer? _hourCheckTimer;
   StreamSubscription<ServiceStatus>? _serviceStatusSubscription;
   bool _isInitializing = false;
@@ -53,12 +53,6 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkAndRefreshIfNeeded();
-    }
-  }
-
   void _startHourCheckTimer() {
     _hourCheckTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       if (mounted) {
@@ -127,9 +121,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
       return;
     }
 
-    if (!_isInitializing) {
-      setState(() => _isInitializing = true);
-    }
+    if (!_isInitializing) setState(() => _isInitializing = true);
 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -142,19 +134,14 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      setState(() {
-        _permissionStatus = LocationPermissionStatus.denied;
-        _cachedPermissionStatus = LocationPermissionStatus.denied;
-        _isInitializing = false;
-      });
-      return;
-    }
 
-    if (permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       setState(() {
-        _permissionStatus = LocationPermissionStatus.deniedForever;
-        _cachedPermissionStatus = LocationPermissionStatus.deniedForever;
+        _permissionStatus = permission == LocationPermission.deniedForever
+            ? LocationPermissionStatus.deniedForever
+            : LocationPermissionStatus.denied;
+        _cachedPermissionStatus = _permissionStatus;
         _isInitializing = false;
       });
       return;
@@ -192,7 +179,8 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   }
 
   void _scrollToCurrentHourActual() {
-    if (!mounted || _weatherData == null || !_scrollController.hasClients) return;
+    if (!mounted || _weatherData == null || !_scrollController.hasClients)
+      return;
 
     final position = _scrollController.position;
     if (!position.hasContentDimensions) return;
@@ -224,26 +212,80 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   }
 
   Future<void> _handleEnableLocation() async {
-    if (_permissionStatus == LocationPermissionStatus.deniedForever) {
-      await Geolocator.openAppSettings();
-    } else if (_permissionStatus == LocationPermissionStatus.serviceDisabled) {
+    if (_permissionStatus == LocationPermissionStatus.serviceDisabled) {
       await Geolocator.openLocationSettings();
-    } else if (_permissionStatus == LocationPermissionStatus.denied) {
-      _hasRequestedPermission = true;
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _permissionStatus = LocationPermissionStatus.denied;
-          _cachedPermissionStatus = LocationPermissionStatus.denied;
-        });
-      } else if (permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    // Always check current actual permission state first
+    final currentPermission = await Geolocator.checkPermission();
+
+    if (currentPermission == LocationPermission.deniedForever) {
+      // Must go to app settings - can't request programmatically
+      await Geolocator.openAppSettings();
+      return;
+    }
+
+    if (currentPermission == LocationPermission.denied) {
+      // Try requesting — Android may block after 2nd denial
+      final result = await Geolocator.requestPermission();
+
+      if (result == LocationPermission.whileInUse ||
+          result == LocationPermission.always) {
+        await _forceRefresh();
+      } else if (result == LocationPermission.deniedForever) {
         setState(() {
           _permissionStatus = LocationPermissionStatus.deniedForever;
           _cachedPermissionStatus = LocationPermissionStatus.deniedForever;
         });
+        // Immediately open app settings since it's now forever denied
+        await Geolocator.openAppSettings();
       } else {
-        await _forceRefresh();
+        // Still denied — next time force app settings
+        setState(() {
+          _permissionStatus = LocationPermissionStatus.deniedForever;
+          _cachedPermissionStatus = LocationPermissionStatus.deniedForever;
+        });
       }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _recheckPermissionAfterSettings();
+    }
+  }
+
+  Future<void> _recheckPermissionAfterSettings() async {
+    // Re-check location service first
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        _permissionStatus = LocationPermissionStatus.serviceDisabled;
+        _cachedPermissionStatus = LocationPermissionStatus.serviceDisabled;
+        _isInitializing = false;
+      });
+      return;
+    }
+
+    // Re-check app permission
+    final permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      // Granted — fetch weather
+      await _forceRefresh();
+    } else {
+      final newStatus = permission == LocationPermission.deniedForever
+          ? LocationPermissionStatus.deniedForever
+          : LocationPermissionStatus.denied;
+
+      setState(() {
+        _permissionStatus = newStatus;
+        _cachedPermissionStatus = newStatus;
+        _isInitializing = false;
+      });
     }
   }
 
@@ -322,51 +364,104 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   }
 
   Widget _buildPermissionUI() {
+    final bool isServiceDisabled =
+        _permissionStatus == LocationPermissionStatus.serviceDisabled;
+
+    if (isServiceDisabled) {
+      return _buildLocationBanner(
+        icon: Icons.location_disabled,
+        heading: 'System Location (GPS) is Off',
+        description:
+            "To function, iDhara requires your device's location services (GPS) to be turned ON.",
+        buttonText: 'Go to System Settings →',
+        onTap: _handleEnableLocation, // ← single handler
+      );
+    }
+
+    return _buildLocationBanner(
+      icon: Icons.phone_android,
+      heading: 'App Location Access is Denied',
+      description:
+          "The iDhara app does not have permission to access your location. Please grant 'While using the app' permission.",
+      buttonText: _permissionStatus == LocationPermissionStatus.deniedForever
+          ? 'Go to App Settings →'
+          : 'Grant Permission →',
+      onTap: _handleEnableLocation, // ← single handler
+    );
+  }
+
+  Widget _buildLocationBanner({
+    required IconData icon,
+    required String heading,
+    required String description,
+    required String buttonText,
+    required VoidCallback onTap,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            _permissionStatus == LocationPermissionStatus.serviceDisabled
-                ? Icons.location_disabled
-                : Icons.location_off,
-            size: 36,
-            color: Colors.grey[400],
+          // Icon with X overlay
+          Stack(
+            children: [
+              const Icon(Icons.location_on, size: 44, color: Colors.white70),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Icon(Icons.cancel, size: 18, color: Colors.red[300]),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+
+          // Text section
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Location Permission Required',
-                  style: FlutterFlowTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        color: const Color(0XFFFFFFFF),
-                        fontSize: 13.0,
-                      ),
+                  heading,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white70,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _handleEnableLocation,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+
+          // Button
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white38),
               ),
-              minimumSize: const Size(0, 0),
-            ),
-            child: Text(
-              _getButtonText(),
-              style: const TextStyle(fontSize: 12),
+              child: Text(
+                buttonText,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
