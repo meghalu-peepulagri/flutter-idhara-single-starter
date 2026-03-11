@@ -68,4 +68,15 @@ class ScheduleController extends GetxController {
       return null;
     }
   }
+
+  Future<void> refreshCreateSchedulePage() async {
+    if (isRefreshing.value) return;
+    isRefreshing.value = true;
+    try {
+      // Keeps skeleton visible briefly so pull-to-refresh has clear UI feedback.
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+    } finally {
+      isRefreshing.value = false;
+    }
+  }
 }

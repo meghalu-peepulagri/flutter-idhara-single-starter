@@ -14,6 +14,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_card.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_dialogs.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
@@ -23,7 +24,7 @@ class SchedulePage extends StatefulWidget {
 }
 
 class _SchedulePageState extends State<SchedulePage> {
-  final _formKey = GlobalKey<ScheduleFormState>();
+  GlobalKey<ScheduleFormState> _formKey = GlobalKey<ScheduleFormState>();
   final _mqttService = MqttService();
   late final ScheduleController _scheduleController;
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSub;
@@ -222,6 +223,14 @@ class _SchedulePageState extends State<SchedulePage> {
     return (int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
   }
 
+  Future<void> _onPullToRefresh() async {
+    await _scheduleController.refreshCreateSchedulePage();
+    if (!mounted) return;
+    setState(() {
+      _formKey = GlobalKey<ScheduleFormState>();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = motor?.aliasName ?? motor?.name ?? 'Motor';
@@ -242,27 +251,35 @@ class _SchedulePageState extends State<SchedulePage> {
           children: [
             _buildHeader(displayName),
             Expanded(
-              child: ScheduleForm(
-                key: _formKey,
-                onSave: _onSaveTapped,
-                onBack: () => Get.back(),
-                initialStartHour: record != null ? sh : null,
-                initialStartMinute: record != null ? sm : null,
-                initialEndHour: record != null ? eh : null,
-                initialEndMinute: record != null ? em : null,
-                initialDays: record?.daysOfWeek != null
-                    ? Set<int>.from(record!.daysOfWeek!)
-                    : null,
-                initialCyclicMode: record != null ? isCyclic : null,
-                initialCyclicOnMinutes: record != null
-                    ? (record.cycleOnMinutes as num?)?.toInt()
-                    : null,
-                initialCyclicOffMinutes: record != null
-                    ? (record.cycleOffMinutes as num?)?.toInt()
-                    : null,
-                initialPowerLossRecovery: record?.powerLossRecovery,
-                initialRepeatWeekly:
-                    record != null ? (record.repeat == 1) : null,
+              child: Obx(
+                () => Skeletonizer(
+                  enabled: _scheduleController.isRefreshing.value,
+                  child: RefreshIndicator(
+                    onRefresh: _onPullToRefresh,
+                    child: ScheduleForm(
+                      key: _formKey,
+                      onSave: _onSaveTapped,
+                      onBack: () => Get.back(),
+                      initialStartHour: record != null ? sh : null,
+                      initialStartMinute: record != null ? sm : null,
+                      initialEndHour: record != null ? eh : null,
+                      initialEndMinute: record != null ? em : null,
+                      initialDays: record?.daysOfWeek != null
+                          ? Set<int>.from(record!.daysOfWeek!)
+                          : null,
+                      initialCyclicMode: record != null ? isCyclic : null,
+                      initialCyclicOnMinutes: record != null
+                          ? (record.cycleOnMinutes as num?)?.toInt()
+                          : null,
+                      initialCyclicOffMinutes: record != null
+                          ? (record.cycleOffMinutes as num?)?.toInt()
+                          : null,
+                      initialPowerLossRecovery: record?.powerLossRecovery,
+                      initialRepeatWeekly:
+                          record != null ? (record.repeat == 1) : null,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
