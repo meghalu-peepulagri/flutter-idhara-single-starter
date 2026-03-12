@@ -60,9 +60,6 @@ class WidgetService {
         final fault = (params != null && params.isNotEmpty)
             ? (params.first.fault ?? 0)
             : 0;
-        final faultDesc = (params != null && params.isNotEmpty)
-            ? (params.first.faultDescription ?? '')
-            : '';
 
         // Determine run time (dummy data for visual UI if not available, or real logic if you have it)
         // Since we don't have accurate run time duration in Motor model, we'll keep it simple for now.
@@ -75,7 +72,6 @@ class WidgetService {
           'isRunning': isRunning,
           'signalQuality': signalQuality,
           'fault': fault,
-          'faultDesc': faultDesc,
           'runTimeMinutes': runTimeMinutes,
         };
       }).toList();

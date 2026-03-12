@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.widget.RemoteViews
+import android.app.PendingIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 
 class PumpWidgetProvider : HomeWidgetProvider() {
@@ -29,6 +30,18 @@ class PumpWidgetProvider : HomeWidgetProvider() {
 
             // Set the RemoteAdapter to use the service
             views.setRemoteAdapter(R.id.pump_list, intent)
+
+            // Set up click intent template
+            val clickIntent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+            }
+            val clickPendingIntent = PendingIntent.getActivity(
+                context, 
+                0, 
+                clickIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            views.setPendingIntentTemplate(R.id.pump_list, clickPendingIntent)
 
             // Instruct the widget manager to update the widget
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.pump_list)

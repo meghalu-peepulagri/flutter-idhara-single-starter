@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
+import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -95,6 +96,14 @@ class PumpRemoteViewsFactory(private val context: Context) : RemoteViewsService.
             
             // NOTE for API 22: You cannot easily change progressDrawable dynamically in RemoteViews. 
             // So we will keep it simple.
+
+            // Setup FillInIntent to make the item clickable
+            val fillInIntent = Intent().apply {
+                // Pass some generic data to trigger the template, or pass specific pump data if desired
+                putExtra("clicked_pump_mac", pumpObj.optString("macAddress", ""))
+                data = Uri.parse("idhara://idhara.com/dashboard")
+            }
+            views.setOnClickFillInIntent(R.id.pump_item_container, fillInIntent)
 
         } catch (e: Exception) {
             e.printStackTrace()
