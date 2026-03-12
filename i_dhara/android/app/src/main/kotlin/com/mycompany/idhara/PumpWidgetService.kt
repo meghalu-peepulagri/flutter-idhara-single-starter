@@ -78,6 +78,16 @@ class PumpRemoteViewsFactory(private val context: Context) : RemoteViewsService.
                 views.setViewVisibility(R.id.pump_item_fault, android.view.View.GONE)
             }
 
+            // Map Signal Quality to custom ranges
+            val signalBars = when (signalQuality) {
+                in 20..Int.MAX_VALUE -> R.drawable.ic_signal_4
+                in 15..19            -> R.drawable.ic_signal_3
+                in 10..14            -> R.drawable.ic_signal_2
+                in 2..9              -> R.drawable.ic_signal_1
+                else                 -> R.drawable.ic_signal_0
+            }
+            views.setImageViewResource(R.id.pump_item_signal_icon, signalBars)
+
             // Display Runtime instead of Signal
             views.setTextViewText(R.id.pump_item_runtime, runTimeDuration)
             
