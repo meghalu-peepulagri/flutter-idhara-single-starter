@@ -131,13 +131,22 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
         if (mqttMode == _pendingModeValue) {
           if (kDebugMode) {
-            print('Mode ACK MATCHED!');
+            print('Mode ACK MATCHED! (via ${motorData.modeIndex != null ? "live-data" : "type-32"})');
           }
 
           _modeAckTimer?.cancel();
           _hasPendingModeCommand = false;
           _pendingModeValue = null;
           isWaitingForModeAck.value = false;
+
+          // ACK may have arrived via live data (T:35/41) rather than the
+          // explicit T:32 ACK, so the MqttService retry timer may still be
+          // running. Cancel it now to prevent it from re-publishing the old
+          // command after we already consider it resolved.
+          final mId = _getMotorId();
+          if (mId.isNotEmpty) {
+            mqttService.clearPendingModeCommand(mId);
+          }
 
           // Force UI update
           localModeIndex.value = mqttMode!;
@@ -287,6 +296,14 @@ extension AnalyticsControllerMqtt on AnalyticsController {
           print(
               '⚠ Analytics: Mode ACK timeout - reverting to previous mode: $previousValue');
         }
+        // Cancel MQTT retries immediately so they don't re-publish the old
+        // command after we've given up, and to avoid the race where the
+        // MqttService timer fires just after the controller clears its state
+        // and removes a freshly-registered new-command entry.
+        final mId = _getMotorId();
+        if (mId.isNotEmpty) {
+          mqttService.clearPendingModeCommand(mId);
+        }
         localModeIndex.value = previousValue;
         motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
         _hasPendingModeCommand = false;
@@ -304,6 +321,11 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     final previousValue = localModeIndex.value;
 
+    // Cancel any stale mode-command retries in the MQTT service before issuing
+    // a new command. Without this, a retry from the previous round can fire
+    // after this publish and overwrite the new mode on the device.
+    mqttService.clearPendingModeCommand(mId);
+
     // Optimistically update UI
     isWaitingForModeAck.value = true;
     localModeIndex.value = newModeIndex;
@@ -319,6 +341,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     } catch (e) {
       if (kDebugMode) print('Error publishing mode command: $e');
       _modeAckTimer?.cancel();
+      mqttService.clearPendingModeCommand(mId);
       localModeIndex.value = previousValue;
       motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
       _hasPendingModeCommand = false;

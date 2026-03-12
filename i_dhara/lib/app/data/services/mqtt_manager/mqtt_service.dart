@@ -420,13 +420,25 @@ class MqttService {
     }
   }
 
+  /// Cancel any pending mode command retries for the given motor.
+  /// Call this before sending a new mode command or when reverting on timeout.
+  void clearPendingModeCommand(String motorId) {
+    final key = '${motorId}_2';
+    final command = _pendingCommands[key];
+    if (command != null) {
+      command.cancelTimer();
+      _pendingCommands.remove(key);
+      debugPrint('✓ Cleared pending mode command: $key');
+    }
+  }
+
   /// Publish mode change command (0=Manual, 1=Auto)
   Future<void> publishModeCommand(String motorId, int mode) async {
     if (_mqttClient == null || !isConnected) {
       debugPrint('✗ Cannot publish: MQTT not connected');
       statusMessage = 'MQTT not connected';
       _dataUpdateNotifier.value++;
-      return;
+      throw Exception('MQTT not connected');
     }
 
     _lastAckTimes.remove(motorId);

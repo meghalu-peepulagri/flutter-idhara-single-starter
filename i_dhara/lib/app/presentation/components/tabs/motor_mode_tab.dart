@@ -22,6 +22,7 @@ class MotorModeTab extends StatefulWidget {
 class _MotorModeTabState extends State<MotorModeTab> {
   late ValueNotifier<int> _modeNotifier;
   Worker? _modeWorker;
+  bool _isDialogOpen = false;
 
   @override
   void initState() {
@@ -143,15 +144,20 @@ class _MotorModeTabState extends State<MotorModeTab> {
                             borderColor: [Colors.grey.shade300],
                             onToggle: !isDisabled
                                 ? (index) {
-                                    if (index == null) return;
+                                    if (index == null || _isDialogOpen) return;
                                     final newModeIndex = index == 0 ? 1 : 0;
                                     if (newModeIndex != currentModeIndex) {
+                                      setState(() => _isDialogOpen = true);
                                       MotorCardDialogs.showModeChangeDialog(
                                         context,
                                         widget.controller.motorName.value,
                                         newModeIndex,
                                         widget.controller.handleModeChange,
-                                      );
+                                      ).then((_) {
+                                        if (mounted) {
+                                          setState(() => _isDialogOpen = false);
+                                        }
+                                      });
                                     }
                                   }
                                 : null,

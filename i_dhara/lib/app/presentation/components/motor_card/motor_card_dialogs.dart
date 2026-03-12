@@ -159,15 +159,16 @@ class MotorCardDialogs {
     );
   }
 
-  static void showModeChangeDialog(
+  static Future<void> showModeChangeDialog(
     BuildContext context,
     String motorName,
     int newModeIndex,
     Function(int) onConfirm,
   ) {
     final modeName = newModeIndex == 1 ? 'Auto' : 'Manual';
-    showDialog(
+    return showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(

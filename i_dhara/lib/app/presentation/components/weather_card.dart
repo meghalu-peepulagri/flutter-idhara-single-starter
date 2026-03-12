@@ -39,8 +39,10 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Prevent reload when quick settings panel opens
-      if (_weatherData == null) {
+      // Re-check if permission wasn't granted or weather data is missing
+      // This handles returning from OS permission dialog or app settings
+      if (_weatherData == null ||
+          _permissionStatus != LocationPermissionStatus.granted) {
         _initializeWeather();
       }
     }
@@ -141,10 +143,11 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
       ),
       child: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : (_permissionStatus != LocationPermissionStatus.granted ||
-                  _weatherData == null)
+          : _permissionStatus != LocationPermissionStatus.granted
               ? _buildPermissionUI()
-              : _buildWeatherUI(),
+              : _weatherData == null
+                  ? _buildRetryUI()
+                  : _buildWeatherUI(),
     );
   }
 
@@ -261,6 +264,45 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
             )
           ],
         ),
+      ),
+    );
+  }
+
+  /// RETRY UI (permission granted but data failed to load)
+  Widget _buildRetryUI() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off, size: 34, color: Colors.white70),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Weather data unavailable',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Failed to fetch weather. Check your connection.',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _actionButton('Retry', Icons.refresh, _initializeWeather),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

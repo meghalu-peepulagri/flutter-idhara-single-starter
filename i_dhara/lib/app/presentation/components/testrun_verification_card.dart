@@ -299,12 +299,20 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     }
   }
 
-  /// Immediately checks power / voltage once live data arrives.
-  /// A short delay lets [widget.motorData.hasReceivedLiveData] settle.
+  /// Immediately checks all verification states once live data arrives.
+  /// If all three icons show close (network/power/voltage all failed),
+  /// fires the error snackbar right away without waiting for the 15-second timeout.
   void _checkPowerVoltageNow() {
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted || _connectionSnackBarShown || _isNetworkFalse) return;
+      if (!mounted || _connectionSnackBarShown) return;
       if (!(widget.motorData?.hasReceivedLiveData ?? false)) return;
+      // Network check shows close icon → power and voltage are both blocked
+      // (also showing close). All three are red — fire immediately.
+      if (_isNetworkFalse) {
+        _connectionSnackBarShown = true;
+        geterrorSnackBar('Device is not connected.');
+        return;
+      }
       if (!_isPowerOn || !_isVoltageInRange) {
         _connectionSnackBarShown = true;
         geterrorSnackBar(

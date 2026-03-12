@@ -151,7 +151,8 @@ class SidebarWidget extends StatelessWidget {
                             onTap: () {
                               // SharedPreference.setRouting('/gateway');
                               // SharedPreference.setlocationdropdownid(0);
-                              Get.offNamed(Routes.dashboard);
+                              Get.offAllNamed(Routes.dashboard,
+                                  arguments: {"refresh": true});
                             },
                             // count: SharedPreference.getPondstats(),
                             context: context)),

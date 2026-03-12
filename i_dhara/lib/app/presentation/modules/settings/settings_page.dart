@@ -728,11 +728,15 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                     SettingsCurrentCard(
                                       key: currentCardKey,
                                       initialLowCurrent:
-                                          settings?.drf?.toDouble() ??
-                                              180.0, // NOTE: Check mapping
+                                          (settings?.drf ?? 100) > 100
+                                              ? 100.0
+                                              : (settings?.drf?.toDouble() ??
+                                                  100.0),
                                       initialHighCurrent:
-                                          settings?.olf?.toDouble() ??
-                                              280.0, // NOTE: Check mapping
+                                          (settings?.olf ?? 101) < 100
+                                              ? 101.0
+                                              : (settings?.olf?.toDouble() ??
+                                                  101.0),
                                       motorName:
                                           settings?.starter?.name?.toString() ??
                                               'Pump 1',
