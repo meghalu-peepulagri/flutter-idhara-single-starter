@@ -57,45 +57,55 @@ class PumpRemoteViewsFactory(private val context: Context) : RemoteViewsService.
             val isRunning = pumpObj.optBoolean("isRunning", false)
             val signalQuality = pumpObj.optInt("signalQuality", 0)
             val fault = pumpObj.optInt("fault", 0)
-            val runTime = pumpObj.optInt("runTimeMinutes", 0)
+            val runTimeDuration = pumpObj.optString("runTimeMinutes", "")
 
             views.setTextViewText(R.id.pump_item_name, name)
 
-            if (fault != 0) {
-                views.setTextViewText(R.id.pump_item_status, "FAULT")
-                views.setTextColor(R.id.pump_item_status, android.graphics.Color.RED)
-            } else {
-                val statusText = if (isRunning) "ON" else "OFF"
-                views.setTextViewText(R.id.pump_item_status, statusText)
-                views.setTextColor(
-                    R.id.pump_item_status,
-                    if (isRunning) android.graphics.Color.WHITE else android.graphics.Color.LTGRAY
-                )
-            }
-
-            views.setTextViewText(R.id.pump_item_signal, "$signalQuality%")
-            
-            // Set arbitrary progress based on UI or realistic progress
-            val progressValue = if (isRunning) (runTime % 100).coerceAtLeast(10) else 0
-            views.setProgressBar(R.id.pump_item_progress, 100, if(isRunning) 100 else 0, false)
-
-            // Dynamic colors array based on mockup
-            val layoutDrawables = intArrayOf(
-                R.drawable.progress_bar_blue,
-                R.drawable.progress_bar_green,
-                R.drawable.progress_bar_orange,
-                R.drawable.progress_bar_pink,
-                R.drawable.progress_bar_purple
+            // Always show ON/OFF status
+            val statusText = if (isRunning) "ON" else "OFF"
+            views.setTextViewText(R.id.pump_item_status, statusText)
+            views.setTextColor(
+                R.id.pump_item_status,
+                if (isRunning) android.graphics.Color.WHITE else android.graphics.Color.LTGRAY
             )
 
-            // In older APIs, changing progressDrawable dynamically via RemoteViews is tricky.
-            // If using setInt, it might not render the clip correctly.
-            // But we will attempt to set it, if it fails, it defaults to blue
-            // Note: Setting custom drawables inside RemoteViews for progress bars can be limited by RemoteViews security
-            // A safer bet in Android Widgets is showing different ProgressBar view IDs altogether, but for 20 pumps we will use blue default if this fails
+            // Show FAULT next to it if fault exists
+            if (fault != 0) {
+                views.setTextViewText(R.id.pump_item_fault, " FAULT")
+                views.setViewVisibility(R.id.pump_item_fault, android.view.View.VISIBLE)
+            } else {
+                views.setTextViewText(R.id.pump_item_fault, "")
+                views.setViewVisibility(R.id.pump_item_fault, android.view.View.GONE)
+            }
+
+            // Display Runtime instead of Signal
+            views.setTextViewText(R.id.pump_item_runtime, runTimeDuration)
             
-            // NOTE for API 22: You cannot easily change progressDrawable dynamically in RemoteViews. 
-            // So we will keep it simple.
+            // The user requested a specific order: 1st Orange, 2nd Blue, 3rd Yellow, 4th Green, etc.
+            val progressIds = intArrayOf(
+                R.id.pump_item_progress_orange,
+                R.id.pump_item_progress_blue,
+                R.id.pump_item_progress_yellow,
+                R.id.pump_item_progress_green,
+                R.id.pump_item_progress_red,
+                R.id.pump_item_progress_pink,
+                R.id.pump_item_progress_cyan,
+                R.id.pump_item_progress_purple,
+                R.id.pump_item_progress_teal,
+                R.id.pump_item_progress_indigo
+            )
+
+            // Hide them all
+            for (id in progressIds) {
+                views.setViewVisibility(id, android.view.View.GONE)
+            }
+
+            // Show and set the appropriate one
+            val colorIndex = position % progressIds.size
+            val activeProgressId = progressIds[colorIndex]
+            views.setViewVisibility(activeProgressId, android.view.View.VISIBLE)
+            // Progress will be 100% (or runTime equivalent) when running, 0 when off
+            views.setProgressBar(activeProgressId, 100, if (isRunning) 100 else 0, false)
 
             // Setup FillInIntent to make the item clickable
             val fillInIntent = Intent().apply {

@@ -72,7 +72,7 @@ class WidgetService {
           'isRunning': isRunning,
           'signalQuality': signalQuality,
           'fault': fault,
-          'runTimeMinutes': runTimeMinutes,
+          'runTimeMinutes': motor.runTimeDuration,
         };
       }).toList();
 
