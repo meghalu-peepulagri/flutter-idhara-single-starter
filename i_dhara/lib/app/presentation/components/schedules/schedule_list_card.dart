@@ -209,22 +209,22 @@ class ScheduleCard extends StatelessWidget {
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF1A1A2E))),
-                  if (isRepeated) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEBF3FE),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text('Weekly',
-                          style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF004E7E))),
-                    ),
-                  ],
+                  // if (isRepeated) ...[
+                  //   const SizedBox(height: 4),
+                  //   Container(
+                  //     padding: const EdgeInsets.symmetric(
+                  //         horizontal: 6, vertical: 2),
+                  //     decoration: BoxDecoration(
+                  //       color: const Color(0xFFEBF3FE),
+                  //       borderRadius: BorderRadius.circular(4),
+                  //     ),
+                  //     child: Text('Weekly',
+                  //         style: GoogleFonts.dmSans(
+                  //             fontSize: 10,
+                  //             fontWeight: FontWeight.w600,
+                  //             color: const Color(0xFF004E7E))),
+                  //   ),
+                  // ],
                 ],
               ),
             ],
@@ -265,6 +265,65 @@ class ScheduleCard extends StatelessWidget {
             ],
           ),
 
+          if ((record.powerLossRecovery == true) || (record.repeat == 1)) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (record.powerLossRecovery == true)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color:
+                              const Color(0xFFFF9800).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.power_rounded,
+                            size: 11, color: Color(0xFFFF9800)),
+                        const SizedBox(width: 4),
+                        Text('Power Recovery',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFFF9800))),
+                      ],
+                    ),
+                  ),
+                if (record.powerLossRecovery == true && record.repeat == 1)
+                  const SizedBox(width: 6),
+                if (record.repeat == 1)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF004E7E).withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.repeat_rounded,
+                            size: 11, color: Color(0xFF004E7E)),
+                        const SizedBox(width: 4),
+                        Text('Repeat Weekly',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF004E7E))),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
@@ -380,10 +439,28 @@ class ScheduleCard extends StatelessWidget {
   }
 
   Widget _statusDot(String status, bool isActive) {
+    final normalizedStatus = status.toLowerCase();
+    final isScheduled = normalizedStatus == 'scheduled';
+    final isStopped = normalizedStatus == 'stopped';
+    final badgeBgColor = isScheduled
+        ? const Color(0xFFEBF3FE)
+        : isStopped
+            ? const Color(0xFFFFEBEE)
+            : isActive
+                ? const Color(0xFFE8F5E9)
+                : const Color(0xFFF5F5F5);
+    final badgeFgColor = isScheduled
+        ? const Color(0xFF004E7E)
+        : isStopped
+            ? const Color(0xFFE53935)
+            : isActive
+                ? const Color(0xFF34C759)
+                : const Color(0xFF9E9E9E);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFFE8F5E9) : const Color(0xFFF5F5F5),
+        color: badgeBgColor,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -394,8 +471,7 @@ class ScheduleCard extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color:
-                  isActive ? const Color(0xFF34C759) : const Color(0xFF9E9E9E),
+              color: badgeFgColor,
             ),
           ),
           const SizedBox(width: 4),
@@ -404,8 +480,7 @@ class ScheduleCard extends StatelessWidget {
             style: GoogleFonts.dmSans(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color:
-                  isActive ? const Color(0xFF34C759) : const Color(0xFF9E9E9E),
+              color: badgeFgColor,
             ),
           ),
         ],

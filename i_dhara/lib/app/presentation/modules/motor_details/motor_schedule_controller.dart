@@ -305,7 +305,8 @@ class MotorScheduleController extends GetxController {
 
   void _listenScheduleAck() {
     _scheduleAckSubscription?.cancel();
-    _scheduleAckSubscription = _mqttService.scheduleAckStream.listen((ack) {
+    _scheduleAckSubscription =
+        _mqttService.scheduleAckStream.listen((ack) async {
       final currentId = _resolveIdentifier();
       final ackId = (ack['topic'] ?? '').toString();
       if (currentId.isNotEmpty && ackId != currentId) return;
@@ -313,8 +314,8 @@ class MotorScheduleController extends GetxController {
       final status = ack['status'] as int? ?? 0;
       if (status == 1) {
         getsuccessSnackBar('Schedule created successfully');
+        await fetchacknowledgement();
         fetchSchedules();
-        fetchacknowledgement();
       } else {
         geterrorSnackBar('Schedule creation failed');
       }
