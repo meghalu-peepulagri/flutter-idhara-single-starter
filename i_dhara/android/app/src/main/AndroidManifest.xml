@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-sdk tools:overrideLibrary="es.antonborri.home_widget" />
     <application
         android:label="iDhara"
         tools:replace="android:label"
@@ -62,6 +63,18 @@
             </intent-filter>
 
         </activity>
+        
+        <receiver android:name="com.mycompany.idhara.PumpWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pump_widget_info" />
+        </receiver>
+
+        <service android:name="com.mycompany.idhara.PumpWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

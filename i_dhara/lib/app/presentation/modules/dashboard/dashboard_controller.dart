@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/services/widget_service.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
@@ -59,6 +60,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
   @override
   void onInit() {
     super.onInit();
+    WidgetService.initialize();
     _loadAllData();
     _requestPermissionAndLoad();
   }
@@ -200,6 +202,10 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
         motors.refresh();
         allMotors.refresh();
+
+        // Update widget native data
+        WidgetService.updateWidgetData(
+            allMotors, mqttInitialized ? mqttService : null);
       } else {
         errorMessage.value = 'Failed to refresh motors';
       }
@@ -506,6 +512,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
     motors.refresh();
     allMotors.refresh();
+
+    // Update widget native data
+    WidgetService.updateWidgetData(allMotors, mqttService);
   }
 
   Future<void> fetchLocationDropDown() async {

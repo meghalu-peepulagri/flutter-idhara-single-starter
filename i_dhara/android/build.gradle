@@ -3,8 +3,21 @@ allprojects {
         google()
         mavenCentral()
     }
+    
+    // Force older home_widget to use a modern Kotlin version
+    configurations.all {
+        resolutionStrategy {
+            eachDependency { DependencyResolveDetails details ->
+                if (details.requested.group == 'org.jetbrains.kotlin' && 
+                    details.requested.name == 'kotlin-gradle-plugin') {
+                    details.useVersion "1.9.0"
+                }
+            }
+        }
+    }
 }
 buildscript {
+    ext.kotlin_version = '1.9.0'
     repositories {
         google()
         mavenCentral()
@@ -18,6 +31,11 @@ rootProject.buildDir = '../build'
 subprojects {
     afterEvaluate { project ->
         if (project.hasProperty("kotlin")) {
+            project.buildscript {
+                dependencies {
+                    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
+                }
+            }
             project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
                 kotlinOptions {
                     jvmTarget = "1.8"
