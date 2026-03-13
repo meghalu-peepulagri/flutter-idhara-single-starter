@@ -791,11 +791,29 @@ class MqttService {
 
   void _onMessageReceived(List<MqttReceivedMessage<MqttMessage>> messages) {
     lastMessageTime = DateTime.now();
+    bool hasRelevantMessage = false;
 
     for (var message in messages) {
       final payload = MqttPublishPayload.bytesToStringAsString(
           (message.payload as MqttPublishMessage).payload.message);
       final topic = message.topic;
+
+      // Only attempt parsing if we know it could be relevant, but wait, we need to parse type for debug or we can just parse it fully.
+      // But the topic already contains the identifier. We can filter it even before jsonDecode!
+      final topicParts = topic.split('/');
+      if (topicParts.length < 2) {
+        debugPrint('   ⚠️ Skipping: invalid topic format');
+        continue;
+      }
+
+      final identifier = topicParts[1];
+
+      if (!_isIdentifierRelevant(identifier)) {
+        // Ignore messages from other users/devices not belonging to this user
+        continue;
+      }
+
+      hasRelevantMessage = true;
 
       debugPrint('📨 RAW MQTT: topic=$topic, payload=$payload');
 
@@ -811,14 +829,6 @@ class MqttService {
           debugPrint('   ⚠️ Skipping: type is null');
           continue;
         }
-
-        final topicParts = topic.split('/');
-        if (topicParts.length < 2) {
-          debugPrint('   ⚠️ Skipping: invalid topic format');
-          continue;
-        }
-
-        final identifier = topicParts[1];
 
         debugPrint(
             '📩 MQTT Message: topic=$topic, type=$type, identifier=$identifier');
@@ -855,7 +865,20 @@ class MqttService {
       }
     }
 
-    _dataUpdateNotifier.value++;
+    if (hasRelevantMessage) {
+      _dataUpdateNotifier.value++;
+    }
+  }
+
+  bool _isIdentifierRelevant(String identifier) {
+    if (_motors.isEmpty) return false;
+    for (var motor in _motors.values) {
+      if (motor.starter?.macAddress == identifier ||
+          motor.starter?.pcbNumber == identifier) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Handle motor ON/OFF acknowledgment (type 31)

@@ -58,6 +58,7 @@ class PumpRemoteViewsFactory(private val context: Context) : RemoteViewsService.
             val signalQuality = pumpObj.optInt("signalQuality", 0)
             val fault = pumpObj.optInt("fault", 0)
             val runTimeDuration = pumpObj.optString("runTimeMinutes", "")
+            val runTimeProgress = pumpObj.optInt("runTimeProgress", 0)
 
             views.setTextViewText(R.id.pump_item_name, name)
 
@@ -114,8 +115,9 @@ class PumpRemoteViewsFactory(private val context: Context) : RemoteViewsService.
             val colorIndex = position % progressIds.size
             val activeProgressId = progressIds[colorIndex]
             views.setViewVisibility(activeProgressId, android.view.View.VISIBLE)
-            // Progress will be 100% (or runTime equivalent) when running, 0 when off
-            views.setProgressBar(activeProgressId, 100, if (isRunning) 100 else 0, false)
+            
+            // Progress based on runtime duration out of 24h
+            views.setProgressBar(activeProgressId, 100, runTimeProgress, false)
 
             // Setup FillInIntent to make the item clickable
             val fillInIntent = Intent().apply {

@@ -63,8 +63,36 @@ class WidgetService {
 
         // Determine run time (dummy data for visual UI if not available, or real logic if you have it)
         // Since we don't have accurate run time duration in Motor model, we'll keep it simple for now.
-        int runTimeMinutes =
-            0; // We will use this in the native layer to draw the progress bar
+        // Calculate progress out of 24 hours (1440 minutes)
+        int progress = 0;
+        final runTimeString = motor.runTimeDuration ?? '';
+        if (runTimeString.isNotEmpty && runTimeString != '0h 0m 0s') {
+          int hours = 0;
+          int minutes = 0;
+
+          final hMatch = RegExp(r'(\d+)\s*h').firstMatch(runTimeString);
+          if (hMatch != null) {
+            hours = int.tryParse(hMatch.group(1) ?? '0') ?? 0;
+          }
+
+          final mMatch = RegExp(r'(\d+)\s*m').firstMatch(runTimeString);
+          if (mMatch != null) {
+            minutes = int.tryParse(mMatch.group(1) ?? '0') ?? 0;
+          }
+
+          // Fallback if the format is HH:MM:SS
+          if (hours == 0 && minutes == 0 && runTimeString.contains(':')) {
+            final parts = runTimeString.split(':');
+            if (parts.length >= 2) {
+              hours = int.tryParse(parts[0]) ?? 0;
+              minutes = int.tryParse(parts[1]) ?? 0;
+            }
+          }
+
+          int totalMinutes = (hours * 60) + minutes;
+          double progressDouble = (totalMinutes / 1440.0) * 100;
+          progress = progressDouble.clamp(0.0, 100.0).toInt();
+        }
 
         return {
           'id': motor.id,
@@ -72,7 +100,8 @@ class WidgetService {
           'isRunning': isRunning,
           'signalQuality': signalQuality,
           'fault': fault,
-          'runTimeMinutes': motor.runTimeDuration,
+          'runTimeMinutes': runTimeString,
+          'runTimeProgress': progress,
         };
       }).toList();
 
