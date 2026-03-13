@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/core/services/widget_service.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
@@ -57,12 +58,19 @@ class DashboardController extends GetxController with ConnectivityMixin {
   var olr = 0.0.obs;
   var lrr = 0.0.obs;
 
+  Timer? _widgetRefreshTimer;
+
   @override
   void onInit() {
     super.onInit();
     WidgetService.initialize();
     _loadAllData();
     _requestPermissionAndLoad();
+
+    // Auto-refresh motors every 15 seconds for live widget updates
+    _widgetRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      fetchMotors(isBackground: true);
+    });
   }
 
   Future<void> refreshDashboard() async {
@@ -124,6 +132,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
       mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
       // mqttService.dispose();
     }
+    _widgetRefreshTimer?.cancel();
+    // _connectivitySubscription?.cancel(); // Not declared in this snippet
+    // _timer?.cancel(); // Not declared in this snippet
     super.onClose();
   }
 
@@ -360,8 +371,11 @@ class DashboardController extends GetxController with ConnectivityMixin {
     return await updateTestRunStatus(motorId, TestRunStatus.completed);
   }
 
-  Future<void> fetchMotors() async {
+  Future<void> fetchMotors({bool isBackground = false}) async {
     try {
+      if (!isBackground) {
+        isLoading.value = true;
+      }
       final response =
           await MotorsRepositoryImpl().getMotors(page.value, limit.value);
       print("line 365 --> $response");
@@ -390,6 +404,10 @@ class DashboardController extends GetxController with ConnectivityMixin {
         mqttInitialized = true;
         mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
 
+        // Update widget native data immediately and natively
+        WidgetService.updateWidgetData(
+            allMotors, mqttInitialized ? mqttService : null);
+
         // Initialize MQTT in the background to avoid blocking the UI refresh
         debugPrint('DASHBOARD: Initializing MQTT client...');
         mqttService.initializeMqttClient().then((_) {
@@ -407,7 +425,10 @@ class DashboardController extends GetxController with ConnectivityMixin {
       errorMessage.value = 'Error: $e';
       debugPrint('Error fetching motors: $e');
     } finally {
-      isRefreshing.value = false;
+      if (!isBackground) {
+        isLoading.value = false;
+        isRefreshing.value = false;
+      }
     }
   }
 
