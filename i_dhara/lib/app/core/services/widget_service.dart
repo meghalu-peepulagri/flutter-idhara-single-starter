@@ -53,13 +53,22 @@ class WidgetService {
             : motor.state == 1;
 
         // Signal Quality
-        final signalQuality = motor.starter?.signalQuality ?? 0;
+        final signalQuality = (mqttData != null &&
+                mqttData.hasReceivedData &&
+                mqttData.signalStrength > 0)
+            ? mqttData.signalStrength
+            : (motor.starter?.signalQuality ?? 0);
 
         // Fault
         final params = motor.starter?.starterParameters;
-        final fault = (params != null && params.isNotEmpty)
-            ? (params.first.fault ?? 0)
-            : 0;
+        int fault = 0;
+        if (mqttData != null &&
+            mqttData.hasReceivedData &&
+            mqttData.fault != 0) {
+          fault = mqttData.fault;
+        } else if (params != null && params.isNotEmpty) {
+          fault = params.first.fault ?? 0;
+        }
 
         // Determine run time (dummy data for visual UI if not available, or real logic if you have it)
         // Since we don't have accurate run time duration in Motor model, we'll keep it simple for now.
