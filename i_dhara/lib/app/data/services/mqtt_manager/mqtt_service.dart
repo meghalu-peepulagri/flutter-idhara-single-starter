@@ -701,7 +701,7 @@ class MqttService {
             handleDefaultSettings(identifier, payloadData);
             break;
           case 35:
-            _handleLiveData(identifier, payloadData);
+            _handleLiveDataRequest(identifier, payloadData);
           case 41:
             _handleLiveData(identifier, payloadData);
             break;
@@ -983,10 +983,7 @@ class MqttService {
 
       // Update motor data from payload
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
-
-      motorData.updateSignalStrength(13);
       motorData.hasReceivedData = true;
-
       motorData.hasReceivedData = true;
       motorData.hasReceivedLiveData = true;
       _lastAckTimes[fullMotorId] = DateTime.now();
@@ -1005,13 +1002,93 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  /// Handle live data (type 35, 41)
+  void _handleLiveDataRequest(String identifier, dynamic payloadData) {
+    if (payloadData is! Map<String, dynamic>) {
+      debugPrint('   ⚠️ Live data payload is not a Map: $payloadData');
+      return;
+    }
+
+    debugPrint(
+        '📊 Live data received for identifier=$identifier, groups=${payloadData.keys.toList()}');
+    for (var entry in payloadData.entries) {
+      final groupId = entry.key;
+      if (groupId == 'ct') continue;
+
+      final groupData = entry.value as Map<String, dynamic>?;
+      if (groupData == null)
+        continue;
+      else {}
+      final pwr = groupData["pwr"];
+
+      final fullMotorId = '$identifier-$groupId';
+
+      // Get or create motor data
+      var motorData = _motorDataMap[fullMotorId];
+      if (motorData == null) {
+        for (var existingEntry in _motorDataMap.entries) {
+          final data = existingEntry.value;
+          if (data.groupId == groupId &&
+              (data.macAddress == identifier || data.pcbNumber == identifier)) {
+            motorData = data;
+            // Also register under the new key for future direct lookups
+            _motorDataMap[fullMotorId] = motorData;
+            debugPrint(
+                '   Reusing existing MotorData ${existingEntry.key} as $fullMotorId');
+            break;
+          }
+        }
+      }
+      if (motorData == null) {
+        debugPrint('   Creating new MotorData for $fullMotorId');
+        motorData = MotorData(
+            macAddress: identifier,
+            pcbNumber: identifier,
+            groupId: groupId,
+            title: groupId,
+            power: pwr);
+        _motorDataMap[fullMotorId] = motorData;
+      }
+      // Update motor data from payload
+      _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
+      motorData.updateSignalStrength(13);
+      motorData.hasReceivedData = true;
+      motorData.hasReceivedData = true;
+      motorData.hasReceivedLiveData = true;
+      _lastAckTimes[fullMotorId] = DateTime.now();
+      debugPrint(
+          '   ✓ Updated $fullMotorId: state=${motorData.state}, mode=${motorData.motorMode}');
+      debugPrint(
+          '   ✓ MotorData mac=${motorData.macAddress}, pcb=${motorData.pcbNumber}');
+      debugPrint(
+          '   ✓ Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
+    }
+
+    final command = _pendingCommands['_5'];
+    if (command != null) {
+      // Cancel the retry timer and remove the pending command
+      command.cancelTimer();
+      _clearPendingCommand(identifier, 5);
+      debugPrint(
+          '✓ LiveData Request ACK received from $identifier: 5 (Retries stopped)');
+    } else {
+      debugPrint(
+          '✓ LiveData Request ACK received from $identifier: 5 (No pending command)');
+    }
+
+    // Force notify listeners
+    debugPrint(
+        '📢 Notifying listeners: dataUpdateNotifier=${_dataUpdateNotifier.value + 1}');
+    _liveDataNotifier.value++;
+    _heartbeatNotifier.value++;
+    _dataUpdateNotifier.value++;
+  }
+
   void handleDefaultSettings(String identifier, dynamic payloadData) {
-    print("line 1008  ------->$identifier $payloadData");
+    print("line 1078");
     try {
       final type = payloadData as int;
       final map = {"D": type, "topic": identifier};
-
-      print("line 1011 --> $map ");
 
       // Clear any "No response from device" message since ACK was received
       commandStatusNotifier.value = null;
@@ -1067,7 +1144,6 @@ class MqttService {
     if (!found) {
       debugPrint('   ⚠️ No motor found for identifier=$identifier');
     }
-
     _heartbeatNotifier.value++;
     _dataUpdateNotifier.value++;
   }
@@ -1284,7 +1360,9 @@ class MqttService {
               ? '${rawMotorName.substring(0, 16)}...'
               : rawMotorName;
 
-          command.onMaxRetriesReached('$motorName: No response from device');
+          if (command.commandType != 5) {
+            command.onMaxRetriesReached('$motorName: No response from device');
+          }
         }
       }
     });
