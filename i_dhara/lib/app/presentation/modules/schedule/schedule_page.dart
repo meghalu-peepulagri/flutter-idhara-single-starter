@@ -67,8 +67,8 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   String _resolveIdentifier() {
-    final mac = motor?.starter?.macAddress?.trim() ?? '';
-    return mac.isNotEmpty ? mac : (motor?.starter?.pcbNumber?.trim() ?? '');
+    final pcb = motor?.starter?.pcbNumber?.trim() ?? '';
+    return pcb.isNotEmpty ? pcb : (motor?.starter?.macAddress?.trim() ?? '');
   }
 
   bool _scheduleSaved = false;
