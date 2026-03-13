@@ -197,8 +197,32 @@ class DevicesCard extends StatelessWidget {
     _showConfirmTestRunDialog(Get.context!, motorModelMotor);
   }
 
+  String _getMotorId() {
+    if (device.motors == null) return '';
+    final mac = device.macAddress;
+    final pcb = device.pcbNumber;
+    final deviceallow = device.deviceAllocation;
+    final publishedNumber = getMotorIdentifier(
+        deviceallow.toString(), pcb.toString(), mac.toString());
+    if (device.motors == null) return '';
+    final motorData = _getMotorData();
+    if (motorData?.groupId != null) {
+      if (motorData!.macAddress?.isNotEmpty == true) {
+        return '$publishedNumber-${motorData.groupId}';
+      }
+      if (motorData.pcbNumber?.isNotEmpty == true) {
+        return '$publishedNumber-${motorData.groupId}';
+      }
+    }
+    if (mac?.isNotEmpty == true) return '$publishedNumber-G01';
+    if (pcb?.isNotEmpty == true) return '$publishedNumber-G01';
+    return '';
+  }
+
   void _showConfirmTestRunDialog(
       BuildContext ctx, motor_model.Motor motorModelMotor) async {
+    mqttService.motors.clear();
+    mqttService.motorDataMap.clear();
     final cloudConnectionVerified = ValueNotifier<bool>(false);
     final inputPowerVerified = ValueNotifier<bool>(false);
     final avgflc = ValueNotifier<double>(0.0);
@@ -209,17 +233,13 @@ class DevicesCard extends StatelessWidget {
     final pcb = motorModelMotor.starter?.pcbNumber.toString();
     final mac = motorModelMotor.starter?.macAddress.toString();
 
-    print("line 8 $pcb $mac $deviceallow");
-
     try {
       final identifier = getMotorIdentifier(
           deviceallow.toString(), pcb.toString(), mac.toString());
       if (identifier.isNotEmpty) {
-        final groupId = _getMotorGroupId(mqttService, identifier);
-        final mqttMotorId = '$identifier-$groupId';
+        final id = _getMotorId();
 
-        await mqttService.publishTestRunCommand(mqttMotorId, 1,
-            data: 1, type: 5);
+        await mqttService.publishTestRunCommand(id, 1, data: 1, type: 5);
       }
     } catch (e) {
       print("Error publishing verification command: $e");
@@ -233,7 +253,7 @@ class DevicesCard extends StatelessWidget {
       builder: (context) => ValueListenableBuilder(
           valueListenable: mqttService.dataUpdateNotifier,
           builder: (context, _, __) {
-            final motorData = _getMotorData(mqttService, motorModelMotor);
+            final motorData = _getMotorData();
             return ConfirmTestRunScreen(
               motorData: motorData,
               motor: motorModelMotor,
@@ -283,27 +303,15 @@ class DevicesCard extends StatelessWidget {
     return bestData;
   }
 
-  String _getMotorGroupId(MqttService mqttService, String identifier) {
-    const allowedGroups = ['G01', 'G02'];
-    for (final groupId in allowedGroups) {
-      final motorData = mqttService.motorDataMap['$identifier-$groupId'];
-      if (motorData != null) return groupId;
-    }
-    return 'G01';
-  }
-
-  MotorData? _getMotorData(MqttService mqttService, motor_model.Motor motor) {
-    if (motor.starter == null) return null;
-    final mac = motor.starter!.macAddress;
-    final pcb = motor.starter!.pcbNumber;
-
+  MotorData? _getMotorData() {
+    if (device.motors == null) return null;
+    final mac = device.macAddress;
+    final pcb = device.pcbNumber;
     MotorData? bestData;
     DateTime? bestTime;
-
     for (var entry in mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
-
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -314,7 +322,6 @@ class DevicesCard extends StatelessWidget {
           (pcb != null &&
               pcb.isNotEmpty &&
               (data.macAddress == pcb || data.pcbNumber == pcb));
-
       if (matchesByKey || matchesByData) {
         final ackTime = mqttService.getLastAckTime(key);
         if (bestData == null ||
@@ -325,7 +332,6 @@ class DevicesCard extends StatelessWidget {
         }
       }
     }
-
     return bestData;
   }
 
@@ -377,7 +383,8 @@ class DevicesCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, Motor? motor, MotorData? motorData) {
+  Widget _buildHeader(
+      BuildContext context, Motor? motor, MotorData? motorData) {
     final displayName = _getMotorDisplayName(motor);
 
     return Row(
@@ -478,7 +485,8 @@ class DevicesCard extends StatelessWidget {
     return name.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  Widget _buildPcbAndPowerStatus(BuildContext context, Motor? motor, MotorData? motorData) {
+  Widget _buildPcbAndPowerStatus(
+      BuildContext context, Motor? motor, MotorData? motorData) {
     String starterText = device.starterNumber ?? 'N/A';
     String displayText = starterText.length > 12
         ? '${starterText.substring(0, 12)}...'

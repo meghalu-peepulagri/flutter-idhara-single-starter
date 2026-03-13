@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
-import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 
 import '../../core/utils/mqtt_utils.dart';
@@ -13,6 +11,7 @@ import '../../data/services/mqtt_manager/mqtt_service.dart';
 import '../modules/dashboard/dashboard_controller.dart';
 import '../routes/app_routes.dart';
 import 'popups/emergency_popup.dart';
+import 'precheck_phase.dart';
 
 enum _TestRunPhase { preCheck, measuring, completed, saving, success, failure }
 
@@ -25,15 +24,16 @@ class ConfirmTestRunScreen extends StatefulWidget {
   final MqttService mqttService;
   final String route;
 
-  const ConfirmTestRunScreen(
-      {super.key,
-      required this.cloudConnectionVerified,
-      required this.inputPowerVerified,
-      required this.avgflc,
-      required this.motor,
-      required this.mqttService,
-      this.motorData,
-      this.route = '/dashboard'});
+  const ConfirmTestRunScreen({
+    super.key,
+    required this.cloudConnectionVerified,
+    required this.inputPowerVerified,
+    required this.avgflc,
+    required this.motor,
+    required this.mqttService,
+    this.motorData,
+    this.route = '/dashboard',
+  });
 
   @override
   State<ConfirmTestRunScreen> createState() => _ConfirmTestRunScreenState();
@@ -45,9 +45,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   bool _isOffline = false;
   bool _isSubDialogOpen = false;
 
-  // --- Phase 1: Pre-check state ---
-  bool isMotorWiresChecked = false;
-  bool isPumpValveChecked = false;
   StreamSubscription? mqttStreamSubscription;
 
   String failureMessage = '';
@@ -60,13 +57,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   bool _hasPendingSave = false;
   bool _ackInProgress = false;
   Timer? settingsAckTimer;
-
-  // --- Pre-check timeout state ---
-  // Set to true 15 s after dialog opens; forces every still-loading icon to ❌.
-  bool _preCheckTimedOut = false;
-  Timer? _preCheckTimeoutTimer;
-  // Guards against showing duplicate connection snackbars.
-  bool _connectionSnackBarShown = false;
 
   final Color _testrunColor = const Color(0xFFEFF6FF);
 
@@ -84,241 +74,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   _TestRunPhase _phase = _TestRunPhase.preCheck;
   DashboardController? _controller;
 
-  bool _freshSignalReceived = false;
-  bool _freshLiveDataReceived = false;
-  // Dedicated notifier so the Network Connectivity builder rebuilds
-  // immediately whenever signal is confirmed (T:40 heartbeat OR T:41/T:35
-  // live data), without depending on heartbeatNotifier alone.
-  final ValueNotifier<bool> _freshSignalNotifier = ValueNotifier(false);
-
-  bool get _isPowerOn {
-    if (widget.motorData != null && widget.motorData!.hasReceivedLiveData) {
-      return widget.motorData!.power == 1;
-    }
-    return (widget.motor.starter?.power ?? 0) == 1;
-  }
-
-  static const double _minVoltage = 370.0;
-  static const double _maxVoltage = 450.0;
-
-  bool _isVoltageValid(double? voltage) {
-    if (voltage == null) return false;
-    return voltage >= _minVoltage && voltage <= _maxVoltage;
-  }
-
-  /// Returns null if all voltages are in range, or an error message string.
-  String? get _voltageError {
-    if (widget.motorData == null || !widget.motorData!.hasReceivedLiveData) {
-      return null; // No data yet, don't block
-    }
-
-    final v1 = double.tryParse(widget.motorData?.voltageBlue ?? '0') ?? 0;
-    final v2 = double.tryParse(widget.motorData?.voltageRed ?? '0') ?? 0;
-    final v3 = double.tryParse(widget.motorData?.voltageYellow ?? '0') ?? 0;
-
-    final outOfRange = <String>[];
-    if (!_isVoltageValid(v1))
-      outOfRange.add('B-phase = ${v1.toStringAsFixed(0)} V');
-    if (!_isVoltageValid(v2))
-      outOfRange.add('R-phase = ${v2.toStringAsFixed(0)} V');
-    if (!_isVoltageValid(v3))
-      outOfRange.add('Y-phase = ${v3.toStringAsFixed(0)} V');
-
-    if (outOfRange.isEmpty) return null;
-    return 'Voltage out of range: ${outOfRange.join(', ')}. Test cannot proceed.';
-  }
-
-  bool get _isVoltageInRange {
-    if (widget.motorData == null || !widget.motorData!.hasReceivedLiveData) {
-      return false; // No data yet, not verified
-    }
-    return _voltageError == null;
-  }
-
-  /// True when network connectivity is definitively known to be absent —
-  /// either the pre-check timed out without a heartbeat, or a fresh heartbeat
-  /// arrived but reported 0 signal bars.
-  bool get _isNetworkFalse {
-    if (_preCheckTimedOut && !_freshSignalReceived) return true;
-    if (_freshSignalReceived && _getSignalBars(widget.motorData) == 0) {
-      return true;
-    }
-    return false;
-  }
-
-  /// True when the network check has completed AND passed (signal ≥ 1).
-  bool get _networkVerified =>
-      _freshSignalReceived && _getSignalBars(widget.motorData) >= 1;
-
-  /// True when the power check has completed AND passed.
-  /// Only evaluated after [_networkVerified] is true.
-  bool get _powerVerified {
-    if (!_networkVerified) return false;
-    final liveReady = _freshLiveDataReceived &&
-        (widget.motorData?.hasReceivedLiveData ?? false);
-    return liveReady && _isPowerOn;
-  }
-
-  bool get isActive {
-    if (!_freshSignalReceived || !_freshLiveDataReceived) return false;
-    final signal = _getSignalBars(widget.motorData);
-    final cloudOk = signal >= 1 && signal <= 4;
-    final powerOk = _isPowerOn;
-    final voltageOk = _isVoltageInRange;
-
-    return isMotorWiresChecked &&
-        isPumpValveChecked &&
-        cloudOk &&
-        powerOk &&
-        voltageOk;
-  }
-
-  /// True when the motor is in Auto mode (live MQTT value takes priority
-  /// over the API value stored in [widget.motor.mode]).
-  bool get _isAutoMode {
-    final liveIndex = widget.motorData?.modeIndex;
-    if (liveIndex != null) return liveIndex == 1;
-    return widget.motor.mode?.toUpperCase().contains('AUTO') ?? false;
-  }
-
-  /// Guards [_startMeasuring]: blocks and warns when the motor is in Auto mode.
-  void _onStartPressed() {
-    if (_isAutoMode) {
-      geterrorSnackBar('Motor is in Auto Mode. Switch to Manual Mode');
-      return;
-    }
-    _startMeasuring();
-  }
-
   @override
   void initState() {
     super.initState();
     _initConnectivity();
-    // Delay listener registration so loading icons are always shown for at
-    // least 1 second each time the dialog opens, even when MQTT is already
-    // streaming. Each icon type listens to its own topic-specific notifier.
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        widget.mqttService.heartbeatNotifier
-            .removeListener(_onFirstHeartbeat); // guard double-add
-        widget.mqttService.heartbeatNotifier.addListener(_onFirstHeartbeat);
-        // Also listen directly to liveDataNotifier — if T:41 arrives before
-        // T:40 heartbeat, receiving live data implies network connectivity and
-        // unlocks the signal icon before checking power & voltage.
-        widget.mqttService.liveDataNotifier
-            .removeListener(_onFirstLiveData); // guard double-add
-        widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
-      }
-    });
-    _startPreCheckTimeout();
-  }
-
-  void _startPreCheckTimeout() {
-    _preCheckTimeoutTimer?.cancel();
-    _preCheckTimeoutTimer =
-        Timer(const Duration(seconds: 15), _onPreCheckTimeout);
-  }
-
-  void _onPreCheckTimeout() {
-    if (!mounted || _phase != _TestRunPhase.preCheck) return;
-
-    setState(() => _preCheckTimedOut = true);
-
-    // Immediate checks already fired a snackbar — don't duplicate.
-    if (_connectionSnackBarShown) return;
-
-    // Priority 1: network never responded, or responded with 0 bars.
-    if (!_freshSignalReceived || _isNetworkFalse) {
-      _connectionSnackBarShown = true;
-      geterrorSnackBar('Device is not connected.');
-      return;
-    }
-
-    // Priority 2: network OK but live data never arrived, or power/voltage bad.
-    if (!_freshLiveDataReceived || !_isPowerOn || !_isVoltageInRange) {
-      _connectionSnackBarShown = true;
-      geterrorSnackBar('Device is not connected');
-    }
-  }
-
-  /// Called on the first T:40 heartbeat — unlocks signal icon.
-  ///
-  /// Network-first priority:
-  /// • signal >= 1 → network OK → register liveDataNotifier and proceed to
-  ///   power / voltage checks.
-  /// • signal == 0 → network false → show snackbar immediately; power and
-  ///   voltage are never fetched or processed.
-  void _onFirstHeartbeat() {
-    if (!_freshSignalReceived && mounted) {
-      widget.mqttService.heartbeatNotifier.removeListener(_onFirstHeartbeat);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _freshSignalReceived = true);
-        _freshSignalNotifier.value = true;
-
-        if (_getSignalBars(widget.motorData) >= 1) {
-          // Network confirmed OK — now safe to listen for live data.
-          widget.mqttService.liveDataNotifier
-              .removeListener(_onFirstLiveData); // guard double-add
-          widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
-        } else {
-          // Network false — show error immediately; skip live data entirely.
-          if (!_connectionSnackBarShown) {
-            _connectionSnackBarShown = true;
-            geterrorSnackBar('Device is not connected.');
-          }
-        }
-      });
-    }
-  }
-
-  /// Called on the first T:35/T:41 live-data update — unlocks power & voltage
-  /// icons and checks them. If T:41 arrives before T:40, receiving live data
-  /// implies network connectivity, so the signal icon is unlocked first in a
-  /// separate frame before power / voltage are evaluated.
-  void _onFirstLiveData() {
-    if (!_freshLiveDataReceived && mounted) {
-      widget.mqttService.liveDataNotifier.removeListener(_onFirstLiveData);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        // Step 1 — T:35/T:41 implies network connectivity.
-        // Unlock signal icon first so the UI confirms network before checking
-        // the remaining conditions.
-        if (!_freshSignalReceived) {
-          setState(() => _freshSignalReceived = true);
-          _freshSignalNotifier.value = true;
-        }
-        // Step 2 — After the signal rebuild, unlock live data and evaluate
-        // power status and voltage range in the next frame.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          setState(() => _freshLiveDataReceived = true);
-          _checkPowerVoltageNow();
-        });
-      });
-    }
-  }
-
-  /// Immediately checks all verification states once live data arrives.
-  /// If all three icons show close (network/power/voltage all failed),
-  /// fires the error snackbar right away without waiting for the 15-second timeout.
-  void _checkPowerVoltageNow() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted || _connectionSnackBarShown) return;
-      if (!(widget.motorData?.hasReceivedLiveData ?? false)) return;
-      // Network check shows close icon → power and voltage are both blocked
-      // (also showing close). All three are red — fire immediately.
-      if (_isNetworkFalse) {
-        _connectionSnackBarShown = true;
-        geterrorSnackBar('Device is not connected.');
-        return;
-      }
-      if (!_isPowerOn || !_isVoltageInRange) {
-        _connectionSnackBarShown = true;
-        geterrorSnackBar(
-            'Device is not connected due to no power or voltage mismatch.');
-      }
-    });
   }
 
   void _initConnectivity() async {
@@ -347,7 +106,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
     }
     if (mounted) {
-      // Close any open sub-dialogs (emergency stop, cancel confirmation, etc.)
       if (_isSubDialogOpen) {
         Navigator.of(context).pop();
         _isSubDialogOpen = false;
@@ -360,30 +118,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   void _goOnline() {
     if (!_isOffline || !mounted) return;
-    // Reset both fresh flags and re-register type-specific listeners after
-    // a 1-second delay so loading icons are shown when coming back online.
-    _freshSignalReceived = false;
-    _freshSignalNotifier.value = false;
-    _freshLiveDataReceived = false;
-    _preCheckTimedOut = false;
-    _connectionSnackBarShown = false;
-    _startPreCheckTimeout();
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        widget.mqttService.heartbeatNotifier.removeListener(_onFirstHeartbeat);
-        widget.mqttService.heartbeatNotifier.addListener(_onFirstHeartbeat);
-        // Also listen directly to liveDataNotifier — if T:41 arrives before
-        // T:40, receiving live data implies network connectivity.
-        widget.mqttService.liveDataNotifier.removeListener(_onFirstLiveData);
-        widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
-      }
-    });
+    // Rebuilding with _isOffline = false causes Flutter to recreate
+    // PreCheckPhase, which initialises its own listeners and timer fresh.
     setState(() {
       _isOffline = false;
-      // Reset to preCheck so user can re-verify and start fresh
       _phase = _TestRunPhase.preCheck;
-      isMotorWiresChecked = false;
-      isPumpValveChecked = false;
       _flcData.clear();
       _remainingSeconds = _totalSeconds;
       _avgCurrent.value = 0;
@@ -394,18 +133,14 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   @override
   void dispose() {
     _connectivitySubscription?.cancel();
-    widget.mqttService.heartbeatNotifier.removeListener(_onFirstHeartbeat);
-    widget.mqttService.liveDataNotifier.removeListener(_onFirstLiveData);
     if (_phase == _TestRunPhase.measuring) {
       widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
     }
     _timer?.cancel();
-    _preCheckTimeoutTimer?.cancel();
     settingsAckTimer?.cancel();
     mqttStreamSubscription?.cancel();
     _avgCurrent.dispose();
     _overalCurrent.dispose();
-    _freshSignalNotifier.dispose();
     super.dispose();
   }
 
@@ -414,47 +149,12 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       _avgCurrent.value = 0;
       _overalCurrent.value = 0;
       _flcData.clear();
-      isMotorWiresChecked = false;
-      isPumpValveChecked = false;
       widget.cloudConnectionVerified.value = false;
       widget.inputPowerVerified.value = false;
     });
   }
 
   // --- Helper methods ---
-
-  int getSignalBars(MotorData? motorData) {
-    if (motorData != null &&
-        motorData.hasReceivedData &&
-        !motorData.isSignalStale() &&
-        motorData.groupId != null) {
-      return motorData.signalBars;
-    }
-    final signalStrength = widget.motor.starter?.signalQuality;
-    if (signalStrength != null && signalStrength >= 2 && signalStrength <= 31) {
-      if (signalStrength >= 2 && signalStrength <= 9) return 1;
-      if (signalStrength >= 10 && signalStrength <= 14) return 2;
-      if (signalStrength >= 15 && signalStrength <= 19) return 3;
-      if (signalStrength >= 20 && signalStrength <= 30) return 4;
-    }
-    return 0;
-  }
-
-  int _getSignalBars(MotorData? motorData) {
-    if (motorData?.hasReceivedData == true && !motorData!.isSignalStale()) {
-      return motorData.signalBars;
-    }
-    final signal = widget.motor.starter?.signalQuality;
-    if (signal == null || signal < 2 || signal > 31) return 0;
-    if (signal < 10) return 1;
-    if (signal < 15) return 2;
-    if (signal < 20) return 3;
-    return 4;
-  }
-
-  double _percentageOfAmps(double c1, double c2, double c3) {
-    return (c1 + c2 + c3) / 3;
-  }
 
   String _getMotorGroupId(String identifier) {
     const allowedGroups = ['G01', 'G02'];
@@ -471,10 +171,13 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return double.parse(res.toStringAsFixed(2));
   }
 
+  double _percentageOfAmps(double c1, double c2, double c3) {
+    return (c1 + c2 + c3) / 3;
+  }
+
   // --- Phase transitions ---
 
   void _startMeasuring() {
-    _preCheckTimeoutTimer?.cancel();
     _avgCurrent.value = 0;
     _overalCurrent.value = 0;
     _flcData.clear();
@@ -556,7 +259,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         final sum = _flcData.reduce((a, b) => a + b);
         _overalCurrent.value = sum / _flcData.length;
       }
-    } else {}
+    }
   }
 
   void _emergencyStop() {
@@ -689,7 +392,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             mqttStreamSubscription?.cancel();
             // Capture before reset so success phase can still display it.
             _finalFLC = _overalCurrent.value;
-            _resetPreCheckState(); // Clear pre-test verification after testrun
+            _resetPreCheckState();
             if (mounted) {
               setState(() {
                 isWaitingForAck = false;
@@ -713,7 +416,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           } else {
             mqttStreamSubscription?.cancel();
             if (mounted && !_ackInProgress) {
-              _resetPreCheckState(); // Clear pre-test verification after testrun
+              _resetPreCheckState();
               setState(() {
                 isWaitingForAck = false;
                 _hasPendingSave = false;
@@ -800,6 +503,18 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     }
   }
 
+  // ===================== Phase 1: Pre-Check =====================
+
+  Widget _buildPreCheckPhase() {
+    return PreCheckPhase(
+      motor: widget.motor,
+      motorData: widget.motorData,
+      mqttService: widget.mqttService,
+      onStartPressed: _startMeasuring,
+      onClose: () => Navigator.of(context).pop(),
+    );
+  }
+
   // ===================== No Internet Widget =====================
 
   Widget _buildNoInternetWidget() {
@@ -813,7 +528,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -876,215 +591,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  // ===================== Phase 1: Pre-Check =====================
-
-  Widget _buildPreCheckPhase() {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Container(
-        width: 360,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with background
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Confirm Test Run',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Smart Calibration',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                  GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Icon(
-                        Icons.close,
-                        size: 28,
-                        color: Color(0xFF6B7280),
-                      )),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Pre-Test Verifications Section
-                  const Text(
-                    'Pre - Test Verifications',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Network Connectivity — rebuilds whenever signal is
-                  // confirmed via T:40 heartbeat OR T:41/T:35 live data.
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _freshSignalNotifier,
-                    builder: (context, freshSignal, __) {
-                      final int? signal = freshSignal
-                          ? _getSignalBars(widget.motorData)
-                          : (_preCheckTimedOut ? 0 : null);
-                      return _buildVerificationCloudConnection(
-                        'Network Connectivity',
-                        signal,
-                        'assets/images/network_device.svg',
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Power Supply Status — sequential step 2.
-                  // Stays loading until network (step 1) is confirmed first.
-                  ListenableBuilder(
-                    listenable: Listenable.merge([
-                      widget.mqttService.liveDataNotifier,
-                      _freshSignalNotifier,
-                    ]),
-                    builder: (context, _) {
-                      final int? powerVerified;
-                      final bool liveReady = _freshLiveDataReceived &&
-                          (widget.motorData?.hasReceivedLiveData ?? false);
-                      if (!_freshSignalReceived && !_preCheckTimedOut) {
-                        // Gate: network check not done yet → keep loading.
-                        powerVerified = null;
-                      } else if (_isNetworkFalse || !_networkVerified) {
-                        // Network failed → power is blocked.
-                        powerVerified = 0;
-                      } else if (liveReady) {
-                        // Network OK, live data available → evaluate power.
-                        powerVerified = _isPowerOn ? 1 : 0;
-                      } else if (_preCheckTimedOut) {
-                        // Network OK but timed out before live data arrived.
-                        powerVerified = 0;
-                      } else {
-                        // Network OK, still waiting for live data.
-                        powerVerified = null;
-                      }
-                      return _buildVerificationInputPower(
-                          'Power Supply Status', powerVerified);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Voltage Range — sequential step 3.
-                  // Stays loading until both network (step 1) and power
-                  // (step 2) are confirmed first.
-                  ListenableBuilder(
-                    listenable: Listenable.merge([
-                      widget.mqttService.liveDataNotifier,
-                      _freshSignalNotifier,
-                    ]),
-                    builder: (context, _) {
-                      return _buildVoltageVerification();
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  _buildCheckboxItem(
-                    'Motor wires / terminals securely connected',
-                    isMotorWiresChecked,
-                    (value) {
-                      setState(() {
-                        isMotorWiresChecked = value ?? false;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildCheckboxItem(
-                    'Pump / delivery valve fully open',
-                    isPumpValveChecked,
-                    (value) {
-                      setState(() {
-                        isPumpValveChecked = value ?? false;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Start Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: isActive ? _onStartPressed : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isActive
-                            ? const Color(0xFF0F6B8A)
-                            : Colors.grey.shade400,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'START TEST RUN',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1256,7 +762,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -1293,7 +799,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: const Color(0xFF004E7E).withOpacity(0.7),
+                      color: const Color(0xFF004E7E).withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -1545,6 +1051,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     );
   }
 
+  // ===================== Phase 6: Failure =====================
+
   Widget _buildFailurePhase() {
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -1617,218 +1125,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-  // ===================== Shared UI Helpers =====================
-
-  Widget get checkIcon => Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFFECFDF5),
-          border: Border.all(
-            color: const Color(0xFF10B981),
-            width: 1.5,
-          ),
-        ),
-        child: const Icon(
-          Icons.check_rounded,
-          color: Color(0xFF10B981),
-          size: 16,
-        ),
-      );
-
-  Widget get closeIcon => Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.red.shade100,
-          border: Border.all(
-            color: Colors.red,
-            width: 1.5,
-          ),
-        ),
-        child: const Icon(
-          Icons.close_rounded,
-          color: Colors.red,
-          size: 16,
-        ),
-      );
-
-  Widget get loadingIcon => const SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: Color(0xFF0F6B8A),
-        ),
-      );
-
-  Widget _buildVerificationCloudConnection(
-      String text, int? signal, String svg) {
-    return Row(
-      spacing: 10,
-      children: [
-        SvgPicture.asset('assets/images/network_device.svg'),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF334155),
-            ),
-          ),
-        ),
-        signal != null
-            ? signal >= 1 && signal <= 4
-                ? checkIcon
-                : closeIcon
-            : loadingIcon
-      ],
-    );
-  }
-
-  Widget _buildVerificationInputPower(String text, int? verified) {
-    return Row(
-      spacing: 10,
-      children: [
-        SvgPicture.asset('assets/images/bulb_power.svg'),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF334155),
-            ),
-          ),
-        ),
-        verified != null
-            ? verified == 1
-                ? checkIcon
-                : closeIcon
-            : loadingIcon
-      ],
-    );
-  }
-
-  Widget _buildVoltageVerification() {
-    final hasData = _freshLiveDataReceived &&
-        widget.motorData != null &&
-        widget.motorData!.hasReceivedLiveData;
-    final networkDone = _freshSignalReceived || _preCheckTimedOut;
-
-    // Sequential gates — voltage is only evaluated after network AND power pass.
-    final bool showLoading;
-    final bool forceFail;
-
-    if (!networkDone) {
-      // Gate 1: still waiting for network result → loading.
-      showLoading = true;
-      forceFail = false;
-    } else if (!_networkVerified) {
-      // Gate 2: network failed → voltage is blocked.
-      showLoading = false;
-      forceFail = true;
-    } else if (!hasData && !_preCheckTimedOut) {
-      // Gate 3: network OK, waiting for live data (power step) → loading.
-      showLoading = true;
-      forceFail = false;
-    } else if (!_powerVerified) {
-      // Gate 4: power failed or timed out → voltage is blocked.
-      showLoading = false;
-      forceFail = true;
-    } else {
-      // All previous checks passed → evaluate actual voltage.
-      showLoading = false;
-      forceFail = false;
-    }
-
-    final voltageOk = !showLoading && !forceFail && hasData && _isVoltageInRange;
-    final error = (!showLoading && !forceFail && hasData) ? _voltageError : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          spacing: 8,
-          children: [
-            const Icon(Icons.electric_bolt, size: 20, color: Color(0xFF64748B)),
-            const Expanded(
-              child: Text(
-                'Voltage Range (370V - 450V)',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF334155),
-                ),
-              ),
-            ),
-            if (showLoading)
-              loadingIcon
-            else if (voltageOk)
-              checkIcon
-            else
-              closeIcon,
-          ],
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.only(left: 30),
-            child: Text(
-              error,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.red,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildCheckboxItem(
-    String text,
-    bool value,
-    ValueChanged<bool?> onChanged,
-  ) {
-    return GestureDetector(
-      onTap: () => onChanged(!value),
-      behavior: HitTestBehavior.opaque,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: Checkbox(
-              value: value,
-              onChanged: onChanged,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              side: const BorderSide(
-                color: Color(0xFFCBD5E1),
-                width: 1.5,
-              ),
-              activeColor: const Color(0xFF0F6B8A),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF334155),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
