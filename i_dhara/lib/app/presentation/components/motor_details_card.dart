@@ -158,31 +158,37 @@ class MotorDetailsCard extends StatelessWidget {
   Widget _buildTimeStamp(BuildContext context) {
     return Obx(() {
       final dateText = controller.timeStamp.value.trim();
-      return Row(
-        children: [
-          const Icon(
-            Icons.sync,
-            color: Color(0xFF166491),
-            size: 16,
-          ),
-          Text(
-            ' ${dateText.isEmpty || dateText == 'N/A' ? ' N/A' : dateText}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                  font: GoogleFonts.dmSans(
+      return GestureDetector(
+        onTap: () async {
+          await controller.handleLiveData();
+        },
+        child: Row(
+          children: [
+            const Icon(
+              Icons.sync,
+              color: Color(0xFF166491),
+              size: 16,
+            ),
+            Text(
+              ' ${dateText.isEmpty || dateText == 'N/A' ? ' N/A' : dateText}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.normal,
+                      fontStyle:
+                          FlutterFlowTheme.of(context).bodyMedium.fontStyle,
+                    ),
+                    color: const Color(0xFF166491),
+                    fontSize: 14.0,
+                    letterSpacing: 0.0,
                     fontWeight: FontWeight.normal,
                     fontStyle:
                         FlutterFlowTheme.of(context).bodyMedium.fontStyle,
                   ),
-                  color: const Color(0xFF166491),
-                  fontSize: 14.0,
-                  letterSpacing: 0.0,
-                  fontWeight: FontWeight.normal,
-                  fontStyle: FlutterFlowTheme.of(context).bodyMedium.fontStyle,
-                ),
-          ),
-        ],
+            ),
+          ],
+        ),
       );
     });
   }

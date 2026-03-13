@@ -131,7 +131,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
         if (mqttMode == _pendingModeValue) {
           if (kDebugMode) {
-            print('Mode ACK MATCHED! (via ${motorData.modeIndex != null ? "live-data" : "type-32"})');
+            print(
+                'Mode ACK MATCHED! (via ${motorData.modeIndex != null ? "live-data" : "type-32"})');
           }
 
           _modeAckTimer?.cancel();
@@ -182,8 +183,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         }
       } else {
         // Signal is stale — fall back to API value, matching dashboard behavior
-        signalQuality.value =
-            motorDetails.value?.starter?.signalQuality ?? 0;
+        signalQuality.value = motorDetails.value?.starter?.signalQuality ?? 0;
       }
     } else {
       if (kDebugMode) {
@@ -311,6 +311,19 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         isWaitingForModeAck.value = false;
       }
     });
+  }
+
+  Future<void> handleLiveData() async {
+    if (!mqttInitialized || isWaitingForModeAck.value) return;
+
+    final mId = _getMotorId();
+    if (mId.isEmpty) return;
+    try {
+      await mqttService.publishTestRunCommand(mId, 5, data: 1, type: 5);
+      if (kDebugMode) print('Live cmd req command published successfully');
+    } catch (e) {
+      if (kDebugMode) print('Error publishing LiveData command: $e');
+    }
   }
 
   Future<void> handleModeChange(int newModeIndex) async {

@@ -347,7 +347,6 @@ class MqttService {
     int data = 2,
     int type = 1,
   }) async {
-    print("line 338 ---> $isConnected ");
     if (_mqttClient == null || !isConnected) {
       debugPrint('Cannot publish test run: MQTT not connected');
       statusMessage = 'MQTT not connected';
@@ -362,6 +361,8 @@ class MqttService {
     try {
       await _publishCommand(motorId, type, data, seq);
       statusMessage = 'Test run command sent';
+      _registerPendingCommand(motorId, type, data, seq);
+
       debugPrint(
           'Test run command published for $motorId (state=$state) - No retries');
     } catch (e) {
@@ -1005,25 +1006,32 @@ class MqttService {
   }
 
   void handleDefaultSettings(String identifier, dynamic payloadData) {
-    final type = payloadData as int;
-    final map = {"D": type, "topic": identifier};
+    print("line 1008  ------->$identifier $payloadData");
+    try {
+      final type = payloadData as int;
+      final map = {"D": type, "topic": identifier};
 
-    // Clear any "No response from device" message since ACK was received
-    commandStatusNotifier.value = null;
+      print("line 1011 --> $map ");
 
-    // Clear pending settings command to stop retries immediately upon ACK
-    final command = _pendingCommands['_4'];
-    if (command != null) {
-      // Cancel the retry timer and remove the pending command
-      command.cancelTimer();
-      _clearPendingCommand('', 4);
-      debugPrint(
-          '✓ Settings ACK received from $identifier: $type (Retries stopped)');
-    } else {
-      debugPrint(
-          '✓ Settings ACK received from $identifier: $type (No pending command)');
+      // Clear any "No response from device" message since ACK was received
+      commandStatusNotifier.value = null;
+
+      // Clear pending settings command to stop retries immediately upon ACK
+      final command = _pendingCommands['_4'];
+      if (command != null) {
+        // Cancel the retry timer and remove the pending command
+        command.cancelTimer();
+        _clearPendingCommand('', 4);
+        debugPrint(
+            '✓ Settings ACK received from $identifier: $type (Retries stopped)');
+      } else {
+        debugPrint(
+            '✓ Settings ACK received from $identifier: $type (No pending command)');
+      }
+      defaultSettingsController.add(map);
+    } catch (e) {
+      print("line 1031 ---------> $e");
     }
-    defaultSettingsController.add(map);
   }
 
   /// Handle heartbeat (type 40)

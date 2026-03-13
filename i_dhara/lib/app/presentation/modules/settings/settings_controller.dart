@@ -67,7 +67,7 @@ class SettingsController extends GetxController with ConnectivityMixin {
       return "N/A";
     }
 
-    final motor = settings!.starter!.motors?.last;
+    final motor = settings!.starter!.motors?.first;
     if (motor == null) {
       return "N/A";
     }
