@@ -296,9 +296,9 @@ class MotorScheduleController extends GetxController {
 
   String _resolveIdentifier() {
     final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
-    final mac = starter?.macAddress?.trim() ?? '';
-    if (mac.isNotEmpty) return mac;
-    return starter?.pcbNumber?.trim() ?? '';
+    final pcb = starter?.pcbNumber?.trim() ?? '';
+    if (pcb.isNotEmpty) return pcb;
+    return starter?.macAddress?.trim() ?? '';
   }
 
   // --- Schedule Create ACK (T:54) ---
