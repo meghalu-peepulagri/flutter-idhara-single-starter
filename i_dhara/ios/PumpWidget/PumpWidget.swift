@@ -79,45 +79,47 @@ struct PumpWidgetEntryView : View {
                         .font(.system(size: 14))
                 } else {
                     ForEach(Array(entry.pumps.enumerated()), id: \.element.id) { index, pump in
-                        HStack {
-                            Text(pump.name)
-                                .foregroundColor(.white)
-                                .font(.system(size: 12, weight: .bold))
-                                .frame(width: 60, alignment: .leading)
-                            
-                            // Fake progress UI or real if we track start/end
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.black.opacity(0.3))
-                                        .frame(height: 8)
-                                    
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(colors[index % colors.count])
-                                        .frame(
-                                            width: pump.isRunning ? max(geometry.size.width * 0.1, geometry.size.width * CGFloat(min(max(pump.runTimeMinutes, 20), 100)) / 100.0) : 0,
-                                            height: 8
-                                        )
+                        Link(destination: URL(string: "idhara://motor?id=\(pump.id)")!) {
+                            HStack {
+                                Text(pump.name)
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .frame(width: 60, alignment: .leading)
+
+                                // Fake progress UI or real if we track start/end
+                                GeometryReader { geometry in
+                                    ZStack(alignment: .leading) {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(Color.black.opacity(0.3))
+                                            .frame(height: 8)
+
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(colors[index % colors.count])
+                                            .frame(
+                                                width: pump.isRunning ? max(geometry.size.width * 0.1, geometry.size.width * CGFloat(min(max(pump.runTimeMinutes, 20), 100)) / 100.0) : 0,
+                                                height: 8
+                                            )
+                                    }
                                 }
-                            }
-                            .frame(height: 8)
-                            
-                            if pump.fault != 0 {
-                                Text("FAULT")
-                                    .foregroundColor(.red)
+                                .frame(height: 8)
+
+                                if pump.fault != 0 {
+                                    Text("FAULT")
+                                        .foregroundColor(.red)
+                                        .font(.system(size: 10, weight: .bold))
+                                        .frame(width: 30, alignment: .center)
+                                } else {
+                                    Text(pump.isRunning ? "ON" : "OFF")
+                                        .foregroundColor(pump.isRunning ? .white : .gray)
+                                        .font(.system(size: 10, weight: .bold))
+                                        .frame(width: 30, alignment: .center)
+                                }
+
+                                Text("\(pump.signalQuality)%")
+                                    .foregroundColor(colors[index % colors.count])
                                     .font(.system(size: 10, weight: .bold))
-                                    .frame(width: 30, alignment: .center)
-                            } else {
-                                Text(pump.isRunning ? "ON" : "OFF")
-                                    .foregroundColor(pump.isRunning ? .white : .gray)
-                                    .font(.system(size: 10, weight: .bold))
-                                    .frame(width: 30, alignment: .center)
+                                    .frame(width: 35, alignment: .trailing)
                             }
-                            
-                            Text("\(pump.signalQuality)%")
-                                .foregroundColor(colors[index % colors.count])
-                                .font(.system(size: 10, weight: .bold))
-                                .frame(width: 35, alignment: .trailing)
                         }
                     }
                 }
@@ -135,7 +137,7 @@ struct PumpWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             PumpWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("i Dhara Pumps")
+        .configurationDisplayName("iDhara Pumps")
         .description("View your pump statuses natively.")
         .supportedFamilies([.systemMedium, .systemLarge])
     }

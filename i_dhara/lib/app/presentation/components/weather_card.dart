@@ -75,6 +75,7 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
         if (status == ServiceStatus.enabled) {
           _forceRefresh();
         } else {
+          if (!mounted) return;
           setState(() {
             _permissionStatus = LocationPermissionStatus.serviceDisabled;
             _cachedPermissionStatus = LocationPermissionStatus.serviceDisabled;

@@ -119,11 +119,10 @@ class PumpRemoteViewsFactory(private val context: Context) : RemoteViewsService.
             // Progress based on runtime duration out of 24h
             views.setProgressBar(activeProgressId, 100, runTimeProgress, false)
 
-            // Setup FillInIntent to make the item clickable
+            // Setup FillInIntent to make the item clickable with motor ID
+            val motorId = pumpObj.optInt("id", 0)
             val fillInIntent = Intent().apply {
-                // Pass some generic data to trigger the template, or pass specific pump data if desired
-                putExtra("clicked_pump_mac", pumpObj.optString("macAddress", ""))
-                data = Uri.parse("idhara://idhara.com/dashboard")
+                data = Uri.parse("idhara://motor?id=$motorId")
             }
             views.setOnClickFillInIntent(R.id.pump_item_container, fillInIntent)
 

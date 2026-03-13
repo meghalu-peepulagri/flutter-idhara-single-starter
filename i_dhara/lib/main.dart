@@ -10,6 +10,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
@@ -281,10 +282,26 @@ class _MyAppState extends State<MyApp> {
             details!.notificationResponse != null) {
           _handleNotificationTap(details.notificationResponse!.payload);
         }
+
+        // Handle home widget taps (warm/hot launch)
+        HomeWidget.widgetClicked.listen(_handleWidgetTap);
+        // Handle home widget tap that cold-launched the app
+        final widgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+        if (widgetUri != null) _handleWidgetTap(widgetUri);
       } catch (e) {
         print("line error --------------> $e");
       }
     });
+  }
+
+  void _handleWidgetTap(Uri? uri) {
+    if (uri == null) return;
+    final motorId = int.tryParse(uri.queryParameters['id'] ?? '');
+    if (motorId != null) {
+      SharedPreference.setMotorId(motorId);
+      Get.offAllNamed(Routes.motorDetails,
+          arguments: {'motorId': motorId, 'tabIndex': 0});
+    }
   }
 
   void _handleInitialMessage(RemoteMessage message) {

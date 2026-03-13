@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
@@ -24,21 +25,17 @@ class WidgetService {
       final widgetDataList = motors.map((motor) {
         final mac = motor.starter?.macAddress;
         final pcb = motor.starter?.pcbNumber;
+        final isDeviceAllocated = motor.starter?.deviceAllocation == 'true';
 
         // Find latest data from MQTT if available
+        // If deviceAllocation is true → use PCB number; if false → use MAC address
         MotorData? mqttData;
         if (mqttService != null) {
-          for (int i = 1; i <= 4; i++) {
-            final groupId = 'G0$i';
-            if (mac != null && mac.isNotEmpty) {
-              final data = mqttService.motorDataMap['$mac-$groupId'];
-              if (data?.hasReceivedData == true) {
-                mqttData = data;
-                break;
-              }
-            }
-            if (pcb != null && pcb.isNotEmpty && mqttData == null) {
-              final data = mqttService.motorDataMap['$pcb-$groupId'];
+          final identifier = isDeviceAllocated ? pcb : mac;
+          if (identifier != null && identifier.isNotEmpty) {
+            for (int i = 1; i <= 4; i++) {
+              final groupId = 'G0$i';
+              final data = mqttService.motorDataMap['$identifier-$groupId'];
               if (data?.hasReceivedData == true) {
                 mqttData = data;
                 break;
@@ -105,7 +102,7 @@ class WidgetService {
 
         return {
           'id': motor.id,
-          'name': motor.aliasName ?? motor.name ?? 'Pump',
+          'name': motor.aliasName ?? motor.starter?.starterNumber ?? 'Pump',
           'isRunning': isRunning,
           'signalQuality': signalQuality,
           'fault': fault,
