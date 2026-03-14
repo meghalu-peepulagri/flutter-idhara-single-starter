@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widgets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
 
@@ -13,12 +12,12 @@ class ScheduleForm extends StatefulWidget {
   final int? initialStartMinute;
   final int? initialEndHour;
   final int? initialEndMinute;
-  final Set<int>? initialDays;
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
   final bool? initialCyclicMode;
   final int? initialCyclicOnMinutes;
   final int? initialCyclicOffMinutes;
   final bool? initialPowerLossRecovery;
-  final bool? initialRepeatWeekly;
 
   const ScheduleForm({
     super.key,
@@ -28,12 +27,12 @@ class ScheduleForm extends StatefulWidget {
     this.initialStartMinute,
     this.initialEndHour,
     this.initialEndMinute,
-    this.initialDays,
+    this.initialStartDate,
+    this.initialEndDate,
     this.initialCyclicMode,
     this.initialCyclicOnMinutes,
     this.initialCyclicOffMinutes,
     this.initialPowerLossRecovery,
-    this.initialRepeatWeekly,
   });
 
   @override
@@ -41,7 +40,10 @@ class ScheduleForm extends StatefulWidget {
 }
 
 class ScheduleFormState extends State<ScheduleForm> {
-  late final Set<int> selectedDays;
+  late DateTime startDate;
+  late DateTime endDate;
+  bool _selectingStart = true;
+  late final ScrollController _dateScrollController;
 
   late int startHour;
   late int startMinute;
@@ -52,16 +54,18 @@ class ScheduleFormState extends State<ScheduleForm> {
   late int cyclicOnMinutes;
   late int cyclicOffMinutes;
   late bool powerLossRecovery;
-  late bool repeatWeekly;
 
   late final ValueNotifier<bool> _cyclicController;
   late final ValueNotifier<bool> _powerLossController;
-  late final ValueNotifier<bool> _repeatController;
+
+  static const int _dateRangeDays = 90;
 
   @override
   void initState() {
     super.initState();
-    selectedDays = Set<int>.from(widget.initialDays ?? {});
+    final today = DateTime.now();
+    startDate = widget.initialStartDate ?? today;
+    endDate = widget.initialEndDate ?? today;
     startHour = widget.initialStartHour ?? 0;
     startMinute = widget.initialStartMinute ?? 0;
     endHour = widget.initialEndHour ?? 0;
@@ -70,19 +74,32 @@ class ScheduleFormState extends State<ScheduleForm> {
     cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
     cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
-    repeatWeekly = widget.initialRepeatWeekly ?? false;
     _cyclicController = ValueNotifier(cyclicMode);
     _powerLossController = ValueNotifier(powerLossRecovery);
-    _repeatController = ValueNotifier(repeatWeekly);
+
+    // Scroll to start date position after frame
+    final startOffset = _daysBetween(today, startDate);
+    _dateScrollController = ScrollController(
+      initialScrollOffset: (startOffset * 62.0).clamp(0, double.infinity),
+    );
   }
 
   @override
   void dispose() {
     _cyclicController.dispose();
     _powerLossController.dispose();
-    _repeatController.dispose();
+    _dateScrollController.dispose();
     super.dispose();
   }
+
+  int _daysBetween(DateTime from, DateTime to) {
+    final f = DateTime(from.year, from.month, from.day);
+    final t = DateTime(to.year, to.month, to.day);
+    return t.difference(f).inDays.clamp(0, _dateRangeDays);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
   TimeOfDay get endTime => TimeOfDay(hour: endHour, minute: endMinute);
@@ -100,7 +117,6 @@ class ScheduleFormState extends State<ScheduleForm> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
-  //  Time picker
   void _onTimePicked(TimeOfDay t, bool isStart) => setState(() {
         if (isStart) {
           startHour = t.hour;
@@ -118,6 +134,24 @@ class ScheduleFormState extends State<ScheduleForm> {
         minTime: isStart ? null : startTime,
       );
 
+  void _onDateTap(DateTime date) {
+    setState(() {
+      if (_selectingStart) {
+        startDate = date;
+        if (endDate.isBefore(date)) endDate = date;
+        _selectingStart = false;
+      } else {
+        if (!date.isBefore(startDate)) {
+          endDate = date;
+        } else {
+          startDate = date;
+          endDate = date;
+        }
+        _selectingStart = true;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -129,9 +163,9 @@ class ScheduleFormState extends State<ScheduleForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                scheduleSectionLabel('Select Days'),
+                scheduleSectionLabel('Schedule Dates'),
                 const SizedBox(height: 10),
-                _buildDayChips(),
+                _buildDateRangePicker(),
                 const SizedBox(height: 24),
                 scheduleSectionLabel('Schedule Timing'),
                 const SizedBox(height: 10),
@@ -175,17 +209,6 @@ class ScheduleFormState extends State<ScheduleForm> {
                     _powerLossController.value = v;
                   }),
                 ),
-                const SizedBox(height: 12),
-                buildScheduleToggle(
-                  icon: Icons.repeat_rounded,
-                  title: 'Repeat Weekly',
-                  subtitle: 'Auto-repeat on selected days',
-                  controller: _repeatController,
-                  onChanged: (v) => setState(() {
-                    repeatWeekly = v;
-                    _repeatController.value = v;
-                  }),
-                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -196,43 +219,243 @@ class ScheduleFormState extends State<ScheduleForm> {
     );
   }
 
-  Widget _buildDayChips() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(7, (i) {
-        final sel = selectedDays.contains(i);
-        return GestureDetector(
-          onTap: () => setState(
-              () => sel ? selectedDays.remove(i) : selectedDays.add(i)),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 42,
-            height: 38,
-            decoration: BoxDecoration(
-              gradient: sel
-                  ? const LinearGradient(
-                      colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              color: sel ? null : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: sel ? Colors.transparent : const Color(0xFFDCDCDC)),
-            ),
-            child: Center(
-              child: Text(dayLabels[i],
-                  style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: sel ? Colors.white : const Color(0xFF57636C))),
+  // ── Date Range Picker ───────────────────────────────────────────────────────
+
+  Widget _buildDateRangePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Start / End date header cards
+        Row(
+          children: [
+            Expanded(child: _buildDateHeaderCard(isStart: true)),
+            const SizedBox(width: 10),
+            const Icon(Icons.arrow_forward_rounded,
+                size: 18, color: Color(0xFF94A3B8)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildDateHeaderCard(isStart: false)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Selection hint
+        Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              _selectingStart ? 'Tap a date to set start' : 'Tap a date to set end',
+              key: ValueKey(_selectingStart),
+              style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  color: const Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w500),
             ),
           ),
-        );
-      }),
+        ),
+        const SizedBox(height: 10),
+        // Horizontal date scroll
+        _buildHorizontalDateScroll(),
+      ],
     );
   }
+
+  Widget _buildDateHeaderCard({required bool isStart}) {
+    final date = isStart ? startDate : endDate;
+    final isActive = _selectingStart == isStart;
+    final months = [
+      'Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    final days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    final dayName = days[date.weekday % 7];
+    final monthName = months[date.month - 1];
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectingStart = isStart),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isActive ? null : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive
+                ? Colors.transparent
+                : const Color(0xFFE5E7EB),
+            width: isActive ? 0 : 1,
+          ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF004E7E).withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isStart ? 'START DATE' : 'END DATE',
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: isActive
+                    ? Colors.white.withValues(alpha: 0.75)
+                    : const Color(0xFF94A3B8),
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${date.day} $monthName ${date.year}',
+              style: GoogleFonts.dmSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: isActive ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              dayName,
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isActive
+                    ? Colors.white.withValues(alpha: 0.8)
+                    : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalDateScroll() {
+    final today = DateTime.now();
+    final months = [
+      'Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    final days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+    return Container(
+      height: 88,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: ListView.builder(
+          controller: _dateScrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          itemCount: _dateRangeDays,
+          itemBuilder: (ctx, i) {
+            final date = today.add(Duration(days: i));
+            final isStart = _isSameDay(date, startDate);
+            final isEnd = _isSameDay(date, endDate);
+            final inRange = !date.isBefore(startDate) &&
+                !date.isAfter(endDate) &&
+                !isStart &&
+                !isEnd;
+            final isSelected = isStart || isEnd;
+            final dayLabel = days[date.weekday % 7];
+            final monthLabel = months[date.month - 1];
+            final isToday = _isSameDay(date, today);
+
+            return GestureDetector(
+              onTap: () => _onDateTap(date),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 54,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? const LinearGradient(
+                          colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        )
+                      : null,
+                  color: isSelected
+                      ? null
+                      : inRange
+                          ? const Color(0xFFEBF3FE)
+                          : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: isToday && !isSelected
+                      ? Border.all(
+                          color: const Color(0xFF3686AF).withValues(alpha: 0.4),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      dayLabel,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : inRange
+                                ? const Color(0xFF004E7E)
+                                : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${date.day}',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected
+                            ? Colors.white
+                            : inRange
+                                ? const Color(0xFF004E7E)
+                                : isToday
+                                    ? const Color(0xFF3686AF)
+                                    : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      monthLabel,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.75)
+                            : inRange
+                                ? const Color(0xFF3686AF)
+                                : const Color(0xFFB0B8C4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Timing Card ─────────────────────────────────────────────────────────────
 
   Widget _buildTimingCard() {
     return Container(

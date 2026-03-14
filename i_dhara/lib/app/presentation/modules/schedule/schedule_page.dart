@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
@@ -67,35 +68,38 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   String _resolveIdentifier() {
+    final deviceAlloc = motor?.starter?.deviceAllocation ?? 'false';
     final pcb = motor?.starter?.pcbNumber?.trim() ?? '';
-    return pcb.isNotEmpty ? pcb : (motor?.starter?.macAddress?.trim() ?? '');
+    final mac = motor?.starter?.macAddress?.trim() ?? '';
+    return getMotorIdentifier(deviceAlloc, pcb, mac);
   }
 
   bool _scheduleSaved = false;
 
-  String _todayDate() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-  }
+  String _formatDateStr(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  int _dateToYYMMDD(DateTime d) =>
+      (d.year % 100) * 10000 + d.month * 100 + d.day;
 
   CreateScheduleDto _buildDto(ScheduleFormState form) {
     final isCyclic = form.cyclicMode;
     return CreateScheduleDto(
       motorId: SharedPreference.getMotorId(),
       starterId: SharedPreference.getStarterId(),
-      scheduleType: (isCyclic && form.repeatWeekly) ? 'CYCLIC' : 'TIME_BASED',
+      scheduleType: isCyclic ? 'CYCLIC' : 'TIME_BASED',
       startTime: formatTime24h(form.startTime),
       endTime: isCyclic ? null : formatTime24h(form.endTime),
-      scheduleDate: isCyclic ? _todayDate() : null,
-      scheduleStartDate: null,
-      scheduleEndDate: null,
+      scheduleDate: _formatDateStr(form.startDate),
+      scheduleStartDate: _formatDateStr(form.startDate),
+      scheduleEndDate: _formatDateStr(form.endDate),
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-      daysOfWeek: form.selectedDays.toList()..sort(),
-      bitwiseDays: buildDaysBitmask(form.selectedDays),
+      daysOfWeek: const [],
+      bitwiseDays: 0,
       runtimeMinutes: form.durationMinutes,
-      powerLossRecovery: form.powerLossRecovery,
-      repeat: form.repeatWeekly ? 1 : 0,
+      powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
+      repeat: 0,
       enabled: true,
     );
   }
@@ -120,16 +124,15 @@ class _SchedulePageState extends State<SchedulePage> {
       try {
         await _mqttService.publishScheduleCommand(
           identifier: id,
-          scheduleType: (isCyclic && form.repeatWeekly) ? 2 : 1,
           scheduleId: response.data?.scheduleId ?? 1,
-          startTime: formatTime24h(form.startTime),
-          endTime: formatTime24h(form.endTime),
-          durationMinutes: form.durationMinutes,
+          startTimeHHMM: form.startHour * 100 + form.startMinute,
+          endTimeHHMM: form.endHour * 100 + form.endMinute,
+          startDateYYMMDD: _dateToYYMMDD(form.startDate),
+          endDateYYMMDD: _dateToYYMMDD(form.endDate),
+          isCyclic: isCyclic,
           cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
           cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-          repeat: form.repeatWeekly ? 1 : 0,
-          daysBitmask: buildDaysBitmask(form.selectedDays),
-          powerRecovery: form.powerLossRecovery ? 1 : 0,
+          powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
           enabled: 1,
         );
       } catch (e) {
@@ -151,16 +154,15 @@ class _SchedulePageState extends State<SchedulePage> {
     try {
       await _mqttService.publishScheduleCommand(
         identifier: id,
-        scheduleType: (isCyclic && form.repeatWeekly) ? 2 : 1,
         scheduleId: _editRecord?.scheduleId ?? 1,
-        startTime: formatTime24h(form.startTime),
-        endTime: formatTime24h(form.endTime),
-        durationMinutes: form.durationMinutes,
+        startTimeHHMM: form.startHour * 100 + form.startMinute,
+        endTimeHHMM: form.endHour * 100 + form.endMinute,
+        startDateYYMMDD: _dateToYYMMDD(form.startDate),
+        endDateYYMMDD: _dateToYYMMDD(form.endDate),
+        isCyclic: isCyclic,
         cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
         cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-        repeat: form.repeatWeekly ? 1 : 0,
-        daysBitmask: buildDaysBitmask(form.selectedDays),
-        powerRecovery: form.powerLossRecovery ? 1 : 0,
+        powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
         enabled: 1,
       );
     } catch (e) {
@@ -206,7 +208,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final isCyclic = form.cyclicMode;
     await showScheduleConfirmDialog(
       context: context,
-      typeLabel: (isCyclic && form.repeatWeekly) ? 'Cyclic' : 'Time Based',
+      typeLabel: isCyclic ? 'Cyclic' : 'Time Based',
       startTime: formatTime24h(form.startTime),
       endTime: formatTime24h(form.endTime),
       duration: form.durationText,
@@ -264,9 +266,8 @@ class _SchedulePageState extends State<SchedulePage> {
                       initialStartMinute: record != null ? sm : null,
                       initialEndHour: record != null ? eh : null,
                       initialEndMinute: record != null ? em : null,
-                      initialDays: record?.daysOfWeek != null
-                          ? Set<int>.from(record!.daysOfWeek!)
-                          : null,
+                      initialStartDate: record?.scheduleDate,
+                      initialEndDate: record?.scheduleDate,
                       initialCyclicMode: record != null ? isCyclic : null,
                       initialCyclicOnMinutes: record != null
                           ? (record.cycleOnMinutes as num?)?.toInt()
@@ -275,8 +276,6 @@ class _SchedulePageState extends State<SchedulePage> {
                           ? (record.cycleOffMinutes as num?)?.toInt()
                           : null,
                       initialPowerLossRecovery: record?.powerLossRecovery,
-                      initialRepeatWeekly:
-                          record != null ? (record.repeat == 1) : null,
                     ),
                   ),
                 ),

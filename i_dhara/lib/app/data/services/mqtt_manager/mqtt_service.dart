@@ -459,18 +459,19 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
-  /// Publish schedule command
+  /// Publish schedule command (T:3)
+  /// startTimeHHMM / endTimeHHMM: e.g. 600 = 06:00, 1030 = 10:30
+  /// startDateYYMMDD / endDateYYMMDD: e.g. 260606 = 2026-06-06
   Future<void> publishScheduleCommand({
     required String identifier,
-    required int scheduleType,
     required int scheduleId,
-    required String startTime,
-    String? endTime,
-    int? durationMinutes,
+    required int startTimeHHMM,
+    required int endTimeHHMM,
+    required int startDateYYMMDD,
+    required int endDateYYMMDD,
+    required bool isCyclic,
     int? cyclicOnMinutes,
     int? cyclicOffMinutes,
-    required int repeat,
-    required int daysBitmask,
     required int powerRecovery,
     required int enabled,
     int? sequenceNumber,
@@ -484,34 +485,36 @@ class MqttService {
     if (identifier.trim().isEmpty) {
       throw Exception('Invalid identifier for schedule publish');
     }
-    if (scheduleType != 1 && scheduleType != 2) {
-      throw Exception('scheduleType must be 1 (time-based) or 2 (cyclic)');
-    }
 
     final seq = sequenceNumber ?? _random.nextInt(251);
 
-    final scheduleData = <String, dynamic>{
-      'sch_type': scheduleType,
+    final scheduleItem = <String, dynamic>{
       'id': scheduleId,
-      'start': startTime,
-      'end': endTime,
-      if (scheduleType == 1) ...{
-        'dur': durationMinutes,
-        'pwr_rec': powerRecovery,
-      },
-      if (scheduleType == 2) ...{
+      'sd': startDateYYMMDD,
+      'ed': endDateYYMMDD,
+      'st': startTimeHHMM,
+      'et': endTimeHHMM,
+      'en': enabled,
+      if (isCyclic) ...{
+        'cy': 1,
         'on': cyclicOnMinutes,
         'off': cyclicOffMinutes,
+        'pwr_rec': 0,
+      } else ...{
+        'pwr_rec': powerRecovery,
       },
-      'rep': repeat,
-      'days': daysBitmask,
-      'en': enabled,
     };
 
     final payload = <String, dynamic>{
-      'T': 23,
+      'T': 3,
       'S': seq,
-      'D': scheduleData,
+      'D': {
+        'idx': scheduleId,
+        'last': 0,
+        'sch_cnt': 1,
+        'plr': 30,
+        'm1': [scheduleItem],
+      },
     };
 
     final commandKey = 'schedule_$identifier';

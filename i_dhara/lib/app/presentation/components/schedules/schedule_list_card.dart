@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
-import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 
 class ScheduleCard extends StatelessWidget {
@@ -229,98 +228,33 @@ class ScheduleCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-
-          // Row 3: Days
-          Row(
-            children: [
-              if (record.daysOfWeek != null && record.daysOfWeek!.isNotEmpty)
-                Expanded(
-                  child: Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: record.daysOfWeek!.map((d) {
-                      final label =
-                          (d >= 0 && d < dayLabels.length) ? dayLabels[d] : '?';
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEBF3FE),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color:
-                                const Color(0xFF004E7E).withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Text(label,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF004E7E))),
-                      );
-                    }).toList(),
-                  ),
-                )
-            ],
-          ),
-
-          if ((record.powerLossRecovery == true) || (record.repeat == 1)) ...[
-            const SizedBox(height: 8),
+          if (record.powerLossRecovery == true) ...[
+            const SizedBox(height: 10),
             Row(
               children: [
-                if (record.powerLossRecovery == true)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color:
-                              const Color(0xFFFF9800).withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.power_rounded,
-                            size: 11, color: Color(0xFFFF9800)),
-                        const SizedBox(width: 4),
-                        Text('Power Recovery',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFFFF9800))),
-                      ],
-                    ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                        color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
                   ),
-                if (record.powerLossRecovery == true && record.repeat == 1)
-                  const SizedBox(width: 6),
-                if (record.repeat == 1)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF3FE),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color:
-                              const Color(0xFF004E7E).withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.repeat_rounded,
-                            size: 11, color: Color(0xFF004E7E)),
-                        const SizedBox(width: 4),
-                        Text('Repeat Weekly',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF004E7E))),
-                      ],
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.power_rounded,
+                          size: 11, color: Color(0xFFFF9800)),
+                      const SizedBox(width: 4),
+                      Text('Power Recovery',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFFF9800))),
+                    ],
                   ),
+                ),
               ],
             ),
           ],
