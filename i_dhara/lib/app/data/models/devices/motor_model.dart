@@ -188,7 +188,6 @@ class Starter {
   String? networkType;
   String? starterNumber;
   String? deviceAllocation;
-
   List<StarterParameter>? starterParameters;
 
   Starter(

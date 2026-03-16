@@ -122,6 +122,7 @@ class Starter {
   String? networkType;
   String? deviceAllocation;
   String? simRechargeexpiresDate;
+  String? simNumber;
 
   List<StarterParameter>? starterParameters;
 
@@ -137,7 +138,8 @@ class Starter {
       this.networkType,
       this.starterParameters,
       this.deviceAllocation,
-      this.simRechargeexpiresDate});
+      this.simRechargeexpiresDate,
+      this.simNumber});
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
         id: json["id"],
@@ -151,6 +153,7 @@ class Starter {
         networkType: json["network_type"],
         deviceAllocation: json["device_allocation"],
         simRechargeexpiresDate: json["sim_recharge_expires_at"],
+        simNumber: json["device_mobile_number"],
         starterParameters: json["starterParameters"] == null
             ? []
             : List<StarterParameter>.from(json["starterParameters"]!
@@ -169,6 +172,7 @@ class Starter {
         "network_type": networkType,
         "device_allocation": deviceAllocation,
         "sim_recharge_expires_at": simRechargeexpiresDate,
+        "device_mobile_number": simNumber,
         "starterParameters": starterParameters == null
             ? []
             : List<dynamic>.from(starterParameters!.map((x) => x.toJson())),

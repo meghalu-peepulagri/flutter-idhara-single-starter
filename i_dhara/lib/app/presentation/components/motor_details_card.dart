@@ -44,7 +44,7 @@ class MotorDetailsCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       _buildMotorMode(context),
                       const SizedBox(height: 6),
-                      _buildDeviceExpiry(context)
+                      _buildDeviceNumber(context)
                     ],
                   ),
                 ),
@@ -61,12 +61,15 @@ class MotorDetailsCard extends StatelessWidget {
                         _buildMotorHP(context),
                         const SizedBox(
                             width: 12), // spacing between state & mode
-                        _buildNetworkIcon(context)
+                        _buildNetworkIcon(context),
                         // _buildMotorMode(context),
+                        const SizedBox(width: 12),
                       ],
                     ),
                     const SizedBox(height: 8),
                     _buildTimeStamp(context),
+                    const SizedBox(height: 4),
+                    _buildDeviceExpiry(context)
                   ],
                 ),
               ],
@@ -326,16 +329,15 @@ class MotorDetailsCard extends StatelessWidget {
     });
   }
 
-  Widget _buildDeviceExpiry(BuildContext context) {
+  Widget _buildDeviceNumber(BuildContext context) {
     return Obx(() {
-      final simRechargeExpire =
-          controller.motorDetails.value?.starter?.simRechargeexpiresDate;
+      final simNumber = controller.motorDetails.value?.starter?.simNumber;
 
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'SIM Expiry: ',
+            'SIM Number:',
             style: FlutterFlowTheme.of(context).bodyMedium.override(
                   font: GoogleFonts.dmSans(),
                   color: const Color(0xFF000000),
@@ -347,14 +349,53 @@ class MotorDetailsCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4.0),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+            padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
             child: Text(
-              simRechargeExpire ?? 'N/A',
+              simNumber ?? 'N/A',
               style: FlutterFlowTheme.of(context).bodyMedium.override(
                     font: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w400,
                     ),
-                    color: const Color(0XFFCA3500),
+                    color: const Color(0xFF166491),
+                    fontSize: 14.0,
+                    letterSpacing: 0.0,
+                  ),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildDeviceExpiry(BuildContext context) {
+    return Obx(() {
+      final rechargeExpiry =
+          controller.motorDetails.value?.starter?.simRechargeexpiresDate;
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Recharge Expiry:',
+            style: FlutterFlowTheme.of(context).bodyMedium.override(
+                  font: GoogleFonts.dmSans(),
+                  color: const Color(0xFF000000),
+                  fontSize: 14.0,
+                  letterSpacing: 0.0,
+                ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
+            child: Text(
+              rechargeExpiry ?? 'N/A',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w400,
+                    ),
+                    color: const Color(0xFF166491),
                     fontSize: 14.0,
                     letterSpacing: 0.0,
                   ),
