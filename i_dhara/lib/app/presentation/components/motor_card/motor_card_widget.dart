@@ -354,9 +354,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           widget.motor.starter!.deviceAllocation.toString(),
           widget.motor.starter!.pcbNumber.toString(),
           widget.motor.starter!.macAddress.toString());
+      final map = {identifier: widget.motor};
+      widget.mqttService.updateMotors(map);
       if (identifier.isNotEmpty) {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
+
         await widget.mqttService
             .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
       }

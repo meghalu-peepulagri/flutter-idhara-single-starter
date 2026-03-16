@@ -28,11 +28,6 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     // Check if already connected, if not initialize
     if (!mqttService.isConnected) {
-      if (kDebugMode)
-        print(
-            'MQTT not connected - it should have been initialized from dashboard');
-      if (kDebugMode) print('   Initializing MQTT from motor details...');
-
       // Build minimal motor map for this motor
       final motor = _convertMotorDetailsToMotor(motorDetails.value!);
       final motorMap = <String, Motor>{};
@@ -69,14 +64,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       print('Checking motor data availability...');
       final motorData = getMotorData();
       if (motorData != null && motorData.hasReceivedData) {
-        print('✓ Motor data found!');
-        print('   State: ${motorData.state}');
-        print('   Mode: ${motorData.modeIndex}');
-        print('   Group: ${motorData.groupId}');
       } else {
-        print('No motor data yet, waiting for MQTT messages...');
-        print('   Motor data map size: ${mqttService.motorDataMap.length}');
-
         // Print all keys in the map
         if (mqttService.motorDataMap.isNotEmpty) {
           print('   Available keys:');

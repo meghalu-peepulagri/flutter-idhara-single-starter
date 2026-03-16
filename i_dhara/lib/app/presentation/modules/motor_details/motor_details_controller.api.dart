@@ -90,6 +90,7 @@ extension AnalyticsControllerApi on AnalyticsController {
     selectedMotorId.value = null;
 
     try {
+      await fetchMotorDetails(enableRetry: true);
       await fetchRuntime(daterange);
     } catch (e) {
       if (kDebugMode) print('Error in fetchallApis: $e');
