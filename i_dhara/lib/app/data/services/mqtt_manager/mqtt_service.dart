@@ -157,7 +157,7 @@ class MqttService {
   final Map<String, DateTime> _lastAckTimes = {};
 
   // Track schedule action command keys whose retries have been exhausted
-  // Any T:55 ACK arriving after this is a late ACK and must be ignored
+  // Any T:54 ACK arriving after this is a late ACK and must be ignored
   final Set<String> _expiredActionKeys = {};
 
   // Track schedule create command keys whose retries have been exhausted
@@ -543,10 +543,10 @@ class MqttService {
   }
 
   /// Publish schedule action command (T:24)
-  /// cmd: 1=stop, 2=restart, 3=delete
+  /// cmd: 1=stop, 2=resume, 3=delete
+  /// ids = 2^(scheduleId - 1): bitmask representation of the schedule ID
   Future<void> publishScheduleActionCommand({
     required String identifier,
-    required int scheduleType,
     required int scheduleId,
     required int cmd,
     int? sequenceNumber,
@@ -563,13 +563,15 @@ class MqttService {
 
     final seq = sequenceNumber ?? _random.nextInt(251);
 
+    // Convert scheduleId to bitmask: ids = 2^(scheduleId - 1)
+    final ids = 1 << (scheduleId - 1);
+
     final payload = <String, dynamic>{
-      'T': 24,
+      'T': 23,
       'S': seq,
       'D': {
-        'sch_type': scheduleType,
-        'id': scheduleId,
         'cmd': cmd,
+        'ids': ids,
       },
     };
 
@@ -852,7 +854,7 @@ class MqttService {
           case 33:
             _handleScheduleAck(identifier, payloadData);
             break;
-          case 55:
+          case 54:
             _handleScheduleActionAck(identifier, payloadData);
             break;
           default:
@@ -1173,33 +1175,34 @@ class MqttService {
     debugPrint('✓ Schedule ACK received from $identifier: D=$d');
   }
 
-  /// Handle schedule action ACK (type 55) — stop/restart/delete
+  /// Handle schedule action ACK (type 54) — stop/resume/delete
+  /// Payload D: {"ids": <bitmask>, "ack": <1=stop, 2=resume, 3=delete>}
   void _handleScheduleActionAck(String identifier, dynamic payloadData) {
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('⚠️ Invalid schedule action ACK payload: $payloadData');
       return;
     }
 
-    final schTypeRaw = payloadData['sch_type'];
-    final idRaw = payloadData['id'];
-    final statusRaw = payloadData['status'];
+    final idsRaw = payloadData['ids'];
+    final ackRaw = payloadData['ack'];
 
-    final schType =
-        schTypeRaw is int ? schTypeRaw : int.tryParse('$schTypeRaw');
-    final scheduleId = idRaw is int ? idRaw : int.tryParse('$idRaw');
-    final status = statusRaw is int ? statusRaw : int.tryParse('$statusRaw');
+    final ids = idsRaw is int ? idsRaw : int.tryParse('$idsRaw');
+    final ack = ackRaw is int ? ackRaw : int.tryParse('$ackRaw');
 
-    if (schType == null || scheduleId == null || status == null) {
+    if (ids == null || ack == null) {
       debugPrint(
-          '⚠️ Schedule action ACK missing required fields: $payloadData');
+          '⚠️ Schedule action ACK missing required fields (ids/ack): $payloadData');
       return;
     }
+
+    // Recover scheduleId from bitmask: ids = 2^(scheduleId-1)
+    final scheduleId = ids > 0 ? ids.bitLength : 0;
 
     final commandKey = 'schedule_action_$identifier';
 
     // Ignore late ACKs that arrive after retries were exhausted
     if (_expiredActionKeys.contains(commandKey)) {
-      debugPrint('⚠️ Late T:55 ACK ignored (retries exhausted): $identifier');
+      debugPrint('⚠️ Late T:54 ACK ignored (retries exhausted): $identifier');
       return;
     }
 
@@ -1208,14 +1211,13 @@ class MqttService {
 
     final ackMap = <String, dynamic>{
       'topic': identifier,
-      'sch_type': schType,
       'id': scheduleId,
-      'status': status,
+      'status': 1, // ACK received = success
     };
     scheduleActionAckController.add(ackMap);
 
     debugPrint(
-        '✓ Schedule Action ACK received from $identifier: sch_type=$schType, id=$scheduleId, status=$status');
+        '✓ Schedule Action ACK received from $identifier: ids=$ids, ack=$ack, scheduleId=$scheduleId');
   }
 
   /// Handle heartbeat (type 40)
@@ -1485,10 +1487,14 @@ class MqttService {
           final d = (command.commandData as Map<String, dynamic>)['D']
               as Map<String, dynamic>?;
           final identifier = command.pcbnumber ?? command.motorId;
+          // Recover scheduleId from bitmask: ids = 2^(scheduleId-1)
+          // → scheduleId = bitLength of ids (e.g. 512 = 0b1000000000 → bitLength=10)
+          final ids = d?['ids'] as int? ?? 0;
+          final recoveredScheduleId = ids > 0 ? ids.bitLength : 0;
           scheduleActionAckController.add({
             'topic': identifier,
-            'sch_type': d?['sch_type'] ?? 1,
-            'id': d?['id'] ?? 0,
+            'sch_type': 1,
+            'id': recoveredScheduleId,
             'status': 0, // failed
           });
           command

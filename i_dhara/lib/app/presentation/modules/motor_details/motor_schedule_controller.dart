@@ -128,23 +128,18 @@ class MotorScheduleController extends GetxController {
     }
   }
 
-  // --- Schedule Actions (T:24): stop/restart/delete ---
+  // --- Schedule Actions (T:24): stop/resume/delete ---
 
-  int _getScheduleType(Record record) {
-    return record.scheduleType == ScheduleType.CYCLIC ? 2 : 1;
-  }
-
-  /// Publish schedule action: cmd 1=stop, 2=restart, 3=delete
+  /// Publish schedule action: cmd 1=stop, 2=resume, 3=delete
+  /// ids in payload = 2^(scheduleId - 1)
   Future<void> publishScheduleAction(Record record, int cmd) async {
     final id = _resolveIdentifier();
     if (id.isEmpty) return;
     final scheduleId = record.scheduleId ?? 0;
-    final scheduleType = _getScheduleType(record);
     _pendingActions[scheduleId] = cmd;
     try {
       await _mqttService.publishScheduleActionCommand(
         identifier: id,
-        scheduleType: scheduleType,
         scheduleId: scheduleId,
         cmd: cmd,
       );
