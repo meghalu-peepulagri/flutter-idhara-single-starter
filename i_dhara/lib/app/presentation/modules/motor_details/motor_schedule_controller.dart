@@ -130,7 +130,7 @@ class MotorScheduleController extends GetxController {
   // --- Schedule Actions (T:24): stop/restart/delete ---
 
   int _getScheduleType(Record record) {
-    return record.scheduleType?.toLowerCase() == 'cyclic' ? 2 : 1;
+    return record.scheduleType == ScheduleType.CYCLIC ? 2 : 1;
   }
 
   /// Publish schedule action: cmd 1=stop, 2=restart, 3=delete

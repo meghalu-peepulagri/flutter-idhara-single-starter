@@ -106,23 +106,31 @@ class Record {
   int? id;
   int? motorId;
   int? starterId;
-  String? scheduleType;
+  ScheduleType? scheduleType;
   int? scheduleId;
-  DateTime? scheduleDate;
-  DateTime? scheduleStartDate;
-  DateTime? scheduleEndDate;
+  int? bitWiseDays;
+  int? scheduleStartDate;
+  int? scheduleEndDate;
   List<int>? daysOfWeek;
   String? startTime;
   String? endTime;
   int? runtimeMinutes;
-  dynamic cycleOnMinutes;
-  dynamic cycleOffMinutes;
+  int? cycleOnMinutes;
+  int? cycleOffMinutes;
   bool? powerLossRecovery;
   int? accumulatedOnSeconds;
   bool? manuallyStopped;
   int? repeat;
+  bool? enabled;
   String? scheduleStatus;
   int? acknowledgement;
+  DateTime? acknowledgedAt;
+  dynamic lastStartedAt;
+  DateTime? lastStoppedAt;
+  int? createdBy;
+  dynamic deletedBy;
+  Status? status;
+  int? priority;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -132,7 +140,7 @@ class Record {
     this.starterId,
     this.scheduleType,
     this.scheduleId,
-    this.scheduleDate,
+    this.bitWiseDays,
     this.scheduleStartDate,
     this.scheduleEndDate,
     this.daysOfWeek,
@@ -145,8 +153,16 @@ class Record {
     this.accumulatedOnSeconds,
     this.manuallyStopped,
     this.repeat,
+    this.enabled,
     this.scheduleStatus,
     this.acknowledgement,
+    this.acknowledgedAt,
+    this.lastStartedAt,
+    this.lastStoppedAt,
+    this.createdBy,
+    this.deletedBy,
+    this.status,
+    this.priority,
     this.createdAt,
     this.updatedAt,
   });
@@ -155,17 +171,11 @@ class Record {
         id: json["id"],
         motorId: json["motor_id"],
         starterId: json["starter_id"],
-        scheduleType: json["schedule_type"],
+        scheduleType: scheduleTypeValues.map[json["schedule_type"]]!,
         scheduleId: json["schedule_id"],
-        scheduleDate: json["schedule_date"] == null
-            ? null
-            : DateTime.tryParse(json["schedule_date"]),
-        scheduleStartDate: json["schedule_start_date"] == null
-            ? null
-            : DateTime.tryParse(json["schedule_start_date"]),
-        scheduleEndDate: json["schedule_end_date"] == null
-            ? null
-            : DateTime.tryParse(json["schedule_end_date"]),
+        bitWiseDays: json["bit_wise_days"],
+        scheduleStartDate: json["schedule_start_date"],
+        scheduleEndDate: json["schedule_end_date"],
         daysOfWeek: json["days_of_week"] == null
             ? []
             : List<int>.from(json["days_of_week"]!.map((x) => x)),
@@ -178,8 +188,20 @@ class Record {
         accumulatedOnSeconds: json["accumulated_on_seconds"],
         manuallyStopped: json["manually_stopped"],
         repeat: json["repeat"],
+        enabled: json["enabled"],
         scheduleStatus: json["schedule_status"],
         acknowledgement: json["acknowledgement"],
+        acknowledgedAt: json["acknowledged_at"] == null
+            ? null
+            : DateTime.parse(json["acknowledged_at"]),
+        lastStartedAt: json["last_started_at"],
+        lastStoppedAt: json["last_stopped_at"] == null
+            ? null
+            : DateTime.parse(json["last_stopped_at"]),
+        createdBy: json["created_by"],
+        deletedBy: json["deleted_by"],
+        status: statusValues.map[json["status"]]!,
+        priority: json["priority"],
         createdAt: json["created_at"] == null
             ? null
             : DateTime.parse(json["created_at"]),
@@ -192,11 +214,11 @@ class Record {
         "id": id,
         "motor_id": motorId,
         "starter_id": starterId,
-        "schedule_type": scheduleType,
+        "schedule_type": scheduleTypeValues.reverse[scheduleType],
         "schedule_id": scheduleId,
-        "schedule_date": scheduleDate?.toIso8601String(),
-        "schedule_start_date": scheduleStartDate?.toIso8601String(),
-        "schedule_end_date": scheduleEndDate?.toIso8601String(),
+        "bit_wise_days": bitWiseDays,
+        "schedule_start_date": scheduleStartDate,
+        "schedule_end_date": scheduleEndDate,
         "days_of_week": daysOfWeek == null
             ? []
             : List<dynamic>.from(daysOfWeek!.map((x) => x)),
@@ -209,9 +231,38 @@ class Record {
         "accumulated_on_seconds": accumulatedOnSeconds,
         "manually_stopped": manuallyStopped,
         "repeat": repeat,
+        "enabled": enabled,
         "schedule_status": scheduleStatus,
         "acknowledgement": acknowledgement,
+        "acknowledged_at": acknowledgedAt?.toIso8601String(),
+        "last_started_at": lastStartedAt,
+        "last_stopped_at": lastStoppedAt?.toIso8601String(),
+        "created_by": createdBy,
+        "deleted_by": deletedBy,
+        "status": statusValues.reverse[status],
+        "priority": priority,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
       };
+}
+
+enum ScheduleType { CYCLIC, TIME_BASED }
+
+final scheduleTypeValues = EnumValues(
+    {"CYCLIC": ScheduleType.CYCLIC, "TIME_BASED": ScheduleType.TIME_BASED});
+
+enum Status { ACTIVE }
+
+final statusValues = EnumValues({"ACTIVE": Status.ACTIVE});
+
+class EnumValues<T> {
+  Map<String, T> map;
+  late Map<T, String> reverseMap;
+
+  EnumValues(this.map);
+
+  Map<T, String> get reverse {
+    reverseMap = map.map((k, v) => MapEntry(v, k));
+    return reverseMap;
+  }
 }

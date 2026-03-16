@@ -82,6 +82,39 @@ class _SchedulePageState extends State<SchedulePage> {
   int _dateToYYMMDD(DateTime d) =>
       (d.year % 100) * 10000 + d.month * 100 + d.day;
 
+  DateTime? _yymmddToDate(int? v) {
+    if (v == null) return null;
+    final yy = v ~/ 10000;
+    final mm = (v % 10000) ~/ 100;
+    final dd = v % 100;
+    return DateTime(2000 + yy, mm, dd);
+  }
+
+  // Returns sorted list of active weekday numbers (1=Mon ... 7=Sun) from the date range.
+  List<int> _computeDaysOfWeek(DateTime start, DateTime end) {
+    final totalDays = end.difference(start).inDays + 1;
+    if (totalDays >= 7) return [1, 2, 3, 4, 5, 6, 7];
+    final days = <int>{};
+    for (int i = 0; i < totalDays; i++) {
+      days.add(start.add(Duration(days: i)).weekday); // 1=Mon...7=Sun
+    }
+    return days.toList()..sort();
+  }
+
+  // Bitwise: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64
+  static const _bitwiseMap = {
+    7: 1,   // Sunday
+    1: 2,   // Monday
+    2: 4,   // Tuesday
+    3: 8,   // Wednesday
+    4: 16,  // Thursday
+    5: 32,  // Friday
+    6: 64,  // Saturday
+  };
+
+  int _computeBitwiseDays(List<int> daysOfWeek) =>
+      daysOfWeek.fold(0, (acc, d) => acc | (_bitwiseMap[d] ?? 0));
+
   CreateScheduleDto _buildDto(ScheduleFormState form) {
     final isCyclic = form.cyclicMode;
     return CreateScheduleDto(
@@ -95,8 +128,9 @@ class _SchedulePageState extends State<SchedulePage> {
       scheduleEndDate: _formatDateStr(form.endDate),
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-      daysOfWeek: const [],
-      bitwiseDays: 0,
+      daysOfWeek: _computeDaysOfWeek(form.startDate, form.endDate),
+      bitwiseDays: _computeBitwiseDays(
+          _computeDaysOfWeek(form.startDate, form.endDate)),
       runtimeMinutes: form.durationMinutes,
       powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
       repeat: 0,
@@ -241,7 +275,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final record = _editRecord;
     // cyclic=true + repeat=true  → scheduleType='CYCLIC'
     // cyclic=true + repeat=false → scheduleType='TIME_BASED' but cycleOnMinutes is set
-    final isCyclic = record?.scheduleType?.toLowerCase() == 'cyclic' ||
+    final isCyclic = record?.scheduleType == ScheduleType.CYCLIC ||
         record?.cycleOnMinutes != null;
     final (sh, sm) = _parseTime(record?.startTime);
     final (eh, em) = _parseTime(record?.endTime);
@@ -267,9 +301,8 @@ class _SchedulePageState extends State<SchedulePage> {
                       initialEndHour: record != null ? eh : null,
                       initialEndMinute: record != null ? em : null,
                       initialStartDate:
-                          record?.scheduleStartDate ?? record?.scheduleDate,
-                      initialEndDate:
-                          record?.scheduleEndDate ?? record?.scheduleDate,
+                          _yymmddToDate(record?.scheduleStartDate),
+                      initialEndDate: _yymmddToDate(record?.scheduleEndDate),
                       initialCyclicMode: record != null ? isCyclic : null,
                       initialCyclicOnMinutes: record != null
                           ? (record.cycleOnMinutes as num?)?.toInt()

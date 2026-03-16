@@ -20,8 +20,18 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -62,24 +72,41 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDateStrip(selectedDate),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
-                  child: Text(
-                    '${schedules.length} / $totalRecords schedules',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF57636C),
-                    ),
+                  padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${schedules.length} / $totalRecords schedules',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF57636C),
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEBF3FE),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.tune_rounded,
+                          size: 16,
+                          color: Color(0xFF004E7E),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                _buildDateStrip(selectedDate),
                 Expanded(
                   child: ListView.separated(
                     controller: _controller.scrollController,
                     padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
                     itemCount: schedules.length + (isLoadingMore ? 1 : 0),
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       if (i == schedules.length) {
                         return const Padding(
@@ -159,7 +186,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     final todayNorm = DateTime(today.year, today.month, today.day);
 
     return SizedBox(
-      height: 88,
+      height: 80,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
@@ -271,8 +298,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.schedule_rounded,
-              size: 56,
-              color: const Color(0xFF004E7E).withValues(alpha: 0.3)),
+              size: 56, color: const Color(0xFF004E7E).withValues(alpha: 0.3)),
           const SizedBox(height: 12),
           Text('No Schedules',
               style: GoogleFonts.dmSans(

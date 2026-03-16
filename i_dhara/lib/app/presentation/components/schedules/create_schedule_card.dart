@@ -163,8 +163,6 @@ class ScheduleFormState extends State<ScheduleForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                scheduleSectionLabel('Schedule Dates'),
-                const SizedBox(height: 10),
                 _buildDateCard(),
                 const SizedBox(height: 24),
                 scheduleSectionLabel('Schedule Timing'),

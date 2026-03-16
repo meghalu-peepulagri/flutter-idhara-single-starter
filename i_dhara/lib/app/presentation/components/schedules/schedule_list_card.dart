@@ -27,7 +27,7 @@ class ScheduleCard extends StatelessWidget {
     final isActive = status.toLowerCase() == 'active' ||
         status.toLowerCase() == 'pending' ||
         status.toLowerCase() == 'scheduled';
-    final isCyclic = record.scheduleType?.toLowerCase() == 'cyclic';
+    final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
         isCyclic ? (record.cycleOffMinutes as num?)?.toInt() ?? 0 : 0;
@@ -74,7 +74,9 @@ class ScheduleCard extends StatelessWidget {
               _statusDot(status, isActive),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          _buildDayChips(record),
+          const SizedBox(height: 8),
           const Divider(
             height: 0,
             thickness: 1.0,
@@ -371,6 +373,67 @@ class ScheduleCard extends StatelessWidget {
     );
   }
 
+  static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Converts YYMMDD int (e.g. 260314) → DateTime
+  DateTime? _yymmddToDate(int? v) {
+    if (v == null) return null;
+    final yy = v ~/ 10000;
+    final mm = (v % 10000) ~/ 100;
+    final dd = v % 100;
+    return DateTime(2000 + yy, mm, dd);
+  }
+
+  Set<int> _activeDayNumbers(Record record) {
+    final start = _yymmddToDate(record.scheduleStartDate);
+    final end = _yymmddToDate(record.scheduleEndDate) ?? start;
+    if (start == null) return {};
+    final totalDays = end!.difference(start).inDays + 1;
+    if (totalDays >= 7) return {1, 2, 3, 4, 5, 6, 7};
+    final active = <int>{};
+    for (int i = 0; i < totalDays; i++) {
+      active.add(start.add(Duration(days: i)).weekday);
+    }
+    return active;
+  }
+
+  Widget _buildDayChips(Record record) {
+    final activeDays = _activeDayNumbers(record);
+    return Row(
+      children: List.generate(7, (i) {
+        final dayNum = i + 1; // 1=Mon...7=Sun
+        final isActive = activeDays.contains(dayNum);
+        return Padding(
+          padding: const EdgeInsets.only(right: 5),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color:
+                  isActive ? const Color(0xFFEBF3FE) : const Color(0xFFF5F7FA),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(
+                color: isActive
+                    ? const Color(0xFF3686AF)
+                    : const Color(0xFFE2E8F0),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              _dayLabels[i],
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive
+                    ? const Color(0xFF004E7E)
+                    : const Color(0xFFB0B8C4),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _statusDot(String status, bool isActive) {
     final normalizedStatus = status.toLowerCase();
     final isScheduled = normalizedStatus == 'scheduled';
@@ -422,17 +485,27 @@ class ScheduleCard extends StatelessWidget {
   }
 
   String _formatTo12h(String raw) {
-    final parts = raw.split(':');
-    if (parts.length < 2) return raw;
-    int hour = int.tryParse(parts[0]) ?? 0;
-    final min = parts[1];
+    // Handle both "HH:MM" and "HHMM" / "HMM" formats
+    String h, m;
+    if (raw.contains(':')) {
+      final parts = raw.split(':');
+      if (parts.length < 2) return raw;
+      h = parts[0];
+      m = parts[1].length >= 2 ? parts[1].substring(0, 2) : parts[1];
+    } else if (raw.length >= 3) {
+      m = raw.substring(raw.length - 2);
+      h = raw.substring(0, raw.length - 2);
+    } else {
+      return raw;
+    }
+    int hour = int.tryParse(h) ?? 0;
     final period = hour >= 12 ? 'PM' : 'AM';
     if (hour == 0) {
       hour = 12;
     } else if (hour > 12) {
       hour -= 12;
     }
-    return '$hour:$min $period';
+    return '$hour:$m $period';
   }
 
   String _capitalize(String s) =>
