@@ -18,6 +18,7 @@ class ScheduleForm extends StatefulWidget {
   final int? initialCyclicOnMinutes;
   final int? initialCyclicOffMinutes;
   final bool? initialPowerLossRecovery;
+  final List<int>? initialSelectedDays;
 
   const ScheduleForm({
     super.key,
@@ -33,6 +34,7 @@ class ScheduleForm extends StatefulWidget {
     this.initialCyclicOnMinutes,
     this.initialCyclicOffMinutes,
     this.initialPowerLossRecovery,
+    this.initialSelectedDays,
   });
 
   @override
@@ -52,6 +54,7 @@ class ScheduleFormState extends State<ScheduleForm> {
   late int cyclicOnMinutes;
   late int cyclicOffMinutes;
   late bool powerLossRecovery;
+  late Set<int> selectedDays; // 1=Mon ... 7=Sun
 
   late final ValueNotifier<bool> _cyclicController;
   late final ValueNotifier<bool> _powerLossController;
@@ -75,6 +78,7 @@ class ScheduleFormState extends State<ScheduleForm> {
     cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
     cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
+    selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
     _powerLossController = ValueNotifier(powerLossRecovery);
   }
@@ -141,15 +145,14 @@ class ScheduleFormState extends State<ScheduleForm> {
     }
   }
 
-  // Returns set of weekday numbers (1=Mon...7=Sun) covered by the date range
-  Set<int> _activeDayNumbers() {
-    final active = <int>{};
-    final totalDays = endDate.difference(startDate).inDays + 1;
-    if (totalDays >= 7) return {1, 2, 3, 4, 5, 6, 7};
-    for (int i = 0; i < totalDays; i++) {
-      active.add(startDate.add(Duration(days: i)).weekday);
-    }
-    return active;
+  void _toggleDay(int dayNum) {
+    setState(() {
+      if (selectedDays.contains(dayNum)) {
+        selectedDays.remove(dayNum);
+      } else {
+        selectedDays.add(dayNum);
+      }
+    });
   }
 
   @override
@@ -220,7 +223,6 @@ class ScheduleFormState extends State<ScheduleForm> {
   // ── Date Card ───────────────────────────────────────────────────────────────
 
   Widget _buildDateCard() {
-    final activeDays = _activeDayNumbers();
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
@@ -317,38 +319,41 @@ class ScheduleFormState extends State<ScheduleForm> {
             ],
           ),
           const SizedBox(height: 10),
-          // Day chips
+          // Day chips — manually tappable
           Row(
             children: List.generate(7, (i) {
               final dayNum = i + 1; // 1=Mon...7=Sun
-              final isActive = activeDays.contains(dayNum);
+              final isActive = selectedDays.contains(dayNum);
               return Expanded(
-                child: Center(
-                  child: Container(
-                    width: 36,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFEBF3FE)
-                          : Colors.transparent,
-                      border: Border.all(
+                child: GestureDetector(
+                  onTap: () => _toggleDay(dayNum),
+                  child: Center(
+                    child: Container(
+                      width: 36,
+                      height: 28,
+                      decoration: BoxDecoration(
                         color: isActive
-                            ? const Color(0xFF3686AF)
-                            : const Color(0xFFE2E8F0),
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        dayLabels[i],
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight: isActive
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                            ? const Color(0xFFEBF3FE)
+                            : Colors.transparent,
+                        border: Border.all(
                           color: isActive
-                              ? const Color(0xFF004E7E)
-                              : const Color(0xFFB0B8C4),
+                              ? const Color(0xFF3686AF)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          dayLabels[i],
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: isActive
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: isActive
+                                ? const Color(0xFF004E7E)
+                                : const Color(0xFFB0B8C4),
+                          ),
                         ),
                       ),
                     ),

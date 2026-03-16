@@ -50,9 +50,9 @@ class _SchedulePageState extends State<SchedulePage> {
         final currentId = _resolveIdentifier();
         final ackId = (ack['topic'] ?? '').toString();
         if (currentId.isNotEmpty && ackId != currentId) return;
-        final status = ack['status'] as int? ?? 0;
+        final d = ack['D'] as int? ?? 0;
         if (_ackCompleter != null && !_ackCompleter!.isCompleted) {
-          _ackCompleter!.complete(status == 1);
+          _ackCompleter!.complete(d == 1);
         }
       });
     }
@@ -90,26 +90,15 @@ class _SchedulePageState extends State<SchedulePage> {
     return DateTime(2000 + yy, mm, dd);
   }
 
-  // Returns sorted list of active weekday numbers (1=Mon ... 7=Sun) from the date range.
-  List<int> _computeDaysOfWeek(DateTime start, DateTime end) {
-    final totalDays = end.difference(start).inDays + 1;
-    if (totalDays >= 7) return [1, 2, 3, 4, 5, 6, 7];
-    final days = <int>{};
-    for (int i = 0; i < totalDays; i++) {
-      days.add(start.add(Duration(days: i)).weekday); // 1=Mon...7=Sun
-    }
-    return days.toList()..sort();
-  }
-
   // Bitwise: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64
   static const _bitwiseMap = {
-    7: 1,   // Sunday
-    1: 2,   // Monday
-    2: 4,   // Tuesday
-    3: 8,   // Wednesday
-    4: 16,  // Thursday
-    5: 32,  // Friday
-    6: 64,  // Saturday
+    7: 1, // Sunday
+    1: 2, // Monday
+    2: 4, // Tuesday
+    3: 8, // Wednesday
+    4: 16, // Thursday
+    5: 32, // Friday
+    6: 64, // Saturday
   };
 
   int _computeBitwiseDays(List<int> daysOfWeek) =>
@@ -128,9 +117,8 @@ class _SchedulePageState extends State<SchedulePage> {
       scheduleEndDate: _formatDateStr(form.endDate),
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-      daysOfWeek: _computeDaysOfWeek(form.startDate, form.endDate),
-      bitwiseDays: _computeBitwiseDays(
-          _computeDaysOfWeek(form.startDate, form.endDate)),
+      daysOfWeek: form.selectedDays.toList()..sort(),
+      bitwiseDays: _computeBitwiseDays(form.selectedDays.toList()),
       runtimeMinutes: form.durationMinutes,
       powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
       repeat: 0,
@@ -254,9 +242,17 @@ class _SchedulePageState extends State<SchedulePage> {
 
   (int, int) _parseTime(String? time) {
     if (time == null) return (0, 0);
-    final parts = time.split(':');
-    if (parts.length < 2) return (0, 0);
-    return (int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
+    if (time.contains(':')) {
+      final parts = time.split(':');
+      if (parts.length < 2) return (0, 0);
+      return (int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
+    } else if (time.length >= 3) {
+      // "HHMM" or "HMM" — last 2 digits are minutes
+      final m = int.tryParse(time.substring(time.length - 2)) ?? 0;
+      final h = int.tryParse(time.substring(0, time.length - 2)) ?? 0;
+      return (h, m);
+    }
+    return (0, 0);
   }
 
   Future<void> _onPullToRefresh() async {
@@ -311,6 +307,7 @@ class _SchedulePageState extends State<SchedulePage> {
                           ? (record.cycleOffMinutes as num?)?.toInt()
                           : null,
                       initialPowerLossRecovery: record?.powerLossRecovery,
+                      initialSelectedDays: record?.daysOfWeek,
                     ),
                   ),
                 ),

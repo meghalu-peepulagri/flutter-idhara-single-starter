@@ -104,6 +104,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 Expanded(
                   child: ListView.separated(
                     controller: _controller.scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
                     itemCount: schedules.length + (isLoadingMore ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 8),

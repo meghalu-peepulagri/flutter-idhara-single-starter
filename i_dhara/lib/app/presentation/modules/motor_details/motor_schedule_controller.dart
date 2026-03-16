@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart'
@@ -268,6 +269,7 @@ class MotorScheduleController extends GetxController {
               macAddress: details.starter!.macAddress,
               pcbNumber: details.starter!.pcbNumber,
               starterNumber: details.starter!.starterNumber,
+              deviceAllocation: details.starter!.deviceAllocation,
             )
           : null,
     );
@@ -296,12 +298,13 @@ class MotorScheduleController extends GetxController {
 
   String _resolveIdentifier() {
     final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
+    final deviceAlloc = starter?.deviceAllocation ?? 'false';
     final pcb = starter?.pcbNumber?.trim() ?? '';
-    if (pcb.isNotEmpty) return pcb;
-    return starter?.macAddress?.trim() ?? '';
+    final mac = starter?.macAddress?.trim() ?? '';
+    return getMotorIdentifier(deviceAlloc, pcb, mac);
   }
 
-  // --- Schedule Create ACK (T:54) ---
+  // --- Schedule Create ACK (T:33) ---
 
   void _listenScheduleAck() {
     _scheduleAckSubscription?.cancel();
@@ -311,11 +314,13 @@ class MotorScheduleController extends GetxController {
       final ackId = (ack['topic'] ?? '').toString();
       if (currentId.isNotEmpty && ackId != currentId) return;
 
-      final status = ack['status'] as int? ?? 0;
-      if (status == 1) {
+      final d = ack['D'] as int? ?? 0;
+      if (d == 1) {
         getsuccessSnackBar('Schedule created successfully');
-        await fetchacknowledgement();
-        fetchSchedules();
+        unawaited(Future.wait([
+          fetchacknowledgement(),
+          fetchSchedules(),
+        ]));
       } else {
         geterrorSnackBar('Schedule creation failed');
       }

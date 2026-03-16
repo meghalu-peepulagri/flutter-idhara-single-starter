@@ -160,6 +160,10 @@ class MqttService {
   // Any T:55 ACK arriving after this is a late ACK and must be ignored
   final Set<String> _expiredActionKeys = {};
 
+  // Track schedule create command keys whose retries have been exhausted
+  // Any T:33 ACK arriving after this is a late ACK and must be ignored
+  final Set<String> _expiredScheduleKeys = {};
+
   // Test run tracking - motors in test run mode should ignore type 31 and 32
   final Set<String> _testRunMotors = {};
 
@@ -519,6 +523,8 @@ class MqttService {
 
     final commandKey = 'schedule_$identifier';
     _lastAckTimes.remove(commandKey);
+    // Clear expired status so a fresh command's ACK is accepted
+    _expiredScheduleKeys.remove(commandKey);
 
     await _publishScheduleCommandInternal(
       payload,
@@ -843,7 +849,7 @@ class MqttService {
           case 40:
             _handleHeartbeat(identifier, payloadData);
             break;
-          case 54:
+          case 33:
             _handleScheduleAck(identifier, payloadData);
             break;
           case 55:
@@ -1136,40 +1142,35 @@ class MqttService {
   }
 
   void _handleScheduleAck(String identifier, dynamic payloadData) {
-    if (payloadData is! Map<String, dynamic>) {
-      debugPrint('⚠️ Invalid schedule ACK payload: $payloadData');
+    final scheduleCommandKey = 'schedule_$identifier';
+
+    // Ignore late ACKs that arrive after retries were exhausted
+    if (_expiredScheduleKeys.contains(scheduleCommandKey)) {
+      debugPrint('⚠️ Late T:33 ACK ignored (retries exhausted): $identifier');
       return;
     }
 
-    final schTypeRaw = payloadData['sch_type'];
-    final idRaw = payloadData['id'];
-    final statusRaw = payloadData['status'];
+    // ACK payload D is a plain integer: 1 = success, 0 = failure
+    final d = payloadData is int
+        ? payloadData
+        : int.tryParse('$payloadData');
 
-    final schType =
-        schTypeRaw is int ? schTypeRaw : int.tryParse('$schTypeRaw');
-    final scheduleId = idRaw is int ? idRaw : int.tryParse('$idRaw');
-    final status = statusRaw is int ? statusRaw : int.tryParse('$statusRaw');
-
-    if (schType == null || scheduleId == null || status == null) {
-      debugPrint('⚠️ Schedule ACK missing required fields: $payloadData');
+    if (d == null) {
+      debugPrint('⚠️ Invalid schedule ACK payload: $payloadData');
       return;
     }
 
     // ACK arrived; clear retry/error status for this identifier.
     commandStatusNotifier.value = null;
-    final scheduleCommandKey = 'schedule_$identifier';
     _clearPendingCommand(scheduleCommandKey, 23);
 
     final ackMap = <String, dynamic>{
       'topic': identifier,
-      'sch_type': schType,
-      'id': scheduleId,
-      'status': status,
+      'D': d,
     };
     scheduleAckController.add(ackMap);
 
-    debugPrint(
-        '✓ Schedule ACK received from $identifier: sch_type=$schType, id=$scheduleId, status=$status');
+    debugPrint('✓ Schedule ACK received from $identifier: D=$d');
   }
 
   /// Handle schedule action ACK (type 55) — stop/restart/delete
@@ -1474,6 +1475,8 @@ class MqttService {
           command
               .onMaxRetriesReached('Device Settings: No response from device');
         } else if (command.commandType == 23) {
+          // Mark this command key as expired so any late T:33 ACK is ignored
+          _expiredScheduleKeys.add(command.motorId);
           command.onMaxRetriesReached('Schedule: No response from device');
         } else if (command.commandType == 24) {
           // Mark this command key as expired so any late T:55 ACK is ignored

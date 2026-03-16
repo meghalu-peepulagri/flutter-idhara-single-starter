@@ -375,27 +375,8 @@ class ScheduleCard extends StatelessWidget {
 
   static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // Converts YYMMDD int (e.g. 260314) → DateTime
-  DateTime? _yymmddToDate(int? v) {
-    if (v == null) return null;
-    final yy = v ~/ 10000;
-    final mm = (v % 10000) ~/ 100;
-    final dd = v % 100;
-    return DateTime(2000 + yy, mm, dd);
-  }
-
-  Set<int> _activeDayNumbers(Record record) {
-    final start = _yymmddToDate(record.scheduleStartDate);
-    final end = _yymmddToDate(record.scheduleEndDate) ?? start;
-    if (start == null) return {};
-    final totalDays = end!.difference(start).inDays + 1;
-    if (totalDays >= 7) return {1, 2, 3, 4, 5, 6, 7};
-    final active = <int>{};
-    for (int i = 0; i < totalDays; i++) {
-      active.add(start.add(Duration(days: i)).weekday);
-    }
-    return active;
-  }
+  // Use daysOfWeek directly from the API response (1=Mon ... 7=Sun)
+  Set<int> _activeDayNumbers(Record record) => record.daysOfWeek?.toSet() ?? {};
 
   Widget _buildDayChips(Record record) {
     final activeDays = _activeDayNumbers(record);
@@ -484,28 +465,22 @@ class ScheduleCard extends StatelessWidget {
     );
   }
 
+  // Returns time in 24h format e.g. "16:55"
+  // Handles both "16:55" and "1655" from API
   String _formatTo12h(String raw) {
-    // Handle both "HH:MM" and "HHMM" / "HMM" formats
     String h, m;
     if (raw.contains(':')) {
       final parts = raw.split(':');
       if (parts.length < 2) return raw;
-      h = parts[0];
-      m = parts[1].length >= 2 ? parts[1].substring(0, 2) : parts[1];
+      h = parts[0].padLeft(2, '0');
+      m = parts[1].length >= 2 ? parts[1].substring(0, 2) : parts[1].padLeft(2, '0');
     } else if (raw.length >= 3) {
       m = raw.substring(raw.length - 2);
-      h = raw.substring(0, raw.length - 2);
+      h = raw.substring(0, raw.length - 2).padLeft(2, '0');
     } else {
       return raw;
     }
-    int hour = int.tryParse(h) ?? 0;
-    final period = hour >= 12 ? 'PM' : 'AM';
-    if (hour == 0) {
-      hour = 12;
-    } else if (hour > 12) {
-      hour -= 12;
-    }
-    return '$hour:$m $period';
+    return '$h:$m';
   }
 
   String _capitalize(String s) =>
