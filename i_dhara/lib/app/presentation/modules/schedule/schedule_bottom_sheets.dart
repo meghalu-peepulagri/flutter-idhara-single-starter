@@ -2,6 +2,144 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'schedule_widgets.dart';
 
+void showDateBottomSheet(
+  BuildContext context,
+  DateTime current,
+  Function(DateTime) onPicked, {
+  DateTime? minDate,
+}) {
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final now = DateTime.now();
+  final minD = minDate != null
+      ? DateTime(minDate.year, minDate.month, minDate.day)
+      : DateTime(now.year, now.month, now.day);
+
+  DateTime clamped = DateTime(current.year, current.month, current.day);
+  if (clamped.isBefore(minD)) clamped = minD;
+
+  int selDay = clamped.day;
+  int selMonth = clamped.month - 1; // 0-indexed
+  int selYear = clamped.year;
+
+  final years = List.generate(6, (i) => now.year + i);
+
+  int daysInMonth(int year, int month1Based) =>
+      DateTime(year, month1Based + 1, 0).day;
+
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final maxDay = daysInMonth(selYear, selMonth + 1);
+          if (selDay > maxDay) selDay = maxDay;
+          final days = List.generate(maxDay, (i) => i + 1);
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildHandle(),
+                const SizedBox(height: 16),
+                _buildTitle('Select Date'),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 64,
+                      child: Center(
+                        child: Text('Day',
+                            style: _wheelLabelStyle()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 72,
+                      child: Center(
+                        child: Text('Month',
+                            style: _wheelLabelStyle()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 80,
+                      child: Center(
+                        child: Text('Year',
+                            style: _wheelLabelStyle()),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    buildScrollWheel(
+                      key: ValueKey('day_${selMonth}_$selYear'),
+                      values: days,
+                      selected: selDay,
+                      onChanged: (v) => setSheetState(() => selDay = v),
+                      padZero: true,
+                    ),
+                    const SizedBox(width: 8),
+                    buildStringScrollWheel(
+                      key: ValueKey('mon_$selYear'),
+                      values: monthNames,
+                      selectedIndex: selMonth,
+                      onChanged: (i) => setSheetState(() {
+                        selMonth = i;
+                        final maxD = daysInMonth(selYear, selMonth + 1);
+                        if (selDay > maxD) selDay = maxD;
+                      }),
+                    ),
+                    const SizedBox(width: 8),
+                    buildScrollWheel(
+                      key: const ValueKey('year'),
+                      values: years,
+                      selected: selYear,
+                      onChanged: (v) => setSheetState(() {
+                        selYear = v;
+                        final maxD = daysInMonth(selYear, selMonth + 1);
+                        if (selDay > maxD) selDay = maxD;
+                      }),
+                      width: 80,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _buildBottomSheetButtons(
+                  ctx,
+                  onConfirm: () {
+                    onPicked(DateTime(selYear, selMonth + 1, selDay));
+                    Navigator.of(ctx).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+TextStyle _wheelLabelStyle() => GoogleFonts.dmSans(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: const Color(0xFF94A3B8),
+    );
+
 void showTimeBottomSheet(
   BuildContext context,
   TimeOfDay current,

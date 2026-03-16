@@ -1,6 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// ─── String Scroll Wheel (for month names, etc.) ───────────
+Widget buildStringScrollWheel({
+  Key? key,
+  required List<String> values,
+  required int selectedIndex,
+  required Function(int) onChanged,
+  double width = 72,
+}) {
+  final controller = FixedExtentScrollController(
+    initialItem: selectedIndex.clamp(0, values.length - 1),
+  );
+  return Container(
+    key: key,
+    width: width,
+    height: 140,
+    decoration: BoxDecoration(
+      color: const Color(0xFFEBF3FE),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: ListWheelScrollView.useDelegate(
+      controller: controller,
+      itemExtent: 40,
+      perspective: 0.005,
+      diameterRatio: 1.4,
+      physics: const FixedExtentScrollPhysics(),
+      onSelectedItemChanged: onChanged,
+      childDelegate: ListWheelChildBuilderDelegate(
+        childCount: values.length,
+        builder: (context, index) {
+          final isSelected = index == selectedIndex;
+          return Center(
+            child: Text(
+              values[index],
+              style: GoogleFonts.dmSans(
+                fontSize: isSelected ? 20 : 14,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                color: isSelected
+                    ? const Color(0xFF004E7E)
+                    : const Color(0xFF828282),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
 // ─── Scroll Wheel ──────────────────────────────────────────
 Widget buildScrollWheel({
   Key? key,
@@ -8,13 +56,14 @@ Widget buildScrollWheel({
   required int selected,
   required Function(int) onChanged,
   bool padZero = false,
+  double width = 64,
 }) {
   final controller = FixedExtentScrollController(
     initialItem: values.indexOf(selected).clamp(0, values.length - 1),
   );
   return Container(
     key: key,
-    width: 64,
+    width: width,
     height: 140,
     decoration: BoxDecoration(
       color: const Color(0xFFEBF3FE),

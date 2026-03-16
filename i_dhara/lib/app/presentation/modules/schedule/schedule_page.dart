@@ -266,8 +266,10 @@ class _SchedulePageState extends State<SchedulePage> {
                       initialStartMinute: record != null ? sm : null,
                       initialEndHour: record != null ? eh : null,
                       initialEndMinute: record != null ? em : null,
-                      initialStartDate: record?.scheduleDate,
-                      initialEndDate: record?.scheduleDate,
+                      initialStartDate:
+                          record?.scheduleStartDate ?? record?.scheduleDate,
+                      initialEndDate:
+                          record?.scheduleEndDate ?? record?.scheduleDate,
                       initialCyclicMode: record != null ? isCyclic : null,
                       initialCyclicOnMinutes: record != null
                           ? (record.cycleOnMinutes as num?)?.toInt()

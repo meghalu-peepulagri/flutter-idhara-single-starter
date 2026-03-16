@@ -109,6 +109,8 @@ class Record {
   String? scheduleType;
   int? scheduleId;
   DateTime? scheduleDate;
+  DateTime? scheduleStartDate;
+  DateTime? scheduleEndDate;
   List<int>? daysOfWeek;
   String? startTime;
   String? endTime;
@@ -131,6 +133,8 @@ class Record {
     this.scheduleType,
     this.scheduleId,
     this.scheduleDate,
+    this.scheduleStartDate,
+    this.scheduleEndDate,
     this.daysOfWeek,
     this.startTime,
     this.endTime,
@@ -155,7 +159,13 @@ class Record {
         scheduleId: json["schedule_id"],
         scheduleDate: json["schedule_date"] == null
             ? null
-            : DateTime.parse(json["schedule_date"]),
+            : DateTime.tryParse(json["schedule_date"]),
+        scheduleStartDate: json["schedule_start_date"] == null
+            ? null
+            : DateTime.tryParse(json["schedule_start_date"]),
+        scheduleEndDate: json["schedule_end_date"] == null
+            ? null
+            : DateTime.tryParse(json["schedule_end_date"]),
         daysOfWeek: json["days_of_week"] == null
             ? []
             : List<int>.from(json["days_of_week"]!.map((x) => x)),
@@ -185,6 +195,8 @@ class Record {
         "schedule_type": scheduleType,
         "schedule_id": scheduleId,
         "schedule_date": scheduleDate?.toIso8601String(),
+        "schedule_start_date": scheduleStartDate?.toIso8601String(),
+        "schedule_end_date": scheduleEndDate?.toIso8601String(),
         "days_of_week": daysOfWeek == null
             ? []
             : List<dynamic>.from(daysOfWeek!.map((x) => x)),

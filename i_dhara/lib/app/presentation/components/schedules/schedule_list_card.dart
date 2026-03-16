@@ -28,7 +28,6 @@ class ScheduleCard extends StatelessWidget {
         status.toLowerCase() == 'pending' ||
         status.toLowerCase() == 'scheduled';
     final isCyclic = record.scheduleType?.toLowerCase() == 'cyclic';
-    final isRepeated = record.repeat == 1;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
         isCyclic ? (record.cycleOffMinutes as num?)?.toInt() ?? 0 : 0;
