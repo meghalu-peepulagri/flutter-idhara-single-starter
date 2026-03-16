@@ -236,6 +236,8 @@ class DevicesCard extends StatelessWidget {
     try {
       final identifier = getMotorIdentifier(
           deviceallow.toString(), pcb.toString(), mac.toString());
+      final map = {identifier: motorModelMotor};
+      mqttService.updateMotors(map);
       if (identifier.isNotEmpty) {
         final id = _getMotorId();
 

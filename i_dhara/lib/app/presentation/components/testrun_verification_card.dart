@@ -91,13 +91,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   // live data), without depending on heartbeatNotifier alone.
   final ValueNotifier<bool> _freshSignalNotifier = ValueNotifier(false);
 
-  bool get _isPowerOn {
-    if (widget.motorData != null && widget.motorData!.hasReceivedLiveData) {
-      return widget.motorData!.power == 1;
-    }
-    return (widget.motor.starter?.power ?? 0) == 1;
-  }
-
   static const double _minVoltage = 370.0;
   static const double _maxVoltage = 450.0;
 
@@ -135,40 +128,15 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return _voltageError == null;
   }
 
-  /// True when network connectivity is definitively known to be absent —
-  /// either the pre-check timed out without a heartbeat, or a fresh heartbeat
-  /// arrived but reported 0 signal bars.
-  bool get _isNetworkFalse {
-    if (_preCheckTimedOut && !_freshSignalReceived) return true;
-    if (_freshSignalReceived && _getSignalBars(widget.motorData) == 0) {
-      return true;
-    }
-    return false;
-  }
-
-  /// True when the network check has completed AND passed (signal ≥ 1).
-  bool get _networkVerified =>
-      _freshSignalReceived && _getSignalBars(widget.motorData) >= 1;
-
-  /// True when the power check has completed AND passed.
-  /// Only evaluated after [_networkVerified] is true.
-  bool get _powerVerified {
-    if (!_networkVerified) return false;
-    final liveReady = _freshLiveDataReceived &&
-        (widget.motorData?.hasReceivedLiveData ?? false);
-    return liveReady && _isPowerOn;
-  }
-
   bool get isActive {
-    if (!_freshSignalReceived || !_freshLiveDataReceived) return false;
-    final signal = _getSignalBars(widget.motorData);
-    final cloudOk = signal >= 1 && signal <= 4;
-    final powerOk = _isPowerOn;
-    final voltageOk = _isVoltageInRange;
+    final signalOk = widget.motorData?.testRunSignal == true;
+    final powerOk = widget.motorData?.testrunPowerSupply == true;
+    final voltageOk =
+        widget.motorData?.testrunVoltageRange == true && _isVoltageInRange;
 
     return isMotorWiresChecked &&
         isPumpValveChecked &&
-        cloudOk &&
+        signalOk &&
         powerOk &&
         voltageOk;
   }
@@ -224,20 +192,20 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
     setState(() => _preCheckTimedOut = true);
 
-    // Immediate checks already fired a snackbar — don't duplicate.
     if (_connectionSnackBarShown) return;
 
-    // Priority 1: network never responded, or responded with 0 bars.
-    if (!_freshSignalReceived || _isNetworkFalse) {
+    if (widget.motorData?.testRunSignal != true) {
       _connectionSnackBarShown = true;
       geterrorSnackBar('Device is not connected.');
       return;
     }
 
-    // Priority 2: network OK but live data never arrived, or power/voltage bad.
-    if (!_freshLiveDataReceived || !_isPowerOn || !_isVoltageInRange) {
+    if (widget.motorData?.testrunPowerSupply != true ||
+        widget.motorData?.testrunVoltageRange != true ||
+        !_isVoltageInRange) {
       _connectionSnackBarShown = true;
-      geterrorSnackBar('Device is not connected');
+      geterrorSnackBar(
+          'Device is not connected due to no power or voltage mismatch.');
     }
   }
 
@@ -256,18 +224,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         setState(() => _freshSignalReceived = true);
         _freshSignalNotifier.value = true;
 
-        if (_getSignalBars(widget.motorData) >= 1) {
-          // Network confirmed OK — now safe to listen for live data.
-          widget.mqttService.liveDataNotifier
-              .removeListener(_onFirstLiveData); // guard double-add
-          widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
-        } else {
-          // Network false — show error immediately; skip live data entirely.
-          if (!_connectionSnackBarShown) {
-            _connectionSnackBarShown = true;
-            geterrorSnackBar('Device is not connected.');
-          }
-        }
+        // Always listen for live data regardless of signal bars.
+        // Errors are only reported after the 15-second timeout.
+        widget.mqttService.liveDataNotifier
+            .removeListener(_onFirstLiveData); // guard double-add
+        widget.mqttService.liveDataNotifier.addListener(_onFirstLiveData);
       });
     }
   }
@@ -303,22 +264,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   /// If all three icons show close (network/power/voltage all failed),
   /// fires the error snackbar right away without waiting for the 15-second timeout.
   void _checkPowerVoltageNow() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted || _connectionSnackBarShown) return;
-      if (!(widget.motorData?.hasReceivedLiveData ?? false)) return;
-      // Network check shows close icon → power and voltage are both blocked
-      // (also showing close). All three are red — fire immediately.
-      if (_isNetworkFalse) {
-        _connectionSnackBarShown = true;
-        geterrorSnackBar('Device is not connected.');
-        return;
-      }
-      if (!_isPowerOn || !_isVoltageInRange) {
-        _connectionSnackBarShown = true;
-        geterrorSnackBar(
-            'Device is not connected due to no power or voltage mismatch.');
-      }
-    });
+    // No early snackbar — errors are only shown after the 15-second timeout
+    // in _onPreCheckTimeout. This method only triggers a rebuild so the UI
+    // icons update immediately when live data arrives.
+    if (mounted) setState(() {});
   }
 
   void _initConnectivity() async {
@@ -440,18 +389,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     return 0;
   }
 
-  int _getSignalBars(MotorData? motorData) {
-    if (motorData?.hasReceivedData == true && !motorData!.isSignalStale()) {
-      return motorData.signalBars;
-    }
-    final signal = widget.motor.starter?.signalQuality;
-    if (signal == null || signal < 2 || signal > 31) return 0;
-    if (signal < 10) return 1;
-    if (signal < 15) return 2;
-    if (signal < 20) return 3;
-    return 4;
-  }
-
   double _percentageOfAmps(double c1, double c2, double c3) {
     return (c1 + c2 + c3) / 3;
   }
@@ -520,8 +457,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
             _flcData.isNotEmpty ? _flcData.reduce((a, b) => a + b) : 0.0;
         final average = _flcData.isNotEmpty ? sum / _flcData.length : 0.0;
         _overalCurrent.value = average;
-        widget.mqttService
-            .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1);
+        widget.mqttService.publishMotorOFF(mqttMotorId, 1, data: 0, type: 1);
         setState(() {
           _phase = _TestRunPhase.completed;
         });
@@ -650,7 +586,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         // immediate T=34 ACK is not missed. settingstream is a broadcast
         // StreamController — events emitted before listen() is called are lost.
         settingsAckTimer = Timer(const Duration(seconds: 10), () {
-          print("line 653");
           mqttStreamSubscription?.cancel();
           if (mounted && !_ackInProgress) {
             _resetPreCheckState();
@@ -680,15 +615,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
         // Listen for ACK on settingstream
         mqttStreamSubscription =
             widget.mqttService.settingstream.listen((data) async {
-          print("line 683 $data");
-
           final type = data["D"];
           final topic = data["topic"];
           if (topic != _controller!.pcbNumber.value &&
               topic != _controller!.macAddress.value) return;
           if (type == 1 && !_ackInProgress && _hasPendingSave) {
-            print("line 690 $data");
-
             settingsAckTimer?.cancel();
             _hasPendingSave = false;
             _ackInProgress = true;
@@ -719,8 +650,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           } else {
             mqttStreamSubscription?.cancel();
             if (mounted && !_ackInProgress) {
-              print("line 720");
-
               _resetPreCheckState(); // Clear pre-test verification after testrun
               setState(() {
                 isWaitingForAck = false;
@@ -985,14 +914,40 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Network Connectivity — rebuilds whenever signal is
-                  // confirmed via T:40 heartbeat OR T:41/T:35 live data.
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _freshSignalNotifier,
-                    builder: (context, freshSignal, __) {
-                      final int? signal = freshSignal
-                          ? _getSignalBars(widget.motorData)
-                          : (_preCheckTimedOut ? 0 : null);
+                  // Network Connectivity — verified via motorData.testRunSignal.
+                  // Listens to both liveDataNotifier (T:35/T:41) and
+                  // heartbeatNotifier (T:40) so the icon updates from either.
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      widget.mqttService.liveDataNotifier,
+                      widget.mqttService.heartbeatNotifier,
+                    ]),
+                    builder: (context, _) {
+                      // widget.motorData may be a stale reference if the map
+                      // was rebuilt after the dialog opened. Fall back to a
+                      // fresh lookup by MAC / PCB so heartbeat updates (which
+                      // update the live map entry) are always reflected.
+                      MotorData? motorData = widget.motorData;
+                      if (motorData?.testRunSignal != true) {
+                        final mac = widget.motor.starter?.macAddress;
+                        final pcb = widget.motor.starter?.pcbNumber;
+                        for (final data
+                            in widget.mqttService.motorDataMap.values) {
+                          if ((mac != null && data.macAddress == mac) ||
+                              (pcb != null && data.pcbNumber == pcb)) {
+                            motorData = data;
+                            break;
+                          }
+                        }
+                      }
+                      final bool? signal;
+                      if (motorData?.testRunSignal == true) {
+                        signal = true;
+                      } else if (_preCheckTimedOut) {
+                        signal = false;
+                      } else {
+                        signal = null;
+                      }
                       return _buildVerificationCloudConnection(
                         'Network Connectivity',
                         signal,
@@ -1002,31 +957,16 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Power Supply Status — sequential step 2.
-                  // Stays loading until network (step 1) is confirmed first.
-                  ListenableBuilder(
-                    listenable: Listenable.merge([
-                      widget.mqttService.liveDataNotifier,
-                      _freshSignalNotifier,
-                    ]),
-                    builder: (context, _) {
+                  // Power Supply Status — verified via motorData.testrunPowerSupply.
+                  ValueListenableBuilder<int>(
+                    valueListenable: widget.mqttService.liveDataNotifier,
+                    builder: (context, _, __) {
                       final int? powerVerified;
-                      final bool liveReady = _freshLiveDataReceived &&
-                          (widget.motorData?.hasReceivedLiveData ?? false);
-                      if (!_freshSignalReceived && !_preCheckTimedOut) {
-                        // Gate: network check not done yet → keep loading.
-                        powerVerified = null;
-                      } else if (_isNetworkFalse || !_networkVerified) {
-                        // Network failed → power is blocked.
-                        powerVerified = 0;
-                      } else if (liveReady) {
-                        // Network OK, live data available → evaluate power.
-                        powerVerified = _isPowerOn ? 1 : 0;
+                      if (widget.motorData?.testrunPowerSupply == true) {
+                        powerVerified = 1;
                       } else if (_preCheckTimedOut) {
-                        // Network OK but timed out before live data arrived.
                         powerVerified = 0;
                       } else {
-                        // Network OK, still waiting for live data.
                         powerVerified = null;
                       }
                       return _buildVerificationInputPower(
@@ -1035,15 +975,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Voltage Range — sequential step 3.
-                  // Stays loading until both network (step 1) and power
-                  // (step 2) are confirmed first.
-                  ListenableBuilder(
-                    listenable: Listenable.merge([
-                      widget.mqttService.liveDataNotifier,
-                      _freshSignalNotifier,
-                    ]),
-                    builder: (context, _) {
+                  // Voltage Range — verified via motorData.testrunVoltageRange
+                  // and actual phase voltage values.
+                  ValueListenableBuilder<int>(
+                    valueListenable: widget.mqttService.liveDataNotifier,
+                    builder: (context, _, __) {
                       return _buildVoltageVerification();
                     },
                   ),
@@ -1683,7 +1619,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       );
 
   Widget _buildVerificationCloudConnection(
-      String text, int? signal, String svg) {
+      String text, bool? signal, String svg) {
     return Row(
       spacing: 10,
       children: [
@@ -1698,7 +1634,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           ),
         ),
         signal != null
-            ? signal >= 1 && signal <= 4
+            ? signal
                 ? checkIcon
                 : closeIcon
             : loadingIcon
@@ -1730,41 +1666,24 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   Widget _buildVoltageVerification() {
-    final hasData = _freshLiveDataReceived &&
-        widget.motorData != null &&
-        widget.motorData!.hasReceivedLiveData;
-    final networkDone = _freshSignalReceived || _preCheckTimedOut;
-
-    // Sequential gates — voltage is only evaluated after network AND power pass.
+    final bool hasSignal = widget.motorData?.testrunVoltageRange == true;
     final bool showLoading;
-    final bool forceFail;
+    final bool voltageOk;
 
-    if (!networkDone) {
-      // Gate 1: still waiting for network result → loading.
-      showLoading = true;
-      forceFail = false;
-    } else if (!_networkVerified) {
-      // Gate 2: network failed → voltage is blocked.
+    if (hasSignal && _isVoltageInRange) {
       showLoading = false;
-      forceFail = true;
-    } else if (!hasData && !_preCheckTimedOut) {
-      // Gate 3: network OK, waiting for live data (power step) → loading.
-      showLoading = true;
-      forceFail = false;
-    } else if (!_powerVerified) {
-      // Gate 4: power failed or timed out → voltage is blocked.
+      voltageOk = true;
+    } else if (hasSignal || _preCheckTimedOut) {
+      // Data received but voltage out of range, or timed out without data.
       showLoading = false;
-      forceFail = true;
+      voltageOk = false;
     } else {
-      // All previous checks passed → evaluate actual voltage.
-      showLoading = false;
-      forceFail = false;
+      showLoading = true;
+      voltageOk = false;
     }
 
-    final voltageOk =
-        !showLoading && !forceFail && hasData && _isVoltageInRange;
-    final error =
-        (!showLoading && !forceFail && hasData) ? _voltageError : null;
+    final String? error =
+        (!showLoading && !voltageOk && hasSignal) ? _voltageError : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

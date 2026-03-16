@@ -47,11 +47,9 @@ class PumpLogsListWidget extends StatelessWidget {
     // When filterType is empty (multi-select), derive color/icon from each log's action
     final String colorKey =
         filterType.isNotEmpty ? filterType : (logtype(log) ?? '');
-
-    print("line 43 ------>$colorKey");
-
     final Color typeColor = _getFilterColor(colorKey);
     final IconData typeIcon = _getPumpIcon(colorKey);
+    final DateTime? timestamp = log.timestamp;
 
     return IntrinsicHeight(
       child: Row(
@@ -84,10 +82,11 @@ class PumpLogsListWidget extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                if (createdAt != null)
-                  Row(
-                    children: [
+                Row(
+                  children: [
+                    if (timestamp != null) ...[
                       const Icon(
                         Icons.access_time,
                         size: 12,
@@ -95,14 +94,15 @@ class PumpLogsListWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _formatTimestamp(createdAt),
+                        _formatTimestamp(timestamp),
                         style: GoogleFonts.dmSans(
                           fontSize: 11,
                           color: const Color(0xFF6B7280),
                         ),
                       ),
                     ],
-                  ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(
                   message,
@@ -117,6 +117,43 @@ class PumpLogsListWidget extends StatelessWidget {
               ],
             ),
           ),
+
+          // Expanded(
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       if (createdAt != null)
+          //         Row(
+          //           children: [
+          //             const Icon(
+          //               Icons.access_time,
+          //               size: 12,
+          //               color: Color(0xFF6B7280),
+          //             ),
+          //             const SizedBox(width: 4),
+          //             Text(
+          //               _formatTimestamp(createdAt),
+          //               style: GoogleFonts.dmSans(
+          //                 fontSize: 11,
+          //                 color: const Color(0xFF6B7280),
+          //               ),
+          //             ),
+          //           ],
+          //         ),
+          //       const SizedBox(height: 4),
+          //       Text(
+          //         message,
+          //         style: GoogleFonts.dmSans(
+          //           fontSize: 14,
+          //           fontWeight: FontWeight.w400,
+          //           color: const Color(0xFF1F2937),
+          //           height: 1.3,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 8),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );

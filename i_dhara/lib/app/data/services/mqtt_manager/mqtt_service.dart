@@ -36,6 +36,10 @@ class MotorData {
 
   int signalStrength = 0;
   int signalBars = 0;
+  bool? testRunSignal;
+  bool? testrunPowerSupply;
+  bool? testrunVoltageRange;
+
   DateTime? lastSignalUpdate;
 
   MotorData(
@@ -374,6 +378,37 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  Future<void> publishMotorOFF(
+    String motorId,
+    int state, {
+    int data = 2,
+    int type = 1,
+  }) async {
+    if (_mqttClient == null || !isConnected) {
+      debugPrint('Cannot publish test run: MQTT not connected');
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+
+    _lastAckTimes.remove(motorId);
+
+    final seq = _random.nextInt(251);
+
+    try {
+      await _publishCommand(motorId, type, data, seq);
+      statusMessage = 'Test run command sent';
+      debugPrint(
+          'Test run command published for $motorId (state=$state) - No retries');
+    } catch (e) {
+      debugPrint('Failed to publish test run command: $e');
+      statusMessage = 'Failed to publish test run: $e';
+      _dataUpdateNotifier.value++;
+      rethrow;
+    }
+    _dataUpdateNotifier.value++;
+  }
+
   Future<void> publishUpdateSettings(
       String pcb, Map<String, dynamic> payload) async {
     if (_mqttClient == null || !isConnected) {
@@ -525,6 +560,9 @@ class MqttService {
         groupId: groupId,
         title: motor.name,
       )
+        ..testRunSignal = motor.testrunSignal
+        ..testrunPowerSupply = motor.testrunPower
+        ..testrunVoltageRange = motor.testrunVoltageRange
         ..state = motor.state ?? 0
         ..motorMode = motor.mode ?? '--'
         ..modeIndex = _getModeIndex(motor.mode ?? '--')
@@ -1004,6 +1042,7 @@ class MqttService {
 
   /// Handle live data (type 35, 41)
   void _handleLiveDataRequest(String identifier, dynamic payloadData) {
+    print("line 1170 ---> $identifier");
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('   ⚠️ Live data payload is not a Map: $payloadData');
       return;
@@ -1051,8 +1090,11 @@ class MqttService {
       }
       // Update motor data from payload
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
+      motorData.testRunSignal = true;
+      motorData.testrunPowerSupply = true;
+      motorData.testrunVoltageRange = true;
+
       motorData.updateSignalStrength(13);
-      motorData.hasReceivedData = true;
       motorData.hasReceivedData = true;
       motorData.hasReceivedLiveData = true;
       _lastAckTimes[fullMotorId] = DateTime.now();
@@ -1064,16 +1106,29 @@ class MqttService {
           '   ✓ Voltages: R=${motorData.voltageRed}, Y=${motorData.voltageYellow}, B=${motorData.voltageBlue}');
     }
 
-    final command = _pendingCommands['_5'];
-    if (command != null) {
-      // Cancel the retry timer and remove the pending command
-      command.cancelTimer();
-      _clearPendingCommand(identifier, 5);
-      debugPrint(
-          '✓ LiveData Request ACK received from $identifier: 5 (Retries stopped)');
+    // Cancel all pending T:5 commands for motors matching this identifier.
+    // Keys are formatted as '${motorId}_5', so we scan for any ending in '_5'
+    // whose motorId maps to a motor with a matching MAC or PCB address.
+    final keysToCancel = <String>[];
+    for (final entry in _pendingCommands.entries) {
+      if (!entry.key.endsWith('_5')) continue;
+      final motorId = entry.key.substring(0, entry.key.length - 2);
+      final motorData = _motorDataMap[motorId];
+      if (motorData != null &&
+          (motorData.macAddress == identifier ||
+              motorData.pcbNumber == identifier)) {
+        keysToCancel.add(entry.key);
+      }
+    }
+    if (keysToCancel.isNotEmpty) {
+      for (final key in keysToCancel) {
+        _pendingCommands[key]?.cancelTimer();
+        _pendingCommands.remove(key);
+        debugPrint('✓ T:35 ACK from $identifier — cancelled T:5 retry: $key');
+      }
     } else {
       debugPrint(
-          '✓ LiveData Request ACK received from $identifier: 5 (No pending command)');
+          '✓ T:35 ACK received from $identifier (no pending T:5 command)');
     }
 
     // Force notify listeners
@@ -1113,12 +1168,15 @@ class MqttService {
 
   /// Handle heartbeat (type 40)
   void _handleHeartbeat(String identifier, dynamic payloadData) {
+    print("line 1170m heart $identifier ");
+
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('   ⚠️ Heartbeat payload is not a Map');
       return;
     }
 
     final signalQuality = payloadData['s_q'] as int?;
+
     if (signalQuality == null) {
       debugPrint('   ⚠️ Heartbeat missing signal quality');
       return;
@@ -1129,23 +1187,48 @@ class MqttService {
     // Update signal on ALL matching motors (not just the first match)
     // This ensures signal is updated regardless of which entry the UI reads
     bool found = false;
+
     for (var entry in _motorDataMap.entries) {
       final motorData = entry.value;
       if (motorData.macAddress == identifier ||
           motorData.pcbNumber == identifier) {
+        print(
+            "line 1196 ---->${motorData.testRunSignal} $identifier ${motorData.pcbNumber} ${motorData.macAddress}");
         motorData.updateSignalStrength(signalQuality);
+        motorData.testRunSignal = true;
+        // testRunSignal reflects live signal quality:
+        // bars > 0 → connected, bars == 0 → no signal.
+        // motorData.testRunSignal = motorData.signalBars > 0;
         motorData.hasReceivedData = true;
         found = true;
         debugPrint(
-            '   ✓ Updated signal for ${entry.key}: bars=${motorData.signalBars}');
+            '   ✓ Updated signal for ${entry.key}: bars=${motorData.signalBars}, testRunSignal=${motorData.testRunSignal}');
       }
     }
 
     if (!found) {
       debugPrint('   ⚠️ No motor found for identifier=$identifier');
     }
+
     _heartbeatNotifier.value++;
     _dataUpdateNotifier.value++;
+    _liveDataNotifier.value++;
+  }
+
+  int testRunSignalStrength(int strength) {
+    if (strength < 2 || strength > 31) {
+      return 0;
+    } else if (strength <= 9) {
+      return 1;
+    } else if (strength <= 14) {
+      return 2;
+    } else if (strength <= 19) {
+      return 3;
+    } else if (strength <= 30) {
+      return 4;
+    } else {
+      return 0;
+    }
   }
 
   /// Update motor data from live data payload

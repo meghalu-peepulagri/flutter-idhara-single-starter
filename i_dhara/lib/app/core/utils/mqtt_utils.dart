@@ -5,7 +5,6 @@ String deviceAllocation(SettingStarter? starter) {
 }
 
 String getMotorIdentifier(String allocate, String pcbNumber, String macNumber) {
-  print("line 8 --->  $allocate $pcbNumber $macNumber");
   final mac = macNumber;
   final pcb = pcbNumber;
   if (allocate == 'true') {

@@ -109,17 +109,25 @@ class Motor {
   Location? location;
   String? testrunStatus;
   Starter? starter;
+  bool? testrunSignal;
+  bool? testrunPower;
+  bool? testrunVoltageRange;
 
-  Motor(
-      {this.id,
-      this.name,
-      this.hp,
-      this.mode,
-      this.state,
-      this.location,
-      this.aliasName,
-      this.starter,
-      this.testrunStatus});
+
+  Motor({
+    this.id,
+    this.name,
+    this.hp,
+    this.mode,
+    this.state,
+    this.location,
+    this.aliasName,
+    this.starter,
+    this.testrunStatus,
+    this.testrunSignal,
+    this.testrunPower,
+    this.testrunVoltageRange,
+  });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
         id: json["id"],
