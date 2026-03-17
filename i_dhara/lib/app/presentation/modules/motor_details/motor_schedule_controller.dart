@@ -31,6 +31,7 @@ class MotorScheduleController extends GetxController {
   var isInitialLoading = true.obs;
   var totalRecords = 0.obs;
   var selectedFilter = ''.obs; // '' means All
+  late final Rx<DateTime> selectedDate;
 
   final scrollController = ScrollController();
 
@@ -43,9 +44,16 @@ class MotorScheduleController extends GetxController {
   // Completers for stop/restart (cmd=1/2): resolved after ACK + post API
   final _toggleCompleters = <int, Completer<bool>>{};
 
+  /// Converts a DateTime to YYMMDD int format (e.g. 2026-03-17 → 260317)
+  static int dateToYYMMDD(DateTime d) =>
+      (d.year % 100) * 10000 + d.month * 100 + d.day;
+
   @override
   void onInit() {
     super.onInit();
+    final today = DateTime.now();
+    selectedDate =
+        DateTime(today.year, today.month, today.day).obs;
     scrollController.addListener(_onScroll);
     fetchSchedules();
     _listenScheduleAck();
@@ -85,6 +93,7 @@ class MotorScheduleController extends GetxController {
         limit.value,
         scheduleStatus:
             selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
+        scheduleStartDate: dateToYYMMDD(selectedDate.value),
       );
       schedules.value = response?.data?.records ?? [];
 
@@ -114,6 +123,7 @@ class MotorScheduleController extends GetxController {
         limit.value,
         scheduleStatus:
             selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
+        scheduleStartDate: dateToYYMMDD(selectedDate.value),
       );
       final newRecords = response?.data?.records ?? [];
       schedules.addAll(newRecords);

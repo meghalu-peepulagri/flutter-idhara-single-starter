@@ -12,7 +12,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 class ScheduleRepositoryImpl implements ScheduleRepository {
   @override
   Future<ScheduleListResponse?> getScheduleList(int? page, int? limit,
-      {String? scheduleStatus}) async {
+      {String? scheduleStatus, int? scheduleStartDate}) async {
     Map<String, dynamic> params = {
       'starter_id': SharedPreference.getStarterId(),
       'motor_id': SharedPreference.getMotorId(),
@@ -21,6 +21,9 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     };
     if (scheduleStatus != null && scheduleStatus.isNotEmpty) {
       params['schedule_status'] = scheduleStatus;
+    }
+    if (scheduleStartDate != null) {
+      params['schedule_start_date'] = scheduleStartDate;
     }
     final response =
         await NetworkManager().get('/motor-schedules', queryParameters: params);

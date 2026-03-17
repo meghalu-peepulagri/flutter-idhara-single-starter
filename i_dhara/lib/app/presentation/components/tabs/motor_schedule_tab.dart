@@ -15,7 +15,6 @@ class MotorScheduleTab extends StatefulWidget {
 
 class _MotorScheduleTabState extends State<MotorScheduleTab> {
   late final MotorScheduleController _controller;
-  late final Rx<DateTime> _selectedDate;
   late final List<DateTime> _dateRange;
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -40,7 +39,6 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     _controller = Get.put(MotorScheduleController());
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
-    _selectedDate = todayNorm.obs;
     _dateRange = List.generate(30, (i) => todayNorm.add(Duration(days: i - 7)));
   }
 
@@ -54,7 +52,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
           final isLoadingMore = _controller.isHasMoreLoading.value;
           final schedules = _controller.schedules;
           final totalRecords = _controller.totalRecords.value;
-          final selectedDate = _selectedDate.value;
+          final selectedDate = _controller.selectedDate.value;
 
           if (isLoading) {
             return const Padding(
@@ -300,7 +298,10 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
           final isPast = date.isBefore(todayNorm);
 
           return GestureDetector(
-            onTap: () => _selectedDate.value = date,
+            onTap: () {
+              _controller.selectedDate.value = date;
+              _controller.fetchSchedules();
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 52,
