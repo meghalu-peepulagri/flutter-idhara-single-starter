@@ -17,6 +17,7 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
+import '../../core/utils/dialogs/info_popup.dart';
 import '../../core/utils/mqtt_utils.dart';
 
 class DevicesCard extends StatelessWidget {
@@ -65,6 +66,13 @@ class DevicesCard extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DeviceOptionsBottomSheet(
+          ontapInfo: () {
+            showSimInfoPopup(
+              context: context,
+              simNumber: device.deviceMobileNumber ?? 'N/A',
+              expiryDate: device.simRechargeExpire ?? "N/A",
+            );
+          },
           hasMotor: hasMotor,
           hasLocation: hasLocation,
           onRename: () {

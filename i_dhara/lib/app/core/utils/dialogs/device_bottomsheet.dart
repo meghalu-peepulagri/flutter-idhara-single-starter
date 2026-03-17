@@ -11,16 +11,17 @@ class DeviceOptionsBottomSheet extends StatefulWidget {
   final VoidCallback onReplace;
   final VoidCallback onDelete;
   final VoidCallback onTestRun;
+  final VoidCallback ontapInfo;
 
-  const DeviceOptionsBottomSheet({
-    super.key,
-    required this.hasMotor,
-    required this.hasLocation,
-    required this.onRename,
-    required this.onReplace,
-    required this.onDelete,
-    required this.onTestRun,
-  });
+  const DeviceOptionsBottomSheet(
+      {super.key,
+      required this.hasMotor,
+      required this.hasLocation,
+      required this.onRename,
+      required this.onReplace,
+      required this.onDelete,
+      required this.onTestRun,
+      required this.ontapInfo});
 
   @override
   State<DeviceOptionsBottomSheet> createState() =>
@@ -75,6 +76,13 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
           ),
           const Divider(height: 1),
           _buildMenuItem(
+              isIcon: true,
+              icon: const Icon(Icons.info),
+              svgAsset: 'assets/images/test_run.svg',
+              text: 'Info',
+              iconColor: const Color(0xFF4A4A6A),
+              onTap: widget.ontapInfo),
+          _buildMenuItem(
               svgAsset: 'assets/images/test_run.svg',
               text: 'Test Run',
               iconColor: const Color(0xFF4A4A6A),
@@ -113,6 +121,8 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
     bool enabled = true,
     Color iconColor = Colors.black,
     Color color = Colors.black,
+    bool isIcon = false,
+    Widget? icon,
   }) {
     final effectiveIconColor = enabled ? iconColor : Colors.grey.shade400;
     final effectiveColor = enabled ? color : Colors.grey.shade400;
@@ -132,15 +142,17 @@ class _DeviceOptionsBottomSheetState extends State<DeviceOptionsBottomSheet> {
                       color: const Color(0xFFEAEAEF),
                     )),
                 child: Center(
-                  child: SvgPicture.asset(
-                    svgAsset,
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(
-                      effectiveIconColor,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+                  child: isIcon
+                      ? icon
+                      : SvgPicture.asset(
+                          svgAsset,
+                          width: 18,
+                          height: 18,
+                          colorFilter: ColorFilter.mode(
+                            effectiveIconColor,
+                            BlendMode.srcIn,
+                          ),
+                        ),
                 )),
             const SizedBox(width: 16),
             Text(

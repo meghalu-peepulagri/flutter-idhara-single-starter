@@ -112,6 +112,8 @@ class Devices {
   int? signalQuality;
   String? networkType;
   String? deviceAllocation;
+  String? deviceMobileNumber;
+  String? simRechargeExpire;
   List<Motor>? motors;
 
   Devices(
@@ -124,7 +126,9 @@ class Devices {
       this.signalQuality,
       this.networkType,
       this.motors,
-      this.deviceAllocation});
+      this.deviceAllocation,
+      this.deviceMobileNumber,
+      this.simRechargeExpire});
 
   factory Devices.fromJson(Map<String, dynamic> json) => Devices(
         id: json["id"],
@@ -136,6 +140,8 @@ class Devices {
         signalQuality: json["signal_quality"],
         networkType: json["network_type"],
         deviceAllocation: json["device_allocation"],
+        simRechargeExpire: json["sim_recharge_expires_at"],
+        deviceMobileNumber: json["device_mobile_number"],
         motors: json["motors"] == null
             ? []
             : List<Motor>.from(json["motors"]!.map((x) => Motor.fromJson(x))),
@@ -151,6 +157,8 @@ class Devices {
         "signal_quality": signalQuality,
         "network_type": networkType,
         "device_allocation": deviceAllocation,
+        "device_mobile_number": deviceMobileNumber,
+        "sim_recharge_expires_at": simRechargeExpire,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),
