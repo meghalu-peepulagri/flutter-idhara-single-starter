@@ -172,8 +172,11 @@ class ScheduleCard extends StatelessWidget {
                       iconAssetPath: 'assets/images/schedule.svg',
                       buttonlable: 'Delete',
                       onDelete: () async {
-                        await onDelete?.call(record);
-                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        final success =
+                            await onDelete?.call(record) ?? false;
+                        if (success && dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                        }
                       },
                       onCancel: () => Navigator.pop(dialogCtx),
                     ),

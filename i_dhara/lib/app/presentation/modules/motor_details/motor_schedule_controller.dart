@@ -170,8 +170,8 @@ class MotorScheduleController extends GetxController {
     }
   }
 
-  /// Delete: publish MQTT cmd:3, wait for ACK, then call delete API.
-  /// Returns true on success, false on failure.
+  /// Delete: publish MQTT cmd:3, wait for ACK + API, then return.
+  /// Dialog stays loading until this resolves.
   Future<bool> deleteSchedule(Record record) async {
     final scheduleId = record.scheduleId ?? 0;
     final completer = Completer<bool>();
@@ -266,6 +266,8 @@ class MotorScheduleController extends GetxController {
     } catch (_) {
       // silently fail
     }
+    // Start fetching with loading — runs in background while dialog closes
+    unawaited(fetchSchedules());
   }
 
   // --- Navigation ---
