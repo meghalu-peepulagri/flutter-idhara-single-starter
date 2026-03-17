@@ -76,195 +76,18 @@ class ScheduleCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _buildDayChips(record),
+          // const SizedBox(height: 8),
+          // const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
+          // ── Info section ──
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: isCyclic
+                ? _buildCyclicInfo(dH, dM, durationMin, onMin, offMin)
+                : _buildTimeBasedInfo(dH, dM, durationMin),
+          ),
+          const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
           const SizedBox(height: 8),
-          const Divider(
-            height: 0,
-            thickness: 1.0,
-            color: Color(0xFFECECEC),
-          ),
-          Row(
-            children: [
-              // Duration (always on the left)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.timer_outlined,
-                          size: 13, color: Color(0xFF57636C)),
-                      const SizedBox(width: 4),
-                      Text('Duration',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            color: const Color(0xFF94A3B8),
-                            fontWeight: FontWeight.w500,
-                          )),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${dH}h ${dM.toString().padLeft(2, '0')}m',
-                      style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF1A1A2E))),
-                ],
-              ),
-              if (isCyclic)
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: const Color(0xFFECECEC),
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-              // Center section: ON+OFF for cyclic, empty for time-based
-              if (isCyclic)
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // ON
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 7,
-                                height: 7,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFF34C759),
-                                ),
-                              ),
-                              const SizedBox(width: 3),
-                              Text('ON',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: const Color(0xFF94A3B8),
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text('${onMin}min',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF34C759))),
-                        ],
-                      ),
-                      const SizedBox(width: 14),
-                      // OFF
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 7,
-                                height: 7,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Color(0xFFEF4444),
-                                ),
-                              ),
-                              const SizedBox(width: 3),
-                              Text('OFF',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: const Color(0xFF94A3B8),
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text('${offMin}min',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFFEF4444))),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-              else
-                const Expanded(child: SizedBox()),
-              if (isCyclic)
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: const Color(0xFFECECEC),
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-              // Type + Repeat
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(isCyclic ? 'Cyclic' : 'Time Based',
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1A1A2E))),
-                  // if (isRepeated) ...[
-                  //   const SizedBox(height: 4),
-                  //   Container(
-                  //     padding: const EdgeInsets.symmetric(
-                  //         horizontal: 6, vertical: 2),
-                  //     decoration: BoxDecoration(
-                  //       color: const Color(0xFFEBF3FE),
-                  //       borderRadius: BorderRadius.circular(4),
-                  //     ),
-                  //     child: Text('Weekly',
-                  //         style: GoogleFonts.dmSans(
-                  //             fontSize: 10,
-                  //             fontWeight: FontWeight.w600,
-                  //             color: const Color(0xFF004E7E))),
-                  //   ),
-                  // ],
-                ],
-              ),
-            ],
-          ),
-          if (record.powerLossRecovery == true) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                        color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.power_rounded,
-                          size: 11, color: Color(0xFFFF9800)),
-                      const SizedBox(width: 4),
-                      Text('Power Recovery',
-                          style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFFFF9800))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
-          ),
 
-          // Row 4: Enable toggle + actions
           Row(
             children: [
               Text('Enable',
@@ -373,45 +196,199 @@ class ScheduleCard extends StatelessWidget {
     );
   }
 
+  Widget _buildTimeBasedInfo(int dH, int dM, int durationMin) {
+    final accSec = record.accumulatedOnSeconds ?? 0;
+    final remainingMin = (durationMin - (accSec ~/ 60)).clamp(0, durationMin);
+    final rH = remainingMin ~/ 60;
+    final rM = remainingMin % 60;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+          ),
+          child: Row(
+            children: [
+              _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
+              const SizedBox(width: 12),
+              _infoItem(
+                  'Remaining', '${rH}h ${rM.toString().padLeft(2, '0')}m'),
+            ],
+          ),
+        ),
+        if (record.powerLossRecovery == true) ...[
+          const SizedBox(height: 6),
+          _powerRecoveryBadge(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCyclicInfo(
+      int dH, int dM, int durationMin, int onMin, int offMin) {
+    final accSec = record.accumulatedOnSeconds ?? 0;
+    final runMin = accSec ~/ 60;
+    final runH = runMin ~/ 60;
+    final runM = runMin % 60;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Duration + Run Time in one decoration
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            // border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
+              const SizedBox(width: 12),
+              _infoItem(
+                  'Run Time', '${runH}h ${runM.toString().padLeft(2, '0')}m'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8F0),
+            borderRadius: BorderRadius.circular(8),
+            // border: Border.all(color: const Color(0xFFFFE0B2)),
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                // ON side
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded,
+                          size: 14, color: Color(0xFFFF9800)),
+                      const SizedBox(width: 4),
+                      Text('ON',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF34C759))),
+                      const SizedBox(width: 4),
+                      Text('$onMin min',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF34C759))),
+                    ],
+                  ),
+                ),
+                // Center vertical divider
+                const VerticalDivider(
+                    width: 1, thickness: 1, color: Color(0xFFFFE0B2)),
+                // OFF side
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('OFF',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFEF4444))),
+                      const SizedBox(width: 4),
+                      Text('$offMin min',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFEF4444))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoItem(String label, String value) {
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '$label : ',
+            style: GoogleFonts.dmSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF94A3B8),
+            ),
+          ),
+          TextSpan(
+            text: value,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1A1A2E),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _powerRecoveryBadge() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.power_rounded, size: 11, color: Color(0xFFFF9800)),
+            const SizedBox(width: 2),
+            Text('Power Recovery',
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFFF9800))),
+          ],
+        ),
+      );
+
   static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // Use daysOfWeek directly from the API response (1=Mon ... 7=Sun)
   Set<int> _activeDayNumbers(Record record) => record.daysOfWeek?.toSet() ?? {};
 
   Widget _buildDayChips(Record record) {
     final activeDays = _activeDayNumbers(record);
-    return Row(
-      children: List.generate(7, (i) {
-        final dayNum = i + 1; // 1=Mon...7=Sun
-        final isActive = activeDays.contains(dayNum);
-        return Padding(
-          padding: const EdgeInsets.only(right: 5),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color:
-                  isActive ? const Color(0xFFEBF3FE) : const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(
-                color: isActive
-                    ? const Color(0xFF3686AF)
-                    : const Color(0xFFE2E8F0),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              _dayLabels[i],
-              style: GoogleFonts.dmSans(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive
-                    ? const Color(0xFF004E7E)
-                    : const Color(0xFFB0B8C4),
-              ),
+    if (activeDays.isEmpty) return const SizedBox();
+    final sortedDays = activeDays.toList()..sort();
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      children: sortedDays.map((dayNum) {
+        final i = dayNum - 1;
+        if (i < 0 || i >= _dayLabels.length) return const SizedBox();
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEBF3FE),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: const Color(0xFF3686AF), width: 1),
+          ),
+          child: Text(
+            _dayLabels[i],
+            style: GoogleFonts.dmSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF004E7E),
             ),
           ),
         );
-      }),
+      }).toList(),
     );
   }
 
@@ -446,10 +423,8 @@ class ScheduleCard extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: badgeFgColor,
-            ),
+            decoration:
+                BoxDecoration(shape: BoxShape.circle, color: badgeFgColor),
           ),
           const SizedBox(width: 4),
           Text(
@@ -465,15 +440,15 @@ class ScheduleCard extends StatelessWidget {
     );
   }
 
-  // Returns time in 24h format e.g. "16:55"
-  // Handles both "16:55" and "1655" from API
   String _formatTo12h(String raw) {
     String h, m;
     if (raw.contains(':')) {
       final parts = raw.split(':');
       if (parts.length < 2) return raw;
       h = parts[0].padLeft(2, '0');
-      m = parts[1].length >= 2 ? parts[1].substring(0, 2) : parts[1].padLeft(2, '0');
+      m = parts[1].length >= 2
+          ? parts[1].substring(0, 2)
+          : parts[1].padLeft(2, '0');
     } else if (raw.length >= 3) {
       m = raw.substring(raw.length - 2);
       h = raw.substring(0, raw.length - 2).padLeft(2, '0');
