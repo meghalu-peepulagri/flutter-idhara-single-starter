@@ -142,23 +142,36 @@ class _SchedulePageState extends State<SchedulePage> {
 
     final id = _resolveIdentifier();
     if (id.isNotEmpty) {
-      final isCyclic = form.cyclicMode;
-      try {
-        await _mqttService.publishScheduleCommand(
-          identifier: id,
-          scheduleId: response.data?.scheduleId ?? 1,
-          startTimeHHMM: form.startHour * 100 + form.startMinute,
-          endTimeHHMM: form.endHour * 100 + form.endMinute,
-          startDateYYMMDD: _dateToYYMMDD(form.startDate),
-          endDateYYMMDD: _dateToYYMMDD(form.endDate),
-          isCyclic: isCyclic,
-          cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
-          cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-          powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
-          enabled: 1,
-        );
-      } catch (e) {
-        geterrorSnackBar('Saved but MQTT failed: $e');
+      final today = DateTime.now();
+      final todayNorm = DateTime(today.year, today.month, today.day);
+      final startNorm = DateTime(
+          form.startDate.year, form.startDate.month, form.startDate.day);
+      final daysDiff = startNorm.difference(todayNorm).inDays;
+      // Inclusive count: today→startDate. Publish only if within 3 days (diff ≤ 2).
+      final shouldPublishMqtt = daysDiff <= 2;
+
+      print(
+          '[MQTT CHECK] today=$todayNorm | startDate=$startNorm | daysDiff=$daysDiff | inclusiveCount=${daysDiff + 1} | shouldPublishMqtt=$shouldPublishMqtt');
+
+      if (shouldPublishMqtt) {
+        final isCyclic = form.cyclicMode;
+        try {
+          await _mqttService.publishScheduleCommand(
+            identifier: id,
+            scheduleId: response.data?.scheduleId ?? 1,
+            startTimeHHMM: form.startHour * 100 + form.startMinute,
+            endTimeHHMM: form.endHour * 100 + form.endMinute,
+            startDateYYMMDD: _dateToYYMMDD(form.startDate),
+            endDateYYMMDD: _dateToYYMMDD(form.endDate),
+            isCyclic: isCyclic,
+            cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
+            cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
+            powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
+            enabled: 1,
+          );
+        } catch (e) {
+          geterrorSnackBar('Saved but MQTT failed: $e');
+        }
       }
     }
 
