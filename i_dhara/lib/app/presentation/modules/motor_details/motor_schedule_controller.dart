@@ -30,6 +30,7 @@ class MotorScheduleController extends GetxController {
   var isHasMoreLoading = false.obs;
   var isInitialLoading = true.obs;
   var totalRecords = 0.obs;
+  var selectedFilter = ''.obs; // '' means All
 
   final scrollController = ScrollController();
 
@@ -79,8 +80,12 @@ class MotorScheduleController extends GetxController {
       page.value = 1;
     }
     try {
-      final response =
-          await _scheduleRepo.getScheduleList(page.value, limit.value);
+      final response = await _scheduleRepo.getScheduleList(
+        page.value,
+        limit.value,
+        scheduleStatus:
+            selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
+      );
       schedules.value = response?.data?.records ?? [];
 
       final pagination = response?.data?.paginationInfo;
@@ -104,8 +109,12 @@ class MotorScheduleController extends GetxController {
     isHasMoreLoading.value = true;
     page.value = currentPage.value + 1;
     try {
-      final response =
-          await _scheduleRepo.getScheduleList(page.value, limit.value);
+      final response = await _scheduleRepo.getScheduleList(
+        page.value,
+        limit.value,
+        scheduleStatus:
+            selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
+      );
       final newRecords = response?.data?.records ?? [];
       schedules.addAll(newRecords);
 

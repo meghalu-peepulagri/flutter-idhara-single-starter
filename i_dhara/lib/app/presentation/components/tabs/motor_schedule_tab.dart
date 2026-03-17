@@ -63,10 +63,6 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
             );
           }
 
-          if (schedules.isEmpty) {
-            return _buildEmptyState();
-          }
-
           return Skeletonizer(
             enabled: isRefreshing,
             child: Column(
@@ -85,54 +81,69 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                         ),
                       ),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEBF3FE),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.tune_rounded,
-                          size: 16,
-                          color: Color(0xFF004E7E),
-                        ),
-                      ),
+                      Obx(() {
+                        final hasFilter =
+                            _controller.selectedFilter.value.isNotEmpty;
+                        return GestureDetector(
+                          onTap: () => _showFilterSheet(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: hasFilter
+                                  ? const Color(0xFF004E7E)
+                                  : const Color(0xFFEBF3FE),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.tune_rounded,
+                              size: 16,
+                              color: hasFilter
+                                  ? Colors.white
+                                  : const Color(0xFF004E7E),
+                            ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
                 _buildDateStrip(selectedDate),
                 Expanded(
-                  child: ListView.separated(
-                    controller: _controller.scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
-                    itemCount: schedules.length + (isLoadingMore ? 1 : 0),
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      if (i == schedules.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(
-                            child: SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      return ScheduleCard(
-                        key: ValueKey(
-                            schedules[i].scheduleId ?? schedules[i].id ?? i),
-                        record: schedules[i],
-                        onDelete: _controller.deleteSchedule,
-                        onToggle: _controller.toggleSchedule,
-                        onEdit: _controller.navigateToEditSchedule,
-                      );
-                    },
-                  ),
+                  child: schedules.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.separated(
+                          controller: _controller.scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
+                          itemCount: schedules.length + (isLoadingMore ? 1 : 0),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            if (i == schedules.length) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return ScheduleCard(
+                              key: ValueKey(schedules[i].scheduleId ??
+                                  schedules[i].id ??
+                                  i),
+                              record: schedules[i],
+                              onDelete: _controller.deleteSchedule,
+                              onToggle: _controller.toggleSchedule,
+                              onEdit: _controller.navigateToEditSchedule,
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -179,6 +190,96 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    const filters = [
+      {'label': 'All', 'value': ''},
+      {'label': 'Pending', 'value': 'PENDING'},
+      {'label': 'Running', 'value': 'RUNNING'},
+      {'label': 'Stopped', 'value': 'STOPPED'},
+      {'label': 'Scheduled', 'value': 'SCHEDULED'},
+      {'label': 'Completed', 'value': 'COMPLETED'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => Obx(() {
+        final current = _controller.selectedFilter.value;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E0E0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Filter by Status',
+                style: GoogleFonts.dmSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1A1A2E),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: filters.map((f) {
+                  final isSelected = current == f['value'];
+                  return GestureDetector(
+                    onTap: () {
+                      _controller.selectedFilter.value = f['value']!;
+                      _controller.fetchSchedules();
+                      Navigator.pop(ctx);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF004E7E)
+                            : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF004E7E)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Text(
+                        f['label']!,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF57636C),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
