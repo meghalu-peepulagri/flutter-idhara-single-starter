@@ -1,3 +1,4 @@
+import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widgets.dart';
@@ -60,8 +61,18 @@ class ScheduleFormState extends State<ScheduleForm> {
   late final ValueNotifier<bool> _powerLossController;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec'
   ];
 
   @override
@@ -92,8 +103,7 @@ class ScheduleFormState extends State<ScheduleForm> {
 
   int get _activeDays => endDate.difference(startDate).inDays.abs() + 1;
 
-  String _fmtDate(DateTime d) =>
-      '${d.day} ${_months[d.month - 1]} ${d.year}';
+  String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
   TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
   TimeOfDay get endTime => TimeOfDay(hour: endHour, minute: endMinute);
@@ -115,6 +125,9 @@ class ScheduleFormState extends State<ScheduleForm> {
         if (isStart) {
           startHour = t.hour;
           startMinute = t.minute;
+          // Reset end time to 00:00 whenever start time changes
+          endHour = 0;
+          endMinute = 0;
         } else {
           endHour = t.hour;
           endMinute = t.minute;
@@ -129,18 +142,62 @@ class ScheduleFormState extends State<ScheduleForm> {
       );
 
   Future<void> _openCalendarDialog() async {
-    final result = await showDialog<DateTimeRange>(
+    final today = DateTime.now();
+    final todayNorm = DateTime(today.year, today.month, today.day);
+    final results = await showCalendarDatePicker2Dialog(
       context: context,
-      barrierDismissible: true,
-      builder: (_) => _CalendarRangeDialog(
-        initialStart: startDate,
-        initialEnd: endDate,
+      config: CalendarDatePicker2WithActionButtonsConfig(
+        calendarType: CalendarDatePicker2Type.range,
+        firstDate: todayNorm,
+        lastDate: DateTime(todayNorm.year + 2),
+        selectedDayHighlightColor: const Color(0xFF004E7E),
+        selectedRangeHighlightColor: const Color(0xFFEBF3FE),
+        selectedDayTextStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+        todayTextStyle: const TextStyle(
+          color: Color(0xFF004E7E),
+          fontWeight: FontWeight.w600,
+        ),
+        dayTextStyle: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontWeight: FontWeight.w400,
+        ),
+        disabledDayTextStyle: const TextStyle(color: Color(0xFFB0B8C4)),
+        weekdayLabelTextStyle: const TextStyle(
+          color: Color(0xFF94A3B8),
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        ),
+        controlsTextStyle: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+        lastMonthIcon:
+            const Icon(Icons.chevron_left_rounded, color: Color(0xFF004E7E)),
+        nextMonthIcon:
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF004E7E)),
+        okButtonTextStyle: const TextStyle(
+          color: Color(0xFF004E7E),
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+        cancelButtonTextStyle: const TextStyle(
+          color: Color(0xFF64748B),
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
       ),
+      dialogSize: const Size(340, 350),
+      value: [startDate, endDate],
+      borderRadius: BorderRadius.circular(16),
     );
-    if (result != null && mounted) {
+    if (results != null && results.isNotEmpty && mounted) {
       setState(() {
-        startDate = result.start;
-        endDate = result.end;
+        startDate = results[0] ?? startDate;
+        endDate = results.length > 1 ? (results[1] ?? startDate) : startDate;
       });
     }
   }
@@ -274,9 +331,9 @@ class ScheduleFormState extends State<ScheduleForm> {
                   child: _buildDateBox('Start', startDate),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: const Icon(Icons.arrow_forward_rounded,
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.arrow_forward_rounded,
                     size: 16, color: Color(0xFF94A3B8)),
               ),
               Expanded(
@@ -301,8 +358,7 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEBF3FE),
                   borderRadius: BorderRadius.circular(12),
@@ -347,12 +403,11 @@ class ScheduleFormState extends State<ScheduleForm> {
                           dayLabels[i],
                           style: GoogleFonts.dmSans(
                             fontSize: 10,
-                            fontWeight: isActive
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                            fontWeight:
+                                isActive ? FontWeight.w600 : FontWeight.w500,
                             color: isActive
                                 ? const Color(0xFF004E7E)
-                                : const Color(0xFFB0B8C4),
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ),
@@ -415,7 +470,8 @@ class ScheduleFormState extends State<ScheduleForm> {
           Row(
             children: [
               Expanded(
-                  child: _buildTimePicker('START', startHour, startMinute, true)),
+                  child:
+                      _buildTimePicker('START', startHour, startMinute, true)),
               Container(
                   width: 1,
                   height: 60,
@@ -502,289 +558,6 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-}
-
-// ── Calendar Range Dialog ────────────────────────────────────────────────────
-
-class _CalendarRangeDialog extends StatefulWidget {
-  final DateTime initialStart;
-  final DateTime initialEnd;
-
-  const _CalendarRangeDialog({
-    required this.initialStart,
-    required this.initialEnd,
-  });
-
-  @override
-  State<_CalendarRangeDialog> createState() => _CalendarRangeDialogState();
-}
-
-class _CalendarRangeDialogState extends State<_CalendarRangeDialog> {
-  late DateTime _viewMonth;
-  late DateTime _start;
-  late DateTime _end;
-  bool _pickingEnd = false;
-
-  static const _fullMonths = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  static const _weekDayHeaders = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-
-  @override
-  void initState() {
-    super.initState();
-    _start = widget.initialStart;
-    _end = widget.initialEnd;
-    _viewMonth = DateTime(_start.year, _start.month);
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
-  void _onDayTap(DateTime date) {
-    setState(() {
-      if (!_pickingEnd) {
-        _start = date;
-        _end = date;
-        _pickingEnd = true;
-      } else {
-        if (!date.isBefore(_start)) {
-          _end = date;
-        } else {
-          _end = _start;
-          _start = date;
-        }
-        _pickingEnd = false;
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final todayNorm = DateTime(today.year, today.month, today.day);
-    final firstDay = DateTime(_viewMonth.year, _viewMonth.month, 1);
-    final daysInMonth =
-        DateTime(_viewMonth.year, _viewMonth.month + 1, 0).day;
-    final leadingEmpty = (firstDay.weekday - 1) % 7;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Header ─────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              children: [
-                Text(
-                  'Date',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => Navigator.pop(
-                    context,
-                    DateTimeRange(start: _start, end: _end),
-                  ),
-                  child: Text(
-                    'Save',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF004E7E),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-          // ── Month navigation ────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded,
-                      color: Color(0xFF004E7E)),
-                  onPressed: () => setState(() => _viewMonth =
-                      DateTime(_viewMonth.year, _viewMonth.month - 1)),
-                ),
-                Text(
-                  '${_fullMonths[_viewMonth.month - 1]} ${_viewMonth.year}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded,
-                      color: Color(0xFF004E7E)),
-                  onPressed: () => setState(() => _viewMonth =
-                      DateTime(_viewMonth.year, _viewMonth.month + 1)),
-                ),
-              ],
-            ),
-          ),
-          // ── Weekday headers ─────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: _weekDayHeaders
-                  .map(
-                    (d) => Expanded(
-                      child: Center(
-                        child: Text(
-                          d,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // ── Calendar grid ───────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: 1.0,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 0,
-              ),
-              itemCount: leadingEmpty + daysInMonth,
-              itemBuilder: (ctx, index) {
-                if (index < leadingEmpty) return const SizedBox.shrink();
-                final day = index - leadingEmpty + 1;
-                final date =
-                    DateTime(_viewMonth.year, _viewMonth.month, day);
-                final isStart = _isSameDay(date, _start);
-                final isEnd = _isSameDay(date, _end);
-                final isSelected = isStart || isEnd;
-                final inRange = !isSelected &&
-                    date.isAfter(_start) &&
-                    date.isBefore(_end);
-                final isToday = _isSameDay(date, todayNorm);
-                final isPast = date.isBefore(todayNorm);
-
-                return GestureDetector(
-                  onTap: () => _onDayTap(date),
-                  child: Container(
-                    margin: const EdgeInsets.all(1),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF004E7E)
-                          : inRange
-                              ? const Color(0xFFEBF3FE)
-                              : null,
-                      shape: isSelected
-                          ? BoxShape.circle
-                          : BoxShape.rectangle,
-                      borderRadius:
-                          isSelected ? null : BorderRadius.circular(4),
-                      border: (!isSelected && isToday)
-                          ? Border.all(
-                              color: const Color(0xFF3686AF),
-                              width: 1.5,
-                            )
-                          : null,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$day',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: isSelected
-                              ? Colors.white
-                              : inRange
-                                  ? const Color(0xFF004E7E)
-                                  : isPast
-                                      ? const Color(0xFFB0B8C4)
-                                      : const Color(0xFF0F172A),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-          // ── Start / End date display ────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(child: _buildDateField('Start Date', _start)),
-                const SizedBox(width: 10),
-                Expanded(child: _buildDateField('End Date', _end)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateField(String label, DateTime date) {
-    final formatted =
-        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF94A3B8),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            formatted,
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF0F172A),
-            ),
-          ),
         ),
       ],
     );
