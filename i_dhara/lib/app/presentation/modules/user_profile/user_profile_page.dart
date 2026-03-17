@@ -644,7 +644,7 @@ class _AppVersionInfo extends StatelessWidget {
       if (version.isEmpty) return const SizedBox.shrink();
       return Center(
         child: Text(
-          'Version 1.2.0',
+          'Version 1.2.3',
           style: GoogleFonts.dmSans(
             color: _kSubtext,
             fontSize: 12,

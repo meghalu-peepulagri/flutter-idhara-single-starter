@@ -1,5 +1,124 @@
 part of 'motor_details_controller.dart';
 
+// ---------------------------------------------------------------------------
+// Background isolate helpers (top-level — required by compute())
+// ---------------------------------------------------------------------------
+
+class _SegmentInput {
+  final List<Runtime> records;
+  final DateTime now;
+  const _SegmentInput(this.records, this.now);
+}
+
+class _SegmentResults {
+  final List<TimeSegment> motorOn;
+  final List<TimeSegment> motorOff;
+  final List<TimeSegment> powerOn;
+  final List<TimeSegment> powerOff;
+  const _SegmentResults(
+      this.motorOn, this.motorOff, this.powerOn, this.powerOff);
+}
+
+Duration _parseDuration(String str) {
+  final match = RegExp(r'(\d+)\s*h\s*(\d+)\s*m\s*(\d+)\s*sec').firstMatch(str);
+  if (match == null) return Duration.zero;
+  return Duration(
+    hours: int.tryParse(match.group(1) ?? '0') ?? 0,
+    minutes: int.tryParse(match.group(2) ?? '0') ?? 0,
+    seconds: int.tryParse(match.group(3) ?? '0') ?? 0,
+  );
+}
+
+/// Single O(n) pass — replaces 4 separate passes and fixes the O(n²) bug in
+/// the original [convertRuntimeToTimeSegments] (which scanned forward on every
+/// motor-ON record to detect the "last" one).
+_SegmentResults _processSegments(_SegmentInput input) {
+  final records = input.records;
+  final now = input.now;
+
+  // Pre-scan once (O(n)) to find the last motor-ON and last power-ON indices.
+  int lastMotorOnIdx = -1;
+  for (int i = records.length - 1; i >= 0; i--) {
+    if (records[i].motorState == 1) {
+      lastMotorOnIdx = i;
+      break;
+    }
+  }
+
+  final motorOn = <TimeSegment>[];
+  final motorOff = <TimeSegment>[];
+  final powerOn = <TimeSegment>[];
+  final powerOff = <TimeSegment>[];
+
+  for (int i = 0; i < records.length; i++) {
+    final r = records[i];
+
+    // ── Motor ON ──────────────────────────────────────────────────────────
+    if (r.motorState == 1 && r.startTime != null) {
+      DateTime? endTime;
+      Duration? duration;
+
+      if (r.endTime != null) {
+        endTime = r.endTime!;
+        duration = r.duration != null
+            ? _parseDuration(r.duration!)
+            : endTime.difference(r.startTime!);
+      } else if (i == lastMotorOnIdx) {
+        // Still-running session: extend to now
+        endTime = now;
+        duration = now.difference(r.startTime!);
+      }
+
+      if (endTime != null && duration != null && duration.inSeconds > 0) {
+        motorOn.add(TimeSegment(r.startTime!, endTime, 'ON', duration));
+      }
+    }
+
+    // ── Motor OFF ─────────────────────────────────────────────────────────
+    if (r.motorState == 0 && r.startTime != null && r.endTime != null) {
+      final duration = r.endTime!.difference(r.startTime!);
+      if (duration.inSeconds > 0) {
+        motorOff
+            .add(TimeSegment(r.startTime!, r.endTime!, 'MOTOR_OFF', duration));
+      }
+    }
+
+    // ── Power ON ──────────────────────────────────────────────────────────
+    if (r.powerState == 1 && r.powerStart != null) {
+      DateTime? endTime;
+      Duration? duration;
+
+      if (r.powerEnd != null && r.powerDuration != null) {
+        endTime = r.powerEnd!;
+        duration = _parseDuration(r.powerDuration!);
+      } else if (r.powerEnd == null &&
+          r.powerDuration == null &&
+          i == records.length - 1) {
+        // Still-running power session (last record overall)
+        endTime = now;
+        duration = now.difference(r.powerStart!);
+      }
+
+      if (endTime != null && duration != null) {
+        powerOn.add(TimeSegment(r.powerStart!, endTime, 'POWER_ON', duration));
+      }
+    }
+
+    // ── Power OFF ─────────────────────────────────────────────────────────
+    if (r.powerState == 0 && r.powerStart != null && r.powerEnd != null) {
+      final duration = r.powerEnd!.difference(r.powerStart!);
+      if (duration.inSeconds > 0) {
+        powerOff.add(
+            TimeSegment(r.powerStart!, r.powerEnd!, 'POWER_OFF', duration));
+      }
+    }
+  }
+
+  return _SegmentResults(motorOn, motorOff, powerOn, powerOff);
+}
+
+// ---------------------------------------------------------------------------
+
 extension AnalyticsControllerApi on AnalyticsController {
   // --- Date Handling ---
 
@@ -91,7 +210,6 @@ extension AnalyticsControllerApi on AnalyticsController {
 
     try {
       await fetchMotorDetails(enableRetry: true);
-      await fetchRuntime(daterange);
     } catch (e) {
       if (kDebugMode) print('Error in fetchallApis: $e');
     }
@@ -146,6 +264,18 @@ extension AnalyticsControllerApi on AnalyticsController {
     valueNotifier.value = null;
   }
 
+  /// Downsamples records to at most [maxCount] entries.
+  /// Takes the last [maxCount] records so the most recent (including any
+  /// currently-running segment) is always preserved.
+  List<Runtime> _downsampleRecords(List<Runtime> records,
+      {int maxCount = 300}) {
+    if (records.length <= maxCount) return records;
+    if (kDebugMode) {
+      print('Downsampling runtime records: ${records.length} → $maxCount');
+    }
+    return records.sublist(records.length - maxCount);
+  }
+
   Future<void> fetchRuntime(List<DateTime?> dateRange) async {
     if (dateRange.isEmpty ||
         dateRange.first == null ||
@@ -165,7 +295,9 @@ extension AnalyticsControllerApi on AnalyticsController {
       );
 
       if (response != null && response.data != null) {
-        motorRuntimeData.value = response.data!.records ?? [];
+        final allRecords = response.data!.records ?? [];
+        final records = _downsampleRecords(allRecords);
+        motorRuntimeData.value = records;
 
         // Use the API's total — strip seconds (HH:MM:SS → HH:MM)
         final raw = response.data!.totalRunOnTime ?? '';
@@ -173,26 +305,26 @@ extension AnalyticsControllerApi on AnalyticsController {
         motortotalRuntime.value =
             timeParts.length == 3 ? '${timeParts[0]}:${timeParts[1]}' : raw;
 
-        if (response.data!.records != null) {
-          chartData.value =
-              convertRuntimeToTimeSegments(response.data!.records!);
-          motorOffChartData.value =
-              convertRuntimeToMotorOffSegments(response.data!.records!);
-          powerChartData.value =
-              convertRuntimeToPowerSegments(response.data!.records!);
-          powerOffChartData.value =
-              convertRuntimeToPowerOffSegments(response.data!.records!);
+        if (records.isNotEmpty) {
+          // Process all segment types in a single O(n) pass on a background
+          // isolate — keeps the UI thread free while building chart data.
+          final results = await compute(
+            _processSegments,
+            _SegmentInput(records, DateTime.now()),
+          );
 
-          // Calculate power total runtime
+          chartData.value = results.motorOn;
+          motorOffChartData.value = results.motorOff;
+          powerChartData.value = results.powerOn;
+          powerOffChartData.value = results.powerOff;
+
+          // Calculate power total runtime from isolate results
           Duration totalPowerDuration = Duration.zero;
-          for (var segment in powerChartData) {
+          for (final segment in results.powerOn) {
             totalPowerDuration += segment.duration;
           }
-
-          // Format power total runtime
-          int hours = totalPowerDuration.inHours;
-          int minutes = (totalPowerDuration.inMinutes % 60);
-          int seconds = (totalPowerDuration.inSeconds % 60);
+          final int hours = totalPowerDuration.inHours;
+          final int minutes = totalPowerDuration.inMinutes % 60;
           powerTotalRuntime.value = '$hours h $minutes m';
         }
       } else {

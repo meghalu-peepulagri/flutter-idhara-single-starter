@@ -393,7 +393,7 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Motor",
+                  "Motor Runtime",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

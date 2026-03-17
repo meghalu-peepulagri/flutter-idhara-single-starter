@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
-import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
@@ -126,8 +126,11 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
     await fetchallApis();
   }
 
-  void onTabChanged(int newIndex) {
+  void onTabChanged(int newIndex) async {
     final previousIndex = selectedTabIndex.value;
+    if (newIndex == 0) {
+      await fetchMotorDetails(enableRetry: false);
+    }
 
     if (previousIndex == 1 && newIndex != 1) {
       _clearAnalyticsData();
