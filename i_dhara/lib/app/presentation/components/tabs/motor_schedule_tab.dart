@@ -17,7 +17,6 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
   late final MotorScheduleController _controller;
   late final List<DateTime> _dateRange;
   final ScrollController _dateScrollController = ScrollController();
-  bool _hasScrolledToToday = false;
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _monthNames = [
@@ -45,8 +44,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
 
     // Scroll to today once the loading is done and ListView is rendered
     ever(_controller.isLoading, (bool loading) {
-      if (!loading && !_hasScrolledToToday) {
-        _hasScrolledToToday = true;
+      if (!loading) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday());
       }
     });
