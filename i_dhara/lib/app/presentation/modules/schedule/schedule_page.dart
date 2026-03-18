@@ -82,6 +82,9 @@ class _SchedulePageState extends State<SchedulePage> {
   int _dateToYYMMDD(DateTime d) =>
       (d.year % 100) * 10000 + d.month * 100 + d.day;
 
+  String _formatTimeHHMM(int hour, int minute) =>
+      '${hour.toString().padLeft(2, '0')}${minute.toString().padLeft(2, '0')}';
+
   DateTime? _yymmddToDate(int? v) {
     if (v == null) return null;
     final yy = v ~/ 10000;
@@ -110,11 +113,11 @@ class _SchedulePageState extends State<SchedulePage> {
       motorId: SharedPreference.getMotorId(),
       starterId: SharedPreference.getStarterId(),
       scheduleType: isCyclic ? 'CYCLIC' : 'TIME_BASED',
-      startTime: formatTime24h(form.startTime),
-      endTime: isCyclic ? null : formatTime24h(form.endTime),
-      scheduleDate: _formatDateStr(form.startDate),
-      scheduleStartDate: _formatDateStr(form.startDate),
-      scheduleEndDate: _formatDateStr(form.endDate),
+      startTime: _formatTimeHHMM(form.startHour, form.startMinute),
+      endTime: isCyclic ? null : _formatTimeHHMM(form.endHour, form.endMinute),
+      // scheduleDate: _formatDateStr(form.startDate),
+      scheduleStartDate: _dateToYYMMDD(form.startDate),
+      scheduleEndDate: _dateToYYMMDD(form.endDate),
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
       daysOfWeek: form.selectedDays.map((d) => d == 7 ? 0 : d).toList()..sort(),
@@ -132,8 +135,6 @@ class _SchedulePageState extends State<SchedulePage> {
 
     final response = await _scheduleController.createSchedule(dto: dto);
     if (response == null) {
-      geterrorSnackBar(
-          _scheduleController.message ?? 'Failed to create schedule');
       return false;
     }
 

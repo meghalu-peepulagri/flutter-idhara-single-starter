@@ -5,8 +5,8 @@ class CreateScheduleDto {
   final String startTime;
   final String? endTime;
   final String? scheduleDate;
-  final String? scheduleStartDate;
-  final String? scheduleEndDate;
+  final int? scheduleStartDate;
+  final int? scheduleEndDate;
   final int? cycleOnMinutes;
   final int? cycleOffMinutes;
   final List<int> daysOfWeek;

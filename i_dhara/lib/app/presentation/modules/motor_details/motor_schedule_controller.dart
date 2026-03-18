@@ -35,6 +35,9 @@ class MotorScheduleController extends GetxController {
 
   final scrollController = ScrollController();
 
+  // Persists colored dots across widget remounts (keyed by date, value = set of status colors)
+  final Map<DateTime, Set<Color>> dateBars = {};
+
   // Track pending actions: scheduleId -> cmd (1=stop, 2=restart, 3=delete)
   final _pendingActions = <int, int>{};
 

@@ -19,21 +19,6 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
   final ScrollController _dateScrollController = ScrollController();
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  static const _monthNames = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -42,12 +27,74 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     final todayNorm = DateTime(today.year, today.month, today.day);
     _dateRange = List.generate(30, (i) => todayNorm.add(Duration(days: i - 7)));
 
-    // Scroll to today once the loading is done and ListView is rendered
+    // Scroll to today + rebuild dots on every fetch (loading path)
     ever(_controller.isLoading, (bool loading) {
       if (!loading) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday());
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToToday();
+          _updateDateBars();
+        });
       }
     });
+
+    // Scroll to today + rebuild dots on refresh path
+    ever(_controller.isRefreshing, (bool refreshing) {
+      if (!refreshing) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToToday();
+          _updateDateBars();
+        });
+      }
+    });
+
+    // Handle case where controller already has data when widget mounts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToToday();
+      _updateDateBars();
+    });
+  }
+
+  void _updateDateBars() {
+    if (!mounted) return;
+    setState(() {
+      for (final record in _controller.schedules) {
+        final startV = record.scheduleStartDate;
+        final endV = record.scheduleEndDate;
+        if (startV == null) continue;
+        final start = _yymmddToDate(startV);
+        final end = endV != null ? _yymmddToDate(endV) : start;
+        final color = _statusColor(record.scheduleStatus ?? '');
+        var d = start;
+        while (!d.isAfter(end)) {
+          (_controller.dateBars[d] ??= {}).add(color);
+          d = d.add(const Duration(days: 1));
+        }
+      }
+    });
+  }
+
+  DateTime _yymmddToDate(int v) {
+    final yy = v ~/ 10000;
+    final mm = (v % 10000) ~/ 100;
+    final dd = v % 100;
+    return DateTime(2000 + yy, mm, dd);
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'RUNNING':
+        return const Color(0xFF228B22); // green
+      case 'PENDING':
+        return const Color(0xFFEF9F27); // orange
+      case 'SCHEDULED':
+        return const Color(0xFF85B7EB); // blue
+      case 'STOPPED':
+        return const Color(0xFFE24B4A); // red
+      case 'COMPLETED':
+        return const Color(0xFFEF9F27); // yellow
+      default:
+        return const Color(0xFF85B7EB);
+    }
   }
 
   void _scrollToToday() {
@@ -134,7 +181,15 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 _buildDateStrip(selectedDate),
                 Expanded(
                   child: schedules.isEmpty
-                      ? _buildEmptyState()
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.45,
+                              child: _buildEmptyState(),
+                            ),
+                          ],
+                        )
                       : ListView.separated(
                           controller: _controller.scrollController,
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -310,114 +365,156 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
 
-    return SizedBox(
-      height: 80,
-      child: ListView.builder(
-        controller: _dateScrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-        itemCount: _dateRange.length,
-        itemBuilder: (ctx, i) {
-          final date = _dateRange[i];
-          final isSelected = date == selectedDate;
-          final isToday = date == todayNorm;
-          final isPast = date.isBefore(todayNorm);
+    return Column(
+      children: [
+        SizedBox(
+          height: 74,
+          child: ListView.builder(
+            controller: _dateScrollController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            itemCount: _dateRange.length,
+            itemBuilder: (ctx, i) {
+              final date = _dateRange[i];
+              final isSelected = date == selectedDate;
+              final isToday = date == todayNorm;
 
-          return GestureDetector(
-            onTap: () {
-              _controller.selectedDate.value = date;
-              _controller.fetchSchedules();
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 52,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? const LinearGradient(
-                        colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      )
-                    : null,
-                color: isSelected
-                    ? null
-                    : isToday
-                        ? const Color(0xFFEBF3FE)
-                        : isPast
-                            ? const Color(0xFFF8FAFC)
-                            : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: isSelected
-                    ? null
-                    : Border.all(
-                        color: isToday
-                            ? const Color(0xFFBFD9F0)
-                            : isPast
-                                ? const Color(0xFFE2E8F0)
-                                : const Color(0xFFDCE8F5),
-                        width: 1,
-                      ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF004E7E).withValues(alpha: 0.30),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+              // All non-selected/non-today dates: same neutral color
+              final labelColor = isSelected
+                  ? const Color(0xFF185FA5)
+                  : isToday
+                      ? const Color(0xFFEF9F27)
+                      : const Color(0xFF94A3B8);
+
+              final numColor = isSelected
+                  ? const Color(0xFF185FA5)
+                  : isToday
+                      ? const Color(0xFFEF9F27)
+                      : const Color(0xFF0F172A);
+
+              return GestureDetector(
+                onTap: () {
+                  _controller.selectedDate.value = date;
+                  _controller.fetchSchedules();
+                },
+                child: SizedBox(
+                  width: 48,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _dayNames[date.weekday % 7],
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: isSelected || isToday
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: labelColor,
                         ),
-                      ]
-                    : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _dayNames[date.weekday % 7],
-                    style: GoogleFonts.dmSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white70
-                          : isPast
-                              ? const Color(0xFFB0B8C4)
-                              : isToday
-                                  ? const Color(0xFF3686AF)
-                                  : const Color(0xFF64748B),
-                    ),
+                      ),
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: isSelected
+                            ? const BoxDecoration(
+                                color: Color(0xFF185FA5),
+                                shape: BoxShape.circle,
+                              )
+                            : isToday
+                                ? BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFFEF9F27),
+                                      width: 2,
+                                    ),
+                                  )
+                                : null,
+                        child: Center(
+                          child: Text(
+                            '${date.day}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 15,
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected ? Colors.white : numColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Dots: one per unique status color on this date
+                      Builder(builder: (_) {
+                        final colors = _controller.dateBars[date];
+                        if (colors == null || colors.isEmpty) {
+                          return const SizedBox(height: 5);
+                        }
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: colors
+                              .take(4)
+                              .map((c) => Container(
+                                    width: 5,
+                                    height: 5,
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: c,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ))
+                              .toList(),
+                        );
+                      }),
+                    ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${date.day}',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected
-                          ? Colors.white
-                          : isPast
-                              ? const Color(0xFFB0B8C4)
-                              : const Color(0xFF004E7E),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _monthNames[date.month - 1],
-                    style: GoogleFonts.dmSans(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white60
-                          : isPast
-                              ? const Color(0xFFCBD5E1)
-                              : const Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                ),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Row(
+            children: [
+              _legendItem(const Color(0xFF228B22), 'Running'),
+              const SizedBox(width: 12),
+              _legendItem(const Color(0xFFEF9F27), 'Pending'),
+              const SizedBox(width: 12),
+              _legendItem(const Color(0xFF85B7EB), 'Scheduled'),
+              const SizedBox(width: 12),
+              _legendItem(const Color(0xFFE24B4A), 'Stopped'),
+            ],
+          ),
+        ),
+        const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+      ],
+    );
+  }
+
+  Widget _legendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            color: const Color(0xFF94A3B8),
+          ),
+        ),
+      ],
     );
   }
 
