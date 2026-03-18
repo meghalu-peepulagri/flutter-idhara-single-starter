@@ -235,40 +235,39 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 ),
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Column(
                 children: filters.map((f) {
                   final isSelected = current == f['value'];
-                  return GestureDetector(
+                  return InkWell(
                     onTap: () {
                       _controller.selectedFilter.value = f['value']!;
                       _controller.fetchSchedules();
                       Navigator.pop(ctx);
                     },
-                    child: Container(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFF004E7E)
-                            : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF004E7E)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Text(
-                        f['label']!,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF57636C),
-                        ),
+                          horizontal: 4, vertical: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              f['label']!,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? const Color(0xFF004E7E)
+                                    : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_rounded,
+                                size: 18, color: Color(0xFF004E7E)),
+                        ],
                       ),
                     ),
                   );
