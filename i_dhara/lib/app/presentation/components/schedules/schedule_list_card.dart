@@ -74,8 +74,6 @@ class ScheduleCard extends StatelessWidget {
               _statusDot(status, isActive),
             ],
           ),
-          const SizedBox(height: 8),
-          _buildDayChips(record),
           // const SizedBox(height: 8),
           // const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
           // ── Info section ──
@@ -359,41 +357,6 @@ class ScheduleCard extends StatelessWidget {
           ],
         ),
       );
-
-  // Index 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat  (API: 0=Sun…6=Sat)
-  static const _dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  Set<int> _activeDayNumbers(Record record) => record.daysOfWeek?.toSet() ?? {};
-
-  Widget _buildDayChips(Record record) {
-    final activeDays = _activeDayNumbers(record);
-    if (activeDays.isEmpty) return const SizedBox();
-    final sortedDays = activeDays.toList()..sort();
-    return Wrap(
-      spacing: 5,
-      runSpacing: 4,
-      children: sortedDays.map((dayNum) {
-        final i = dayNum; // 0=Sun, 1=Mon … 6=Sat maps directly to _dayLabels
-        if (i < 0 || i >= _dayLabels.length) return const SizedBox();
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEBF3FE),
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: const Color(0xFF3686AF), width: 1),
-          ),
-          child: Text(
-            _dayLabels[i],
-            style: GoogleFonts.dmSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF004E7E),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 
   Widget _statusDot(String status, bool isActive) {
     final normalizedStatus = status.toLowerCase();
