@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 Future<void> showScheduleConfirmDialog({
   required BuildContext context,
   required String typeLabel,
+  required String startDate,
+  required String endDate,
   required String startTime,
   required String endTime,
   required String duration,
@@ -22,6 +24,8 @@ Future<void> showScheduleConfirmDialog({
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             backgroundColor: Colors.white,
+            // insetPadding:
+            //     const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(

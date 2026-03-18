@@ -16,6 +16,8 @@ class MotorScheduleTab extends StatefulWidget {
 class _MotorScheduleTabState extends State<MotorScheduleTab> {
   late final MotorScheduleController _controller;
   late final List<DateTime> _dateRange;
+  final ScrollController _dateScrollController = ScrollController();
+  bool _hasScrolledToToday = false;
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _monthNames = [
@@ -40,6 +42,32 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
     _dateRange = List.generate(30, (i) => todayNorm.add(Duration(days: i - 7)));
+
+    // Scroll to today once the loading is done and ListView is rendered
+    ever(_controller.isLoading, (bool loading) {
+      if (!loading && !_hasScrolledToToday) {
+        _hasScrolledToToday = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday());
+      }
+    });
+  }
+
+  void _scrollToToday() {
+    if (!mounted || !_dateScrollController.hasClients) return;
+    const todayIndex = 7; // _dateRange starts 7 days before today
+    const itemWidth = 58.0; // 52 width + 6 margin
+    final screenWidth = MediaQuery.of(context).size.width;
+    final offset =
+        (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
+    _dateScrollController.jumpTo(
+      offset.clamp(0.0, _dateScrollController.position.maxScrollExtent),
+    );
+  }
+
+  @override
+  void dispose() {
+    _dateScrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -287,6 +315,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     return SizedBox(
       height: 80,
       child: ListView.builder(
+        controller: _dateScrollController,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         itemCount: _dateRange.length,

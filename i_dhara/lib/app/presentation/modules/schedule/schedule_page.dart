@@ -117,7 +117,7 @@ class _SchedulePageState extends State<SchedulePage> {
       scheduleEndDate: _formatDateStr(form.endDate),
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-      daysOfWeek: form.selectedDays.toList()..sort(),
+      daysOfWeek: form.selectedDays.map((d) => d == 7 ? 0 : d).toList()..sort(),
       bitwiseDays: _computeBitwiseDays(form.selectedDays.toList()),
       runtimeMinutes: form.durationMinutes,
       powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
@@ -221,19 +221,13 @@ class _SchedulePageState extends State<SchedulePage> {
       return false; // stops dialog loading, keeps dialog open
     }
 
-    // Step 3: ACK success → call PATCH API
+    // Step 3: ACK success → show snackbar instantly, call PATCH API in background
     SharedPreference.setscheduleid(_editRecord?.id ?? 0);
     final dto = _buildDto(form);
-    final response = await _scheduleController.updateSchedule(dto: dto);
-    if (response == null) {
-      geterrorSnackBar(
-          _scheduleController.message ?? 'Failed to update schedule');
-      return false;
-    }
-
-    getsuccessSnackBar(response.message ?? 'Schedule updated successfully');
+    getsuccessSnackBar('Schedule updated successfully');
     _scheduleSaved = true;
-    return true; // dialog closes, _onSaveTapped navigates back
+    unawaited(_scheduleController.updateSchedule(dto: dto));
+    return true; // dialog closes immediately after ACK, no wait for API
   }
 
   void _onSaveTapped() async {
@@ -244,6 +238,8 @@ class _SchedulePageState extends State<SchedulePage> {
     await showScheduleConfirmDialog(
       context: context,
       typeLabel: isCyclic ? 'Cyclic' : 'Time Based',
+      startDate: _formatDateStr(form.startDate),
+      endDate: _formatDateStr(form.endDate),
       startTime: formatTime24h(form.startTime),
       endTime: formatTime24h(form.endTime),
       duration: form.durationText,

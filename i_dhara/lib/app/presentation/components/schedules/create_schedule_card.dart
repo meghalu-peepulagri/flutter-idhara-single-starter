@@ -280,7 +280,7 @@ class ScheduleFormState extends State<ScheduleForm> {
   // ── Date Card ───────────────────────────────────────────────────────────────
 
   Widget _buildDateCard() {
-    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -378,7 +378,7 @@ class ScheduleFormState extends State<ScheduleForm> {
           // Day chips — manually tappable
           Row(
             children: List.generate(7, (i) {
-              final dayNum = i + 1; // 1=Mon...7=Sun
+              final dayNum = i == 0 ? 7 : i; // Sun=7, Mon=1...Sat=6
               final isActive = selectedDays.contains(dayNum);
               return Expanded(
                 child: GestureDetector(

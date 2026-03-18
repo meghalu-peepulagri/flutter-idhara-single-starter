@@ -172,8 +172,7 @@ class ScheduleCard extends StatelessWidget {
                       iconAssetPath: 'assets/images/schedule.svg',
                       buttonlable: 'Delete',
                       onDelete: () async {
-                        final success =
-                            await onDelete?.call(record) ?? false;
+                        final success = await onDelete?.call(record) ?? false;
                         if (success && dialogCtx.mounted) {
                           Navigator.pop(dialogCtx);
                         }
@@ -361,7 +360,8 @@ class ScheduleCard extends StatelessWidget {
         ),
       );
 
-  static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  // Index 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat  (API: 0=Sun…6=Sat)
+  static const _dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   Set<int> _activeDayNumbers(Record record) => record.daysOfWeek?.toSet() ?? {};
 
@@ -373,7 +373,7 @@ class ScheduleCard extends StatelessWidget {
       spacing: 5,
       runSpacing: 4,
       children: sortedDays.map((dayNum) {
-        final i = dayNum - 1;
+        final i = dayNum; // 0=Sun, 1=Mon … 6=Sat maps directly to _dayLabels
         if (i < 0 || i >= _dayLabels.length) return const SizedBox();
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),

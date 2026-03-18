@@ -52,8 +52,7 @@ class MotorScheduleController extends GetxController {
   void onInit() {
     super.onInit();
     final today = DateTime.now();
-    selectedDate =
-        DateTime(today.year, today.month, today.day).obs;
+    selectedDate = DateTime(today.year, today.month, today.day).obs;
     scrollController.addListener(_onScroll);
     fetchSchedules();
     _listenScheduleAck();
@@ -332,13 +331,11 @@ class MotorScheduleController extends GetxController {
 
       final d = ack['D'] as int? ?? 0;
       if (d == 1) {
-        getsuccessSnackBar('Schedule created successfully');
+        // SchedulePage already shows its own success snackbar — skip duplicate
         unawaited(Future.wait([
           fetchacknowledgement(),
           fetchSchedules(),
         ]));
-      } else {
-        geterrorSnackBar('Schedule creation failed');
       }
     });
   }
