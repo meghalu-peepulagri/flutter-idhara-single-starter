@@ -700,11 +700,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => CustomConfirmationDialog(
-        title: "Cancel Settings",
+        title: "Cancel Settings ?",
         message:
             "Are you sure you want to cancel? The calibration data will not be saved.",
-        confirmText: "Cancel",
-        cancelText: 'Back',
+        confirmText: "Yes",
+        cancelText: 'No',
         confirmColor: const Color(0xFFDC2626),
         icon: Icons.cancel_outlined,
         onConfirm: () {

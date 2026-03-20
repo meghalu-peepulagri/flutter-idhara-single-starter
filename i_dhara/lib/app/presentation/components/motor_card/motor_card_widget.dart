@@ -497,8 +497,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         }
 
         final isSwitchDisabled = _isWaitingForSwitchAck || !(canControl);
+        final hasSignal = _getSignalBars(motorData) > 0;
 
-        return Container(
+        return Opacity(
+          opacity: hasSignal ? 1.0 : 0.5,
+          child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12.0),
@@ -550,6 +553,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
               ].divide(const SizedBox(height: 4.0)),
             ),
           ),
+        ),
         );
       },
     );
