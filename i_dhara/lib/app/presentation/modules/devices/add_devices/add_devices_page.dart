@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -10,6 +12,7 @@ import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/locations/add_new_location/add_new_location_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
@@ -54,6 +57,9 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
 
     _model.textController4 ??= TextEditingController();
     _model.textFieldFocusNode4 ??= FocusNode();
+
+    _model.textController5 ??= TextEditingController();
+    _model.textFieldFocusNode5 ??= FocusNode();
 
     _model.textController4!.addListener(() {
       if (_model.textController4!.text.isNotEmpty &&
@@ -288,6 +294,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
         },
         child: Scaffold(
           key: scaffoldKey,
+          resizeToAvoidBottomInset: true,
           backgroundColor: const Color(0xFFEBF3FE),
           body: SafeArea(
             child: Padding(
@@ -298,17 +305,21 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                 children: [
                   _buildHeader(context),
                   Expanded(
-                    child: Padding(
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsetsDirectional.fromSTEB(
-                          16.0, 0.0, 16.0, 0.0),
+                          16.0, 0.0, 16.0, 24.0),
                       child: Column(
-                        mainAxisSize: MainAxisSize.max,
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSectionTitle(context, 'Device Information'),
                           _buildPcbNumberField(context),
                           _buildPumpNameAndHpFields(context),
                           _buildLocationField(context),
+                          _buildImageUploadField(context),
+                          _buildDeviceLocationField(context),
                           _buildAddDeviceButton(context),
                         ]
                             .divide(const SizedBox(height: 16.0))
@@ -408,6 +419,27 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
     );
   }
 
+  Widget _buildDeviceLocationField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(context, 'Device Location', isMandatory: false),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: TextFieldComponent(
+            maxLines: 1,
+            controller: _model.textController5!,
+            errors: _model.errorInstance,
+            errorKey: 'device_location',
+            hintText: 'Enter Device Location',
+            readOnly: false,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPcbNumberField(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,6 +517,152 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
     );
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    final file = await _model.pickImage(source);
+    if (file != null && mounted) {
+      setState(() {
+        _model.imageFile = file;
+      });
+    }
+  }
+
+  void _showImageSourceSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined,
+                    color: Color(0xFF004E7E)),
+                title: Text('Camera',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(),
+                          color: Colors.black,
+                        )),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined,
+                    color: Color(0xFF004E7E)),
+                title: Text('Gallery',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(),
+                          color: Colors.black,
+                        )),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageUploadField(BuildContext context) {
+    final image = _model.selectedImage;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(context, 'Device Image'),
+        const SizedBox(height: 8),
+        if (image == null)
+          GestureDetector(
+            onTap: () => _showImageSourceSheet(context),
+            child: Container(
+              width: double.infinity,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFFBDBDBD),
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.add_photo_alternate_outlined,
+                      color: Color(0xFF9E9E9E), size: 36),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap to upload image',
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(),
+                          color: const Color(0xFF9E9E9E),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(image.path),
+                  width: double.infinity,
+                  height: 120,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showImageSourceSheet(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF004E7E),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.edit,
+                            color: Colors.white, size: 16),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        _model.removeImage();
+                        setState(() {});
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close,
+                            color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
   Widget _buildAddDeviceButton(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -501,6 +679,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
         onPressed: () async {
           FocusScope.of(context).unfocus();
           await _model.assignDevice(
+            deviceLoc: _model.textController5.text.trim(),
             pcbNumber: _model.textController1!.text.trim(),
             pumpName: _model.textController2!.text.trim(),
             hp: double.tryParse(_model.textController3!.text.trim()) ?? 0,

@@ -14,18 +14,23 @@ class DeviceAssignResponse {
   int? status;
   bool? success;
   String? message;
-  dynamic data;
+  Data? data;
   Errors? errors;
 
-  DeviceAssignResponse(
-      {this.status, this.success, this.message, this.data, this.errors});
+  DeviceAssignResponse({
+    this.status,
+    this.success,
+    this.message,
+    this.data,
+    this.errors,
+  });
 
   factory DeviceAssignResponse.fromJson(Map<String, dynamic> json) =>
       DeviceAssignResponse(
         status: json["status"],
         success: json["success"],
         message: json["message"],
-        data: json["data"],
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
         errors: json["errors"] == null ? null : Errors.fromJson(json["errors"]),
       );
 
@@ -33,7 +38,7 @@ class DeviceAssignResponse {
         "status": status,
         "success": success,
         "message": message,
-        "data": data,
+        "data": data?.toJson(),
         "errors": errors?.toJson(),
       };
 }
@@ -63,5 +68,19 @@ class Errors {
         "motor_name": motorName,
         "location_id": locationId,
         "hp": hp,
+      };
+}
+
+class Data {
+  int? starterId;
+
+  Data({this.starterId});
+
+  factory Data.fromJson(Map<String, dynamic> json) => Data(
+        starterId: json["starter_id"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "starter_id": starterId,
       };
 }

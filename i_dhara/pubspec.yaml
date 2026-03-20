@@ -98,10 +98,13 @@ dependencies:
   package_info_plus: ^8.3.0
   syncfusion_flutter_sliders: ^29.1.38
   syncfusion_flutter_core: ^29.1.38
+  image_picker: ^1.1.2
+  image_picker_android: 0.8.12+17
 
 dependency_overrides:
   http: 1.4.0
   uuid: ^4.0.0
+  image_picker_android: 0.8.12+17
 
   flutter_launcher_icons: "^0.14.3"
 

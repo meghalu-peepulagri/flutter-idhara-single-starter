@@ -45,16 +45,14 @@ class RenameDeviceResponse {
 
 class Errors {
   String? name;
+  String? hp;
 
-  Errors({
-    this.name,
-  });
+  Errors({this.name, this.hp});
 
   factory Errors.fromJson(Map<String, dynamic> json) => Errors(
         name: json["name"],
+        hp: json["hp"],
       );
 
-  Map<String, dynamic> toJson() => {
-        "name": name,
-      };
+  Map<String, dynamic> toJson() => {"name": name, "hp": hp};
 }

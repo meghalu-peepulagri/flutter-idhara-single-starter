@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart' hide Location;
@@ -7,10 +10,13 @@ import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
+import '../../../../data/dto/image_upload_dto.dart';
 import 'add_devices_page.dart' show AddDevicesWidget;
 
 class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
@@ -20,6 +26,27 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
   Map<String, dynamic> errorInstance = {};
   List<Location>? locations;
   String locationId = '';
+  File? imageFile;
+
+  File? selectedImage;
+  final ImagePicker _imagePicker = ImagePicker();
+
+  Future<File?> pickImage(ImageSource source) async {
+    final XFile? picked = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 1080,
+    );
+    if (picked != null) {
+      selectedImage = File(picked.path);
+      return selectedImage;
+    }
+    return null;
+  }
+
+  void removeImage() {
+    selectedImage = null;
+  }
 
   // State field(s) for TextField widget.
   FocusNode? textFieldFocusNode1;
@@ -38,6 +65,10 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
   TextEditingController? textController4;
   String? Function(BuildContext, String?)? textController4Validator;
 
+  FocusNode? textFieldFocusNode5;
+  TextEditingController? textController5;
+  String? Function(BuildContext, String?)? textController5Validator;
+
   @override
   void initState(BuildContext context) {}
 
@@ -54,6 +85,9 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
 
     textFieldFocusNode4?.dispose();
     textController4?.dispose();
+
+    textFieldFocusNode5?.dispose();
+    textController5?.dispose();
   }
 
   Future<void> fetchLocationDropDown() async {
@@ -63,13 +97,60 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     }
   }
 
+  String convertToBase64(File file) {
+    final bytes = file.readAsBytesSync();
+    return base64Encode(bytes);
+  }
+
+  Future<void> fetchupload() async {
+    if (imageFile == null) {
+      return;
+    }
+    String base64Image = convertToBase64(imageFile!);
+
+    final Uint8List imageBytes = await imageFile!.readAsBytes();
+    final fileName = imageFile!.path.split('/').last;
+    final extension = fileName.split('.').last.toLowerCase();
+    String mimeType;
+    switch (extension) {
+      case 'png':
+        mimeType = 'image/png';
+        break;
+      case 'jpg':
+      case 'jpeg':
+        mimeType = 'image/jpeg';
+        break;
+      default:
+        mimeType = 'image/jpeg';
+        break;
+    }
+    final dto = ImageUploadDto(
+      fileName: fileName,
+      fileType: mimeType,
+      fileBase64: base64Image,
+    );
+    try {
+      final response =
+          await DevicesRepositoryImpl().fetchUploadImage(dto, imageBytes);
+      if (response != null) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (Get.isRegistered<DashboardController>()) {
+          Get.delete<DashboardController>();
+        }
+        Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
+      }
+    } catch (e) {}
+  }
+
   Future<void> assignDevice({
     required String pcbNumber,
+    required String deviceLoc,
     required String pumpName,
     required double hp,
     required int locationId,
   }) async {
     final dto = StarterCreateDto(
+      deviceInstalledLoc: deviceLoc,
       pcbNumber: pcbNumber,
       motorName: pumpName,
       hp: hp,
@@ -79,16 +160,23 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     final response = await DevicesRepositoryImpl().deviceassign(dto);
 
     if (response != null && response.errors == null) {
-      // Show a brief success message or just wait a bit for the backend
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Force delete DashboardController to ensure fresh initialization
-      if (Get.isRegistered<DashboardController>()) {
-        Get.delete<DashboardController>();
+      if (imageFile != null) {
+        if (response.data?.starterId != null) {
+          SharedPreference.setStarterId(response.data?.starterId ?? 0);
+          await fetchupload();
+        } else {
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (Get.isRegistered<DashboardController>()) {
+            Get.delete<DashboardController>();
+          }
+          Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (Get.isRegistered<DashboardController>()) {
+          Get.delete<DashboardController>();
+        }
+        Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
       }
-
-      // Navigate to dashboard and force a fresh data load
-      Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
     } else if (response?.errors != null) {
       errorInstance.clear();
       errorInstance.addAll(response!.errors!.toJson());

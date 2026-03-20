@@ -9,6 +9,8 @@ class TextFieldComponent extends StatelessWidget {
   final dynamic errors;
   final List<TextInputFormatter>? inputFormatters;
   final int? maxlength;
+  final int? maxLines;
+
   final String hintText;
   final bool readOnly;
   final Function()? ontap;
@@ -27,6 +29,7 @@ class TextFieldComponent extends StatelessWidget {
     required this.hintText,
     required this.readOnly,
     this.maxlength = 60,
+    this.maxLines = 1,
     this.ontap,
     this.icon,
     this.onChanged,
@@ -40,6 +43,7 @@ class TextFieldComponent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      maxLines: maxLines,
       controller: controller,
       autofocus: false,
       obscureText: false,

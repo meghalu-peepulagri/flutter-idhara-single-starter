@@ -8,7 +8,7 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class NetworkManager {
-  String baseUrl = AppConstants.live_url;
+  String baseUrl = AppConstants.dev_url;
   final Dio _dio;
   NetworkManager() : _dio = Dio() {
     _dio.options.baseUrl = baseUrl;

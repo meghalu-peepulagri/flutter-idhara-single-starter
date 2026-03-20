@@ -4,10 +4,12 @@ import '../../../../core/flutter_flow/flutter_flow_model.dart';
 import '../../../../core/flutter_flow/flutter_flow_util.dart';
 
 class EditDeviceController extends FlutterFlowModel {
-  /// State fields for stateful widgets in this component.
   FocusNode? textFieldFocusNode;
   TextEditingController? textController;
   String? Function(BuildContext, String?)? textControllerValidator;
+
+  FocusNode? textFieldFocusNode2;
+  TextEditingController? textController2;
 
   // Additional fields to match LocationpopupModel
   Record? record;
@@ -24,14 +26,5 @@ class EditDeviceController extends FlutterFlowModel {
   void dispose() {
     textFieldFocusNode?.dispose();
     textController?.dispose();
-  }
-
-  Future<void> fetcheditapi({required String title}) async {
-    // final response = await LocationRepositoryImpl().updateLocation(title);
-    // if(response != null && response.errors == null){
-    //   Get.offAllNamed(Routes.locations);
-    // }else if (response!.errors !=null) {
-    //   errorInstance = response!.errors!.toJson();
-    // }
   }
 }
