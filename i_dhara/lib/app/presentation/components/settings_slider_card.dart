@@ -487,12 +487,12 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       offsetLeft: false,
                     ),
                     onChanged: (SfRangeValues newValues) {
-                      final effectiveLowMax = widget.lowMaxLimit > 100
+                      final effectiveLowMax = widget.unit.contains("A")
                           ? 100.0.clamp(widget.lowMinLimit, widget.lowMaxLimit)
                           : widget.lowMaxLimit;
                       double start = (newValues.start as double)
                           .clamp(widget.lowMinLimit, effectiveLowMax);
-                      final effectiveHighMin = widget.highMaxLimit > 120
+                      final effectiveHighMin = widget.unit.contains("A")
                           ? 100.0.clamp(widget.highMinLimit, widget.highMaxLimit)
                           : widget.highMinLimit;
                       double end = (newValues.end as double)
@@ -514,12 +514,12 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       widget.onChanged(start, end);
                     },
                     onChangeEnd: (SfRangeValues newValues) {
-                      final effectiveLowMax = widget.lowMaxLimit > 100
+                      final effectiveLowMax = widget.unit.contains("A")
                           ? 100.0.clamp(widget.lowMinLimit, widget.lowMaxLimit)
                           : widget.lowMaxLimit;
                       double start = (newValues.start as double)
                           .clamp(widget.lowMinLimit, effectiveLowMax);
-                      final effectiveHighMin = widget.highMaxLimit > 120
+                      final effectiveHighMin = widget.unit.contains("A")
                           ? 100.0.clamp(widget.highMinLimit, widget.highMaxLimit)
                           : widget.highMinLimit;
                       double end = (newValues.end as double)

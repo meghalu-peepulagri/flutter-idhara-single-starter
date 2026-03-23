@@ -240,7 +240,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         (currentCurrentLow != initialCurrentLow) ||
         (currentCurrentHigh != initialCurrentHigh) ||
         (controller.flc.value != initialFlc);
-
     if (isbuttonActive != hasChanges) {
       setState(() {
         isbuttonActive = hasChanges;
@@ -462,6 +461,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     setState(() {
       isbuttonActive = false;
     });
+  }
+
+  double safeToWholeDouble(num? value) {
+    return (value ?? 0).toInt().toDouble();
   }
 
   @override
@@ -719,8 +722,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               'Pump 1',
                                       motorHp: '3 HP',
                                       onChanged: (low, high) {
-                                        _currentVoltageLow = low;
-                                        _currentVoltageHigh = high;
+                                        _currentVoltageLow =
+                                            safeToWholeDouble(low);
+                                        _currentVoltageHigh =
+                                            safeToWholeDouble(high);
                                         _checkForChanges();
                                       },
                                     ),
@@ -742,8 +747,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                               'Pump 1',
                                       motorHp: '3 HP',
                                       onChanged: (low, high) {
-                                        _currentCurrentLow = low;
-                                        _currentCurrentHigh = high;
+                                        _currentCurrentLow =
+                                            (low ?? 0).toInt().toDouble();
+                                        _currentCurrentHigh =
+                                            (high ?? 0).toInt().toDouble();
                                         _checkForChanges();
                                       },
                                     ),
@@ -753,284 +760,290 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, -2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: FFButtonWidget(
-                                  onPressed: _handleCancel,
-                                  text: 'Cancel',
-                                  options: FFButtonOptions(
-                                    height: 45.0,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 24.0),
-                                    color: settings?.starter != null
-                                        ? FlutterFlowTheme.of(context)
-                                            .secondaryBackground
-                                        : Colors.white38,
-                                    textStyle: FlutterFlowTheme.of(context)
-                                        .titleSmall
-                                        .override(
-                                          fontFamily: 'Manrope',
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                    elevation: 0.0,
-                                    borderSide: const BorderSide(
-                                        color: Color(0x38000000)),
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
+                        if (isbuttonActive)
+                          Container(
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, -2),
                                 ),
-                              ),
-                              const SizedBox(width: 24.0),
-                              Expanded(
-                                child: Container(
-                                  height: 45,
-                                  decoration: BoxDecoration(
-                                    gradient:
-                                        (!isbuttonActive || _isFlcOutOfRange)
-                                            ? null
-                                            : const LinearGradient(
-                                                colors: [
-                                                  Color(0xFF004E7E),
-                                                  Color(0xFF3686AF)
-                                                ],
-                                                begin: Alignment.centerLeft,
-                                                end: Alignment.centerRight,
-                                              ),
-                                    color: (!isbuttonActive || _isFlcOutOfRange)
-                                        ? const Color(0xFFB0B0B0)
-                                        : null,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
                                   child: FFButtonWidget(
-                                    onPressed: (!isbuttonActive ||
-                                            _isFlcOutOfRange)
-                                        ? null
-                                        : () {
-                                            final voltageValues = voltageCardKey
-                                                .currentState
-                                                ?.getValues();
-                                            final currentValues = currentCardKey
-                                                .currentState
-                                                ?.getValues();
-
-                                            // Get and print calculated current values (FLC-based)
-                                            final calculatedCurrentValues =
-                                                currentCardKey.currentState
-                                                    ?.getCalculatedValues();
-                                            controller.lvf.value =
-                                                voltageValues?['low']
-                                                        ?.toInt() ??
-                                                    controller.userSettings2
-                                                        .value!.lvf!;
-                                            controller.hvf.value =
-                                                voltageValues?['high']
-                                                        ?.toInt() ??
-                                                    controller.userSettings2
-                                                        .value!.hvf!;
-                                            controller.drf.value =
-                                                currentValues?['low']
-                                                        ?.toInt() ??
-                                                    controller.userSettings2
-                                                        .value!.drf!
-                                                        .toInt();
-                                            controller.olf.value =
-                                                currentValues?['high']
-                                                        ?.toInt() ??
-                                                    controller.userSettings2
-                                                        .value!.olf!
-                                                        .toInt();
-                                            var pcbNumber =
-                                                controller.pcbNumber.value;
-                                            updatedpayload = {
-                                              "dvc_c": {
-                                                "lvf": controller.lvf.value,
-                                                "hvf": controller.hvf.value,
-                                                "drf": controller.drf.value,
-                                                "olf": controller.olf.value,
-                                              },
-                                            };
-                                            updatedpayload = diffNestedPayload(
-                                              newPayload: updatedpayload,
-                                              oldPayload: controller.payload,
-                                              key: "dvc_c",
-                                            );
-                                            if (updatedpayload["dvc_c"]
-                                                    ?.containsKey("drf") ==
-                                                true) {
-                                              updatedpayload["dvc_c"]['drf'] =
-                                                  controller.drf.value;
-                                            }
-                                            if (updatedpayload["dvc_c"]
-                                                    ?.containsKey('olf') ==
-                                                true) {
-                                              updatedpayload["dvc_c"]['olf'] =
-                                                  controller.olf.value;
-                                            }
-                                            final Map<String, dynamic> dvcMap =
-                                                updatedpayload["dvc_c"] ?? {};
-                                            setState(() {
-                                              isVoltageRange =
-                                                  dvcMap.containsKey("lvf") ||
-                                                      dvcMap.containsKey("hvf");
-                                              isCurrentRange =
-                                                  dvcMap.containsKey("drf") ||
-                                                      dvcMap.containsKey("olf");
-                                              bool vmin =
-                                                  dvcMap.containsKey("lvf");
-                                              bool vmax =
-                                                  dvcMap.containsKey("hvf");
-                                              bool cmin =
-                                                  dvcMap.containsKey("drf");
-                                              bool cmax =
-                                                  dvcMap.containsKey("olf");
-                                              if (vmin) {
-                                                try {
-                                                  if (dvcMap['lvf'] >
-                                                          controller.payload[
-                                                              'dvc_c']['lvf'] ||
-                                                      dvcMap['lvf'] <
-                                                          controller.payload[
-                                                              'dvc_c']['lvf']) {
-                                                    updatedpayload["dvc_c"]
-                                                            ['lvr'] =
-                                                        dvcMap['lvf'] + 10;
-                                                    controller.lvr.value =
-                                                        dvcMap['lvf'] + 10;
-                                                  }
-                                                } catch (e) {
-                                                  print("error line 818 $e");
-                                                }
-                                              }
-                                              if (vmax) {
-                                                try {
-                                                  if (dvcMap['hvf'] >
-                                                      controller
-                                                              .payload['dvc_c']
-                                                          ['hvf']) {
-                                                    updatedpayload["dvc_c"]
-                                                            ['hvr'] =
-                                                        dvcMap['hvf'] - 10;
-                                                    controller.hvr.value =
-                                                        dvcMap['hvf'] - 10;
-                                                  }
-                                                } catch (e) {
-                                                  print("error line 844 $e");
-                                                }
-                                              }
-                                              if (cmin) {
-                                                final strVal =
-                                                    calculatedCurrentValues![
-                                                            'calculatedLow']
-                                                        ?.toStringAsFixed(2);
-                                                updatedpayload["dvc_c"]['drf'] =
-                                                    double.parse(
-                                                        strVal ?? "0.0");
-                                              }
-                                              if (cmax) {
-                                                final strVal =
-                                                    calculatedCurrentValues![
-                                                            'calculatedHigh']
-                                                        ?.toStringAsFixed(2);
-                                                updatedpayload["dvc_c"]['olf'] =
-                                                    double.parse(
-                                                        strVal ?? "0.0");
-                                              }
-
-                                              // Handle FLC independently: add to
-                                              // payload only when it changed;
-                                              // if only FLC changed this also
-                                              // creates the dvc_c entry.
-                                              final initialFlc = controller
-                                                      .userSettings2.value?.flc
-                                                      ?.toDouble() ??
-                                                  0.0;
-                                              final flcChanged =
-                                                  controller.flc.value !=
-                                                      initialFlc;
-                                              if (flcChanged) {
-                                                updatedpayload['dvc_c'] ??=
-                                                    <String, dynamic>{};
-                                                updatedpayload['dvc_c']['flc'] =
-                                                    controller.flc.value;
-                                                final calculatedLrf =
-                                                    controller.calculatedFlc(
-                                                        controller.lrf.value,
-                                                        controller.flc.value);
-                                                final calculatedOlr =
-                                                    controller.calculatedFlc(
-                                                        controller.olr.value,
-                                                        controller.flc.value);
-                                                final calculatedLRR =
-                                                    controller.calculatedFlc(
-                                                        controller.lrr.value,
-                                                        controller.flc.value);
-                                                final calculatedDrf =
-                                                    controller.calculatedFlc(
-                                                        controller.drf.value
-                                                            .toDouble(),
-                                                        controller.flc.value);
-                                                final calculatedOlf =
-                                                    controller.calculatedFlc(
-                                                        controller.olf.value
-                                                            .toDouble(),
-                                                        controller.flc.value);
-                                                updatedpayload["dvc_c"]['lrf'] =
-                                                    calculatedLrf;
-                                                updatedpayload['dvc_c']['olr'] =
-                                                    calculatedOlr;
-                                                updatedpayload['dvc_c']['lrr'] =
-                                                    calculatedLRR;
-                                                updatedpayload['dvc_c']['drf'] =
-                                                    calculatedDrf;
-                                                updatedpayload['dvc_c']['olf'] =
-                                                    calculatedOlf;
-                                              }
-                                              if (isVoltageRange ||
-                                                  isCurrentRange ||
-                                                  flcChanged) {
-                                                _handleSave(vmin, vmax, cmin,
-                                                    cmax, pcbNumber,
-                                                    flcChanged: flcChanged);
-                                              }
-                                            });
-                                          },
-                                    text: 'Save',
+                                    onPressed: _handleCancel,
+                                    text: 'Cancel',
                                     options: FFButtonOptions(
                                       height: 45.0,
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 24.0),
-                                      color: Colors.transparent,
+                                      color: settings?.starter != null
+                                          ? FlutterFlowTheme.of(context)
+                                              .secondaryBackground
+                                          : Colors.white38,
                                       textStyle: FlutterFlowTheme.of(context)
                                           .titleSmall
                                           .override(
                                             fontFamily: 'Manrope',
-                                            color: Colors.white,
+                                            color: Colors.black,
                                             fontWeight: FontWeight.w500,
                                           ),
                                       elevation: 0.0,
+                                      borderSide: const BorderSide(
+                                          color: Color(0x38000000)),
                                       borderRadius: BorderRadius.circular(12.0),
-                                      disabledColor: const Color(0xFFB0B0B0),
-                                      disabledTextColor: Colors.white,
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 24.0),
+                                Expanded(
+                                  child: Container(
+                                    height: 45,
+                                    decoration: BoxDecoration(
+                                      gradient:
+                                          (!isbuttonActive || _isFlcOutOfRange)
+                                              ? null
+                                              : const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF004E7E),
+                                                    Color(0xFF3686AF)
+                                                  ],
+                                                  begin: Alignment.centerLeft,
+                                                  end: Alignment.centerRight,
+                                                ),
+                                      color:
+                                          (!isbuttonActive || _isFlcOutOfRange)
+                                              ? const Color(0xFFB0B0B0)
+                                              : null,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: FFButtonWidget(
+                                      onPressed: (!isbuttonActive ||
+                                              _isFlcOutOfRange)
+                                          ? null
+                                          : () {
+                                              final voltageValues =
+                                                  voltageCardKey.currentState
+                                                      ?.getValues();
+                                              final currentValues =
+                                                  currentCardKey.currentState
+                                                      ?.getValues();
+
+                                              // Get and print calculated current values (FLC-based)
+                                              final calculatedCurrentValues =
+                                                  currentCardKey.currentState
+                                                      ?.getCalculatedValues();
+                                              controller.lvf.value =
+                                                  voltageValues?['low']
+                                                          ?.toInt() ??
+                                                      controller.userSettings2
+                                                          .value!.lvf!;
+                                              controller.hvf.value =
+                                                  voltageValues?['high']
+                                                          ?.toInt() ??
+                                                      controller.userSettings2
+                                                          .value!.hvf!;
+                                              controller.drf.value =
+                                                  currentValues?['low']
+                                                          ?.toInt() ??
+                                                      controller.userSettings2
+                                                          .value!.drf!
+                                                          .toInt();
+                                              controller.olf.value =
+                                                  currentValues?['high']
+                                                          ?.toInt() ??
+                                                      controller.userSettings2
+                                                          .value!.olf!
+                                                          .toInt();
+                                              var pcbNumber =
+                                                  controller.pcbNumber.value;
+                                              updatedpayload = {
+                                                "dvc_c": {
+                                                  "lvf": controller.lvf.value,
+                                                  "hvf": controller.hvf.value,
+                                                  "drf": controller.drf.value,
+                                                  "olf": controller.olf.value,
+                                                },
+                                              };
+                                              updatedpayload =
+                                                  diffNestedPayload(
+                                                newPayload: updatedpayload,
+                                                oldPayload: controller.payload,
+                                                key: "dvc_c",
+                                              );
+                                              if (updatedpayload["dvc_c"]
+                                                      ?.containsKey("drf") ==
+                                                  true) {
+                                                updatedpayload["dvc_c"]['drf'] =
+                                                    controller.drf.value;
+                                              }
+                                              if (updatedpayload["dvc_c"]
+                                                      ?.containsKey('olf') ==
+                                                  true) {
+                                                updatedpayload["dvc_c"]['olf'] =
+                                                    controller.olf.value;
+                                              }
+                                              final Map<String, dynamic>
+                                                  dvcMap =
+                                                  updatedpayload["dvc_c"] ?? {};
+                                              setState(() {
+                                                isVoltageRange = dvcMap
+                                                        .containsKey("lvf") ||
+                                                    dvcMap.containsKey("hvf");
+                                                isCurrentRange = dvcMap
+                                                        .containsKey("drf") ||
+                                                    dvcMap.containsKey("olf");
+                                                bool vmin =
+                                                    dvcMap.containsKey("lvf");
+                                                bool vmax =
+                                                    dvcMap.containsKey("hvf");
+                                                bool cmin =
+                                                    dvcMap.containsKey("drf");
+                                                bool cmax =
+                                                    dvcMap.containsKey("olf");
+                                                if (vmin) {
+                                                  try {
+                                                    if (dvcMap['lvf'] >
+                                                            controller.payload[
+                                                                    'dvc_c']
+                                                                ['lvf'] ||
+                                                        dvcMap['lvf'] <
+                                                            controller.payload[
+                                                                    'dvc_c']
+                                                                ['lvf']) {
+                                                      updatedpayload["dvc_c"]
+                                                              ['lvr'] =
+                                                          dvcMap['lvf'] + 10;
+                                                      controller.lvr.value =
+                                                          dvcMap['lvf'] + 10;
+                                                    }
+                                                  } catch (e) {
+                                                    print("error line 818 $e");
+                                                  }
+                                                }
+                                                if (vmax) {
+                                                  try {
+                                                    if (dvcMap['hvf'] >
+                                                        controller.payload[
+                                                            'dvc_c']['hvf']) {
+                                                      updatedpayload["dvc_c"]
+                                                              ['hvr'] =
+                                                          dvcMap['hvf'] - 10;
+                                                      controller.hvr.value =
+                                                          dvcMap['hvf'] - 10;
+                                                    }
+                                                  } catch (e) {
+                                                    print("error line 844 $e");
+                                                  }
+                                                }
+                                                if (cmin) {
+                                                  final strVal =
+                                                      calculatedCurrentValues![
+                                                              'calculatedLow']
+                                                          ?.toStringAsFixed(2);
+                                                  updatedpayload["dvc_c"]
+                                                          ['drf'] =
+                                                      double.parse(
+                                                          strVal ?? "0.0");
+                                                }
+                                                if (cmax) {
+                                                  final strVal =
+                                                      calculatedCurrentValues![
+                                                              'calculatedHigh']
+                                                          ?.toStringAsFixed(2);
+                                                  updatedpayload["dvc_c"]
+                                                          ['olf'] =
+                                                      double.parse(
+                                                          strVal ?? "0.0");
+                                                }
+                                                final initialFlc = controller
+                                                        .userSettings2
+                                                        .value
+                                                        ?.flc
+                                                        ?.toDouble() ??
+                                                    0.0;
+                                                final flcChanged =
+                                                    controller.flc.value !=
+                                                        initialFlc;
+                                                if (flcChanged) {
+                                                  updatedpayload['dvc_c'] ??=
+                                                      <String, dynamic>{};
+                                                  updatedpayload['dvc_c']
+                                                          ['flc'] =
+                                                      controller.flc.value;
+                                                  final calculatedLrf =
+                                                      controller.calculatedFlc(
+                                                          controller.lrf.value,
+                                                          controller.flc.value);
+                                                  final calculatedOlr =
+                                                      controller.calculatedFlc(
+                                                          controller.olr.value,
+                                                          controller.flc.value);
+                                                  final calculatedLRR =
+                                                      controller.calculatedFlc(
+                                                          controller.lrr.value,
+                                                          controller.flc.value);
+                                                  final calculatedDrf =
+                                                      controller.calculatedFlc(
+                                                          controller.drf.value
+                                                              .toDouble(),
+                                                          controller.flc.value);
+                                                  final calculatedOlf =
+                                                      controller.calculatedFlc(
+                                                          controller.olf.value
+                                                              .toDouble(),
+                                                          controller.flc.value);
+                                                  updatedpayload["dvc_c"]
+                                                      ['lrf'] = calculatedLrf;
+                                                  updatedpayload['dvc_c']
+                                                      ['olr'] = calculatedOlr;
+                                                  updatedpayload['dvc_c']
+                                                      ['lrr'] = calculatedLRR;
+                                                  updatedpayload['dvc_c']
+                                                      ['drf'] = calculatedDrf;
+                                                  updatedpayload['dvc_c']
+                                                      ['olf'] = calculatedOlf;
+                                                }
+                                                if (isVoltageRange ||
+                                                    isCurrentRange ||
+                                                    flcChanged) {
+                                                  _handleSave(vmin, vmax, cmin,
+                                                      cmax, pcbNumber,
+                                                      flcChanged: flcChanged);
+                                                }
+                                              });
+                                            },
+                                      text: 'Save',
+                                      options: FFButtonOptions(
+                                        height: 45.0,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24.0),
+                                        color: Colors.transparent,
+                                        textStyle: FlutterFlowTheme.of(context)
+                                            .titleSmall
+                                            .override(
+                                              fontFamily: 'Manrope',
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                        elevation: 0.0,
+                                        borderRadius:
+                                            BorderRadius.circular(12.0),
+                                        disabledColor: const Color(0xFFB0B0B0),
+                                        disabledTextColor: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     );
                   }),

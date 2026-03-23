@@ -48,6 +48,8 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
     final initialHigh = controller.userSettings2.value?.hvf?.toDouble() ??
         widget.initialHighVoltage;
 
+    print("line 51 ----> LOW $lowMin $lowMax HIGH $highMin $highMax");
+
     lowVoltageValue = initialLow.clamp(lowMin, lowMax);
     highVoltageValue = initialHigh.clamp(highMin, highMax);
   }
@@ -73,7 +75,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
     final highMin = controller.data.value?.hvfMin?.toDouble() ?? 240.0;
     final highMax = controller.data.value?.hvfMax?.toDouble() ?? 550.0;
 
-    print("line 41 ------> $lowMin $lowMax");
+    print("line 41 ------> $lowMin $lowMax  $highMin $highMax");
 
     return Column(
       mainAxisSize: MainAxisSize.min,
