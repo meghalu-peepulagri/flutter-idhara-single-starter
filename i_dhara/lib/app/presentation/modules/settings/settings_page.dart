@@ -2,25 +2,25 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
+import 'package:i_dhara/app/presentation/components/flc_card.dart';
+import 'package:i_dhara/app/presentation/components/popups/default_setting_popup.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
-import 'package:skeletonizer/skeletonizer.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 
-import '../../components/flc_card.dart';
-import '../../components/popups/default_setting_popup.dart';
-import '../../components/popups/setting_update.dart';
-import '../../widgets/no_internet_view.dart';
+import 'widgets/settings_action_buttons.dart';
+import 'widgets/settings_app_bar.dart';
+import 'widgets/settings_confirm_dialog.dart';
+import 'widgets/settings_content.dart';
+import 'widgets/settings_device_info_bar.dart';
 
 class SettingsWidget extends StatefulWidget {
   const SettingsWidget({super.key});
@@ -33,14 +33,17 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   final SettingsController controller =
       Get.put(SettingsController(), permanent: true);
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
   Map<String, dynamic> updatedpayload = {};
   Map<String, dynamic> defaultupdatedpayload = {};
 
   late MqttService mqttService;
   MotorData? motorData;
+
   final GlobalKey<SettingsVoltageCardState> voltageCardKey = GlobalKey();
   final GlobalKey<SettingsCurrentCardState> currentCardKey = GlobalKey();
   final GlobalKey<FlcCardState> flcCardKey = GlobalKey();
+
   bool _ackInProgress = false;
   bool isVoltageRange = false;
   bool isCurrentRange = false;
@@ -50,35 +53,20 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool _isFlcOutOfRange = false;
   bool _hasPendingSave = false;
 
-  // StreamSubscription to properly manage the MQTT stream listener
   StreamSubscription? _mqttStreamSubscription;
   Timer? _settingsAckTimer;
 
-  // New: Track current values to compare with initial
   double? _currentVoltageLow;
   double? _currentVoltageHigh;
   double? _currentCurrentLow;
   double? _currentCurrentHigh;
 
-  // Store original user settings before loading defaults
   int? _originalVoltageLow;
   int? _originalVoltageHigh;
   int? _originalCurrentLow;
   int? _originalCurrentHigh;
 
-  void _startAckTimer() {
-    _settingsAckTimer?.cancel();
-    _settingsAckTimer = Timer(const Duration(seconds: 11), _onAckTimeout);
-  }
-
-  void _onAckTimeout() {
-    if (!mounted || !_hasPendingSave) return;
-    _hasPendingSave = false;
-    if (!isSnackbarShown) {
-      isSnackbarShown = true;
-      geterrorSnackBar('No acknowledgment received from device');
-    }
-  }
+  // ─── Lifecycle ────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -91,7 +79,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       final topic = data["topic"];
       final pcbNumber = controller.pcbNumber.value;
 
-      // Only process if topic matches this device
       if (topic != pcbNumber) return;
 
       if (type == 1 && !_ackInProgress && _hasPendingSave) {
@@ -103,7 +90,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         controller.isLoading.value = true;
         controller.fetchupdateSettingsAck();
         controller.isLoading.value = false;
-        // Reset original values after successful save
         _originalVoltageLow = null;
         _originalVoltageHigh = null;
         _originalCurrentLow = null;
@@ -111,47 +97,32 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         setState(() {
           isbuttonActive = false;
         });
-
-        // Reset flag after 5 seconds
         await Future.delayed(const Duration(seconds: 5), () {
           _ackInProgress = false;
           isSnackbarShown = false;
         });
       } else if (type == 0 && !_ackInProgress && _hasPendingSave) {
-        // ACK = 0: Update failed
         _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
         isSnackbarShown = true;
-
         geterrorSnackBar("Settings update failed");
-
-        // Call GET API to refresh data
         controller.isLoading.value = true;
         await controller.fetchUserSettings2();
         controller.isLoading.value = false;
-
-        // Reset form values
         _currentVoltageLow = null;
         _currentVoltageHigh = null;
         _currentCurrentLow = null;
         _currentCurrentHigh = null;
-
-        // Reset original values
         _originalVoltageLow = null;
         _originalVoltageHigh = null;
         _originalCurrentLow = null;
         _originalCurrentHigh = null;
-
-        // Reset cards to show actual values
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
-
         setState(() {
           isbuttonActive = false;
         });
-
-        // Reset flag after 5 seconds
         await Future.delayed(const Duration(seconds: 5), () {
           _ackInProgress = false;
           isSnackbarShown = false;
@@ -167,28 +138,41 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     super.dispose();
   }
 
+  // ─── Timer / ACK ──────────────────────────────────────────────────────────
+
+  void _startAckTimer() {
+    _settingsAckTimer?.cancel();
+    _settingsAckTimer = Timer(const Duration(seconds: 11), _onAckTimeout);
+  }
+
+  void _onAckTimeout() {
+    if (!mounted || !_hasPendingSave) return;
+    _hasPendingSave = false;
+    if (!isSnackbarShown) {
+      isSnackbarShown = true;
+      geterrorSnackBar('No acknowledgment received from device');
+    }
+  }
+
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
   void onTapMenu() {
     scaffoldKey.currentState!.openEndDrawer();
   }
 
   Future<void> _handleCancel() async {
-    // Reset local form values
     _currentVoltageLow = null;
     _currentVoltageHigh = null;
     _currentCurrentLow = null;
     _currentCurrentHigh = null;
-
-    // Reset original values (used for default settings comparison)
     _originalVoltageLow = null;
     _originalVoltageHigh = null;
     _originalCurrentLow = null;
     _originalCurrentHigh = null;
 
     await controller.fetchUserSettings2();
-
     await Future.delayed(const Duration(milliseconds: 100));
 
-    // Reset voltage, current, and FLC cards to show actual saved values.
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
     flcCardKey.currentState?.resetValue();
@@ -200,24 +184,26 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     });
   }
 
-  Map<String, dynamic> diffNestedPayload({
-    required Map<String, dynamic> newPayload,
-    required Map<String, dynamic> oldPayload,
-    required String key,
-  }) {
-    final newMap = Map<String, dynamic>.from(newPayload[key] ?? {});
-    final oldMap = Map<String, dynamic>.from(oldPayload[key] ?? {});
-
-    newMap.removeWhere((k, v) {
-      return oldMap.containsKey(k) && oldMap[k] == v;
+  Future<void> _handleRefresh() async {
+    await _handleCancel();
+    controller.isrefreshing.value = true;
+    _currentVoltageLow = null;
+    _currentVoltageHigh = null;
+    _currentCurrentLow = null;
+    _currentCurrentHigh = null;
+    _originalVoltageLow = null;
+    _originalVoltageHigh = null;
+    _originalCurrentLow = null;
+    _originalCurrentHigh = null;
+    await controller.fetchUserSettings2();
+    await controller.fetchUserSettingsLimits();
+    await Future.delayed(const Duration(milliseconds: 100));
+    voltageCardKey.currentState?.resetValues();
+    currentCardKey.currentState?.resetValues();
+    setState(() {
+      isbuttonActive = false;
     });
-
-    if (newMap.isEmpty) {
-      newPayload.remove(key);
-    } else {
-      newPayload[key] = newMap;
-    }
-    return newPayload;
+    controller.isrefreshing.value = false;
   }
 
   void _checkForChanges() {
@@ -240,6 +226,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         (currentCurrentLow != initialCurrentLow) ||
         (currentCurrentHigh != initialCurrentHigh) ||
         (controller.flc.value != initialFlc);
+
     if (isbuttonActive != hasChanges) {
       setState(() {
         isbuttonActive = hasChanges;
@@ -247,172 +234,185 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     }
   }
 
-  void _handleSave(bool vmin, bool vmax, bool cmin, bool cmax, String pcbNumber,
-      {bool flcChanged = false}) async {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final screenHeight = MediaQuery.of(context).size.height;
+  Map<String, dynamic> diffNestedPayload({
+    required Map<String, dynamic> newPayload,
+    required Map<String, dynamic> oldPayload,
+    required String key,
+  }) {
+    final newMap = Map<String, dynamic>.from(newPayload[key] ?? {});
+    final oldMap = Map<String, dynamic>.from(oldPayload[key] ?? {});
 
-        // Dynamic dialog width: 85% of screen width, with min 280 and max 400
-        final dialogWidth = (screenWidth * 0.85).clamp(280.0, 400.0);
+    newMap.removeWhere((k, v) => oldMap.containsKey(k) && oldMap[k] == v);
 
-        // Dynamic padding based on screen size
-        final horizontalPadding = screenWidth < 360 ? 16.0 : 24.0;
-        final verticalPadding = screenHeight < 600 ? 16.0 : 20.0;
+    if (newMap.isEmpty) {
+      newPayload.remove(key);
+    } else {
+      newPayload[key] = newMap;
+    }
+    return newPayload;
+  }
 
-        return AlertDialog(
-          insetPadding: EdgeInsets.symmetric(
-            horizontal: (screenWidth - dialogWidth) / 2,
-            vertical: 24.0,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          contentPadding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            verticalPadding,
-            horizontalPadding,
-            0,
-          ),
-          actionsPadding: EdgeInsets.all(horizontalPadding),
-          content: SizedBox(
-            width: dialogWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Confirm Setting Updates',
-                  style: GoogleFonts.dmSans(
-                    fontSize: screenWidth < 360 ? 16 : 18,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF004E7E),
-                  ),
-                ),
-                SizedBox(height: verticalPadding),
+  double safeToWholeDouble(num? value) {
+    return (value ?? 0).toInt().toDouble();
+  }
 
-                /// Voltage Range Card
-                if (isVoltageRange)
-                  infoCard(
-                      bgColor: const Color(0xFFEAF3FF),
-                      iconBg: const Color(0xFF3B82F6),
-                      svg: 'assets/images/Voltage.svg',
-                      title: "Voltage Fault",
-                      lowOld:
-                          "${(_originalVoltageLow ?? controller.userSettings2.value!.lvf?.toInt()).toString()} V",
-                      lowNew: "${controller.lvf.value.toString()} V",
-                      highOld:
-                          "${(_originalVoltageHigh ?? controller.userSettings2.value!.hvf?.toInt()).toString()} V",
-                      highNew: "${controller.hvf.value.toString()} V",
-                      valueColor: const Color(0xFF2563EB),
-                      vmin: vmin,
-                      vmax: vmax,
-                      cmin: false,
-                      cmax: false),
-                const SizedBox(height: 12),
-                if (isCurrentRange)
-                  infoCard(
-                      bgColor: const Color(0xFFFFF3E8),
-                      iconBg: const Color(0xFFFF7A00),
-                      svg: 'assets/images/Current.svg',
-                      title: "Current Fault",
-                      lowOld:
-                          "${(_originalCurrentLow ?? controller.userSettings2.value?.drf?.toInt()).toString()} A",
-                      lowNew: "${controller.drf.value.toInt()} A",
-                      highOld:
-                          "${(_originalCurrentHigh ?? controller.userSettings2.value?.olf?.toInt()).toString()} A",
-                      highNew: "${controller.olf.value.toString()} A",
-                      valueColor: const Color(0xFFF97316),
-                      vmin: false,
-                      vmax: false,
-                      cmin: cmin,
-                      cmax: cmax),
-                const SizedBox(height: 12),
+  // ─── Save Logic ───────────────────────────────────────────────────────────
 
-                if (flcChanged && !isCurrentRange && !isVoltageRange)
-                  infoCard(
-                      widthofSvg: 32,
-                      heightofSvg: 32,
-                      bgColor: const Color(0xFFEAF3FF),
-                      iconBg: Colors.transparent,
-                      svg: 'assets/images/flc_icon.svg',
-                      title: 'FLC',
-                      lowOld:
-                          '${controller.userSettings2.value?.flc?.toStringAsFixed(2) ?? '0.00'} A',
-                      lowNew: '${controller.flc.value.toStringAsFixed(2)} A',
-                      highOld: '',
-                      highNew: '',
-                      valueColor: const Color(0xFF2563EB),
-                      vmin: true,
-                      vmax: false,
-                      cmin: false,
-                      cmax: false),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // _handleCancel();
-              },
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.dmSans(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Container(
-              width: dialogWidth * 0.35,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF004E7E),
-                    Color(0xFF3686AF),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ElevatedButton(
-                onPressed: () async {
-                  isSnackbarShown = false;
-                  _hasPendingSave = true;
-                  Navigator.of(context).pop();
-                  await mqttService.publishUpdateSettings(
-                      pcbNumber, updatedpayload);
-                  await controller.fetchupdateSettings();
-                  _startAckTimer();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  'Save',
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
+  void _onSaveButtonPressed() {
+    final voltageValues = voltageCardKey.currentState?.getValues();
+    final currentValues = currentCardKey.currentState?.getValues();
+    final calculatedCurrentValues =
+        currentCardKey.currentState?.getCalculatedValues();
+
+    controller.lvf.value =
+        voltageValues?['low']?.toInt() ?? controller.userSettings2.value!.lvf!;
+    controller.hvf.value =
+        voltageValues?['high']?.toInt() ?? controller.userSettings2.value!.hvf!;
+    controller.drf.value = currentValues?['low']?.toInt() ??
+        controller.userSettings2.value!.drf!.toInt();
+    controller.olf.value = currentValues?['high']?.toInt() ??
+        controller.userSettings2.value!.olf!.toInt();
+
+    final pcbNumber = controller.pcbNumber.value;
+
+    updatedpayload = {
+      "dvc_c": {
+        "lvf": controller.lvf.value,
+        "hvf": controller.hvf.value,
+        "drf": controller.drf.value,
+        "olf": controller.olf.value,
+      },
+    };
+
+    updatedpayload = diffNestedPayload(
+      newPayload: updatedpayload,
+      oldPayload: controller.payload,
+      key: "dvc_c",
+    );
+
+    if (updatedpayload["dvc_c"]?.containsKey("drf") == true) {
+      updatedpayload["dvc_c"]['drf'] = controller.drf.value;
+    }
+    if (updatedpayload["dvc_c"]?.containsKey('olf') == true) {
+      updatedpayload["dvc_c"]['olf'] = controller.olf.value;
+    }
+
+    final Map<String, dynamic> dvcMap = updatedpayload["dvc_c"] ?? {};
+
+    setState(() {
+      isVoltageRange = dvcMap.containsKey("lvf") || dvcMap.containsKey("hvf");
+      isCurrentRange = dvcMap.containsKey("drf") || dvcMap.containsKey("olf");
+
+      final bool vmin = dvcMap.containsKey("lvf");
+      final bool vmax = dvcMap.containsKey("hvf");
+      final bool cmin = dvcMap.containsKey("drf");
+      final bool cmax = dvcMap.containsKey("olf");
+
+      if (vmin) {
+        try {
+          if (dvcMap['lvf'] > controller.payload['dvc_c']['lvf'] ||
+              dvcMap['lvf'] < controller.payload['dvc_c']['lvf']) {
+            updatedpayload["dvc_c"]['lvr'] = dvcMap['lvf'] + 10;
+            controller.lvr.value = dvcMap['lvf'] + 10;
+          }
+        } catch (e) {
+          print("error line 818 $e");
+        }
+      }
+
+      if (vmax) {
+        try {
+          if (dvcMap['hvf'] > controller.payload['dvc_c']['hvf']) {
+            updatedpayload["dvc_c"]['hvr'] = dvcMap['hvf'] - 10;
+            controller.hvr.value = dvcMap['hvf'] - 10;
+          }
+        } catch (e) {
+          print("error line 844 $e");
+        }
+      }
+
+      if (cmin) {
+        final strVal =
+            calculatedCurrentValues!['calculatedLow']?.toStringAsFixed(2);
+        updatedpayload["dvc_c"]['drf'] = double.parse(strVal ?? "0.0");
+      }
+
+      if (cmax) {
+        final strVal =
+            calculatedCurrentValues!['calculatedHigh']?.toStringAsFixed(2);
+        updatedpayload["dvc_c"]['olf'] = double.parse(strVal ?? "0.0");
+      }
+
+      final initialFlc = controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+      final flcChanged = controller.flc.value != initialFlc;
+
+      if (flcChanged) {
+        updatedpayload['dvc_c'] ??= <String, dynamic>{};
+        updatedpayload['dvc_c']['flc'] = controller.flc.value;
+        final calculatedLrf = controller.calculatedFlc(
+            controller.lrf.value, controller.flc.value);
+        final calculatedOlr = controller.calculatedFlc(
+            controller.olr.value, controller.flc.value);
+        final calculatedLRR = controller.calculatedFlc(
+            controller.lrr.value, controller.flc.value);
+        final calculatedDrf = controller.calculatedFlc(
+            controller.drf.value.toDouble(), controller.flc.value);
+        final calculatedOlf = controller.calculatedFlc(
+            controller.olf.value.toDouble(), controller.flc.value);
+        updatedpayload["dvc_c"]['lrf'] = calculatedLrf;
+        updatedpayload['dvc_c']['olr'] = calculatedOlr;
+        updatedpayload['dvc_c']['lrr'] = calculatedLRR;
+        updatedpayload['dvc_c']['drf'] = calculatedDrf;
+        updatedpayload['dvc_c']['olf'] = calculatedOlf;
+      }
+
+      if (isVoltageRange || isCurrentRange || flcChanged) {
+        _handleSave(vmin, vmax, cmin, cmax, pcbNumber, flcChanged: flcChanged);
+      }
+    });
+  }
+
+  void _handleSave(
+    bool vmin,
+    bool vmax,
+    bool cmin,
+    bool cmax,
+    String pcbNumber, {
+    bool flcChanged = false,
+  }) {
+    showSettingsConfirmDialog(
+      context,
+      isVoltageRange: isVoltageRange,
+      isCurrentRange: isCurrentRange,
+      flcChanged: flcChanged,
+      vmin: vmin,
+      vmax: vmax,
+      cmin: cmin,
+      cmax: cmax,
+      originalVoltageLow: _originalVoltageLow?.toString(),
+      currentLvf: controller.lvf.value.toString(),
+      originalVoltageHigh: _originalVoltageHigh?.toString(),
+      currentHvf: controller.hvf.value.toString(),
+      originalCurrentLow: _originalCurrentLow?.toString(),
+      currentDrf: controller.drf.value.toInt().toString(),
+      originalCurrentHigh: _originalCurrentHigh?.toString(),
+      currentOlf: controller.olf.value.toString(),
+      originalFlc:
+          controller.userSettings2.value?.flc?.toStringAsFixed(2) ?? '0.00',
+      currentFlc: controller.flc.value.toStringAsFixed(2),
+      onConfirm: () async {
+        isSnackbarShown = false;
+        _hasPendingSave = true;
+        await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
+        await controller.fetchupdateSettings();
+        _startAckTimer();
       },
     );
   }
 
-  _defaultSettingsPopUp(BuildContext context) async {
+  // ─── Default Settings ─────────────────────────────────────────────────────
+
+  void _defaultSettingsPopUp(BuildContext context) {
     showDeviceSettingConfirmDialog(
       context,
       title: 'Restore Default Settings',
@@ -420,7 +420,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           'Restore Voltage and Current faults to default settings? Custom changes will be lost',
       svgPath: 'assets/images/default_settings.svg',
       onConfirm: () async {
-        // Store original user settings BEFORE loading defaults
         _originalVoltageLow = controller.userSettings2.value?.lvf?.toInt();
         _originalVoltageHigh = controller.userSettings2.value?.hvf?.toInt();
         _originalCurrentLow = controller.userSettings2.value?.drf?.toInt();
@@ -434,15 +433,12 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _currentCurrentHigh = null;
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
-
         try {
           setState(() {
-            var pcbNumber = controller.pcbNumber.value;
+            final pcbNumber = controller.pcbNumber.value;
             onUpdatedSettings2(pcbNumber);
           });
-        } catch (e) {
-          print("line 480  $e");
-        }
+        } catch (e) {}
         setState(() {
           isbuttonActive = true;
         });
@@ -450,22 +446,19 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     );
   }
 
-  onUpdatedSettings2(String pcbNumber) async {
+  void onUpdatedSettings2(String pcbNumber) async {
     isSnackbarShown = false;
     _hasPendingSave = true;
     await mqttService.publishUpdateSettings(
         pcbNumber, controller.defaultSettingspayload);
     await controller.fetchDefaultupdateSettings();
     _startAckTimer();
-
     setState(() {
       isbuttonActive = false;
     });
   }
 
-  double safeToWholeDouble(num? value) {
-    return (value ?? 0).toInt().toDouble();
-  }
+  // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -488,561 +481,92 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                      16.0, 8.0, 16.0, 0.0),
-                  child: Column(
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(
-                            child: Text(
-                              'Settings',
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: const Color(0xFF004E7E),
-                                    fontSize: 16.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w500,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              InkWell(
-                                onTap: () {
-                                  Get.offAllNamed(
-                                    Routes.devices,
-                                    arguments: {'refresh': true},
-                                  );
-                                },
-                                child: const Icon(
-                                  Icons.arrow_back,
-                                  color: Color(0xFF004E7E),
-                                  size: 20.0,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  onTapMenu();
-                                },
-                                child: Container(
-                                  decoration: const BoxDecoration(),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.menu_sharp,
-                                      color: Color(0xFF121212),
-                                      size: 30.0,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                SettingsAppBar(onMenuTap: onTapMenu),
                 Expanded(
                   child: Obx(() {
                     if (controller.isLoading.value) {
                       return const Padding(
                         padding: EdgeInsets.only(right: 50),
-                        child: Center(
-                          child: AppLottieLoading(),
-                        ),
-                      );
-                    } else if (!ConnectivityService.to.isConnected) {
-                      return const Center(
-                        child: NoInternetWidget(),
+                        child: Center(child: AppLottieLoading()),
                       );
                     }
+                    if (!ConnectivityService.to.isConnected) {
+                      return const Center(child: NoInternetWidget());
+                    }
+
                     final settings = controller.userSettings2.value;
+                    final motorName =
+                        settings?.starter?.name?.toString() ?? 'Pump 1';
+                    final drf = settings?.drf ?? 100;
+                    final olf = settings?.olf ?? 101;
+
                     return Column(
                       children: [
-                        Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                spacing: 10,
-                                children: [
-                                  Text(
-                                    (() {
-                                      final name =
-                                          (controller.pumpName.value ?? 'N/A')
-                                              .replaceAll(RegExp(r'\s+'), ' ');
-                                      return name.length > 16
-                                          ? '${name.substring(0, 16)}...'
-                                          : name;
-                                    })(),
-                                    style: FlutterFlowTheme.of(context)
-                                        .titleMedium
-                                        .override(
-                                          fontFamily: 'Manrope',
-                                          fontWeight: FontWeight.w500,
-                                          color: const Color(0xFF000000),
-                                          fontSize: 16.0,
-                                        ),
-                                  ),
-                                  Text(
-                                    "${controller.pumpHP.value} HP" ?? '0 HP',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          fontFamily: 'Manrope',
-                                          fontWeight: FontWeight.w400,
-                                          color: const Color(0xFF000000),
-                                          fontSize: 12.0,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                height: 32,
-                                width: 70,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF2994A),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: FFButtonWidget(
-                                  onPressed: () {
-                                    _defaultSettingsPopUp(context);
-                                  },
-                                  text: 'Default',
-                                  options: FFButtonOptions(
-                                    color: Colors.transparent,
-                                    textStyle: FlutterFlowTheme.of(context)
-                                        .titleSmall
-                                        .override(
-                                            fontFamily: 'Manrope',
-                                            color: const Color(0XFFFFFFFF),
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14),
-                                    elevation: 0.0,
-                                    borderRadius: BorderRadius.circular(0),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        SettingsDeviceInfoBar(
+                          pumpName: controller.pumpName.value,
+                          pumpHP: controller.pumpHP.value,
+                          onDefaultPressed: () =>
+                              _defaultSettingsPopUp(context),
                         ),
                         Expanded(
-                          child: RefreshIndicator(
-                            onRefresh: () async {
-                              await _handleCancel();
-                              controller.isrefreshing.value = true;
-                              _currentVoltageLow = null;
-                              _currentVoltageHigh = null;
-                              _currentCurrentLow = null;
-                              _currentCurrentHigh = null;
-                              _originalVoltageLow = null;
-                              _originalVoltageHigh = null;
-                              _originalCurrentLow = null;
-                              _originalCurrentHigh = null;
-                              await controller.fetchUserSettings2();
-                              await controller.fetchUserSettingsLimits();
-                              await Future.delayed(
-                                  const Duration(milliseconds: 100));
-                              voltageCardKey.currentState?.resetValues();
-                              currentCardKey.currentState?.resetValues();
-                              setState(() {
-                                isbuttonActive = false;
-                              });
-                              controller.isrefreshing.value = false;
+                          child: SettingsContent(
+                            voltageCardKey: voltageCardKey,
+                            currentCardKey: currentCardKey,
+                            flcCardKey: flcCardKey,
+                            isRefreshing: controller.isrefreshing.value,
+                            flcInitialValue: controller.userSettings2.value?.flc
+                                    ?.toDouble() ??
+                                0.0,
+                            flcMinValue:
+                                controller.data.value?.flcMin?.toDouble() ??
+                                    0.0,
+                            flcMaxValue:
+                                controller.data.value?.flcMax?.toDouble() ??
+                                    0.0,
+                            voltageInitialLow: controller
+                                    .userSettings2.value?.lvf
+                                    ?.toDouble() ??
+                                180.0,
+                            voltageInitialHigh: controller
+                                    .userSettings2.value?.hvf
+                                    ?.toDouble() ??
+                                280.0,
+                            currentInitialLow:
+                                drf > 100 ? 100.0 : drf.toDouble(),
+                            currentInitialHigh:
+                                olf < 100 ? 101.0 : olf.toDouble(),
+                            motorName: motorName,
+                            onRefresh: _handleRefresh,
+                            onFlcChanged: (newValue) {
+                              controller.flc.value = newValue;
+                              _checkForChanges();
                             },
-                            child: Skeletonizer(
-                              enabled: controller.isrefreshing.value,
-                              child: SingleChildScrollView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 4.0),
-                                child: Column(
-                                  children: [
-                                    const SizedBox(
-                                      height: 10,
-                                    ),
-                                    FlcCard(
-                                      key: flcCardKey,
-                                      initialValue: controller
-                                              .userSettings2.value?.flc
-                                              ?.toDouble() ??
-                                          0.0,
-                                      minValue: controller.data.value?.flcMin
-                                              ?.toDouble() ??
-                                          0.0,
-                                      maxValue: controller.data.value?.flcMax
-                                              ?.toDouble() ??
-                                          0.0,
-                                      decimalPlaces: 2,
-                                      step: 0.01,
-                                      onValueChanged: (newValue) {
-                                        print('New value: $newValue');
-                                        controller.flc.value = newValue;
-                                        _checkForChanges();
-                                      },
-                                      onOutOfRange: (isOutOfRange) {
-                                        setState(() {
-                                          _isFlcOutOfRange = isOutOfRange;
-                                        });
-                                      },
-                                    ),
-                                    const SizedBox(
-                                      height: 7,
-                                    ),
-                                    SettingsVoltageCard(
-                                      key: voltageCardKey,
-                                      initialLowVoltage: controller
-                                              .userSettings2.value?.lvf
-                                              ?.toDouble() ??
-                                          180.0,
-                                      initialHighVoltage: controller
-                                              .userSettings2.value?.hvf
-                                              ?.toDouble() ??
-                                          280.0,
-                                      motorName:
-                                          settings?.starter?.name?.toString() ??
-                                              'Pump 1',
-                                      motorHp: '3 HP',
-                                      onChanged: (low, high) {
-                                        _currentVoltageLow =
-                                            safeToWholeDouble(low);
-                                        _currentVoltageHigh =
-                                            safeToWholeDouble(high);
-                                        _checkForChanges();
-                                      },
-                                    ),
-                                    const SizedBox(height: 8),
-                                    SettingsCurrentCard(
-                                      key: currentCardKey,
-                                      initialLowCurrent:
-                                          (settings?.drf ?? 100) > 100
-                                              ? 100.0
-                                              : (settings?.drf?.toDouble() ??
-                                                  100.0),
-                                      initialHighCurrent:
-                                          (settings?.olf ?? 101) < 100
-                                              ? 101.0
-                                              : (settings?.olf?.toDouble() ??
-                                                  101.0),
-                                      motorName:
-                                          settings?.starter?.name?.toString() ??
-                                              'Pump 1',
-                                      motorHp: '3 HP',
-                                      onChanged: (low, high) {
-                                        _currentCurrentLow =
-                                            (low ?? 0).toInt().toDouble();
-                                        _currentCurrentHigh =
-                                            (high ?? 0).toInt().toDouble();
-                                        _checkForChanges();
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                            onFlcOutOfRange: (isOutOfRange) {
+                              setState(() {
+                                _isFlcOutOfRange = isOutOfRange;
+                              });
+                            },
+                            onVoltageChanged: (low, high) {
+                              _currentVoltageLow = safeToWholeDouble(low);
+                              _currentVoltageHigh = safeToWholeDouble(high);
+                              _checkForChanges();
+                            },
+                            onCurrentChanged: (low, high) {
+                              _currentCurrentLow =
+                                  (low ?? 0).toInt().toDouble();
+                              _currentCurrentHigh =
+                                  (high ?? 0).toInt().toDouble();
+                              _checkForChanges();
+                            },
                           ),
                         ),
                         if (isbuttonActive)
-                          Container(
-                            padding: const EdgeInsets.all(16.0),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, -2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: FFButtonWidget(
-                                    onPressed: _handleCancel,
-                                    text: 'Cancel',
-                                    options: FFButtonOptions(
-                                      height: 45.0,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 24.0),
-                                      color: settings?.starter != null
-                                          ? FlutterFlowTheme.of(context)
-                                              .secondaryBackground
-                                          : Colors.white38,
-                                      textStyle: FlutterFlowTheme.of(context)
-                                          .titleSmall
-                                          .override(
-                                            fontFamily: 'Manrope',
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                      elevation: 0.0,
-                                      borderSide: const BorderSide(
-                                          color: Color(0x38000000)),
-                                      borderRadius: BorderRadius.circular(12.0),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 24.0),
-                                Expanded(
-                                  child: Container(
-                                    height: 45,
-                                    decoration: BoxDecoration(
-                                      gradient:
-                                          (!isbuttonActive || _isFlcOutOfRange)
-                                              ? null
-                                              : const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF004E7E),
-                                                    Color(0xFF3686AF)
-                                                  ],
-                                                  begin: Alignment.centerLeft,
-                                                  end: Alignment.centerRight,
-                                                ),
-                                      color:
-                                          (!isbuttonActive || _isFlcOutOfRange)
-                                              ? const Color(0xFFB0B0B0)
-                                              : null,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: FFButtonWidget(
-                                      onPressed: (!isbuttonActive ||
-                                              _isFlcOutOfRange)
-                                          ? null
-                                          : () {
-                                              final voltageValues =
-                                                  voltageCardKey.currentState
-                                                      ?.getValues();
-                                              final currentValues =
-                                                  currentCardKey.currentState
-                                                      ?.getValues();
-
-                                              // Get and print calculated current values (FLC-based)
-                                              final calculatedCurrentValues =
-                                                  currentCardKey.currentState
-                                                      ?.getCalculatedValues();
-                                              controller.lvf.value =
-                                                  voltageValues?['low']
-                                                          ?.toInt() ??
-                                                      controller.userSettings2
-                                                          .value!.lvf!;
-                                              controller.hvf.value =
-                                                  voltageValues?['high']
-                                                          ?.toInt() ??
-                                                      controller.userSettings2
-                                                          .value!.hvf!;
-                                              controller.drf.value =
-                                                  currentValues?['low']
-                                                          ?.toInt() ??
-                                                      controller.userSettings2
-                                                          .value!.drf!
-                                                          .toInt();
-                                              controller.olf.value =
-                                                  currentValues?['high']
-                                                          ?.toInt() ??
-                                                      controller.userSettings2
-                                                          .value!.olf!
-                                                          .toInt();
-                                              var pcbNumber =
-                                                  controller.pcbNumber.value;
-                                              updatedpayload = {
-                                                "dvc_c": {
-                                                  "lvf": controller.lvf.value,
-                                                  "hvf": controller.hvf.value,
-                                                  "drf": controller.drf.value,
-                                                  "olf": controller.olf.value,
-                                                },
-                                              };
-                                              updatedpayload =
-                                                  diffNestedPayload(
-                                                newPayload: updatedpayload,
-                                                oldPayload: controller.payload,
-                                                key: "dvc_c",
-                                              );
-                                              if (updatedpayload["dvc_c"]
-                                                      ?.containsKey("drf") ==
-                                                  true) {
-                                                updatedpayload["dvc_c"]['drf'] =
-                                                    controller.drf.value;
-                                              }
-                                              if (updatedpayload["dvc_c"]
-                                                      ?.containsKey('olf') ==
-                                                  true) {
-                                                updatedpayload["dvc_c"]['olf'] =
-                                                    controller.olf.value;
-                                              }
-                                              final Map<String, dynamic>
-                                                  dvcMap =
-                                                  updatedpayload["dvc_c"] ?? {};
-                                              setState(() {
-                                                isVoltageRange = dvcMap
-                                                        .containsKey("lvf") ||
-                                                    dvcMap.containsKey("hvf");
-                                                isCurrentRange = dvcMap
-                                                        .containsKey("drf") ||
-                                                    dvcMap.containsKey("olf");
-                                                bool vmin =
-                                                    dvcMap.containsKey("lvf");
-                                                bool vmax =
-                                                    dvcMap.containsKey("hvf");
-                                                bool cmin =
-                                                    dvcMap.containsKey("drf");
-                                                bool cmax =
-                                                    dvcMap.containsKey("olf");
-                                                if (vmin) {
-                                                  try {
-                                                    if (dvcMap['lvf'] >
-                                                            controller.payload[
-                                                                    'dvc_c']
-                                                                ['lvf'] ||
-                                                        dvcMap['lvf'] <
-                                                            controller.payload[
-                                                                    'dvc_c']
-                                                                ['lvf']) {
-                                                      updatedpayload["dvc_c"]
-                                                              ['lvr'] =
-                                                          dvcMap['lvf'] + 10;
-                                                      controller.lvr.value =
-                                                          dvcMap['lvf'] + 10;
-                                                    }
-                                                  } catch (e) {
-                                                    print("error line 818 $e");
-                                                  }
-                                                }
-                                                if (vmax) {
-                                                  try {
-                                                    if (dvcMap['hvf'] >
-                                                        controller.payload[
-                                                            'dvc_c']['hvf']) {
-                                                      updatedpayload["dvc_c"]
-                                                              ['hvr'] =
-                                                          dvcMap['hvf'] - 10;
-                                                      controller.hvr.value =
-                                                          dvcMap['hvf'] - 10;
-                                                    }
-                                                  } catch (e) {
-                                                    print("error line 844 $e");
-                                                  }
-                                                }
-                                                if (cmin) {
-                                                  final strVal =
-                                                      calculatedCurrentValues![
-                                                              'calculatedLow']
-                                                          ?.toStringAsFixed(2);
-                                                  updatedpayload["dvc_c"]
-                                                          ['drf'] =
-                                                      double.parse(
-                                                          strVal ?? "0.0");
-                                                }
-                                                if (cmax) {
-                                                  final strVal =
-                                                      calculatedCurrentValues![
-                                                              'calculatedHigh']
-                                                          ?.toStringAsFixed(2);
-                                                  updatedpayload["dvc_c"]
-                                                          ['olf'] =
-                                                      double.parse(
-                                                          strVal ?? "0.0");
-                                                }
-                                                final initialFlc = controller
-                                                        .userSettings2
-                                                        .value
-                                                        ?.flc
-                                                        ?.toDouble() ??
-                                                    0.0;
-                                                final flcChanged =
-                                                    controller.flc.value !=
-                                                        initialFlc;
-                                                if (flcChanged) {
-                                                  updatedpayload['dvc_c'] ??=
-                                                      <String, dynamic>{};
-                                                  updatedpayload['dvc_c']
-                                                          ['flc'] =
-                                                      controller.flc.value;
-                                                  final calculatedLrf =
-                                                      controller.calculatedFlc(
-                                                          controller.lrf.value,
-                                                          controller.flc.value);
-                                                  final calculatedOlr =
-                                                      controller.calculatedFlc(
-                                                          controller.olr.value,
-                                                          controller.flc.value);
-                                                  final calculatedLRR =
-                                                      controller.calculatedFlc(
-                                                          controller.lrr.value,
-                                                          controller.flc.value);
-                                                  final calculatedDrf =
-                                                      controller.calculatedFlc(
-                                                          controller.drf.value
-                                                              .toDouble(),
-                                                          controller.flc.value);
-                                                  final calculatedOlf =
-                                                      controller.calculatedFlc(
-                                                          controller.olf.value
-                                                              .toDouble(),
-                                                          controller.flc.value);
-                                                  updatedpayload["dvc_c"]
-                                                      ['lrf'] = calculatedLrf;
-                                                  updatedpayload['dvc_c']
-                                                      ['olr'] = calculatedOlr;
-                                                  updatedpayload['dvc_c']
-                                                      ['lrr'] = calculatedLRR;
-                                                  updatedpayload['dvc_c']
-                                                      ['drf'] = calculatedDrf;
-                                                  updatedpayload['dvc_c']
-                                                      ['olf'] = calculatedOlf;
-                                                }
-                                                if (isVoltageRange ||
-                                                    isCurrentRange ||
-                                                    flcChanged) {
-                                                  _handleSave(vmin, vmax, cmin,
-                                                      cmax, pcbNumber,
-                                                      flcChanged: flcChanged);
-                                                }
-                                              });
-                                            },
-                                      text: 'Save',
-                                      options: FFButtonOptions(
-                                        height: 45.0,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 24.0),
-                                        color: Colors.transparent,
-                                        textStyle: FlutterFlowTheme.of(context)
-                                            .titleSmall
-                                            .override(
-                                              fontFamily: 'Manrope',
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                        elevation: 0.0,
-                                        borderRadius:
-                                            BorderRadius.circular(12.0),
-                                        disabledColor: const Color(0xFFB0B0B0),
-                                        disabledTextColor: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          SettingsActionButtons(
+                            isActive: isbuttonActive,
+                            isFlcOutOfRange: _isFlcOutOfRange,
+                            hasStarter: settings?.starter != null,
+                            onCancel: _handleCancel,
+                            onSave: _onSaveButtonPressed,
                           ),
                       ],
                     );
