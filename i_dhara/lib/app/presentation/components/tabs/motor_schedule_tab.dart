@@ -124,7 +124,8 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
           final isRefreshing = _controller.isRefreshing.value;
           final isLoadingMore = _controller.isHasMoreLoading.value;
           final schedules = _controller.schedules;
-          final totalRecords = _controller.totalRecords.value;
+          final totalSchedules = _controller.totalSchedules.value;
+          final runningCount = _controller.runningCount.value;
           final selectedDate = _controller.selectedDate.value;
 
           if (isLoading) {
@@ -144,7 +145,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                   child: Row(
                     children: [
                       Text(
-                        '${schedules.length} / $totalRecords schedules',
+                        '$runningCount / $totalSchedules',
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,

@@ -41,10 +41,12 @@ class ScheduleListResponse {
 
 class Data {
   PaginationInfo? paginationInfo;
+  ScheduleSummary? scheduleSummary;
   List<Record>? records;
 
   Data({
     this.paginationInfo,
+    this.scheduleSummary,
     this.records,
   });
 
@@ -52,6 +54,9 @@ class Data {
         paginationInfo: json["pagination_info"] == null
             ? null
             : PaginationInfo.fromJson(json["pagination_info"]),
+        scheduleSummary: json["schedule_summary"] == null
+            ? null
+            : ScheduleSummary.fromJson(json["schedule_summary"]),
         records: json["records"] == null
             ? []
             : List<Record>.from(
@@ -60,6 +65,7 @@ class Data {
 
   Map<String, dynamic> toJson() => {
         "pagination_info": paginationInfo?.toJson(),
+        "schedule_summary": scheduleSummary?.toJson(),
         "records": records == null
             ? []
             : List<dynamic>.from(records!.map((x) => x.toJson())),
@@ -265,4 +271,25 @@ class EnumValues<T> {
     reverseMap = map.map((k, v) => MapEntry(v, k));
     return reverseMap;
   }
+}
+
+class ScheduleSummary {
+  int? totalSchedules;
+  int? runningCount;
+
+  ScheduleSummary({
+    this.totalSchedules,
+    this.runningCount,
+  });
+
+  factory ScheduleSummary.fromJson(Map<String, dynamic> json) =>
+      ScheduleSummary(
+        totalSchedules: json["total_schedules"],
+        runningCount: json["running_count"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "total_schedules": totalSchedules,
+        "running_count": runningCount,
+      };
 }

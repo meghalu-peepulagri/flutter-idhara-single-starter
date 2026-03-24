@@ -514,7 +514,7 @@ class MqttService {
       'S': seq,
       'D': {
         'idx': scheduleId,
-        'last': 0,
+        'last': 1,
         'sch_cnt': 1,
         'plr': 30,
         'm1': [scheduleItem],
@@ -1153,9 +1153,7 @@ class MqttService {
     }
 
     // ACK payload D is a plain integer: 1 = success, 0 = failure
-    final d = payloadData is int
-        ? payloadData
-        : int.tryParse('$payloadData');
+    final d = payloadData is int ? payloadData : int.tryParse('$payloadData');
 
     if (d == null) {
       debugPrint('⚠️ Invalid schedule ACK payload: $payloadData');

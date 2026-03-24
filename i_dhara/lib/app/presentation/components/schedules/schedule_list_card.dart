@@ -197,10 +197,12 @@ class ScheduleCard extends StatelessWidget {
   }
 
   Widget _buildTimeBasedInfo(int dH, int dM, int durationMin) {
+    final isRunning =
+        (record.scheduleStatus ?? '').toLowerCase() == 'running';
     final accSec = record.accumulatedOnSeconds ?? 0;
-    final remainingMin = (durationMin - (accSec ~/ 60)).clamp(0, durationMin);
-    final rH = remainingMin ~/ 60;
-    final rM = remainingMin % 60;
+    final runMin = accSec ~/ 60;
+    final runH = runMin ~/ 60;
+    final runM = runMin % 60;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -213,9 +215,11 @@ class ScheduleCard extends StatelessWidget {
           child: Row(
             children: [
               _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
-              const SizedBox(width: 12),
-              _infoItem(
-                  'Remaining', '${rH}h ${rM.toString().padLeft(2, '0')}m'),
+              if (isRunning) ...[
+                const SizedBox(width: 12),
+                _infoItem(
+                    'Running', '${runH}h ${runM.toString().padLeft(2, '0')}m'),
+              ],
             ],
           ),
         ),
@@ -362,20 +366,26 @@ class ScheduleCard extends StatelessWidget {
     final normalizedStatus = status.toLowerCase();
     final isScheduled = normalizedStatus == 'scheduled';
     final isStopped = normalizedStatus == 'stopped';
+    final isPending = normalizedStatus == 'pending';
+    final isRunning = normalizedStatus == 'running';
     final badgeBgColor = isScheduled
         ? const Color(0xFFEBF3FE)
         : isStopped
             ? const Color(0xFFFFEBEE)
-            : isActive
-                ? const Color(0xFFE8F5E9)
-                : const Color(0xFFF5F5F5);
+            : isPending
+                ? const Color(0xFFFFF3E0)
+                : isRunning
+                    ? const Color(0xFFE8F5E9)
+                    : const Color(0xFFF5F5F5);
     final badgeFgColor = isScheduled
         ? const Color(0xFF004E7E)
         : isStopped
             ? const Color(0xFFE53935)
-            : isActive
-                ? const Color(0xFF34C759)
-                : const Color(0xFF9E9E9E);
+            : isPending
+                ? const Color(0xFFEF9F27)
+                : isRunning
+                    ? const Color(0xFF34C759)
+                    : const Color(0xFF9E9E9E);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

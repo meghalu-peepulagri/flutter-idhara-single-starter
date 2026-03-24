@@ -30,6 +30,8 @@ class MotorScheduleController extends GetxController {
   var isHasMoreLoading = false.obs;
   var isInitialLoading = true.obs;
   var totalRecords = 0.obs;
+  var totalSchedules = 0.obs;
+  var runningCount = 0.obs;
   var selectedFilter = ''.obs; // '' means All
   late final Rx<DateTime> selectedDate;
 
@@ -103,6 +105,10 @@ class MotorScheduleController extends GetxController {
       currentPage.value = pagination?.currentPage ?? page.value;
       totalPages.value = pagination?.totalPages ?? 1;
       totalRecords.value = pagination?.totalRecords ?? schedules.length;
+
+      final summary = response?.data?.scheduleSummary;
+      totalSchedules.value = summary?.totalSchedules ?? 0;
+      runningCount.value = summary?.runningCount ?? 0;
     } catch (_) {
       // silently fail
     } finally {

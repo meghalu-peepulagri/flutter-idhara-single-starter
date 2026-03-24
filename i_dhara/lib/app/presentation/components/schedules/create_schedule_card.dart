@@ -116,6 +116,17 @@ class ScheduleFormState extends State<ScheduleForm> {
 
   int get _activeDays => endDate.difference(startDate).inDays.abs() + 1;
 
+  /// Weekdays (Mon=1…Sat=6, Sun=7) that actually exist in the selected range.
+  Set<int> get _availableDays {
+    final diff = endDate.difference(startDate).inDays;
+    if (diff >= 6) return {1, 2, 3, 4, 5, 6, 7};
+    final days = <int>{};
+    for (int i = 0; i <= diff; i++) {
+      days.add(startDate.add(Duration(days: i)).weekday); // Mon=1…Sun=7
+    }
+    return days;
+  }
+
   String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
   TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
@@ -211,6 +222,8 @@ class ScheduleFormState extends State<ScheduleForm> {
       setState(() {
         startDate = results[0] ?? startDate;
         endDate = results.length > 1 ? (results[1] ?? startDate) : startDate;
+        // Remove selected days that no longer fall in the new range
+        selectedDays.removeWhere((d) => !_availableDays.contains(d));
       });
     }
   }
@@ -517,39 +530,43 @@ class ScheduleFormState extends State<ScheduleForm> {
             ],
           ),
           const SizedBox(height: 10),
-          // Day chips — manually tappable
+          // Day chips — only days in the selected date range are tappable
           Row(
             children: List.generate(7, (i) {
               final dayNum = i == 0 ? 7 : i; // Sun=7, Mon=1...Sat=6
-              final isActive = selectedDays.contains(dayNum);
+              final isAvailable = _availableDays.contains(dayNum);
+              final isActive = isAvailable && selectedDays.contains(dayNum);
               return Expanded(
                 child: GestureDetector(
-                  onTap: () => _toggleDay(dayNum),
-                  child: Center(
-                    child: Container(
-                      width: 36,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFFEBF3FE)
-                            : Colors.transparent,
-                        border: Border.all(
+                  onTap: isAvailable ? () => _toggleDay(dayNum) : null,
+                  child: Opacity(
+                    opacity: isAvailable ? 1.0 : 0.35,
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 28,
+                        decoration: BoxDecoration(
                           color: isActive
-                              ? const Color(0xFF3686AF)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          dayLabels[i],
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight:
-                                isActive ? FontWeight.w600 : FontWeight.w500,
+                              ? const Color(0xFFEBF3FE)
+                              : Colors.transparent,
+                          border: Border.all(
                             color: isActive
-                                ? const Color(0xFF004E7E)
-                                : const Color(0xFF64748B),
+                                ? const Color(0xFF3686AF)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Center(
+                          child: Text(
+                            dayLabels[i],
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w500,
+                              color: isActive
+                                  ? const Color(0xFF004E7E)
+                                  : const Color(0xFF64748B),
+                            ),
                           ),
                         ),
                       ),
