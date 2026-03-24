@@ -1,8 +1,12 @@
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
+// ignore: unnecessary_import
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widgets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
+import 'package:i_dhara/app/presentation/modules/schedule/schedule_dialogs.dart';
 
 class ScheduleForm extends StatefulWidget {
   final VoidCallback onSave;
@@ -55,6 +59,7 @@ class ScheduleFormState extends State<ScheduleForm> {
   late int cyclicOnMinutes;
   late int cyclicOffMinutes;
   late bool powerLossRecovery;
+  late final TextEditingController _powerLossTimeCtrl;
   late Set<int> selectedDays; // 1=Mon ... 7=Sun
 
   late final ValueNotifier<bool> _cyclicController;
@@ -89,6 +94,7 @@ class ScheduleFormState extends State<ScheduleForm> {
     cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
     cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
+    _powerLossTimeCtrl = TextEditingController(text: '30');
     selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
     _powerLossController = ValueNotifier(powerLossRecovery);
@@ -98,7 +104,14 @@ class ScheduleFormState extends State<ScheduleForm> {
   void dispose() {
     _cyclicController.dispose();
     _powerLossController.dispose();
+    _powerLossTimeCtrl.dispose();
     super.dispose();
+  }
+
+  /// Returns the entered delay clamped to 1–60; defaults to 30.
+  int get powerLossRecoveryTime {
+    final n = int.tryParse(_powerLossTimeCtrl.text) ?? 30;
+    return n.clamp(1, 60);
   }
 
   int get _activeDays => endDate.difference(startDate).inDays.abs() + 1;
@@ -212,6 +225,145 @@ class ScheduleFormState extends State<ScheduleForm> {
     });
   }
 
+  Widget _buildPowerLossCard() {
+    return Opacity(
+      opacity: cyclicMode ? 0.4 : 1.0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          children: [
+            // ── Toggle row ──────────────────────────────────
+            Row(
+              children: [
+                const Icon(Icons.power_rounded,
+                    size: 18, color: Color(0xFF6B7280)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Power Loss Recovery',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF0F172A))),
+                      const SizedBox(height: 4),
+                      Text('Auto-resume after power restored',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: const Color(0xFF64748B))),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: cyclicMode
+                      ? null
+                      : () async {
+                          final enabling = !powerLossRecovery;
+                          final confirmed = await showPowerLossConfirmDialog(
+                              context, enabling);
+                          if (!confirmed || !mounted) return;
+                          setState(() {
+                            powerLossRecovery = enabling;
+                            _powerLossController.value = enabling;
+                            if (!enabling) _powerLossTimeCtrl.text = '30';
+                          });
+                        },
+                  child: AbsorbPointer(
+                    child: AdvancedSwitch(
+                      controller: _powerLossController,
+                      initialValue: _powerLossController.value,
+                      activeColor: const Color(0xFF34C759),
+                      inactiveColor: const Color(0xFFE0E0E0),
+                      borderRadius:
+                          const BorderRadius.all(Radius.circular(15)),
+                      width: 46,
+                      height: 24,
+                      enabled: !cyclicMode,
+                      onChanged: null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // ── Inline delay input (shown when ON) ──────────
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              child: powerLossRecovery && !cyclicMode
+                  ? Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(Icons.timer_outlined,
+                                size: 16, color: Color(0xFF004E7E)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Restart delay',
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF374151)),
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              width: 100,
+                              child: TextField(
+                                controller: _powerLossTimeCtrl,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(2),
+                                ],
+                                onChanged: (val) {
+                                  final n = int.tryParse(val);
+                                  if (n != null && n > 60) {
+                                    _powerLossTimeCtrl.text = '60';
+                                    _powerLossTimeCtrl.selection =
+                                        const TextSelection.collapsed(
+                                            offset: 2);
+                                  }
+                                },
+                                decoration: InputDecoration(
+                                  hintText: '30',
+                                  suffixText: 'min',
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 8),
+                                  border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(8)),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF004E7E)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -256,17 +408,7 @@ class ScheduleFormState extends State<ScheduleForm> {
                   }),
                 ),
                 const SizedBox(height: 12),
-                buildScheduleToggle(
-                  icon: Icons.power_rounded,
-                  title: 'Power Loss Recovery',
-                  subtitle: 'Auto-resume after power restored',
-                  controller: _powerLossController,
-                  enabled: !cyclicMode,
-                  onChanged: (v) => setState(() {
-                    powerLossRecovery = v;
-                    _powerLossController.value = v;
-                  }),
-                ),
+                _buildPowerLossCard(),
                 const SizedBox(height: 8),
               ],
             ),

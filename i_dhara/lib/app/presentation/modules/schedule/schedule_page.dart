@@ -124,6 +124,7 @@ class _SchedulePageState extends State<SchedulePage> {
       bitwiseDays: _computeBitwiseDays(form.selectedDays.toList()),
       runtimeMinutes: form.durationMinutes,
       powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
+      powerLossRecoveryTime: (!isCyclic && form.powerLossRecovery) ? form.powerLossRecoveryTime : null,
       repeat: 0,
       enabled: true,
     );

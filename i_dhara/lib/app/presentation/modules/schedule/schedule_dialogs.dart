@@ -192,3 +192,49 @@ Widget _dialogRow(String label, String value) {
     ],
   );
 }
+
+Future<bool> showPowerLossConfirmDialog(
+    BuildContext context, bool enabling) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.white,
+      title: Text(
+        enabling
+            ? 'Enable Power Loss Recovery?'
+            : 'Disable Power Loss Recovery?',
+        style: GoogleFonts.dmSans(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF0F172A)),
+      ),
+      content: Text(
+        enabling
+            ? 'Motor will auto-restart after power is restored.'
+            : 'Motor will not auto-restart after power is lost.',
+        style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF64748B)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text('Cancel',
+              style: GoogleFonts.dmSans(color: const Color(0xFF64748B))),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                enabling ? const Color(0xFF004E7E) : const Color(0xFFE24B4A),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(enabling ? 'Enable' : 'Disable',
+              style: GoogleFonts.dmSans(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
+}

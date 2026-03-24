@@ -13,6 +13,7 @@ class CreateScheduleDto {
   final int bitwiseDays;
   final int runtimeMinutes;
   final bool powerLossRecovery;
+  final int? powerLossRecoveryTime;
   final int repeat;
   final bool enabled;
 
@@ -31,6 +32,7 @@ class CreateScheduleDto {
     required this.bitwiseDays,
     required this.runtimeMinutes,
     required this.powerLossRecovery,
+    this.powerLossRecoveryTime,
     required this.repeat,
     required this.enabled,
   });
@@ -51,6 +53,7 @@ class CreateScheduleDto {
       'bit_wise_days': bitwiseDays,
       'runtime_minutes': runtimeMinutes,
       'power_loss_recovery': powerLossRecovery,
+      if (powerLossRecoveryTime != null) 'power_loss_recovery_time': powerLossRecoveryTime,
       'repeat': repeat,
       'enabled': enabled,
     };
