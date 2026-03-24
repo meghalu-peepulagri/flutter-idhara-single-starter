@@ -1,14 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart' hide Response;
-import 'package:i_dhara/app/core/constants/app_constant.dart';
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class NetworkManager {
-  String baseUrl = AppConstants.dev_url;
+  String baseUrl = AppEnvironment.baseApiUrl;
   final Dio _dio;
   NetworkManager() : _dio = Dio() {
     _dio.options.baseUrl = baseUrl;

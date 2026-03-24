@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
@@ -244,10 +245,10 @@ class MqttService {
       return;
     }
 
-    const broker = 'e0be1176.ala.asia-southeast1.emqxsl.com';
-    const port = 8883;
-    const username = 'ss_user';
-    const password = '123456';
+    const int port = 8883;
+    String broker = AppEnvironment.mqttBroker;
+    String username = AppEnvironment.mqttUsername;
+    String password = AppEnvironment.mqttPassword;
     final clientId = 'idhara_${const Uuid().v4()}';
     _mqttClient = MqttServerClient(broker, clientId)
       ..logging(on: false)
