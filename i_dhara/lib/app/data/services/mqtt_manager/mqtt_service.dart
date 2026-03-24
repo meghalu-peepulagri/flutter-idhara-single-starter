@@ -980,14 +980,12 @@ class MqttService {
     for (var entry in payloadData.entries) {
       final groupId = entry.key;
       if (groupId == 'ct') continue;
-      print("line 858 step1 $identifier $entry");
 
       final groupData = entry.value as Map<String, dynamic>?;
       if (groupData == null)
         continue;
       else {}
       final pwr = groupData["pwr"];
-      print("line 847 $groupData $pwr");
 
       final fullMotorId = '$identifier-$groupId';
 
@@ -1043,7 +1041,6 @@ class MqttService {
 
   /// Handle live data (type 35, 41)
   void _handleLiveDataRequest(String identifier, dynamic payloadData) {
-    print("line 1170 ---> $identifier");
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('   ⚠️ Live data payload is not a Map: $payloadData');
       return;
@@ -1141,7 +1138,6 @@ class MqttService {
   }
 
   void handleDefaultSettings(String identifier, dynamic payloadData) {
-    print("line 1078");
     try {
       final type = payloadData as int;
       final map = {"D": type, "topic": identifier};
@@ -1163,14 +1159,12 @@ class MqttService {
       }
       defaultSettingsController.add(map);
     } catch (e) {
-      print("line 1031 ---------> $e");
+      // ignore
     }
   }
 
   /// Handle heartbeat (type 40)
   void _handleHeartbeat(String identifier, dynamic payloadData) {
-    print("line 1170m heart $identifier ");
-
     if (payloadData is! Map<String, dynamic>) {
       debugPrint('   ⚠️ Heartbeat payload is not a Map');
       return;
@@ -1193,8 +1187,6 @@ class MqttService {
       final motorData = entry.value;
       if (motorData.macAddress == identifier ||
           motorData.pcbNumber == identifier) {
-        print(
-            "line 1196 ---->${motorData.testRunSignal} $identifier ${motorData.pcbNumber} ${motorData.macAddress}");
         motorData.updateSignalStrength(signalQuality);
         motorData.testRunSignal = true;
         // testRunSignal reflects live signal quality:
@@ -1343,8 +1335,6 @@ class MqttService {
 
     // Get PCB number from motor data, or fall back to the identifier from motorId
     final motorData = _motorDataMap[motorId];
-
-    print("line 1060 $motorId T $type D :$data $seq $lastDashIndex");
 
     final String identifier = motorId.substring(0, lastDashIndex);
 

@@ -205,8 +205,6 @@ class PumpLogsListWidget extends StatelessWidget {
   String getCategoryFromMessage(String message) {
     final msg = message.toLowerCase();
 
-    print("line 171 ---> $msg");
-
     // OFF category
     if (msg.contains("state updated to 'off'") ||
         msg.contains("pump is stopped in manual mode") ||

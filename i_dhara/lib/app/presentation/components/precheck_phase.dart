@@ -288,7 +288,6 @@ class _PreCheckPhaseState extends State<PreCheckPhase> {
   /// separate frame before power / voltage are evaluated.
   void _onFirstLiveData() {
     widget.mqttService.liveDataNotifier.value;
-    print("line 259");
     final motordata = _getMotorData();
 
     if (motordata?.hasReceivedData == true) {

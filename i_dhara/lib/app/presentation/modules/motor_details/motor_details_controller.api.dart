@@ -146,7 +146,7 @@ extension AnalyticsControllerApi on AnalyticsController {
       try {
         await fetchRuntime(daterange);
       } catch (e) {
-        if (kDebugMode) print('Error in leftClick: $e');
+        // ignore
       }
     }
   }
@@ -175,7 +175,7 @@ extension AnalyticsControllerApi on AnalyticsController {
       try {
         await fetchRuntime(daterange);
       } catch (e) {
-        if (kDebugMode) print('Error in rightClick: $e');
+        // ignore
       }
     }
   }
@@ -185,7 +185,7 @@ extension AnalyticsControllerApi on AnalyticsController {
     try {
       await fetchRuntime(daterange);
     } catch (e) {
-      if (kDebugMode) print('Error fetching data: $e');
+      // ignore
     }
   }
 
@@ -197,7 +197,7 @@ extension AnalyticsControllerApi on AnalyticsController {
     try {
       await fetchRuntime(daterange);
     } catch (e) {
-      if (kDebugMode) print('Error fetching data: $e');
+      // ignore
     }
   }
 
@@ -211,7 +211,7 @@ extension AnalyticsControllerApi on AnalyticsController {
     try {
       await fetchMotorDetails(enableRetry: true);
     } catch (e) {
-      if (kDebugMode) print('Error in fetchallApis: $e');
+      // ignore
     }
   }
 
@@ -242,7 +242,7 @@ extension AnalyticsControllerApi on AnalyticsController {
         _updateFromMqttData();
       }
     } catch (e) {
-      if (kDebugMode) print('Error onRefresh: $e');
+      // ignore
     } finally {
       isRefreshing.value = false;
     }
@@ -270,9 +270,6 @@ extension AnalyticsControllerApi on AnalyticsController {
   List<Runtime> _downsampleRecords(List<Runtime> records,
       {int maxCount = 300}) {
     if (records.length <= maxCount) return records;
-    if (kDebugMode) {
-      print('Downsampling runtime records: ${records.length} → $maxCount');
-    }
     return records.sublist(records.length - maxCount);
   }
 
@@ -280,7 +277,6 @@ extension AnalyticsControllerApi on AnalyticsController {
     if (dateRange.isEmpty ||
         dateRange.first == null ||
         dateRange.last == null) {
-      if (kDebugMode) print('Invalid date range for runtime fetch');
       return;
     }
 
@@ -340,7 +336,6 @@ extension AnalyticsControllerApi on AnalyticsController {
       powerChartData.clear();
       motortotalRuntime.value = '';
       powerTotalRuntime.value = '';
-      if (kDebugMode) print('Error fetching runtime: $e');
     } finally {
       isLoadingruntime.value = false;
     }
@@ -397,16 +392,10 @@ extension AnalyticsControllerApi on AnalyticsController {
           timeStamp.value = 'N/A';
         }
 
-        if (kDebugMode) {
-          print('=== Motor Details Loaded ===');
-          print('Motor Name: ${motorName.value}');
-          print('MAC: ${data.starter?.macAddress ?? "NULL"}');
-          print('PCB: ${data.starter?.pcbNumber ?? "NULL"}');
-          print('Mode: ${motorMode.value}');
-        }
+        if (kDebugMode) {}
       }
     } catch (e) {
-      if (kDebugMode) print('Motor details error: $e');
+      // ignore
     } finally {
       isMotorDetailsLoading.value = false;
       _updateCanChangeMode();

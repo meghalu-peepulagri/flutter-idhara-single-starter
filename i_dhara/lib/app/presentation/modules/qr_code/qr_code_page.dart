@@ -57,8 +57,6 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
       if (code != null && context.mounted) {
-        // Handle the scanned QR code here
-        print('QR Code detected: $code');
 
         // Turn off torch before navigating
         if (isTorchOn) {
@@ -82,7 +80,6 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
         isTorchOn = !isTorchOn;
       });
     } catch (e) {
-      print('Error toggling torch: $e');
     }
   }
 

@@ -94,8 +94,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
   }
 
   Future<void> fetchUserSettings2() async {
-    print("line 103");
-
     try {
       // errorMessage.value = '';
       final response = await SettingsRepositoryImpl().getSettings2();
@@ -142,7 +140,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
     }
   }
 
@@ -176,7 +173,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
     }
   }
 
@@ -199,7 +195,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
     }
   }
 
@@ -252,8 +247,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
       }
-    } catch (e) {
-      print("error ---> $e");
     } finally {
       isLoading.value = false;
       Get.back();
@@ -261,7 +254,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
   }
 
   Future<void> fetchupdateSettingsAck() async {
-    print("line 230");
     try {
       try {
         final response = await SettingsRepositoryImpl().updateSettingsAck();
@@ -271,7 +263,6 @@ class SettingsController extends GetxController with ConnectivityMixin {
         }
       } catch (e) {
         errorMessage.value = 'Error updating settings: $e';
-        print('Error updating user settings: $e');
       }
     } finally {
       await fetchUserSettings2();

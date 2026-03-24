@@ -3,7 +3,6 @@ part of 'motor_details_controller.dart';
 extension AnalyticsControllerMqtt on AnalyticsController {
   Future<void> _initializeMqtt() async {
     if (motorDetails.value?.starter == null) {
-      if (kDebugMode) print('Motor details not loaded, cannot initialize MQTT');
       return;
     }
 
@@ -11,14 +10,9 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     final mac = starter.macAddress;
     final pcb = starter.pcbNumber;
 
-    if (kDebugMode) {
-      print('=== Analytics MQTT Initialization ===');
-      print('MAC Address: ${mac ?? "NULL"}');
-      print('PCB Number: ${pcb ?? "NULL"}');
-    }
+    if (kDebugMode) {}
 
     if ((mac == null || mac.isEmpty) && (pcb == null || pcb.isEmpty)) {
-      if (kDebugMode) print('No MAC or PCB available');
       return;
     }
 
@@ -38,21 +32,15 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         if (mac != null && mac.isNotEmpty) {
           final key = '$mac-$groupId';
           motorMap[key] = motor;
-          if (kDebugMode) print('✓ Analytics: Added motor map entry: $key');
         }
         if (pcb != null && pcb.isNotEmpty) {
           final key = '$pcb-$groupId';
           motorMap[key] = motor;
-          if (kDebugMode) print('✓ Analytics: Added motor map entry: $key');
         }
       }
 
       mqttService = MqttService(initialMotors: motorMap);
       await mqttService.initializeMqttClient();
-    } else {
-      if (kDebugMode)
-        print('✓ MQTT already connected with wildcard subscriptions');
-      if (kDebugMode) print('   No need to update motors or resubscribe');
     }
 
     mqttInitialized = true;
@@ -61,16 +49,13 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     // Check if we have data
     if (kDebugMode) {
-      print('Checking motor data availability...');
       final motorData = getMotorData();
       if (motorData != null && motorData.hasReceivedData) {
       } else {
         // Print all keys in the map
         if (mqttService.motorDataMap.isNotEmpty) {
-          print('   Available keys:');
           for (var key in mqttService.motorDataMap.keys) {
             final data = mqttService.motorDataMap[key];
-            print('     $key: hasData=${data?.hasReceivedData}');
           }
         }
       }
@@ -80,10 +65,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     _updateFromMqttData();
     _updateCanChangeMode();
 
-    if (kDebugMode) {
-      print('✓ Analytics MQTT initialization complete');
-      print('   Listener added for MQTT updates');
-    }
+    if (kDebugMode) {}
   }
 
   Motor _convertMotorDetailsToMotor(MotorDetails details) {
@@ -98,15 +80,11 @@ extension AnalyticsControllerMqtt on AnalyticsController {
   }
 
   void _onMqttDataUpdate() {
-    if (kDebugMode) {
-      print('MQTT data update notification received');
-    }
     _updateFromMqttData();
   }
 
   void _updateFromMqttData() {
     if (!mqttInitialized || motorDetails.value?.starter == null) {
-      if (kDebugMode) print('MQTT not ready or no motor details');
       return;
     }
 
@@ -118,10 +96,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         final mqttMode = motorData.modeIndex;
 
         if (mqttMode == _pendingModeValue) {
-          if (kDebugMode) {
-            print(
-                'Mode ACK MATCHED! (via ${motorData.modeIndex != null ? "live-data" : "type-32"})');
-          }
+          if (kDebugMode) {}
 
           _modeAckTimer?.cancel();
           _hasPendingModeCommand = false;
@@ -141,9 +116,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
           localModeIndex.value = mqttMode!;
           motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
         } else {
-          if (kDebugMode) {
-            print('ACK mismatch - still waiting');
-          }
+          if (kDebugMode) {}
         }
       } else {
         final mqttMode = motorData.modeIndex;
@@ -156,26 +129,16 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
       // Update motor state
       if (motorState.value != motorData.state) {
-        if (kDebugMode) {
-          print('State updated to ${motorData.state}');
-        }
+        if (kDebugMode) {}
         motorState.value = motorData.state;
       }
 
       // Update network signal quality
       if (!motorData.isSignalStale()) {
         signalQuality.value = motorData.signalStrength;
-        if (kDebugMode) {
-          print(
-              'Signal Quality updated to ${motorData.signalStrength} (bars=${motorData.signalBars})');
-        }
       } else {
         // Signal is stale — fall back to API value, matching dashboard behavior
         signalQuality.value = motorDetails.value?.starter?.signalQuality ?? 0;
-      }
-    } else {
-      if (kDebugMode) {
-        print('No valid motor data available');
       }
     }
 
@@ -196,7 +159,6 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         final key = '$mac-$groupId';
         final data = mqttService.motorDataMap[key];
         if (data?.hasReceivedData == true) {
-          if (kDebugMode) print('Found data for MAC key=$key');
           return data;
         }
       }
@@ -205,13 +167,11 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         final key = '$pcb-$groupId';
         final data = mqttService.motorDataMap[key];
         if (data?.hasReceivedData == true) {
-          if (kDebugMode) print('Found data for PCB key=$key');
           return data;
         }
       }
     }
 
-    if (kDebugMode) print('No motor data found with received data');
     return null;
   }
 
@@ -229,18 +189,15 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     if (motorData != null && motorData.groupId != null) {
       if (motorData.macAddress != null && publishedNumber.isNotEmpty) {
         final motorId = '$publishedNumber-${motorData.groupId}';
-        if (kDebugMode) print('Using active MAC motor ID: $motorId');
         return motorId;
       }
     }
 
     if (publishedNumber.isNotEmpty) {
       final motorId = '$publishedNumber-G01';
-      if (kDebugMode) print('fallback MAC motor ID: $motorId');
       return motorId;
     }
 
-    if (kDebugMode) print(' No valid motor ID found');
     return '';
   }
 
@@ -280,10 +237,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     _modeAckTimer?.cancel();
     _modeAckTimer = Timer(AnalyticsController._ackTimeout, () {
       if (_hasPendingModeCommand) {
-        if (kDebugMode) {
-          print(
-              '⚠ Analytics: Mode ACK timeout - reverting to previous mode: $previousValue');
-        }
+        if (kDebugMode) {}
         // Cancel MQTT retries immediately so they don't re-publish the old
         // command after we've given up, and to avoid the race where the
         // MqttService timer fires just after the controller clears its state
@@ -308,9 +262,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     if (mId.isEmpty) return;
     try {
       await mqttService.publishTestRunCommand(mId, 5, data: 1, type: 5);
-      if (kDebugMode) print('Live cmd req command published successfully');
     } catch (e) {
-      if (kDebugMode) print('Error publishing LiveData command: $e');
+      // ignore
     }
   }
 
@@ -338,9 +291,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     try {
       await mqttService.publishModeCommand(mId, newModeIndex);
-      if (kDebugMode) print('Mode command published successfully');
     } catch (e) {
-      if (kDebugMode) print('Error publishing mode command: $e');
       _modeAckTimer?.cancel();
       mqttService.clearPendingModeCommand(mId);
       localModeIndex.value = previousValue;

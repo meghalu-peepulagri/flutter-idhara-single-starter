@@ -252,7 +252,7 @@ class DevicesCard extends StatelessWidget {
         await mqttService.publishTestRunCommand(id, 1, data: 1, type: 5);
       }
     } catch (e) {
-      print("Error publishing verification command: $e");
+      // ignore
     }
 
     if (!ctx.mounted) return;

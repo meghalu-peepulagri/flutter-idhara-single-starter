@@ -58,7 +58,6 @@ class SettingsRepositoryImpl extends SettingsRepository {
         return res;
       }
     } catch (e) {
-      print("line 61  $e");
       return null;
     }
     return null;

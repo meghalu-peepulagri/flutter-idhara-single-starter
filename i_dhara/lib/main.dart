@@ -302,7 +302,7 @@ class _MyAppState extends State<MyApp> {
           _handleNotificationTap(details.notificationResponse!.payload);
         }
       } catch (e) {
-        print("line error --------------> $e");
+        // ignore
       }
     });
   }

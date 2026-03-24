@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -33,10 +32,6 @@ class _MotorModeTabState extends State<MotorModeTab> {
     _modeWorker = ever(widget.controller.localModeIndex, (value) {
       if (mounted && _modeNotifier.value != value) {
         _modeNotifier.value = value;
-        if (kDebugMode) {
-          print(
-              '🔄 Mode notifier updated: $value (${value == 1 ? "Auto" : "Manual"})');
-        }
       }
     });
   }
@@ -100,12 +95,6 @@ class _MotorModeTabState extends State<MotorModeTab> {
                       final isDisabled =
                           widget.controller.isWaitingForModeAck.value ||
                               !widget.controller.canChangeMode.value;
-
-                      if (kDebugMode) {
-                        print(
-                            '🎨 UI Rebuild: mode=$currentModeIndex (${isAuto ? "Auto" : "Manual"}), '
-                            'uiIndex=$uiIndex, disabled=$isDisabled');
-                      }
 
                       return Column(
                         children: [

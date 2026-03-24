@@ -194,15 +194,10 @@ class _AddNewLocationState extends State<AddNewLocation> {
                           if (!isSuccess) {
                             return;
                           }
-                          print("line 36 loc id-----------> ${_model.error}");
-                          print(
-                              "line 37 loc id-----------> ${_model.errorInstance}");
-
                           SharedPreference.setLocationId(
                               _model.locationId.toString());
                           final locationName =
                               _model.textController!.text.trim();
-
                           Get.back();
                           getsuccessSnackBar("Location added successfully");
                           widget.onLocationAdded(locationName);

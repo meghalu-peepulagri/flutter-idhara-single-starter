@@ -316,7 +316,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             controller.lvr.value = dvcMap['lvf'] + 10;
           }
         } catch (e) {
-          print("error line 818 $e");
         }
       }
 
@@ -327,7 +326,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             controller.hvr.value = dvcMap['hvf'] - 10;
           }
         } catch (e) {
-          print("error line 844 $e");
         }
       }
 

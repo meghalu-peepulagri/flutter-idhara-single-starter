@@ -14,9 +14,7 @@ class SettingsButtonCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.max,
       children: [
         FFButtonWidget(
-          onPressed: () {
-            print('Button pressed ...');
-          },
+          onPressed: () {},
           text: 'Edit Profile',
           icon: const FaIcon(
             FontAwesomeIcons.edit,
@@ -47,9 +45,7 @@ class SettingsButtonCard extends StatelessWidget {
           ),
         ),
         FFButtonWidget(
-          onPressed: () {
-            print('Button pressed ...');
-          },
+          onPressed: () {},
           text: 'App Setting',
           icon: const Icon(
             Icons.settings_outlined,

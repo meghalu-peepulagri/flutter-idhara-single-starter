@@ -254,9 +254,7 @@ class _EditDevicePageState extends State<EditDevicePage> {
                               });
 
                               return;
-                            } catch (e) {
-                              print("line 257 ----> $e");
-                            }
+                            } catch (e) {}
 
                             // widget.onLocationAdded(newName);
                           },

@@ -232,7 +232,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     try {
       await widget.mqttService.publishMotorCommand(motorId, newValue ? 1 : 0);
     } catch (e) {
-      print("line 238 error $e");
       _switchAckTimer?.cancel();
       _localSwitchController.value = !newValue;
       _hasPendingSwitchCommand = false;
@@ -364,7 +363,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
       }
     } catch (e) {
-      print("Error publishing verification command: $e");
+      // ignore
     }
 
     if (!mounted) return;

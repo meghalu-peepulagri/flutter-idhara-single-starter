@@ -249,9 +249,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
         }
       }
     } on MissingPluginException catch (e) {
-      print("Location Error: $e");
     } catch (e) {
-      print("Location Error: $e");
     }
     return null;
   }
