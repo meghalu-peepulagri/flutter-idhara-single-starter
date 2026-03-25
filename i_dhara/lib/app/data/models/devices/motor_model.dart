@@ -109,17 +109,20 @@ class Motor {
   Location? location;
   String? testrunStatus;
   Starter? starter;
+  int? scheduleCount;
 
-  Motor(
-      {this.id,
-      this.name,
-      this.hp,
-      this.mode,
-      this.state,
-      this.location,
-      this.aliasName,
-      this.starter,
-      this.testrunStatus});
+  Motor({
+    this.id,
+    this.name,
+    this.hp,
+    this.mode,
+    this.state,
+    this.location,
+    this.aliasName,
+    this.starter,
+    this.testrunStatus,
+    this.scheduleCount,
+  });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
         id: json["id"],
@@ -134,6 +137,7 @@ class Motor {
         testrunStatus: json["test_run_status"],
         starter:
             json["starter"] == null ? null : Starter.fromJson(json["starter"]),
+        scheduleCount: json["schedule_count"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -145,7 +149,8 @@ class Motor {
         "alias_name": aliasName,
         "location": location?.toJson(),
         "starter": starter?.toJson(),
-        "test_run_status": testrunStatus
+        "test_run_status": testrunStatus,
+        "schedule_count": scheduleCount,
       };
 }
 

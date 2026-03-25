@@ -145,7 +145,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                   child: Row(
                     children: [
                       Text(
-                        '$runningCount / $totalSchedules',
+                        'Total Schedules : $totalSchedules',
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,

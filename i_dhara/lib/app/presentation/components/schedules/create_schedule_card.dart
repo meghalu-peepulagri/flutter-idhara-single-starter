@@ -2,8 +2,8 @@ import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 // ignore: unnecessary_import
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widgets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_dialogs.dart';
@@ -83,13 +83,36 @@ class ScheduleFormState extends State<ScheduleForm> {
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     startDate = widget.initialStartDate ?? today;
     endDate = widget.initialEndDate ?? today;
-    startHour = widget.initialStartHour ?? 0;
-    startMinute = widget.initialStartMinute ?? 0;
-    endHour = widget.initialEndHour ?? 0;
-    endMinute = widget.initialEndMinute ?? 0;
+
+    // Default start time to "now" when opening fresh on today's date
+    final isStartToday = widget.initialStartDate == null ||
+        (widget.initialStartDate!.year == today.year &&
+            widget.initialStartDate!.month == today.month &&
+            widget.initialStartDate!.day == today.day);
+    if (widget.initialStartHour != null) {
+      startHour = widget.initialStartHour!;
+      startMinute = widget.initialStartMinute ?? 0;
+    } else if (isStartToday) {
+      startHour = now.hour;
+      startMinute = now.minute;
+    } else {
+      startHour = 0;
+      startMinute = 0;
+    }
+
+    // Default end time to start + 5 min
+    if (widget.initialEndHour != null) {
+      endHour = widget.initialEndHour!;
+      endMinute = widget.initialEndMinute ?? 0;
+    } else {
+      final endTotal = startHour * 60 + startMinute + 5;
+      endHour = (endTotal ~/ 60) % 24;
+      endMinute = endTotal % 60;
+    }
     cyclicMode = widget.initialCyclicMode ?? false;
     cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
     cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
@@ -149,21 +172,46 @@ class ScheduleFormState extends State<ScheduleForm> {
         if (isStart) {
           startHour = t.hour;
           startMinute = t.minute;
-          // Reset end time to 00:00 whenever start time changes
-          endHour = 0;
-          endMinute = 0;
+          // If end time is not after new start time, bump it by 5 min
+          final startTotal = t.hour * 60 + t.minute;
+          final endTotal = endHour * 60 + endMinute;
+          if (endTotal <= startTotal) {
+            final bumped = startTotal + 5;
+            endHour = (bumped ~/ 60) % 24;
+            endMinute = bumped % 60;
+          }
         } else {
           endHour = t.hour;
           endMinute = t.minute;
         }
       });
 
-  void _openTimePicker(bool isStart) => showTimeBottomSheet(
-        context,
-        isStart ? startTime : endTime,
-        (picked) => _onTimePicked(picked, isStart),
-        minTime: isStart ? null : startTime,
-      );
+  void _openTimePicker(bool isStart) {
+    final now = DateTime.now();
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    final isStartToday = startDate == todayNorm;
+    final nowTime = TimeOfDay(hour: now.hour, minute: now.minute);
+
+    TimeOfDay? minT;
+    if (isStart) {
+      minT = isStartToday ? nowTime : null;
+    } else {
+      if (isStartToday) {
+        final startTotal = startHour * 60 + startMinute;
+        final nowTotal = nowTime.hour * 60 + nowTime.minute;
+        minT = startTotal >= nowTotal ? startTime : nowTime;
+      } else {
+        minT = startTime;
+      }
+    }
+
+    showTimeBottomSheet(
+      context,
+      isStart ? startTime : endTime,
+      (picked) => _onTimePicked(picked, isStart),
+      minTime: minT,
+    );
+  }
 
   Future<void> _openCalendarDialog() async {
     final today = DateTime.now();
@@ -224,6 +272,17 @@ class ScheduleFormState extends State<ScheduleForm> {
         endDate = results.length > 1 ? (results[1] ?? startDate) : startDate;
         // Remove selected days that no longer fall in the new range
         selectedDays.removeWhere((d) => !_availableDays.contains(d));
+
+        // If new start date is today, reset times to current time
+        final now = DateTime.now();
+        final todayNorm = DateTime(now.year, now.month, now.day);
+        if (startDate == todayNorm) {
+          startHour = now.hour;
+          startMinute = now.minute;
+          final endTotal = startHour * 60 + startMinute + 5;
+          endHour = (endTotal ~/ 60) % 24;
+          endMinute = endTotal % 60;
+        }
       });
     }
   }
@@ -294,8 +353,7 @@ class ScheduleFormState extends State<ScheduleForm> {
                       initialValue: _powerLossController.value,
                       activeColor: const Color(0xFF34C759),
                       inactiveColor: const Color(0xFFE0E0E0),
-                      borderRadius:
-                          const BorderRadius.all(Radius.circular(15)),
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
                       width: 46,
                       height: 24,
                       enabled: !cyclicMode,
@@ -314,14 +372,14 @@ class ScheduleFormState extends State<ScheduleForm> {
                       children: [
                         const SizedBox(height: 12),
                         const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             const Icon(Icons.timer_outlined,
                                 size: 16, color: Color(0xFF004E7E)),
                             const SizedBox(width: 8),
                             Text(
-                              'Restart delay',
+                              'Recovery Time',
                               style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -349,14 +407,12 @@ class ScheduleFormState extends State<ScheduleForm> {
                                 },
                                 decoration: InputDecoration(
                                   hintText: '30',
-                                  suffixText: 'min',
+                                  suffixText: 'mins',
                                   isDense: true,
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 8),
                                   border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(8)),
+                                      borderRadius: BorderRadius.circular(8)),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                     borderSide: const BorderSide(

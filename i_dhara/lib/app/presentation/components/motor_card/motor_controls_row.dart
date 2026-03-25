@@ -88,18 +88,48 @@ class MotorControlsRow extends StatelessWidget {
           GestureDetector(
             onTap: onScheduleTap ?? onNavigateToDetails,
             behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2F80ED).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: const Icon(
-                Icons.schedule,
-                size: 18,
-                color: Color(0xFF2F80ED),
-              ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2F80ED).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: const Icon(
+                    Icons.schedule,
+                    size: 18,
+                    color: Color(0xFF2F80ED),
+                  ),
+                ),
+                if ((motor.scheduleCount ?? 0) > 0)
+                  Positioned(
+                    top: -5,
+                    right: -5,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF2F80ED),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${motor.scheduleCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 12),

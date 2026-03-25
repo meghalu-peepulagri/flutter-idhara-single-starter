@@ -31,6 +31,7 @@ class ScheduleCard extends StatelessWidget {
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
         isCyclic ? (record.cycleOffMinutes as num?)?.toInt() ?? 0 : 0;
+    final isCompleted = status.toLowerCase() == 'completed';
     final switchController = ValueNotifier<bool>(isActive);
 
     return Container(
@@ -94,66 +95,82 @@ class ScheduleCard extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                       color: const Color(0xFF57636C))),
               const SizedBox(width: 8),
-              SizedBox(
-                height: 25,
-                child: GestureDetector(
-                  onTap: () {
-                    final newValue = !switchController.value;
-                    bool isProcessing = false;
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (dialogCtx) => PopupDialog(
-                        title: newValue ? 'Restart Schedule' : 'Stop Schedule',
-                        description: newValue
-                            ? 'Are you sure you want to restart this schedule?'
-                            : 'Are you sure you want to stop this schedule?',
-                        iconAssetPath: 'assets/images/schedule.svg',
-                        buttonlable: newValue ? 'Restart' : 'Stop',
-                        isactive: newValue,
-                        onDelete: () async {
-                          isProcessing = true;
-                          try {
-                            final success =
-                                await onToggle?.call(record, newValue) ?? false;
-                            if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                            if (success) switchController.value = newValue;
-                          } finally {
-                            isProcessing = false;
-                          }
-                        },
-                        onCancel: () {
-                          if (!isProcessing) Navigator.pop(dialogCtx);
-                        },
+              Opacity(
+                opacity: isCompleted ? 0.4 : 1.0,
+                child: SizedBox(
+                  height: 25,
+                  child: GestureDetector(
+                    onTap: isCompleted
+                        ? null
+                        : () {
+                            final newValue = !switchController.value;
+                            bool isProcessing = false;
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (dialogCtx) => PopupDialog(
+                                title: newValue
+                                    ? 'Restart Schedule'
+                                    : 'Stop Schedule',
+                                description: newValue
+                                    ? 'Are you sure you want to restart this schedule?'
+                                    : 'Are you sure you want to stop this schedule?',
+                                iconAssetPath: 'assets/images/schedule.svg',
+                                buttonlable: newValue ? 'Restart' : 'Stop',
+                                isactive: newValue,
+                                onDelete: () async {
+                                  isProcessing = true;
+                                  try {
+                                    final success =
+                                        await onToggle?.call(record, newValue) ??
+                                            false;
+                                    if (dialogCtx.mounted) {
+                                      Navigator.pop(dialogCtx);
+                                    }
+                                    if (success) {
+                                      switchController.value = newValue;
+                                    }
+                                  } finally {
+                                    isProcessing = false;
+                                  }
+                                },
+                                onCancel: () {
+                                  if (!isProcessing) Navigator.pop(dialogCtx);
+                                },
+                              ),
+                            );
+                          },
+                    child: AbsorbPointer(
+                      child: AdvancedSwitch(
+                        controller: switchController,
+                        initialValue: isActive,
+                        activeColor: const Color(0xFF34C759),
+                        inactiveColor: const Color(0xFFE0E0E0),
+                        borderRadius:
+                            const BorderRadius.all(Radius.circular(15)),
+                        width: 46,
+                        height: 24,
+                        enabled: true,
                       ),
-                    );
-                  },
-                  child: AbsorbPointer(
-                    child: AdvancedSwitch(
-                      controller: switchController,
-                      initialValue: isActive,
-                      activeColor: const Color(0xFF34C759),
-                      inactiveColor: const Color(0xFFE0E0E0),
-                      borderRadius: const BorderRadius.all(Radius.circular(15)),
-                      width: 46,
-                      height: 24,
-                      enabled: true,
                     ),
                   ),
                 ),
               ),
               const Spacer(),
-              InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: () => onEdit?.call(record),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(6),
+              Opacity(
+                opacity: isCompleted ? 0.4 : 1.0,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: isCompleted ? null : () => onEdit?.call(record),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.edit_outlined,
+                        size: 16, color: Color(0xFF004E7E)),
                   ),
-                  child: const Icon(Icons.edit_outlined,
-                      size: 16, color: Color(0xFF004E7E)),
                 ),
               ),
               const SizedBox(width: 8),

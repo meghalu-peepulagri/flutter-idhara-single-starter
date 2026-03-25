@@ -215,9 +215,17 @@ class MotorScheduleController extends GetxController {
 
         if (status == 1) {
           if (cmd == 3) {
-            // ── DELETE: set id, call delete API, complete completer ──
-            await _deleteScheduleAfterAck(scheduleId);
+            // ── DELETE: remove from list + close dialog immediately, API in background ──
+            final record =
+                schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
+            if (record != null) {
+              SharedPreference.setscheduleid(record.id ?? 0);
+              schedules.remove(record);
+            }
+            getsuccessSnackBar('Schedule deleted successfully');
             _deleteCompleters.remove(scheduleId)?.complete(true);
+            unawaited(_scheduleRepo.scheduleDelete().catchError((_) => null));
+            unawaited(fetchSchedules());
           } else if (cmd == 1 || cmd == 2) {
             // ── STOP / RESTART: set id, call post API, complete completer ──
             final record =
@@ -259,23 +267,6 @@ class MotorScheduleController extends GetxController {
         fetchSchedules();
       }
     });
-  }
-
-  Future<void> _deleteScheduleAfterAck(int scheduleId) async {
-    final record =
-        schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
-    if (record != null) {
-      SharedPreference.setscheduleid(record.id ?? 0);
-      schedules.remove(record);
-    }
-    getsuccessSnackBar('Schedule deleted successfully');
-    try {
-      await _scheduleRepo.scheduleDelete();
-    } catch (_) {
-      // silently fail
-    }
-    // Start fetching with loading — runs in background while dialog closes
-    unawaited(fetchSchedules());
   }
 
   // --- Navigation ---
