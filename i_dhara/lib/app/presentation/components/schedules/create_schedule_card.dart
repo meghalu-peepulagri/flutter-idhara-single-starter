@@ -192,16 +192,25 @@ class ScheduleFormState extends State<ScheduleForm> {
     final isStartToday = startDate == todayNorm;
     final nowTime = TimeOfDay(hour: now.hour, minute: now.minute);
 
+    final isEndToday = endDate == todayNorm;
+    final isSameDay = startDate == endDate;
+
     TimeOfDay? minT;
     if (isStart) {
       minT = isStartToday ? nowTime : null;
     } else {
-      if (isStartToday) {
-        final startTotal = startHour * 60 + startMinute;
-        final nowTotal = nowTime.hour * 60 + nowTime.minute;
-        minT = startTotal >= nowTotal ? startTime : nowTime;
+      if (isSameDay) {
+        // Same day: end must be after start (and after now if today)
+        if (isEndToday) {
+          final startTotal = startHour * 60 + startMinute;
+          final nowTotal = nowTime.hour * 60 + nowTime.minute;
+          minT = startTotal >= nowTotal ? startTime : nowTime;
+        } else {
+          minT = startTime;
+        }
       } else {
-        minT = startTime;
+        // End date is a future date — no time restriction
+        minT = null;
       }
     }
 
@@ -273,15 +282,22 @@ class ScheduleFormState extends State<ScheduleForm> {
         // Remove selected days that no longer fall in the new range
         selectedDays.removeWhere((d) => !_availableDays.contains(d));
 
-        // If new start date is today, reset times to current time
         final now = DateTime.now();
         final todayNorm = DateTime(now.year, now.month, now.day);
         if (startDate == todayNorm) {
           startHour = now.hour;
           startMinute = now.minute;
+        } else {
+          startHour = 0;
+          startMinute = 0;
+        }
+        if (endDate == startDate) {
           final endTotal = startHour * 60 + startMinute + 5;
           endHour = (endTotal ~/ 60) % 24;
           endMinute = endTotal % 60;
+        } else {
+          endHour = 0;
+          endMinute = 0;
         }
       });
     }
@@ -407,6 +423,10 @@ class ScheduleFormState extends State<ScheduleForm> {
                                 },
                                 decoration: InputDecoration(
                                   hintText: '30',
+                                  // hintStyle: TextStyle(
+                                  //   color: Colors.grey.shade400,
+                                  //   fontWeight: FontWeight.normal,
+                                  // ),
                                   suffixText: 'mins',
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(
@@ -461,6 +481,9 @@ class ScheduleFormState extends State<ScheduleForm> {
                     if (v) {
                       powerLossRecovery = false;
                       _powerLossController.value = false;
+                    } else {
+                      cyclicOnMinutes = 20;
+                      cyclicOffMinutes = 15;
                     }
                   }),
                   onOnDecrement: () => setState(() {
