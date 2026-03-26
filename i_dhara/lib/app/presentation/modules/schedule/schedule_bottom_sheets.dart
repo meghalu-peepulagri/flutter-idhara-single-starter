@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'schedule_widgets.dart';
 
 void showDateBottomSheet(
@@ -9,8 +10,18 @@ void showDateBottomSheet(
   DateTime? minDate,
 }) {
   const monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final now = DateTime.now();
   final minD = minDate != null
@@ -59,24 +70,21 @@ void showDateBottomSheet(
                     SizedBox(
                       width: 64,
                       child: Center(
-                        child: Text('Day',
-                            style: _wheelLabelStyle()),
+                        child: Text('Day', style: _wheelLabelStyle()),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 72,
                       child: Center(
-                        child: Text('Month',
-                            style: _wheelLabelStyle()),
+                        child: Text('Month', style: _wheelLabelStyle()),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 80,
                       child: Center(
-                        child: Text('Year',
-                            style: _wheelLabelStyle()),
+                        child: Text('Year', style: _wheelLabelStyle()),
                       ),
                     ),
                   ],
@@ -214,8 +222,10 @@ void showTimeBottomSheet(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     buildScrollWheel(
-                      key: ValueKey('h_$selectedHour'),
-                      values: hours.isNotEmpty ? hours : List.generate(24, (i) => i),
+                      key: ValueKey('h_${minTotal ?? 'all'}'),
+                      values: hours.isNotEmpty
+                          ? hours
+                          : List.generate(24, (i) => i),
                       selected: selectedHour,
                       onChanged: (v) => setSheetState(() {
                         selectedHour = v;

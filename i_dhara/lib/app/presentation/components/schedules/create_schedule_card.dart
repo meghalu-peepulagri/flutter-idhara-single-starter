@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widgets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_bottom_sheets.dart';
 import 'package:i_dhara/app/presentation/modules/schedule/schedule_dialogs.dart';
@@ -117,7 +118,8 @@ class ScheduleFormState extends State<ScheduleForm> {
     cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
     cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
-    _powerLossTimeCtrl = TextEditingController(text: '30');
+    _powerLossTimeCtrl =
+        TextEditingController(text: durationMinutes.clamp(1, 30).toString());
     selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
     _powerLossController = ValueNotifier(powerLossRecovery);
@@ -184,6 +186,7 @@ class ScheduleFormState extends State<ScheduleForm> {
           endHour = t.hour;
           endMinute = t.minute;
         }
+        _powerLossTimeCtrl.text = durationMinutes.clamp(1, 30).toString();
       });
 
   void _openTimePicker(bool isStart) {
@@ -408,6 +411,8 @@ class ScheduleFormState extends State<ScheduleForm> {
                                 controller: _powerLossTimeCtrl,
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
+                                cursorColor:
+                                    FlutterFlowTheme.of(context).primaryText,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
                                   LengthLimitingTextInputFormatter(2),
