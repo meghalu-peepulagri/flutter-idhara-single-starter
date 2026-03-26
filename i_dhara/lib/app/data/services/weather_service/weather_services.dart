@@ -6,7 +6,7 @@ import 'package:i_dhara/app/core/constants/app_constant.dart';
 
 class WeatherService {
   static const String _baseUrl = AppConstants.weather_url;
-  static const String _apiKey = AppConstants.weather_key;
+  static String get _apiKey => AppConstants.weather_key;
 
   Future<LocationPermissionStatus> handleLocationPermission() async {
     bool serviceEnabled;

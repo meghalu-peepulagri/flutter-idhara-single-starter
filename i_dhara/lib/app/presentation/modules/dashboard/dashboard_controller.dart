@@ -97,7 +97,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
         }
       } catch (e) {
         errorMessage.value = 'Error updating settings: $e';
-        print('Error updating user settings: $e');
+        debugPrint('Error updating user settings: $e');
       }
     } finally {
       await fetchUserSettings2();
@@ -132,8 +132,8 @@ class DashboardController extends GetxController with ConnectivityMixin {
     for (var motor in motorsList) {
       if (motor.starter == null) continue;
 
-      final mac = motor.starter!.macAddress;
-      final pcb = motor.starter!.pcbNumber;
+      final mac = motor.starter?.macAddress;
+      final pcb = motor.starter?.pcbNumber;
 
       // Determine primary identifier (prefer MAC over PCB)
       final identifier = (mac != null && mac.isNotEmpty) ? mac : pcb;
@@ -141,7 +141,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
       // Default to G01 for each motor
       const groupId = 'G01';
-      _motorIdToGroupId[motor.id!] = groupId;
+      if (motor.id != null) _motorIdToGroupId[motor.id!] = groupId;
 
       // Create entries for ALL groups (G01-G04) so MQTT data on any group is matched
       for (int i = 1; i <= 4; i++) {
@@ -175,7 +175,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
       if (response != null && response.data != null) {
         this.response = response.data;
-        final fetchedMotors = response.data!.records ?? [];
+        final fetchedMotors = response.data?.records ?? [];
         allMotors.value = fetchedMotors;
 
         if (selectedLocationId.value != null) {
@@ -186,8 +186,8 @@ class DashboardController extends GetxController with ConnectivityMixin {
           motors.value = allMotors.toList();
         }
 
-        currentPage.value = response.data!.paginationInfo!.currentPage!.toInt();
-        totalPages.value = response.data!.paginationInfo!.totalPages!.toInt();
+        currentPage.value = response.data?.paginationInfo?.currentPage ?? 0;
+        totalPages.value = response.data?.paginationInfo?.totalPages ?? 1;
 
         // FIXED: Rebuild complete motor map and update MQTT
         if (mqttInitialized) {
@@ -225,7 +225,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
       if (response != null && response.data != null) {
         this.response = response.data;
-        final fetchedMotors = response.data!.records ?? [];
+        final fetchedMotors = response.data?.records ?? [];
 
         // Add new motors to existing list
         allMotors.addAll(fetchedMotors);
@@ -238,8 +238,8 @@ class DashboardController extends GetxController with ConnectivityMixin {
           motors.value = allMotors.toList();
         }
 
-        currentPage.value = response.data!.paginationInfo!.currentPage!.toInt();
-        totalPages.value = response.data!.paginationInfo!.totalPages!.toInt();
+        currentPage.value = response.data?.paginationInfo?.currentPage ?? 0;
+        totalPages.value = response.data?.paginationInfo?.totalPages ?? 1;
 
         // FIXED: Rebuild ENTIRE motor map including new motors
         if (mqttInitialized) {
@@ -261,7 +261,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error loading more: $e';
-      print('Error loading more motors: $e');
+      debugPrint('Error loading more motors: $e');
     } finally {
       isLoadingMore.value = false;
     }
@@ -296,7 +296,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
         olr.value = userSettings2.value?.olr?.toDouble() ?? 0.0;
         lrr.value = userSettings2.value?.lrr?.toDouble() ?? 0.0;
 
-        updateSettingDto.assignAll(response.data!.toJson());
+        if (response.data != null) {
+          updateSettingDto.assignAll(response.data!.toJson());
+        }
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
       } else {
@@ -304,7 +306,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
+      debugPrint('Error fetching user settings: $e');
     }
   }
 
@@ -320,7 +322,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
+      debugPrint('Error updating user settings: $e');
     }
   }
 
@@ -358,16 +360,16 @@ class DashboardController extends GetxController with ConnectivityMixin {
     try {
       final response =
           await MotorsRepositoryImpl().getMotors(page.value, limit.value);
-      print("line 365 --> $response");
+      debugPrint("fetchMotors response: $response");
 
       if (response != null && response.data != null) {
         this.response = response.data;
 
-        allMotors.value = response.data!.records ?? [];
+        allMotors.value = response.data?.records ?? [];
         motors.value = allMotors;
 
-        currentPage.value = response.data!.paginationInfo!.currentPage!.toInt();
-        totalPages.value = response.data!.paginationInfo!.totalPages!.toInt();
+        currentPage.value = response.data?.paginationInfo?.currentPage ?? 0;
+        totalPages.value = response.data?.paginationInfo?.totalPages ?? 1;
 
         // Build motor map
         final motorMap = _buildMotorMap(allMotors);
@@ -407,10 +409,11 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
   void _onMqttUpdate() {
     for (var motor in allMotors) {
-      if (motor.starter == null) continue;
+      final starter = motor.starter;
+      if (starter == null) continue;
 
-      final mac = motor.starter!.macAddress;
-      final pcb = motor.starter!.pcbNumber;
+      final mac = starter.macAddress;
+      final pcb = starter.pcbNumber;
 
       MotorData? currentMotorData;
 
@@ -442,20 +445,17 @@ class DashboardController extends GetxController with ConnectivityMixin {
         motor.state = currentMotorData.state;
         motor.mode = currentMotorData.motorMode;
 
-        if (currentMotorData.power != 0 && motor.starter != null) {
-          motor.starter!.power = currentMotorData.power;
+        if (currentMotorData.power != 0) {
+          starter.power = currentMotorData.power;
         }
 
-        if (motor.starter != null) {
-          if (motor.starter!.starterParameters == null) {
-            motor.starter!.starterParameters = [];
-          }
+        starter.starterParameters ??= [];
 
-          if (motor.starter!.starterParameters!.isEmpty) {
-            motor.starter!.starterParameters!.add(StarterParameter());
-          }
+        if (starter.starterParameters!.isEmpty) {
+          starter.starterParameters!.add(StarterParameter());
+        }
 
-          final params = motor.starter!.starterParameters!.first;
+        final params = starter.starterParameters!.first;
 
           if (currentMotorData.voltageRed != '0') {
             final newValue = double.tryParse(currentMotorData.voltageRed);
@@ -502,7 +502,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
           params.timeStamp = DateTime.now();
         }
       }
-    }
 
     motors.refresh();
     allMotors.refresh();
@@ -546,24 +545,17 @@ class DashboardController extends GetxController with ConnectivityMixin {
   }
 
   Future<void> toggleMotor(Motor motor, bool newState) async {
-    if (motor.starter == null) {
-      return;
-    }
+    final starter = motor.starter;
+    if (starter == null) return;
 
     final groupId = _getGroupIdForMotor(motor);
 
-    String? identifier;
-    if (motor.starter!.macAddress != null &&
-        motor.starter!.macAddress!.isNotEmpty) {
-      identifier = motor.starter!.macAddress;
-    } else if (motor.starter!.pcbNumber != null &&
-        motor.starter!.pcbNumber!.isNotEmpty) {
-      identifier = motor.starter!.pcbNumber;
-    }
-
-    if (identifier == null) {
-      return;
-    }
+    final mac = starter.macAddress;
+    final pcb = starter.pcbNumber;
+    final identifier = (mac != null && mac.isNotEmpty)
+        ? mac
+        : (pcb != null && pcb.isNotEmpty ? pcb : null);
+    if (identifier == null) return;
 
     final motorId = '$identifier-$groupId';
 
@@ -575,24 +567,17 @@ class DashboardController extends GetxController with ConnectivityMixin {
   }
 
   Future<void> changeMotorMode(Motor motor, int modeIndex) async {
-    if (motor.starter == null) {
-      return;
-    }
+    final starter = motor.starter;
+    if (starter == null) return;
 
     final groupId = _getGroupIdForMotor(motor);
 
-    String? identifier;
-    if (motor.starter!.macAddress != null &&
-        motor.starter!.macAddress!.isNotEmpty) {
-      identifier = motor.starter!.macAddress;
-    } else if (motor.starter!.pcbNumber != null &&
-        motor.starter!.pcbNumber!.isNotEmpty) {
-      identifier = motor.starter!.pcbNumber;
-    }
-
-    if (identifier == null) {
-      return;
-    }
+    final mac = starter.macAddress;
+    final pcb = starter.pcbNumber;
+    final identifier = (mac != null && mac.isNotEmpty)
+        ? mac
+        : (pcb != null && pcb.isNotEmpty ? pcb : null);
+    if (identifier == null) return;
 
     final motorId = '$identifier-$groupId';
 
@@ -604,12 +589,11 @@ class DashboardController extends GetxController with ConnectivityMixin {
   }
 
   MotorData? getMotorData(Motor motor) {
-    if (!mqttInitialized || motor.starter?.macAddress == null) {
-      return null;
-    }
+    final mac = motor.starter?.macAddress;
+    if (!mqttInitialized || mac == null) return null;
 
     final groupId = _getGroupIdForMotor(motor);
-    final motorId = '${motor.starter!.macAddress}-$groupId';
+    final motorId = '$mac-$groupId';
     return mqttService.motorDataMap[motorId];
   }
 }
