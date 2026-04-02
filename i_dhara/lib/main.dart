@@ -1,3 +1,7 @@
+// flutter build apk --dart-define=ENV=live
+// flutter build apk --dart-define=ENV=staging
+// flutter build apk --dart-define=ENV=dev
+
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
