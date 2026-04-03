@@ -178,6 +178,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kIsWeb) {
+    try {
+      await dotenv.load(fileName: '.env');
+      AppEnvironment.setup();
+    } catch (e) {
+      debugPrint('Error loading .env file: $e');
+    }
     await SharedPreference.init();
     usePathUrlStrategy();
     await FlutterFlowTheme.initialize();
