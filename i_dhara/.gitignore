@@ -49,3 +49,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Internal project planning — not for version control
+PROJECT_IMPROVEMENT_PLAN.md

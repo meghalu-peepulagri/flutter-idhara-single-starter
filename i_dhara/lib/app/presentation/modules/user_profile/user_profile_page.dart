@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
@@ -642,14 +643,48 @@ class _AppVersionInfo extends StatelessWidget {
       final version = controller.appVersion.value;
       final build = controller.appBuildNumber.value;
       if (version.isEmpty) return const SizedBox.shrink();
+
+      final env = AppEnvironment.environment;
+      final isNonLive = env != Environment.live;
+      final envLabel = env == Environment.staging ? 'STAGING' : 'DEV';
+      final envColor = env == Environment.staging
+          ? const Color(0xFFE65100)
+          : const Color(0xFF1B7A34);
+
       return Center(
-        child: Text(
-          'Version 1.2.3',
-          style: GoogleFonts.dmSans(
-            color: _kSubtext,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Version $version',
+              style: GoogleFonts.dmSans(
+                color: _kSubtext,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (isNonLive) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: envColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: envColor.withValues(alpha: 0.4), width: 1),
+                ),
+                child: Text(
+                  envLabel,
+                  style: GoogleFonts.dmSans(
+                    color: envColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       );
     });
