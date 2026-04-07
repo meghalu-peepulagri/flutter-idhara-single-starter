@@ -83,7 +83,8 @@ class MotorData {
 /// Tracks pending commands for retry mechanism
 class PendingCommand {
   final String motorId;
-  final int commandType; // 1 = motor control, 2 = mode change, 4 = settings
+  final int
+      commandType; // 1 = motor control, 2 = mode change, 4 = settings, 21 = fault clear
   final dynamic commandData;
   final int sequenceNumber;
   final String? pcbnumber; // For settings commands (type 4)
@@ -145,6 +146,11 @@ class MqttService {
   // Fires only on T:35 or T:41 (live data: power, voltage, current)
   final ValueNotifier<int> _liveDataNotifier = ValueNotifier(0);
   final ValueNotifier<String?> commandStatusNotifier =
+      ValueNotifier<String?>(null);
+
+  /// Notifies when a fault clear command completes.
+  /// Value is the motorId on success, or null on failure (timeout handled via commandStatusNotifier).
+  final ValueNotifier<String?> faultClearResultNotifier =
       ValueNotifier<String?>(null);
 
   // Command tracking
@@ -495,6 +501,31 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  /// Publish fault clear command (T:21, S:seq, D:1)
+  Future<void> publishFaultClearCommand(String motorId) async {
+    if (_mqttClient == null || !isConnected) {
+      debugPrint('✗ Cannot publish fault clear: MQTT not connected');
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+
+    _lastAckTimes.remove(motorId);
+    final seq = _random.nextInt(251);
+
+    try {
+      await _publishCommand(motorId, 21, 1, seq);
+      statusMessage = 'Fault clear command sent';
+      _registerPendingCommand(motorId, 21, 1, seq);
+    } catch (e) {
+      debugPrint('✗ Failed to publish fault clear command: $e');
+      statusMessage = 'Failed to publish fault clear: $e';
+      _dataUpdateNotifier.value++;
+      rethrow;
+    }
+    _dataUpdateNotifier.value++;
+  }
+
   /// Get motor data filtered by location
   Map<String, MotorData> getMotorDataForLocation(int? locationId) {
     if (locationId == null) return _motorDataMap;
@@ -747,6 +778,9 @@ class MqttService {
           case 40:
             _handleHeartbeat(identifier, payloadData);
             break;
+          case 52:
+            _handleFaultClearAck(identifier, payloadData);
+            break;
           default:
             debugPrint('   Unknown message type: $type');
         }
@@ -964,6 +998,47 @@ class MqttService {
       }
     }
 
+    _dataUpdateNotifier.value++;
+  }
+
+  /// Handle fault clear acknowledgment (type 52)
+  /// ACK payload: {"T": 52, "S": 89, "D": 1, "ct": "2025/12/30,13:42:30"}
+  void _handleFaultClearAck(String identifier, dynamic payloadData) {
+    debugPrint('🔧 TYPE 52 (Fault Clear ACK) received: identifier=$identifier');
+
+    // Find motor with pending fault clear command (type 21)
+    final motorId = _findMotorWithPendingCommand(identifier, 21);
+
+    if (motorId != null) {
+      final motorData = _motorDataMap[motorId];
+      if (motorData != null) {
+        motorData.fault = 0;
+        motorData.hasReceivedData = true;
+        _lastAckTimes[motorId] = DateTime.now();
+        debugPrint('   ✓ Fault Clear ACK processed: $motorId -> fault cleared');
+      }
+      _clearPendingCommand(motorId, 21);
+      faultClearResultNotifier.value = null; // reset first
+      faultClearResultNotifier.value = motorId;
+    } else {
+      // No pending command — update any matching motor
+      final fallbackId = _findAnyMotorWithIdentifier(identifier);
+      if (fallbackId != null) {
+        final motorData = _motorDataMap[fallbackId];
+        if (motorData != null) {
+          motorData.fault = 0;
+          motorData.hasReceivedData = true;
+          _lastAckTimes[fallbackId] = DateTime.now();
+          debugPrint(
+              '   ✓ Fault Clear ACK processed (fallback): $fallbackId -> fault cleared');
+        }
+        faultClearResultNotifier.value = null;
+        faultClearResultNotifier.value = fallbackId;
+      } else {
+        debugPrint(
+            '   ⚠️ Could not find motor for fault clear identifier=$identifier');
+      }
+    }
     _dataUpdateNotifier.value++;
   }
 
