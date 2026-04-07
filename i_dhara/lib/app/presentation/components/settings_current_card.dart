@@ -46,13 +46,11 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
 
     // DRF (low thumb): if value > 100, display at 100.
-    final mappedLow = widget.initialLowCurrent > 100
-        ? 100.0
-        : widget.initialLowCurrent;
+    final mappedLow =
+        widget.initialLowCurrent > 100 ? 100.0 : widget.initialLowCurrent;
     // OLF (high thumb): if value < 100, display at 101.
-    final mappedHigh = widget.initialHighCurrent < 100
-        ? 101.0
-        : widget.initialHighCurrent;
+    final mappedHigh =
+        widget.initialHighCurrent < 100 ? 101.0 : widget.initialHighCurrent;
 
     lowCurrentValue = mappedLow.clamp(lowMin, lowMax);
     highCurrentValue = mappedHigh.clamp(highMin, highMax);
