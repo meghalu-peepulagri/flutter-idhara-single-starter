@@ -315,7 +315,7 @@ class MotorCardDialogs {
               ),
               const SizedBox(height: 12),
               Text(
-                'The motor is currently in a fault state. You need to clear the fault before starting the motor.',
+                'This motor stopped due to a fault. Clear the fault to start it again.',
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: const Color(0xFF6B7280),

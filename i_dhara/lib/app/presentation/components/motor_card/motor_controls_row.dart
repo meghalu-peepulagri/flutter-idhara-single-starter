@@ -5,7 +5,6 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 
-
 class MotorControlsRow extends StatelessWidget {
   final Motor motor;
   final MotorData? motorData;
@@ -16,6 +15,7 @@ class MotorControlsRow extends StatelessWidget {
   final bool isSwitchDisabled;
   final bool isModeDisabled;
   final VoidCallback? onNavigateToDetails;
+  final VoidCallback? onScheduleTap;
 
   const MotorControlsRow({
     super.key,
@@ -28,6 +28,7 @@ class MotorControlsRow extends StatelessWidget {
     required this.isSwitchDisabled,
     required this.isModeDisabled,
     this.onNavigateToDetails,
+    this.onScheduleTap,
   });
 
   @override
@@ -81,6 +82,24 @@ class MotorControlsRow extends StatelessWidget {
             ),
           ),
           const Expanded(child: SizedBox(height: 25)),
+          GestureDetector(
+            onTap: onScheduleTap ?? onNavigateToDetails,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2F80ED).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: const Icon(
+                Icons.schedule,
+                size: 18,
+                color: Color(0xFF2F80ED),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           ValueListenableBuilder(
             valueListenable: modeController,
             builder: (context, modeIndex, _) {
@@ -88,9 +107,8 @@ class MotorControlsRow extends StatelessWidget {
                 valueListenable: switchController,
                 builder: (context, isOn, child) {
                   return GestureDetector(
-                    onTap: !isSwitchDisabled
-                        ? () => onToggleSwitch(!isOn)
-                        : null,
+                    onTap:
+                        !isSwitchDisabled ? () => onToggleSwitch(!isOn) : null,
                     behavior: HitTestBehavior.opaque,
                     child: AbsorbPointer(
                       absorbing: true,

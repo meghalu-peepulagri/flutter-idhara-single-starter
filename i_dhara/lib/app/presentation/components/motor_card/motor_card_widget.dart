@@ -646,6 +646,15 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     isSwitchDisabled: isSwitchDisabled,
                     isModeDisabled: _isWaitingForModeAck || !canChangeMode,
                     onNavigateToDetails: _navigateToDetails,
+                    onScheduleTap: () {
+                      SharedPreference.setMotorId(widget.motor.id ?? 0);
+                      SharedPreference.setStarterId(
+                          widget.motor.starter?.id ?? 0);
+                      Get.offAllNamed(Routes.motorDetails, arguments: {
+                        'motorId': widget.motor.id,
+                        'tabIndex': 1,
+                      });
+                    },
                   ),
                 ].divide(const SizedBox(height: 4.0)),
               ),
