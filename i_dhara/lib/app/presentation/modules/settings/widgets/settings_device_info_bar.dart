@@ -6,12 +6,14 @@ class SettingsDeviceInfoBar extends StatelessWidget {
   final String pumpName;
   final String pumpHP;
   final VoidCallback onDefaultPressed;
+  final bool showDefaultButton;
 
   const SettingsDeviceInfoBar({
     super.key,
     required this.pumpName,
     required this.pumpHP,
     required this.onDefaultPressed,
+    this.showDefaultButton = true,
   });
 
   @override
@@ -49,26 +51,32 @@ class SettingsDeviceInfoBar extends StatelessWidget {
               ),
             ],
           ),
-          Container(
-            height: 32,
-            width: 70,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2994A),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: FFButtonWidget(
-              onPressed: onDefaultPressed,
-              text: 'Default',
-              options: FFButtonOptions(
-                color: Colors.transparent,
-                textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                      fontFamily: 'Manrope',
-                      color: const Color(0XFFFFFFFF),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                elevation: 0.0,
-                borderRadius: BorderRadius.circular(0),
+          Visibility(
+            visible: showDefaultButton,
+            maintainSize: true,
+            maintainState: true,
+            maintainAnimation: true,
+            child: Container(
+              height: 32,
+              width: 70,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2994A),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: FFButtonWidget(
+                onPressed: onDefaultPressed,
+                text: 'Default',
+                options: FFButtonOptions(
+                  color: Colors.transparent,
+                  textStyle: FlutterFlowTheme.of(context).titleSmall.override(
+                        fontFamily: 'Manrope',
+                        color: const Color(0XFFFFFFFF),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                  elevation: 0.0,
+                  borderRadius: BorderRadius.circular(0),
+                ),
               ),
             ),
           ),

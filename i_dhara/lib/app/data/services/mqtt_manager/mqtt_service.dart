@@ -489,6 +489,17 @@ class MqttService {
     }
   }
 
+  /// Cancel any pending settings command retries.
+  void cancelPendingSettingsCommand() {
+    final key = '_4';
+    final command = _pendingCommands[key];
+    if (command != null) {
+      command.cancelTimer();
+      _pendingCommands.remove(key);
+      debugPrint('✓ Cancelled pending settings command');
+    }
+  }
+
   Future<void> publishScheduleCommand({
     required String identifier,
     required int scheduleId,

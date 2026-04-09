@@ -21,6 +21,8 @@ import 'widgets/settings_app_bar.dart';
 import 'widgets/settings_confirm_dialog.dart';
 import 'widgets/settings_content.dart';
 import 'widgets/settings_device_info_bar.dart';
+import 'widgets/settings_faults_tab.dart';
+import 'widgets/settings_tab_bar.dart';
 
 class SettingsWidget extends StatefulWidget {
   const SettingsWidget({super.key});
@@ -52,6 +54,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool isbuttonActive = false;
   bool _isFlcOutOfRange = false;
   bool _hasPendingSave = false;
+
+  int _selectedTab = 0;
 
   StreamSubscription? _mqttStreamSubscription;
   Timer? _settingsAckTimer;
@@ -185,8 +189,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   }
 
   Future<void> _handleRefresh() async {
-    await _handleCancel();
     controller.isrefreshing.value = true;
+
     _currentVoltageLow = null;
     _currentVoltageHigh = null;
     _currentCurrentLow = null;
@@ -195,14 +199,22 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     _originalVoltageHigh = null;
     _originalCurrentLow = null;
     _originalCurrentHigh = null;
+
     await controller.fetchUserSettings2();
     await controller.fetchUserSettingsLimits();
     await Future.delayed(const Duration(milliseconds: 100));
+
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
-    setState(() {
-      isbuttonActive = false;
-    });
+    flcCardKey.currentState?.resetValue();
+    controller.flc.value =
+        controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+
+    if (mounted) {
+      setState(() {
+        isbuttonActive = false;
+      });
+    }
     controller.isrefreshing.value = false;
   }
 
@@ -501,62 +513,87 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         SettingsDeviceInfoBar(
                           pumpName: controller.pumpName.value,
                           pumpHP: controller.pumpHP.value,
+                          showDefaultButton: _selectedTab == 0,
                           onDefaultPressed: () =>
                               _defaultSettingsPopUp(context),
                         ),
-                        Expanded(
-                          child: SettingsContent(
-                            voltageCardKey: voltageCardKey,
-                            currentCardKey: currentCardKey,
-                            flcCardKey: flcCardKey,
-                            isRefreshing: controller.isrefreshing.value,
-                            flcInitialValue: controller.userSettings2.value?.flc
-                                    ?.toDouble() ??
-                                0.0,
-                            flcMinValue:
-                                controller.data.value?.flcMin?.toDouble() ??
-                                    0.0,
-                            flcMaxValue:
-                                controller.data.value?.flcMax?.toDouble() ??
-                                    0.0,
-                            voltageInitialLow: controller
-                                    .userSettings2.value?.lvf
-                                    ?.toDouble() ??
-                                180.0,
-                            voltageInitialHigh: controller
-                                    .userSettings2.value?.hvf
-                                    ?.toDouble() ??
-                                280.0,
-                            currentInitialLow:
-                                drf > 100 ? 100.0 : drf.toDouble(),
-                            currentInitialHigh:
-                                olf < 100 ? 101.0 : olf.toDouble(),
-                            motorName: motorName,
-                            onRefresh: _handleRefresh,
-                            onFlcChanged: (newValue) {
-                              controller.flc.value = newValue;
-                              _checkForChanges();
-                            },
-                            onFlcOutOfRange: (isOutOfRange) {
+                        Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 0.0),
+                          child: SettingsTabBar(
+                            selectedIndex: _selectedTab,
+                            onTabChanged: (index) {
                               setState(() {
-                                _isFlcOutOfRange = isOutOfRange;
+                                _selectedTab = index;
                               });
-                            },
-                            onVoltageChanged: (low, high) {
-                              _currentVoltageLow = safeToWholeDouble(low);
-                              _currentVoltageHigh = safeToWholeDouble(high);
-                              _checkForChanges();
-                            },
-                            onCurrentChanged: (low, high) {
-                              _currentCurrentLow =
-                                  (low ?? 0).toInt().toDouble();
-                              _currentCurrentHigh =
-                                  (high ?? 0).toInt().toDouble();
-                              _checkForChanges();
                             },
                           ),
                         ),
-                        if (isbuttonActive)
+                        Expanded(
+                          child: _selectedTab == 0
+                              ? SettingsContent(
+                                  voltageCardKey: voltageCardKey,
+                                  currentCardKey: currentCardKey,
+                                  flcCardKey: flcCardKey,
+                                  isRefreshing: controller.isrefreshing.value,
+                                  flcInitialValue: controller
+                                          .userSettings2.value?.flc
+                                          ?.toDouble() ??
+                                      0.0,
+                                  flcMinValue: controller.data.value?.flcMin
+                                          ?.toDouble() ??
+                                      0.0,
+                                  flcMaxValue: controller.data.value?.flcMax
+                                          ?.toDouble() ??
+                                      0.0,
+                                  voltageInitialLow: controller
+                                          .userSettings2.value?.lvf
+                                          ?.toDouble() ??
+                                      180.0,
+                                  voltageInitialHigh: controller
+                                          .userSettings2.value?.hvf
+                                          ?.toDouble() ??
+                                      280.0,
+                                  currentInitialLow:
+                                      drf > 100 ? 100.0 : drf.toDouble(),
+                                  currentInitialHigh:
+                                      olf < 100 ? 101.0 : olf.toDouble(),
+                                  motorName: motorName,
+                                  onRefresh: _handleRefresh,
+                                  onFlcChanged: (newValue) {
+                                    controller.flc.value = newValue;
+                                    _checkForChanges();
+                                  },
+                                  onFlcOutOfRange: (isOutOfRange) {
+                                    setState(() {
+                                      _isFlcOutOfRange = isOutOfRange;
+                                    });
+                                  },
+                                  onVoltageChanged: (low, high) {
+                                    _currentVoltageLow = safeToWholeDouble(low);
+                                    _currentVoltageHigh =
+                                        safeToWholeDouble(high);
+                                    _checkForChanges();
+                                  },
+                                  onCurrentChanged: (low, high) {
+                                    _currentCurrentLow =
+                                        (low ?? 0).toInt().toDouble();
+                                    _currentCurrentHigh =
+                                        (high ?? 0).toInt().toDouble();
+                                    _checkForChanges();
+                                  },
+                                )
+                              : SettingsFaultsTab(
+                                  settings: settings,
+                                  motorName: controller.pumpName.value,
+                                  motorHp: controller.pumpHP.value,
+                                  isRefreshing: controller.isrefreshing.value,
+                                  onRefresh: _handleRefresh,
+                                  mqttService: mqttService,
+                                  pcbNumber: controller.pcbNumber.value,
+                                ),
+                        ),
+                        if (_selectedTab == 0 && isbuttonActive)
                           SettingsActionButtons(
                             isActive: isbuttonActive,
                             isFlcOutOfRange: _isFlcOutOfRange,
