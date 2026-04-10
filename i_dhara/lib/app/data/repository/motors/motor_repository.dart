@@ -1,4 +1,5 @@
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/models/motors/fault_clear_model.dart';
 import 'package:i_dhara/app/data/models/motors/faults_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_alerts_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
@@ -9,9 +10,11 @@ import '../../models/motors/all_logs_model.dart';
 abstract class MotorsRepository {
   Future<MotorResponse?> getMotors(int? page, int? limit);
   Future<MotorDetailsResponse?> getMotorDetails();
+  Future<FaultClearResponse?> clearFault();
 
   Future<FaultsResponse?> getMotorFaults(int? page, int? limit);
   Future<MotorAlertsResponse?> getMotorAlerts(int? page, int? limit);
-  Future<MotorLogsResponse?> getMotorLogs(int? page, int? limit, String logTypes);
+  Future<MotorLogsResponse?> getMotorLogs(
+      int? page, int? limit, String logTypes);
   Future<AlllogsResponse?> getAllLogs(int? page, int? limit);
 }

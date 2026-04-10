@@ -15,6 +15,7 @@ import '../../../data/models/settings/user_setting_limits2_model.dart';
 import '../../../data/repository/devices/devices_repo_impl.dart';
 import '../../../data/repository/devices/devices_repository.dart';
 import '../../../data/repository/settings/settings_repo_impl.dart';
+import '../../../data/services/storages/shared_preference.dart';
 
 class DashboardController extends GetxController with ConnectivityMixin {
   final motors = <Motor>[].obs;
@@ -162,6 +163,29 @@ class DashboardController extends GetxController with ConnectivityMixin {
     await refreshDashboard();
   }
 
+  Future<void> clearFaultAck(Motor motor) async {
+    isLoading.value = true;
+    try {
+      SharedPreference.setStarterId(motor.starter?.id ?? 0);
+      SharedPreference.setMotorId(motor.id ?? 0);
+
+      final response = await MotorsRepositoryImpl().clearFault();
+      if (response != null) {
+        debugPrint('Fault cleared via API successfully.');
+      }
+
+      // Perform a complete reload to show AppLottieLoading
+      page.value = 1;
+      currentPage.value = 0;
+      await fetchMotors();
+      await fetchLocationDropDown();
+    } catch (e) {
+      debugPrint('Error in clearFaultAck: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<void> fetchupdateSettingsAck() async {
     try {
       try {
@@ -178,6 +202,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       await fetchUserSettings2();
     }
   }
+
   Future<void> _loadAllData() async {
     try {
       isLoading.value = true;
@@ -237,7 +262,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
         '✓ Motor map: ${motorMap.length} entries for ${motorsList.length} motors');
     return motorMap;
   }
-
 
   Future<void> refreshMotors() async {
     isRefreshing.value = true;

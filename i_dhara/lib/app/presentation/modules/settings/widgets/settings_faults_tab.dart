@@ -19,11 +19,12 @@ import 'package:skeletonizer/skeletonizer.dart';
 /// [UserSettings2] so nothing is hardcoded.
 class _FaultDef {
   final String label;
+  final String description;
   final int bit;
   final int Function(UserSettings2 s) read;
   final bool isVisible;
   final int uiOrder;
-  const _FaultDef(this.label, this.bit, this.read,
+  const _FaultDef(this.label, this.description, this.bit, this.read,
       {this.isVisible = true, this.uiOrder = 99});
 }
 
@@ -55,16 +56,45 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   // Order here is the order shown on screen.
   // Bit values match the device contract for `pr_flt_en`.
   static final List<_FaultDef> _defs = [
-    _FaultDef('Under Voltage', 1, (s) => s.vfltUnderVoltage ?? 0, uiOrder: 2),
-    _FaultDef('Over Voltage', 2, (s) => s.vfltOverVoltage ?? 0, uiOrder: 3),
-    _FaultDef('Voltage Imbalance', 4, (s) => s.vfltVoltageImbalance ?? 0,
+    _FaultDef(
+        'Under Voltage',
+        'Stops motor when voltage drops below safe limits',
+        1,
+        (s) => s.vfltUnderVoltage ?? 0,
+        uiOrder: 2),
+    _FaultDef(
+        'Over Voltage',
+        'Stops motor when voltage spikes above safe limits',
+        2,
+        (s) => s.vfltOverVoltage ?? 0,
+        uiOrder: 3),
+    _FaultDef('Voltage Imbalance', '', 4, (s) => s.vfltVoltageImbalance ?? 0,
         isVisible: false, uiOrder: 99),
-    _FaultDef('Phase Failure', 8, (s) => s.vfltPhaseFailure ?? 0, uiOrder: 1),
-    _FaultDef('Dry Run', 16, (s) => s.cfltDryRun ?? 0, uiOrder: 4),
-    _FaultDef('Over Current', 32, (s) => s.cfltOverCurrent ?? 0, uiOrder: 5),
-    _FaultDef('Output Phase Failure', 64, (s) => s.cfltOutputPhaseFail ?? 0,
+    _FaultDef(
+        'Phase Failure',
+        'Trips if the incoming power supply loses a phase',
+        8,
+        (s) => s.vfltPhaseFailure ?? 0,
+        uiOrder: 1),
+    _FaultDef(
+        'Dry Run',
+        'Prevents damage by stopping pump if there is no water',
+        16,
+        (s) => s.cfltDryRun ?? 0,
+        uiOrder: 4),
+    _FaultDef(
+        'Over Current',
+        'Protects motor from drawing excessive load current',
+        32,
+        (s) => s.cfltOverCurrent ?? 0,
+        uiOrder: 5),
+    _FaultDef(
+        'Output Phase Failure',
+        'Trips if the connection to the motor is lost',
+        64,
+        (s) => s.cfltOutputPhaseFail ?? 0,
         uiOrder: 6),
-    _FaultDef('Current Imbalance', 128, (s) => s.cfltCurrImbalance ?? 0,
+    _FaultDef('Current Imbalance', '', 128, (s) => s.cfltCurrImbalance ?? 0,
         isVisible: false, uiOrder: 99),
   ];
 
@@ -165,15 +195,24 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   void _handleSave() async {
     _isDialogShowing = true;
     _isCancelled = false;
+    bool isConfirmed = false;
+
     await showDeviceSettingConfirmDialog(
       context,
       title: 'Update Fault Settings',
       message: 'Are you sure you want to save the fault settings?',
       svgPath: 'assets/images/default_settings.svg',
       yesText: 'Confirm',
-      onConfirm: _publishFaults,
+      onConfirm: () async {
+        isConfirmed = true;
+        await _publishFaults();
+      },
     );
     _isDialogShowing = false;
+
+    if (!isConfirmed) {
+      if (mounted) _handleCancel();
+    }
 
     if (_hasPendingSave || _ackCompleter != null) {
       _isCancelled = true;
@@ -383,8 +422,11 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
         AnimatedBuilder(
           animation: _mergedSwitches ?? Listenable.merge(_controllers),
           builder: (context, _) {
+            if (_isReloading || !_hasChanges) {
+              return const SizedBox.shrink();
+            }
             return SettingsActionButtons(
-              isActive: _hasChanges,
+              isActive: true,
               isFlcOutOfRange: false,
               hasStarter: widget.settings?.starter != null,
               onCancel: _handleCancel,
@@ -425,7 +467,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF27AE60), width: 1),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -437,7 +479,8 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCardHeader(),
+          // _buildCardHeader(),
+          const SizedBox(height: 4),
           ..._buildRows(),
           const SizedBox(height: 8),
         ],
@@ -506,13 +549,30 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
           ValueListenableBuilder<bool>(
             valueListenable: _controllers[index],
             builder: (context, isOn, _) {
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  _controllers[index].value = !isOn;
+                onTap: () async {
+                  if (!isOn && _defs[index].description.isNotEmpty) {
+                    final bool? result = await showDeviceSettingConfirmDialog(
+                      context,
+                      title: 'Enable ${_defs[index].label}',
+                      message: _defs[index].description,
+                      yesText: 'Enable',
+                      showIcon: false,
+                      onConfirm: () {
+                        Navigator.pop(context, true);
+                      },
+                    );
+                    if (result == true) {
+                      _controllers[index].value = true;
+                    }
+                  } else {
+                    _controllers[index].value = !isOn;
+                  }
                 },
                 child: AbsorbPointer(
                   absorbing: true,

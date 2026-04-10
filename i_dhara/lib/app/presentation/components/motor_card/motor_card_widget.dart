@@ -12,6 +12,7 @@ import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
 import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
@@ -72,7 +73,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (mounted) setState(() {});
   }
 
-  void _onFaultClearResult() {
+  void _onFaultClearResult() async {
     final clearedMotorId = widget.mqttService.faultClearResultNotifier.value;
     if (clearedMotorId == null || !mounted) return;
 
@@ -83,16 +84,24 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (_isWaitingForFaultClear) {
       _isWaitingForFaultClear = false;
       setState(() {});
-      successSnackBar(context, 'Fault cleared successfully.');
-      // Show switch confirmation dialog — motor only turns ON if farmer confirms
-      final motorId = _getMotorId();
-      if (motorId.isNotEmpty && mounted) {
-        MotorCardDialogs.showSwitchCommandDialog(
-          context,
-          widget.motor,
-          true,
-          (confirmed) => _executeSwitchCommand(motorId, confirmed),
-        );
+
+      // Call API to patch fault clear and then fetch motors
+      if (Get.isRegistered<DashboardController>()) {
+        await Get.find<DashboardController>().clearFaultAck(widget.motor);
+      }
+
+      if (mounted) {
+        successSnackBar(context, 'Fault cleared successfully.');
+        // Show switch confirmation dialog — motor only turns ON if farmer confirms
+        final motorId = _getMotorId();
+        if (motorId.isNotEmpty && mounted) {
+          MotorCardDialogs.showSwitchCommandDialog(
+            context,
+            widget.motor,
+            true,
+            (confirmed) => _executeSwitchCommand(motorId, confirmed),
+          );
+        }
       }
     }
   }
@@ -255,12 +264,19 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   /// Check if motor is currently in fault state
   bool _isMotorInFault() {
+    // Check if fault is cleared by API
+    final starterParams = widget.motor.starter?.starterParameters;
+    final isFaultCleared = starterParams?.firstOrNull?.faultCleared == true;
+
+    if (isFaultCleared) {
+      return false;
+    }
+
     final motorData = _getMotorData();
     if (motorData != null && motorData.hasReceivedData) {
       return motorData.fault != 0;
     }
     // Also check API data
-    final starterParams = widget.motor.starter?.starterParameters;
     if (starterParams != null && starterParams.isNotEmpty) {
       return (starterParams.first.fault ?? 0) != 0;
     }

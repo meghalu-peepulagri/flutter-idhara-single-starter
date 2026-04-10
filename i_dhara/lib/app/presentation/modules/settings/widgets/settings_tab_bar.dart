@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class SettingsTabBar extends StatelessWidget {
   final int selectedIndex;
@@ -39,7 +40,7 @@ class SettingsTabBar extends StatelessWidget {
             Expanded(
               child: _buildTab(
                 label: 'Faults',
-                icon: Icons.warning_amber_rounded,
+                svgIcon: 'assets/images/risk-management_16230813.svg',
                 index: 1,
               ),
             ),
@@ -51,10 +52,13 @@ class SettingsTabBar extends StatelessWidget {
 
   Widget _buildTab({
     required String label,
-    required IconData icon,
+    IconData? icon,
+    String? svgIcon,
     required int index,
   }) {
     final bool isSelected = selectedIndex == index;
+    final color =
+        isSelected ? const Color(0xFF004E7E) : const Color(0xFF6B7280);
     return InkWell(
       onTap: () => onTabChanged(index),
       borderRadius: BorderRadius.circular(8.0),
@@ -76,20 +80,24 @@ class SettingsTabBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected
-                  ? const Color(0xFF004E7E)
-                  : const Color(0xFF6B7280),
-            ),
+            if (icon != null)
+              Icon(
+                icon,
+                size: 16,
+                color: color,
+              )
+            else if (svgIcon != null)
+              SvgPicture.asset(
+                svgIcon,
+                width: 16,
+                height: 16,
+                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+              ),
             const SizedBox(width: 4),
             Text(
               label,
               style: GoogleFonts.dmSans(
-                color: isSelected
-                    ? const Color(0xFF004E7E)
-                    : const Color(0xFF6B7280),
+                color: color,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 fontSize: 12.0,
               ),

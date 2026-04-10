@@ -33,6 +33,11 @@ class MotorHeader extends StatelessWidget {
   }
 
   int get _faultValue {
+    final bool isFaultCleared = motor.starter?.starterParameters?.firstOrNull?.faultCleared == true;
+    if (isFaultCleared) {
+      return 0;
+    }
+
     if (motorData != null && motorData!.hasReceivedData) {
       return motorData!.fault;
     }
