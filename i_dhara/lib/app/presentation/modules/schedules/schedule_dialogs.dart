@@ -11,6 +11,9 @@ Future<void> showScheduleConfirmDialog({
   required String duration,
   required String powerRecovery,
   required Future<bool> Function() onConfirm,
+  bool isCyclic = false,
+  int cyclicOnMinutes = 0,
+  int cyclicOffMinutes = 0,
 }) {
   return showDialog(
     context: context,
@@ -81,8 +84,15 @@ Future<void> showScheduleConfirmDialog({
                         _dialogRow('End', endTime),
                         const SizedBox(height: 6),
                         _dialogRow('Duration', duration),
-                        const SizedBox(height: 6),
-                        _dialogRow('Power Recovery', powerRecovery),
+                        if (isCyclic) ...[
+                          const SizedBox(height: 6),
+                          _dialogRow('Cyclic ON', '$cyclicOnMinutes min'),
+                          const SizedBox(height: 6),
+                          _dialogRow('Cyclic OFF', '$cyclicOffMinutes min'),
+                        ] else ...[
+                          const SizedBox(height: 6),
+                          _dialogRow('Power Recovery', powerRecovery),
+                        ],
                       ],
                     ),
                   ),

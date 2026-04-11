@@ -244,9 +244,13 @@ class ScheduleCyclicCard extends StatelessWidget {
 class ScheduleFormBottomBar extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onSave;
+  final bool isEditMode;
 
   const ScheduleFormBottomBar(
-      {super.key, required this.onBack, required this.onSave});
+      {super.key,
+      required this.onBack,
+      required this.onSave,
+      this.isEditMode = false});
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +308,8 @@ class ScheduleFormBottomBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   onTap: onSave,
                   child: Center(
-                    child: Text('Save Schedule',
+                    child: Text(
+                        isEditMode ? 'Update Schedule' : 'Save Schedule',
                         style: GoogleFonts.dmSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,

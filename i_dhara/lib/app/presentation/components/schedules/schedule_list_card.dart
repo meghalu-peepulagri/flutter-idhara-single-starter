@@ -386,22 +386,34 @@ class ScheduleCard extends StatelessWidget {
 
   Widget _statusDot(String status, bool isActive) {
     final normalizedStatus = status.toLowerCase();
+    final isRunning = normalizedStatus == 'running';
     final isScheduled = normalizedStatus == 'scheduled';
     final isStopped = normalizedStatus == 'stopped';
-    final badgeBgColor = isScheduled
-        ? const Color(0xFFEBF3FE)
-        : isStopped
-            ? const Color(0xFFFFEBEE)
-            : isActive
-                ? const Color(0xFFE8F5E9)
-                : const Color(0xFFF5F5F5);
-    final badgeFgColor = isScheduled
-        ? const Color(0xFF004E7E)
-        : isStopped
-            ? const Color(0xFFE53935)
-            : isActive
-                ? const Color(0xFF34C759)
-                : const Color(0xFF9E9E9E);
+    final isPending = normalizedStatus == 'pending';
+
+    final badgeBgColor = isRunning // ← add this block
+        ? const Color(0xFFE8F5E9)
+        : isScheduled
+            ? const Color(0xFFEBF3FE)
+            : isPending
+                ? const Color(0xFFFFF3E0)
+                : isStopped
+                    ? const Color(0xFFFFEBEE)
+                    : isActive
+                        ? const Color(0xFFE8F5E9)
+                        : const Color(0xFFF5F5F5);
+
+    final badgeFgColor = isRunning // ← add this block
+        ? const Color(0xFF34C759)
+        : isScheduled
+            ? const Color(0xFF004E7E)
+            : isPending
+                ? const Color(0xFFFF9800)
+                : isStopped
+                    ? const Color(0xFFE53935)
+                    : isActive
+                        ? const Color(0xFF34C759)
+                        : const Color(0xFF9E9E9E);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

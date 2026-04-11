@@ -1493,6 +1493,7 @@ class MqttService {
     final ackMap = <String, dynamic>{
       'topic': identifier,
       'id': scheduleId,
+      'ack': ack,
       'status': 1, // ACK received = success
     };
     scheduleActionAckController.add(ackMap);

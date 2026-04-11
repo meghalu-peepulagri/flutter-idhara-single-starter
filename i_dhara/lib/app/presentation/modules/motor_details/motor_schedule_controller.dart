@@ -246,7 +246,18 @@ class MotorScheduleController extends GetxController {
 
         final status = ack['status'] as int? ?? 0;
         scheduleId = ack['id'] as int? ?? 0;
-        final cmd = _pendingActions.remove(scheduleId);
+        final receivedAckCmd = ack['ack'] as int?;
+
+        final cmd = _pendingActions[scheduleId];
+        if (cmd == null) return;
+
+        // Ensure the received ack explicitly matches the pending action command
+        if (receivedAckCmd != null && receivedAckCmd != cmd) {
+          debugPrint('⚠️ Ignored ACK: expected $cmd but got $receivedAckCmd');
+          return;
+        }
+
+        _pendingActions.remove(scheduleId);
 
         if (status == 1) {
           if (cmd == 3) {
@@ -261,7 +272,7 @@ class MotorScheduleController extends GetxController {
               await SharedPreference.setscheduleid(record.id ?? 0);
             }
             try {
-              final response = await _scheduleRepo.scheduleStopAndRestart(cmd!);
+              final response = await _scheduleRepo.scheduleStopAndRestart(cmd);
               if (response != null) {
                 getsuccessSnackBar(
                     cmd == 1 ? 'Schedule stopped' : 'Schedule restarted');
@@ -280,9 +291,7 @@ class MotorScheduleController extends GetxController {
           }
         } else {
           // ── ACK FAILURE / TIMEOUT ──
-          geterrorSnackBar(cmd == null
-              ? 'Schedule action: No response from device'
-              : 'Schedule action failed');
+          geterrorSnackBar('Schedule action failed');
           _deleteCompleters.remove(scheduleId)?.complete(false);
           _toggleCompleters.remove(scheduleId)?.complete(false);
           fetchSchedules();

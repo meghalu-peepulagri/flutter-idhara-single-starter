@@ -20,11 +20,13 @@ import 'package:skeletonizer/skeletonizer.dart';
 class _FaultDef {
   final String label;
   final String description;
+  final String offDescription;
   final int bit;
   final int Function(UserSettings2 s) read;
   final bool isVisible;
   final int uiOrder;
-  const _FaultDef(this.label, this.description, this.bit, this.read,
+  const _FaultDef(
+      this.label, this.description, this.offDescription, this.bit, this.read,
       {this.isVisible = true, this.uiOrder = 99});
 }
 
@@ -58,43 +60,50 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   static final List<_FaultDef> _defs = [
     _FaultDef(
         'Under Voltage',
-        'Stops motor when voltage drops below safe limits',
+        'Stops the motor when the voltage drops below safe limits.',
+        'Motor will run even if voltage drops below safe limits, which may cause damage.',
         1,
         (s) => s.vfltUnderVoltage ?? 0,
         uiOrder: 2),
     _FaultDef(
         'Over Voltage',
-        'Stops motor when voltage spikes above safe limits',
+        'Stops the motor when the voltage spikes above safe limits.',
+        'Motor will run even if voltage spikes above safe limits, which may cause damage.',
         2,
         (s) => s.vfltOverVoltage ?? 0,
         uiOrder: 3),
-    _FaultDef('Voltage Imbalance', '', 4, (s) => s.vfltVoltageImbalance ?? 0,
+    _FaultDef(
+        'Voltage Imbalance', '', '', 4, (s) => s.vfltVoltageImbalance ?? 0,
         isVisible: false, uiOrder: 99),
     _FaultDef(
         'Phase Failure',
-        'Trips if the incoming power supply loses a phase',
+        'Stops the motor if the incoming power supply loses a phase.',
+        'Motor won\'t stop if a phase is lost, which can lead to overheating and damage.',
         8,
         (s) => s.vfltPhaseFailure ?? 0,
         uiOrder: 1),
     _FaultDef(
         'Dry Run',
-        'Prevents damage by stopping pump if there is no water',
+        'Stops the pump if there is no water to prevent damage.',
+        'Pump will keep running even without water, which could result in severe damage.',
         16,
         (s) => s.cfltDryRun ?? 0,
         uiOrder: 4),
     _FaultDef(
         'Over Current',
-        'Protects motor from drawing excessive load current',
+        'Stops the motor if it draws excessive load current.',
+        'Motor will not be protected against drawing excessive current, risking failure.',
         32,
         (s) => s.cfltOverCurrent ?? 0,
         uiOrder: 5),
     _FaultDef(
         'Output Phase Failure',
-        'Trips if the connection to the motor is lost',
+        'Stops the motor if the connection to the motor is lost.',
+        'Motor will not stop if the connection to the motor is lost, which may cause issue.',
         64,
         (s) => s.cfltOutputPhaseFail ?? 0,
         uiOrder: 6),
-    _FaultDef('Current Imbalance', '', 128, (s) => s.cfltCurrImbalance ?? 0,
+    _FaultDef('Current Imbalance', '', '', 128, (s) => s.cfltCurrImbalance ?? 0,
         isVisible: false, uiOrder: 99),
   ];
 
@@ -412,7 +421,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFaultsCard(),
+                          ..._buildFaultCards(),
                         ],
                       ),
                     ),
@@ -462,7 +471,45 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     );
   }
 
-  Widget _buildFaultsCard() {
+  // ─── Per-fault card icons ──────────────────────────────────────────────────
+
+  IconData _faultIcon(String label) {
+    switch (label) {
+      case 'Phase Failure':
+        return Icons.bolt_outlined;
+      case 'Under Voltage':
+        return Icons.battery_alert_outlined;
+      case 'Over Voltage':
+        return Icons.flash_on_outlined;
+      case 'Dry Run':
+        return Icons.water_drop_outlined;
+      case 'Over Current':
+        return Icons.electric_meter_outlined;
+      case 'Output Phase Failure':
+        return Icons.electrical_services_outlined;
+      default:
+        return Icons.warning_amber_outlined;
+    }
+  }
+
+  // ─── Build one card per fault ──────────────────────────────────────────────
+
+  List<Widget> _buildFaultCards() {
+    final cards = <Widget>[];
+
+    final indices = List.generate(_defs.length, (i) => i);
+    indices.sort((a, b) => _defs[a].uiOrder.compareTo(_defs[b].uiOrder));
+
+    for (int i in indices) {
+      if (_defs[i].isVisible) {
+        cards.add(_buildFaultCard(i));
+        cards.add(const SizedBox(height: 10));
+      }
+    }
+    return cards;
+  }
+
+  Widget _buildFaultCard(int index) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -476,136 +523,198 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
           ),
         ],
       ),
-      child: Column(
+      padding: const EdgeInsets.all(14),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // _buildCardHeader(),
-          const SizedBox(height: 4),
-          ..._buildRows(),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCardHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFE8F7EE),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(11),
-          topRight: Radius.circular(11),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.toggle_on_outlined,
-            color: Color(0xFF27AE60),
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Enable & Disable Faults',
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF27AE60),
+          // ── Left icon ──────────────────────────────────────────────────
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildRows() {
-    final rows = <Widget>[];
-
-    final indices = List.generate(_defs.length, (i) => i);
-    indices.sort((a, b) => _defs[a].uiOrder.compareTo(_defs[b].uiOrder));
-
-    for (int i in indices) {
-      if (_defs[i].isVisible) {
-        rows.add(_buildRow(i));
-      }
-    }
-    return rows;
-  }
-
-  Widget _buildRow(int index) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              _defs[index].label,
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: const Color(0xFF1F2937),
-              ),
+            child: Icon(
+              _faultIcon(_defs[index].label),
+              size: 26,
+              color: const Color(0xFF374151),
             ),
           ),
           const SizedBox(width: 12),
-          ValueListenableBuilder<bool>(
-            valueListenable: _controllers[index],
-            builder: (context, isOn, _) {
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () async {
-                  if (!isOn && _defs[index].description.isNotEmpty) {
-                    final bool? result = await showDeviceSettingConfirmDialog(
-                      context,
-                      title: 'Enable ${_defs[index].label}',
-                      message: _defs[index].description,
-                      yesText: 'Enable',
-                      showIcon: false,
-                      onConfirm: () {
-                        Navigator.pop(context, true);
+          // ── Right content ──────────────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title row + toggle
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _defs[index].label,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _controllers[index],
+                      builder: (context, isOn, _) {
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () async {
+                            if (!isOn && _defs[index].description.isNotEmpty) {
+                              final bool? result =
+                                  await showDeviceSettingConfirmDialog(
+                                context,
+                                title: 'Enable ${_defs[index].label}',
+                                message: _defs[index].description,
+                                yesText: 'Enable',
+                                showIcon: false,
+                                onConfirm: () {
+                                  Navigator.pop(context, true);
+                                },
+                              );
+                              if (result == true) {
+                                _controllers[index].value = true;
+                              }
+                            } else if (isOn &&
+                                _defs[index].offDescription.isNotEmpty) {
+                              final bool? result =
+                                  await showDeviceSettingConfirmDialog(
+                                context,
+                                title: 'Disable ${_defs[index].label}',
+                                message: _defs[index].offDescription,
+                                yesText: 'Disable',
+                                showIcon: false,
+                                onConfirm: () {
+                                  Navigator.pop(context, true);
+                                },
+                              );
+                              if (result == true) {
+                                _controllers[index].value = false;
+                              }
+                            } else {
+                              _controllers[index].value = !isOn;
+                            }
+                          },
+                          child: AbsorbPointer(
+                            absorbing: true,
+                            child: AdvancedSwitch(
+                              key: ValueKey('fault_switch_${index}_$isOn'),
+                              controller: _controllers[index],
+                              initialValue: isOn,
+                              activeColor: const Color(0xFF27AE60),
+                              inactiveColor: const Color(0xFFBDBDBD),
+                              activeChild: const Text(
+                                'ON',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              inactiveChild: const Text(
+                                'OFF',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(15)),
+                              width: 55,
+                              height: 26,
+                              enabled: true,
+                            ),
+                          ),
+                        );
                       },
-                    );
-                    if (result == true) {
-                      _controllers[index].value = true;
-                    }
-                  } else {
-                    _controllers[index].value = !isOn;
-                  }
-                },
-                child: AbsorbPointer(
-                  absorbing: true,
-                  child: AdvancedSwitch(
-                    key: ValueKey('fault_switch_${index}_$isOn'),
-                    controller: _controllers[index],
-                    initialValue: isOn,
-                    activeColor: const Color(0xFF27AE60),
-                    inactiveColor: const Color(0xFFBDBDBD),
-                    activeChild: const Text(
-                      'ON',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
-                    inactiveChild: const Text(
-                      'OFF',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    borderRadius: const BorderRadius.all(Radius.circular(15)),
-                    width: 55,
-                    height: 26,
-                    enabled: true,
-                  ),
+                  ],
                 ),
-              );
-            },
+                // ON description chip
+                if (_defs[index].description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD1FAE5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'ON:',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF065F46),
+                              ),
+                            ),
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' ${_defs[index].description}',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF374151),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                // OFF description chip
+                if (_defs[index].offDescription.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFE4E6),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'OFF:',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF9F1239),
+                              ),
+                            ),
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' ${_defs[index].offDescription}',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF374151),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),

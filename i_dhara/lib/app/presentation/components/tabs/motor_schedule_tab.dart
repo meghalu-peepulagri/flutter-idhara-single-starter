@@ -27,21 +27,21 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     final todayNorm = DateTime(today.year, today.month, today.day);
     _dateRange = List.generate(30, (i) => todayNorm.add(Duration(days: i - 7)));
 
-    // Scroll to today + rebuild dots on every fetch (loading path)
+    // Scroll to selected date + rebuild dots on every fetch (loading path)
     ever(_controller.isLoading, (bool loading) {
       if (!loading) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToToday();
+          _scrollToSelectedDate();
           _updateDateBars();
         });
       }
     });
 
-    // Scroll to today + rebuild dots on refresh path
+    // Scroll to selected date + rebuild dots on refresh path
     ever(_controller.isRefreshing, (bool refreshing) {
       if (!refreshing) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToToday();
+          _scrollToSelectedDate();
           _updateDateBars();
         });
       }
@@ -49,7 +49,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
 
     // Handle case where controller already has data when widget mounts
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToToday();
+      _scrollToSelectedDate();
       _updateDateBars();
     });
   }
@@ -97,16 +97,28 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     }
   }
 
-  void _scrollToToday() {
+  void _scrollToDate(int index) {
     if (!mounted || !_dateScrollController.hasClients) return;
-    const todayIndex = 7; // _dateRange starts 7 days before today
-    const itemWidth = 58.0; // 52 width + 6 margin
+    const itemWidth = 58.0; // 48 width + ~10 margin/padding
     final screenWidth = MediaQuery.of(context).size.width;
-    final offset =
-        (todayIndex * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
-    _dateScrollController.jumpTo(
+    final offset = (index * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
+    _dateScrollController.animateTo(
       offset.clamp(0.0, _dateScrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
+  }
+
+  void _scrollToSelectedDate() {
+    if (!mounted) return;
+    final selected = _controller.selectedDate.value;
+    final index = _dateRange.indexWhere((d) => d == selected);
+    if (index != -1) {
+      _scrollToDate(index);
+    } else {
+      // Fallback: scroll to today (index 7)
+      _scrollToDate(7);
+    }
   }
 
   @override
@@ -167,7 +179,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                             ),
                             child: Icon(
                               Icons.tune_rounded,
-                              size: 16,
+                              size: 20,
                               color: hasFilter
                                   ? Colors.white
                                   : const Color(0xFF004E7E),
@@ -399,6 +411,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 onTap: () {
                   _controller.selectedDate.value = date;
                   _controller.fetchSchedules();
+                  _scrollToDate(i);
                 },
                 child: SizedBox(
                   width: 48,

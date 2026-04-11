@@ -7,6 +7,7 @@ import 'package:i_dhara/app/presentation/modules/schedules/schedule_bottomsheets
 class ScheduleForm extends StatefulWidget {
   final VoidCallback onSave;
   final VoidCallback onBack;
+  final bool isEditMode;
 
   // Optional initial values for edit mode
   final int? initialStartHour;
@@ -25,6 +26,7 @@ class ScheduleForm extends StatefulWidget {
     super.key,
     required this.onSave,
     required this.onBack,
+    this.isEditMode = false,
     this.initialStartHour,
     this.initialStartMinute,
     this.initialEndHour,
@@ -181,7 +183,13 @@ class ScheduleFormState extends State<ScheduleForm> {
       final now = DateTime.now();
       minTime = TimeOfDay(hour: now.hour, minute: now.minute);
     } else if (!isStart) {
-      minTime = startTime;
+      // Only restrict the end time if the end date is the exact same as the start date
+      final isSameDate = startDate.year == endDate.year &&
+          startDate.month == endDate.month &&
+          startDate.day == endDate.day;
+      if (isSameDate) {
+        minTime = startTime;
+      }
     }
     showTimeBottomSheet(
       context,
@@ -341,7 +349,10 @@ class ScheduleFormState extends State<ScheduleForm> {
             ),
           ),
         ),
-        ScheduleFormBottomBar(onBack: widget.onBack, onSave: widget.onSave),
+        ScheduleFormBottomBar(
+            onBack: widget.onBack,
+            onSave: widget.onSave,
+            isEditMode: widget.isEditMode),
       ],
     );
   }

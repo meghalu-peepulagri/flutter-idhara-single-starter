@@ -245,6 +245,9 @@ class _SchedulePageState extends State<SchedulePage> {
       endTime: formatTime24h(form.endTime),
       duration: form.durationText,
       powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
+      isCyclic: isCyclic,
+      cyclicOnMinutes: form.cyclicOnMinutes,
+      cyclicOffMinutes: form.cyclicOffMinutes,
       onConfirm: _isEditMode ? _updateSchedule : _createSchedule,
     );
     if (_scheduleSaved && mounted) Navigator.of(context).pop(true);
@@ -302,6 +305,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       key: _formKey,
                       onSave: _onSaveTapped,
                       onBack: () => Get.back(),
+                      isEditMode: _isEditMode,
                       initialStartHour: record != null ? sh : null,
                       initialStartMinute: record != null ? sm : null,
                       initialEndHour: record != null ? eh : null,

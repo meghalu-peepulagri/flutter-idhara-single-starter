@@ -32,7 +32,7 @@ class SettingsTabBar extends StatelessWidget {
           children: [
             Expanded(
               child: _buildTab(
-                label: 'Settings',
+                label: 'Limits',
                 icon: Icons.tune,
                 index: 0,
               ),
