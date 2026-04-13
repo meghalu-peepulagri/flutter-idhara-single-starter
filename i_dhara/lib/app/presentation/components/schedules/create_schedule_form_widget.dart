@@ -79,6 +79,10 @@ class ScheduleCyclicCard extends StatelessWidget {
   final VoidCallback onOnIncrement;
   final VoidCallback onOffDecrement;
   final VoidCallback onOffIncrement;
+  final bool onIncrementEnabled;
+  final bool offIncrementEnabled;
+  final bool onDecrementEnabled;
+  final bool offDecrementEnabled;
 
   const ScheduleCyclicCard({
     super.key,
@@ -91,6 +95,10 @@ class ScheduleCyclicCard extends StatelessWidget {
     required this.onOnIncrement,
     required this.onOffDecrement,
     required this.onOffIncrement,
+    this.onIncrementEnabled = true,
+    this.offIncrementEnabled = true,
+    this.onDecrementEnabled = true,
+    this.offDecrementEnabled = true,
   });
 
   @override
@@ -158,6 +166,8 @@ class ScheduleCyclicCard extends StatelessWidget {
                               minutes: cyclicOnMinutes,
                               onDecrement: onOnDecrement,
                               onIncrement: onOnIncrement,
+                              incrementEnabled: onIncrementEnabled,
+                              decrementEnabled: onDecrementEnabled,
                             ),
                           ),
                           Container(
@@ -173,6 +183,8 @@ class ScheduleCyclicCard extends StatelessWidget {
                               minutes: cyclicOffMinutes,
                               onDecrement: onOffDecrement,
                               onIncrement: onOffIncrement,
+                              incrementEnabled: offIncrementEnabled,
+                              decrementEnabled: offDecrementEnabled,
                             ),
                           ),
                         ],
@@ -192,6 +204,8 @@ class ScheduleCyclicCard extends StatelessWidget {
     required int minutes,
     required VoidCallback onDecrement,
     required VoidCallback onIncrement,
+    bool incrementEnabled = true,
+    bool decrementEnabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,15 +219,18 @@ class ScheduleCyclicCard extends StatelessWidget {
         Row(
           children: [
             GestureDetector(
-              onTap: onDecrement,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Icon(Icons.remove_rounded,
-                    size: 16, color: Color(0xFF004E7E)),
+              onTap: decrementEnabled ? onDecrement : null,
+              child: Opacity(
+                opacity: decrementEnabled ? 1.0 : 0.35,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.remove_rounded,
+                      size: 16, color: Color(0xFF004E7E)),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -222,15 +239,18 @@ class ScheduleCyclicCard extends StatelessWidget {
                     fontSize: 15, fontWeight: FontWeight.w700, color: color)),
             const SizedBox(width: 8),
             GestureDetector(
-              onTap: onIncrement,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Icon(Icons.add_rounded,
-                    size: 16, color: Color(0xFF004E7E)),
+              onTap: incrementEnabled ? onIncrement : null,
+              child: Opacity(
+                opacity: incrementEnabled ? 1.0 : 0.35,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.add_rounded,
+                      size: 16, color: Color(0xFF004E7E)),
+                ),
               ),
             ),
           ],

@@ -472,7 +472,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Get.offAllNamed(Routes.devices, arguments: {"refresh": true});
+        Get.offAllNamed(Routes.settingsDevices);
         return false;
       },
       child: GestureDetector(

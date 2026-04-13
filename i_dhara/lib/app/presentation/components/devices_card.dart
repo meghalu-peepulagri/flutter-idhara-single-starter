@@ -15,7 +15,7 @@ import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+
 
 import '../../core/utils/dialogs/info_popup.dart';
 import '../../core/utils/mqtt_utils.dart';
@@ -443,17 +443,6 @@ class DevicesCard extends StatelessWidget {
                   Row(
                     spacing: 10,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          SharedPreference.setStarterId(device.id ?? 0);
-                          Get.offNamed(Routes.usersettings);
-                        },
-                        child: const Icon(
-                          Icons.settings_outlined,
-                          color: Colors.black87,
-                          size: 20,
-                        ),
-                      ),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(0.0),
                         child: SvgPicture.asset(

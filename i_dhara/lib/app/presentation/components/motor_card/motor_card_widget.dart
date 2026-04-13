@@ -81,28 +81,16 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     final ourMotorId = _getMotorId();
     if (clearedMotorId != ourMotorId) return;
 
-    if (_isWaitingForFaultClear) {
-      _isWaitingForFaultClear = false;
-      setState(() {});
+    _isWaitingForFaultClear = false;
+    setState(() {});
 
-      // Call API to patch fault clear and then fetch motors
-      if (Get.isRegistered<DashboardController>()) {
-        await Get.find<DashboardController>().clearFaultAck(widget.motor);
-      }
+    // Show snackbar immediately before clearFaultAck, because clearFaultAck
+    // sets isLoading=true which rebuilds the widget tree and unmounts this card.
+    getsuccessSnackBar('Fault cleared successfully');
 
-      if (mounted) {
-        successSnackBar(context, 'Fault cleared successfully.');
-        // Show switch confirmation dialog — motor only turns ON if farmer confirms
-        final motorId = _getMotorId();
-        if (motorId.isNotEmpty && mounted) {
-          MotorCardDialogs.showSwitchCommandDialog(
-            context,
-            widget.motor,
-            true,
-            (confirmed) => _executeSwitchCommand(motorId, confirmed),
-          );
-        }
-      }
+    // Call API to patch fault clear and then fetch motors
+    if (Get.isRegistered<DashboardController>()) {
+      await Get.find<DashboardController>().clearFaultAck(widget.motor);
     }
   }
 

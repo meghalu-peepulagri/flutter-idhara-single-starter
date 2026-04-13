@@ -42,10 +42,7 @@ class SettingsAppBar extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: () {
-                      Get.offAllNamed(
-                        Routes.devices,
-                        arguments: {'refresh': true},
-                      );
+                      Get.offAllNamed(Routes.settingsDevices);
                     },
                     child: const Icon(
                       Icons.arrow_back,

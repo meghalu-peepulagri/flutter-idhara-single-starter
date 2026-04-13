@@ -96,7 +96,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         SettingsDualSlider(
           key: _sliderKey,
           heading: 'Current Faults',

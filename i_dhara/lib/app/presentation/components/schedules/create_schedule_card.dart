@@ -129,6 +129,14 @@ class ScheduleFormState extends State<ScheduleForm> {
 
   int get _activeDays => endDate.difference(startDate).inDays.abs() + 1;
 
+  void _clampCyclicDurations() {
+    final total = durationMinutes;
+    if (cyclicOnMinutes + cyclicOffMinutes > total) {
+      cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
+      cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
+    }
+  }
+
   /// Returns the set of day numbers (Sun=0, Mon=1..Sat=6) that fall within
   /// the selected [startDate]–[endDate] range.
   Set<int> get _validDays {
@@ -173,6 +181,10 @@ class ScheduleFormState extends State<ScheduleForm> {
         } else {
           endHour = t.hour;
           endMinute = t.minute;
+        }
+        // Clamp cyclic durations when schedule duration changes
+        if (cyclicMode) {
+          _clampCyclicDurations();
         }
       });
 
@@ -313,6 +325,13 @@ class ScheduleFormState extends State<ScheduleForm> {
                     if (v) {
                       powerLossRecovery = false;
                       _powerLossController.value = false;
+                      // Clamp defaults to fit within the schedule duration
+                      final total = durationMinutes;
+                      if (cyclicOnMinutes + cyclicOffMinutes > total) {
+                        cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
+                        cyclicOffMinutes =
+                            (total - cyclicOnMinutes).clamp(5, 120);
+                      }
                     } else {
                       // Reset cyclic durations to defaults when turned off
                       cyclicOnMinutes = 20;
@@ -323,14 +342,29 @@ class ScheduleFormState extends State<ScheduleForm> {
                     if (cyclicOnMinutes > 5) cyclicOnMinutes -= 5;
                   }),
                   onOnIncrement: () => setState(() {
-                    if (cyclicOnMinutes < 120) cyclicOnMinutes += 5;
+                    final maxOn = durationMinutes - cyclicOffMinutes;
+                    if (cyclicOnMinutes + 5 <= maxOn && cyclicOnMinutes < 120) {
+                      cyclicOnMinutes += 5;
+                    }
                   }),
                   onOffDecrement: () => setState(() {
                     if (cyclicOffMinutes > 5) cyclicOffMinutes -= 5;
                   }),
                   onOffIncrement: () => setState(() {
-                    if (cyclicOffMinutes < 120) cyclicOffMinutes += 5;
+                    final maxOff = durationMinutes - cyclicOnMinutes;
+                    if (cyclicOffMinutes + 5 <= maxOff &&
+                        cyclicOffMinutes < 120) {
+                      cyclicOffMinutes += 5;
+                    }
                   }),
+                  onIncrementEnabled: cyclicOnMinutes + 5 <=
+                          durationMinutes - cyclicOffMinutes &&
+                      cyclicOnMinutes < 120,
+                  offIncrementEnabled: cyclicOffMinutes + 5 <=
+                          durationMinutes - cyclicOnMinutes &&
+                      cyclicOffMinutes < 120,
+                  onDecrementEnabled: cyclicOnMinutes > 5,
+                  offDecrementEnabled: cyclicOffMinutes > 5,
                 ),
                 const SizedBox(height: 12),
                 buildScheduleToggle(
@@ -457,42 +491,40 @@ class ScheduleFormState extends State<ScheduleForm> {
           const SizedBox(height: 10),
           // Day chips — only days within the date range are tappable
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (i) {
               final dayNum = i; // Sun=0, Mon=1...Sat=6
               final valid = _validDays.contains(dayNum);
               final isActive = selectedDays.contains(dayNum);
-              return Expanded(
-                child: GestureDetector(
-                  onTap: valid ? () => _toggleDay(dayNum) : null,
-                  child: Center(
-                    child: Opacity(
-                      opacity: valid ? 1.0 : 0.35,
-                      child: Container(
-                        width: 36,
-                        height: 28,
-                        decoration: BoxDecoration(
+              return GestureDetector(
+                onTap: valid ? () => _toggleDay(dayNum) : null,
+                child: Opacity(
+                  opacity: valid ? 1.0 : 0.35,
+                  child: Container(
+                    width: 36,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? const Color(0xFFEBF3FE)
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: isActive
+                            ? const Color(0xFF3686AF)
+                            : const Color(0xFFCBD5E1),
+                        width: 1.2,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Center(
+                      child: Text(
+                        dayLabels[i],
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight:
+                              isActive ? FontWeight.w700 : FontWeight.w500,
                           color: isActive
-                              ? const Color(0xFFEBF3FE)
-                              : Colors.transparent,
-                          border: Border.all(
-                            color: isActive
-                                ? const Color(0xFF3686AF)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Center(
-                          child: Text(
-                            dayLabels[i],
-                            style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight:
-                                  isActive ? FontWeight.w600 : FontWeight.w500,
-                              color: isActive
-                                  ? const Color(0xFF004E7E)
-                                  : const Color(0xFF64748B),
-                            ),
-                          ),
+                              ? const Color(0xFF004E7E)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ),
@@ -511,7 +543,7 @@ class ScheduleFormState extends State<ScheduleForm> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFF94A3B8), width: 1.2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

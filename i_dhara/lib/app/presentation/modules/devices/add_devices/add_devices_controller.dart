@@ -160,22 +160,17 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     final response = await DevicesRepositoryImpl().deviceassign(dto);
 
     if (response != null && response.errors == null) {
+      if (response.data?.starterId != null) {
+        SharedPreference.setStarterId(response.data?.starterId ?? 0);
+      }
       if (imageFile != null) {
-        if (response.data?.starterId != null) {
-          SharedPreference.setStarterId(response.data?.starterId ?? 0);
-          await fetchupload();
-        } else {
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (Get.isRegistered<DashboardController>()) {
-            Get.delete<DashboardController>();
-          }
-          Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
-        }
+        await fetchupload();
+      } else {
         await Future.delayed(const Duration(milliseconds: 500));
         if (Get.isRegistered<DashboardController>()) {
           Get.delete<DashboardController>();
         }
-        Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
+        Get.offAllNamed(Routes.devices, arguments: {'refresh': true});
       }
     } else if (response?.errors != null) {
       errorInstance.clear();

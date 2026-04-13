@@ -432,7 +432,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
               )
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 12),
 
           // Custom Slider with Tooltip Badges
           Stack(

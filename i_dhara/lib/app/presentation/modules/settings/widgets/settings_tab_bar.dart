@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SettingsTabBar extends StatelessWidget {
   final int selectedIndex;
@@ -40,7 +40,7 @@ class SettingsTabBar extends StatelessWidget {
             Expanded(
               child: _buildTab(
                 label: 'Faults',
-                svgIcon: 'assets/images/risk-management_16230813.svg',
+                svgIcon: 'assets/images/fault-settings.svg',
                 index: 1,
               ),
             ),
