@@ -118,7 +118,7 @@ class SettingsDevicesPage extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsetsDirectional.fromSTEB(
-                        16.0, 0.0, 16.0, 0.0),
+                        16.0, 0.0, 16.0, 10.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.max,
                       children: [

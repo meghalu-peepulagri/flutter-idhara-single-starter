@@ -210,6 +210,9 @@ extension AnalyticsControllerApi on AnalyticsController {
 
     try {
       await fetchMotorDetails(enableRetry: true);
+      if (selectedTabIndex.value == AnalyticsController.analyticsTabIndex) {
+        await fetchRuntime(daterange);
+      }
     } catch (e) {
       // ignore
     }
@@ -227,11 +230,17 @@ extension AnalyticsControllerApi on AnalyticsController {
 
       futures.add(fetchMotorDetails());
 
-      if (selectedTabIndex.value == 1) {
+      if (selectedTabIndex.value == AnalyticsController.analyticsTabIndex) {
         futures.add(fetchRuntime(daterange));
       }
 
-      if (selectedTabIndex.value == 2) {
+      if (selectedTabIndex.value == AnalyticsController.scheduleTabIndex &&
+          Get.isRegistered<MotorScheduleController>()) {
+        final scheduleController = Get.find<MotorScheduleController>();
+        futures.add(scheduleController.fetchSchedules(isRefresh: true));
+      }
+
+      if (selectedTabIndex.value == AnalyticsController.logsTabIndex) {
         final logsController = Get.find<MotorLogsController>();
         futures.add(logsController.refreshCurrentTab());
       }

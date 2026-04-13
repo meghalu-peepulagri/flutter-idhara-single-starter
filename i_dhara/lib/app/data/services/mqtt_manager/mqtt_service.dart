@@ -491,7 +491,7 @@ class MqttService {
 
   /// Cancel any pending settings command retries.
   void cancelPendingSettingsCommand() {
-    final key = '_4';
+    const key = '_4';
     final command = _pendingCommands[key];
     if (command != null) {
       command.cancelTimer();
@@ -548,7 +548,7 @@ class MqttService {
       'S': seq,
       'D': {
         'idx': scheduleId,
-        'last': 0,
+        'last': 1,
         'sch_cnt': 1,
         'plr': 30,
         'm1': [scheduleItem],
@@ -1774,7 +1774,8 @@ class MqttService {
         } else if (command.commandType == 24) {
           // Mark schedule action command as expired so late ACKs are ignored
           _expiredActionKeys.add(command.motorId);
-          command.onMaxRetriesReached('Schedule Action: No response from device');
+          command
+              .onMaxRetriesReached('Schedule Action: No response from device');
         } else if (command.commandType == 4) {
           command
               .onMaxRetriesReached('Device Settings: No response from device');

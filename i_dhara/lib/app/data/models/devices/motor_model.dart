@@ -112,6 +112,7 @@ class Motor {
   bool? testrunSignal;
   bool? testrunPower;
   bool? testrunVoltageRange;
+  Runtimee? runtime;
 
   Motor({
     this.id,
@@ -126,6 +127,7 @@ class Motor {
     this.testrunSignal,
     this.testrunPower,
     this.testrunVoltageRange,
+    this.runtime,
   });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
@@ -141,6 +143,8 @@ class Motor {
         testrunStatus: json["test_run_status"],
         starter:
             json["starter"] == null ? null : Starter.fromJson(json["starter"]),
+        runtime:
+            json["run_time"] == null ? null : Runtimee.fromJson(json["run_time"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -152,7 +156,8 @@ class Motor {
         "alias_name": aliasName,
         "location": location?.toJson(),
         "starter": starter?.toJson(),
-        "test_run_status": testrunStatus
+        "test_run_status": testrunStatus,
+        "run_time": runtime?.toJson(),
       };
 }
 
@@ -173,6 +178,26 @@ class Location {
   Map<String, dynamic> toJson() => {
         "id": id,
         "name": name,
+      };
+}
+
+class Runtimee {
+  String? lastState;
+  String? stateDuration;
+
+  Runtimee({
+    this.lastState,
+    this.stateDuration,
+  });
+
+  factory Runtimee.fromJson(Map<String, dynamic> json) => Runtimee(
+        lastState: json["last_state"],
+        stateDuration: json["state_duration"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "last_state": lastState,
+        "state_duration": stateDuration,
       };
 }
 

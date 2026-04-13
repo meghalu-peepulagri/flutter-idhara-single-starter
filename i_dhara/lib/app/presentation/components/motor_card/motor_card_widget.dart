@@ -295,6 +295,28 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       return;
     }
 
+    // If turning OFF while in Auto mode, show the auto-mode warning dialog
+    if (!newValue && _localModeController.value == 1) {
+      MotorCardDialogs.showAutoModeOffWarningDialog(
+        context,
+        widget.motor,
+        onOffAnyway: () {
+          // Temporary off — just send switch command, motor stays in Auto mode
+          _executeSwitchCommand(motorId, false);
+        },
+        onModeChange: () {
+          // Navigate to motor details page so user can change mode themselves
+          SharedPreference.setMotorId(widget.motor.id ?? 0);
+          SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
+          Get.offAllNamed(Routes.motorDetails, arguments: {
+            'motorId': widget.motor.id,
+            'tabIndex': 0,
+          });
+        },
+      );
+      return;
+    }
+
     // No fault — show switch confirmation dialog, then execute on confirm
     _showSwitchDialogAndExecute(motorId, newValue);
   }
@@ -432,7 +454,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     Get.offAllNamed(Routes.motorDetails, arguments: {
       'motorId': widget.motor.id,
-      'tabIndex': 2,
+      'tabIndex': 3,
       'logFilter': 'Faults'
     });
   }
