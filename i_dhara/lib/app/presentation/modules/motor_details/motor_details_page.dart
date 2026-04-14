@@ -3,11 +3,13 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/motor_details_card.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_mode_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_runtime_tab.dart';
+import 'package:i_dhara/app/presentation/components/tabs/motor_schedule_tab.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/motor_details_tab_bar.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
@@ -46,7 +48,7 @@ class MotorControlWidget extends StatelessWidget {
                   padding: EdgeInsets.only(right: 50),
                   child: Center(child: AppLottieLoading()),
                 );
-              } else if (!controller.hasInternet.value) {
+              } else if (!ConnectivityService.to.isConnected) {
                 return const Center(
                   child: NoInternetWidget(),
                 );
@@ -88,6 +90,14 @@ class MotorControlWidget extends StatelessWidget {
     );
   }
 
+  String motorName(String starter, String? alias) {
+    if (alias != null && alias.trim().isNotEmpty) {
+      return alias;
+    }
+
+    return starter;
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
@@ -96,12 +106,11 @@ class MotorControlWidget extends StatelessWidget {
         children: [
           Center(
             child: Obx(() {
-              String displayName = controller.motorName.value
-                  .replaceAll(RegExp(r'\s+'), ' ')
-                  .trim();
-              if (displayName.length > 16) {
-                displayName = '${displayName.substring(0, 16)}...';
-              }
+              String? alias = controller.motorDetails.value?.aliasName;
+              String starterNumber =
+                  controller.motorDetails.value?.starter?.starterNumber ?? "";
+
+              String displayName = motorName(starterNumber, alias);
               return Text(
                 displayName,
                 style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -118,8 +127,6 @@ class MotorControlWidget extends StatelessWidget {
                           FlutterFlowTheme.of(context).bodyMedium.fontStyle,
                     ),
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               );
             }),
           ),
@@ -151,8 +158,9 @@ class MotorControlWidget extends StatelessWidget {
   Widget _buildTabContent(BuildContext context) {
     return switch (controller.selectedTabIndex.value) {
       0 => MotorModeTab(controller: controller),
-      1 => MotorRuntimeTab(controller: controller),
-      2 => MotorLogsTab(initialFilter: controller.logFilter.value),
+      1 => const MotorScheduleTab(),
+      2 => MotorRuntimeTab(controller: controller),
+      3 => MotorLogsTab(initialFilter: controller.logFilter.value),
       _ => MotorRuntimeTab(controller: controller),
     };
   }

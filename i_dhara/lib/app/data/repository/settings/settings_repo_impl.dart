@@ -49,7 +49,6 @@ class SettingsRepositoryImpl extends SettingsRepository {
       "columns":
           "drf_min,drf_max,olf_min,olf_max,flc_min,flc_max" // ✅ no spaces
     };
-
     final id = SharedPreference.getStarterId();
     final response = await NetworkManager()
         .get('/settings/limits-mobile/$id', queryParameters: query);
@@ -59,7 +58,6 @@ class SettingsRepositoryImpl extends SettingsRepository {
         return res;
       }
     } catch (e) {
-      print("line 61  $e");
       return null;
     }
     return null;
@@ -69,13 +67,25 @@ class SettingsRepositoryImpl extends SettingsRepository {
   Future<UpdateUserSettingResponse?> updateSettings(
       UserUpdateSettingsDto dto) async {
     final id = SharedPreference.getStarterId();
-    print("line 62 -----> ${dto.toJson()}");
     final response = await NetworkManager().post(
       '/settings/starter/$id',
       {},
       data: jsonEncode(dto.toJson()),
     );
-    print("line 68 ----------->  ${response.statusCode}----->");
+
+    if (response.statusCode == 200) {
+      final res = UpdateUserSettingResponse.fromJson(response.data);
+      return res;
+    }
+    return null;
+  }
+
+  @override
+  Future<UpdateUserSettingResponse?> updateSettingsAck() async {
+    final id = SharedPreference.getStarterId();
+    final response = await NetworkManager().patch(
+      '/settings/starter/$id/acknowledgement-update',
+    );
 
     if (response.statusCode == 200) {
       final res = UpdateUserSettingResponse.fromJson(response.data);

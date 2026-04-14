@@ -1,12 +1,13 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 
-class LocationsController extends GetxController {
+class LocationsController extends GetxController with ConnectivityMixin {
   final LocationRepoImpl _locationRepo = LocationRepoImpl();
   final controller1 = TextEditingController();
 
@@ -22,14 +23,12 @@ class LocationsController extends GetxController {
 
   dynamic errorInstance = {};
   String? message = '';
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   @override
   void onInit() {
     super.onInit();
-    _initConnectivity();
-    fetchLocations();
+    fetchLocations(enableRetry: true);
     debounce<String>(
       searchQuery,
       (_) => fetchLocations(),
@@ -43,20 +42,10 @@ class LocationsController extends GetxController {
     });
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult.isNotEmpty) {
-      _updateConnectionStatus(connectivityResult.first);
-    }
-    connectivity.onConnectivityChanged.listen((results) {
-      if (results.isNotEmpty) {
-        _updateConnectionStatus(results.first);
-      }
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  @override
+  Future<void> onRetry() async {
+    Get.log('LocationsController: Retrying API calls after reconnection');
+    await fetchLocations();
   }
 
   @override
@@ -65,14 +54,23 @@ class LocationsController extends GetxController {
     super.onClose();
   }
 
-  Future<void> fetchLocations({String? search}) async {
+  Future<void> fetchLocations({String? search, bool enableRetry = false}) async {
     try {
       if (!isRefreshing.value) isLoading.value = true;
-      final response = await _locationRepo.getAllLocations(
-        page.value,
-        limit.value,
-        searchQuery.value.isEmpty ? null : searchQuery.value,
-      );
+      final response = enableRetry
+          ? await withRetry(
+              call: () => _locationRepo.getAllLocations(
+                page.value,
+                limit.value,
+                searchQuery.value.isEmpty ? null : searchQuery.value,
+              ),
+              isSuccess: (r) => r != null && r.success == true && r.data != null,
+            )
+          : await _locationRepo.getAllLocations(
+              page.value,
+              limit.value,
+              searchQuery.value.isEmpty ? null : searchQuery.value,
+            );
 
       if (response != null &&
           response.success == true &&
@@ -90,6 +88,7 @@ class LocationsController extends GetxController {
 
   Future<void> renamelocation(
       {required int locationId, required String name}) async {
+    errorInstance = {};
     final response = await LocationRepoImpl().renameLocation(locationId, name);
     if (response != null && response.errors == null) {
       await fetchLocations();

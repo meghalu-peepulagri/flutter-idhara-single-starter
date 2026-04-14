@@ -1,10 +1,13 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
+import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
@@ -14,13 +17,19 @@ import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 part 'motor_details_controller.api.dart';
 part 'motor_details_controller.mqtt.dart';
 
-class AnalyticsController extends GetxController {
+class AnalyticsController extends GetxController with ConnectivityMixin {
+  static const int modeTabIndex = 0;
+  static const int scheduleTabIndex = 1;
+  static const int analyticsTabIndex = 2;
+  static const int logsTabIndex = 3;
+
   // --- Data Variables ---
   var motorDetails = Rxn<MotorDetails>();
   var daterange = <DateTime?>[DateTime.now(), DateTime.now()].obs;
@@ -30,7 +39,9 @@ class AnalyticsController extends GetxController {
   var current = <Current>[].obs;
   var motorRuntimeData = <Runtime>[].obs;
   var chartData = <TimeSegment>[].obs;
+  var motorOffChartData = <TimeSegment>[].obs;
   var powerChartData = <TimeSegment>[].obs;
+  var powerOffChartData = <TimeSegment>[].obs;
 
   // --- UI State Variables ---
   var isMotorDetailsLoading = false.obs;
@@ -43,7 +54,7 @@ class AnalyticsController extends GetxController {
   var isModalOpen = false.obs;
   var selectedTabIndex = 0.obs;
   var logFilter = Rxn<String>();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   // --- Display Values ---
   var motorName = ''.obs;
@@ -65,7 +76,7 @@ class AnalyticsController extends GetxController {
   var voltageTrackball = Rxn<TrackballBehavior>();
   var currentTrackball = Rxn<TrackballBehavior>();
   final ScrollController monthScrollController = ScrollController();
-  final connectivity = Connectivity();
+  // Removed local connectivity logic
 
   // --- Internal Logic Variables ---
   var selectedMotorId = Rxn<int?>();
@@ -81,7 +92,7 @@ class AnalyticsController extends GetxController {
   Timer? _modeAckTimer;
   static const Duration _ackTimeout = Duration(seconds: 13);
   var isWaitingForModeAck = false.obs;
-  var canChangeMode = true.obs;
+  var canChangeMode = false.obs;
   var signalQuality = 0.obs;
 
   final bool _isUsingExistingMqttInstance = false;
@@ -91,7 +102,6 @@ class AnalyticsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _initConnectivity();
     final args = Get.arguments as Map<String, dynamic>?;
     if (args != null) {
       motorId.value = args['motorId'];
@@ -108,38 +118,31 @@ class AnalyticsController extends GetxController {
     }
     resetDateToToday();
     fetchallApis();
-    fetchMotorDetails();
   }
 
   Future<void> _initializeSequentially() async {
-    await fetchMotorDetails();
+    await fetchMotorDetails(enableRetry: true);
     await _initializeMqtt();
     _updateCanChangeMode();
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-      if (mqttInitialized) {
-        _updateCanChangeMode();
-      }
-    });
+  @override
+  Future<void> onRetry() async {
+    Get.log('AnalyticsController: Retrying API calls after reconnection');
+    await fetchallApis();
   }
 
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
-  }
-
-  void onTabChanged(int newIndex) {
+  void onTabChanged(int newIndex) async {
     final previousIndex = selectedTabIndex.value;
+    if (newIndex == modeTabIndex) {
+      await fetchMotorDetails(enableRetry: false);
+    }
 
-    if (previousIndex == 1 && newIndex != 1) {
+    if (previousIndex == analyticsTabIndex && newIndex != analyticsTabIndex) {
       _clearAnalyticsData();
     }
 
-    if (newIndex == 1 && previousIndex != 1) {
+    if (newIndex == analyticsTabIndex && previousIndex != analyticsTabIndex) {
       resetDateToToday();
       clearAllData();
       fetchRuntime(daterange);
@@ -151,7 +154,9 @@ class AnalyticsController extends GetxController {
   void _clearAnalyticsData() {
     motorRuntimeData.clear();
     chartData.clear();
+    motorOffChartData.clear();
     powerChartData.clear();
+    powerOffChartData.clear();
     voltage.clear();
     current.clear();
     motortotalRuntime.value = '';
@@ -163,7 +168,10 @@ class AnalyticsController extends GetxController {
     _mqttUpdateSubscription?.cancel();
     if (mqttInitialized) {
       mqttService.dataUpdateNotifier.removeListener(_onMqttDataUpdate);
-      mqttService.dispose();
+      // Do NOT call mqttService.dispose() — MQTT is a global singleton shared
+      // across Dashboard and Motor Details. Disposing here disconnects the
+      // broker connection for everyone. Cleanup happens only on logout via
+      // MqttService().disconnectOnly().
     }
     monthScrollController.dispose();
     controller.dispose();

@@ -34,10 +34,10 @@ class FlcCard extends StatefulWidget {
   });
 
   @override
-  State<FlcCard> createState() => _FlcCardState();
+  State<FlcCard> createState() => FlcCardState();
 }
 
-class _FlcCardState extends State<FlcCard> {
+class FlcCardState extends State<FlcCard> {
   late double _currentValue;
   late TextEditingController _textController;
   final FocusNode _focusNode = FocusNode();
@@ -58,6 +58,19 @@ class _FlcCardState extends State<FlcCard> {
         _isEditing = _focusNode.hasFocus;
       });
     });
+  }
+
+  /// Resets the card back to the widget's current initialValue.
+  /// Call this after updating the initialValue (e.g. after fetchUserSettings2).
+  void resetValue() {
+    final value =
+        widget.initialValue.clamp(widget.minValue, widget.maxValue);
+    setState(() {
+      _currentValue = value;
+      _textController.text = _formatValue(value);
+      _isOutOfRange = false;
+    });
+    widget.onValueChanged?.call(value);
   }
 
   @override
@@ -378,14 +391,14 @@ class _FlcCardState extends State<FlcCard> {
                         ),
                         child: Icon(
                           Icons.add,
-                          size: 15,
+                          size: 12,
                           color: _currentValue < widget.maxValue
                               ? Colors.white
                               : const Color(0xFF999999),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 13),
                     // Decrement Button
                     InkWell(
                       onTap:
@@ -401,7 +414,7 @@ class _FlcCardState extends State<FlcCard> {
                         ),
                         child: Icon(
                           Icons.remove,
-                          size: 15,
+                          size: 12,
                           color: _currentValue > widget.minValue
                               ? Colors.white
                               : const Color(0xFF999999),

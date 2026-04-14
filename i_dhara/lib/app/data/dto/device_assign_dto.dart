@@ -3,6 +3,7 @@ class StarterCreateDto {
   final String motorName;
   final double hp;
   final int locationId;
+  final String? deviceInstalledLoc;
 
   final String? name;
   final String? serialNumber;
@@ -20,6 +21,7 @@ class StarterCreateDto {
     this.starterNumber,
     this.macAddress,
     this.gatewayId,
+    this.deviceInstalledLoc,
   });
 
   /// Convert DTO to API JSON payload
@@ -34,6 +36,8 @@ class StarterCreateDto {
       if (starterNumber != null) "starter_number": starterNumber,
       if (macAddress != null) "mac_address": macAddress,
       if (gatewayId != null) "gateway_id": gatewayId,
+      if (deviceInstalledLoc != null)
+        "device_installed_location": deviceInstalledLoc,
     };
   }
 }

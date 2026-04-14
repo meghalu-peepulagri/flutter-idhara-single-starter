@@ -6,12 +6,13 @@ import 'package:intl/intl.dart';
 
 class PumpLogsListWidget extends StatelessWidget {
   final List<MotorLogs> logs;
+  // Empty string means multi-filter: derive color/icon per-log from log.action
   final String filterType;
 
   const PumpLogsListWidget({
     super.key,
     required this.logs,
-    required this.filterType,
+    this.filterType = '',
   });
 
   @override
@@ -32,11 +33,23 @@ class PumpLogsListWidget extends StatelessWidget {
     );
   }
 
+  String logtype(MotorLogs log) {
+    if (log.action == "FAULT" || log.action == "ALERT") {
+      return log.action ?? '';
+    } else {
+      return log.message ?? '';
+    }
+  }
+
   Widget _buildPumpLogCard(MotorLogs log) {
     final String message = log.message ?? 'No message';
     final DateTime? createdAt = log.createdAt;
-    final Color typeColor = _getFilterColor(filterType);
-    final IconData typeIcon = _getPumpIcon(filterType);
+    // When filterType is empty (multi-select), derive color/icon from each log's action
+    final String colorKey =
+        filterType.isNotEmpty ? filterType : (logtype(log) ?? '');
+    final Color typeColor = _getFilterColor(colorKey);
+    final IconData typeIcon = _getPumpIcon(colorKey);
+    final DateTime? timestamp = log.timestamp;
 
     return IntrinsicHeight(
       child: Row(
@@ -69,10 +82,11 @@ class PumpLogsListWidget extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                if (createdAt != null)
-                  Row(
-                    children: [
+                Row(
+                  children: [
+                    if (timestamp != null) ...[
                       const Icon(
                         Icons.access_time,
                         size: 12,
@@ -80,14 +94,15 @@ class PumpLogsListWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _formatTimestamp(createdAt),
+                        _formatTimestamp(timestamp),
                         style: GoogleFonts.dmSans(
                           fontSize: 11,
                           color: const Color(0xFF6B7280),
                         ),
                       ),
                     ],
-                  ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(
                   message,
@@ -102,6 +117,43 @@ class PumpLogsListWidget extends StatelessWidget {
               ],
             ),
           ),
+
+          // Expanded(
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       if (createdAt != null)
+          //         Row(
+          //           children: [
+          //             const Icon(
+          //               Icons.access_time,
+          //               size: 12,
+          //               color: Color(0xFF6B7280),
+          //             ),
+          //             const SizedBox(width: 4),
+          //             Text(
+          //               _formatTimestamp(createdAt),
+          //               style: GoogleFonts.dmSans(
+          //                 fontSize: 11,
+          //                 color: const Color(0xFF6B7280),
+          //               ),
+          //             ),
+          //           ],
+          //         ),
+          //       const SizedBox(height: 4),
+          //       Text(
+          //         message,
+          //         style: GoogleFonts.dmSans(
+          //           fontSize: 14,
+          //           fontWeight: FontWeight.w400,
+          //           color: const Color(0xFF1F2937),
+          //           height: 1.3,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 8),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );
@@ -123,30 +175,83 @@ class PumpLogsListWidget extends StatelessWidget {
   }
 
   Color _getFilterColor(String filter) {
-    switch (filter) {
+    String type = getCategoryFromMessage(filter) == "DEFAULT"
+        ? filter
+        : getCategoryFromMessage(filter);
+    switch (type) {
       case 'Faults':
+      case 'FAULT':
+      case 'FAULTS':
         return const Color(0xFFEF4444);
       case 'Alerts':
+      case 'ALERT':
+      case 'ALERTS':
         return const Color(0xFFF59E0B);
+      case 'PUMP ON':
       case 'ON':
         return const Color(0xFF10B981);
+      case 'PUMP OFF':
       case 'OFF':
         return const Color(0xFFEF4444);
+      case 'PUMP MODE':
       case 'MODE':
         return const Color(0xFF8B5CF6);
+
       default:
         return const Color(0xFF6B7280);
     }
   }
 
+  String getCategoryFromMessage(String message) {
+    final msg = message.toLowerCase();
+
+    // OFF category
+    if (msg.contains("state updated to 'off'") ||
+        msg.contains("pump is stopped in manual mode") ||
+        msg.contains("pump is off in auto mode")) {
+      return "OFF";
+    }
+
+    // ON category
+    if (msg.contains("state updated to 'on'") ||
+        msg.contains("pump is running in manual mode") ||
+        msg.contains("pump is now on")) {
+      return "ON";
+    }
+
+    // MODE category
+    if (msg.contains("switched from manual to auto") ||
+        msg.contains("switched from auto to manual") ||
+        msg.contains("mode updated from 'manual' to 'auto'") ||
+        msg.contains("mode updated from 'auto' to 'manual'")) {
+      return "MODE";
+    }
+
+    return "DEFAULT";
+  }
+
   IconData _getPumpIcon(String filter) {
-    switch (filter) {
+    String type = getCategoryFromMessage(filter) == "DEFAULT"
+        ? filter
+        : getCategoryFromMessage(filter);
+    switch (type) {
+      case 'PUMP ON':
       case 'ON':
         return Icons.power_settings_new;
+      case 'PUMP OFF':
       case 'OFF':
         return Icons.power_off;
+      case 'PUMP MODE':
       case 'MODE':
         return Icons.refresh;
+      case 'Faults':
+      case 'FAULT':
+      case 'FAULTS':
+        return Icons.warning_amber_outlined;
+      case 'Alerts':
+      case 'ALERT':
+      case 'ALERTS':
+        return Icons.notifications_outlined;
       default:
         return Icons.info_outline;
     }

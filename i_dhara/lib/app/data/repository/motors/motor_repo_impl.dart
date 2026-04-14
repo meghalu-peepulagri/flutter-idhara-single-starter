@@ -1,11 +1,14 @@
 import 'package:i_dhara/app/core/config/app_config.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/models/motors/fault_clear_model.dart';
 import 'package:i_dhara/app/data/models/motors/faults_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_alerts_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_logs_model.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repository.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+
+import '../../models/motors/all_logs_model.dart';
 
 class MotorsRepositoryImpl implements MotorsRepository {
   @override
@@ -53,6 +56,23 @@ class MotorsRepositoryImpl implements MotorsRepository {
   }
 
   @override
+  Future<AlllogsResponse?> getAllLogs(int? page, int? limit) async {
+    Map<String, dynamic> params = {
+      'page': page,
+      'page_size': 15,
+      'is_assigned': "true"
+    };
+    final response = await NetworkManager().get(
+        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/logs',
+        queryParameters: params);
+    if (response.statusCode == 200) {
+      final res = AlllogsResponse.fromJson(response.data);
+      return res;
+    }
+    return null;
+  }
+
+  @override
   Future<MotorAlertsResponse?> getMotorAlerts(int? page, int? limit) async {
     Map<String, dynamic> params = {
       'type': 'alert',
@@ -72,19 +92,28 @@ class MotorsRepositoryImpl implements MotorsRepository {
 
   @override
   Future<MotorLogsResponse?> getMotorLogs(
-      int? page, int? limit, String action) async {
+      int? page, int? limit, String logTypes) async {
     Map<String, dynamic> params = {
-      'entity': 'MOTOR',
-      'entity_id': SharedPreference.getMotorId(),
-      'action': action,
+      'log_type': logTypes,
       'page': page,
       'page_size': 15,
-      'is_assigned': "true"
     };
-    final response =
-        await NetworkManager().get('/activities', queryParameters: params);
+    final response = await NetworkManager().get(
+        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/logs',
+        queryParameters: params);
     if (response.statusCode == 200) {
       final res = MotorLogsResponse.fromJson(response.data);
+      return res;
+    }
+    return null;
+  }
+
+  @override
+  Future<FaultClearResponse?> clearFault() async {
+    final response = await NetworkManager().patch(
+        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/fault-clear');
+    if (response.statusCode == 200) {
+      final res = FaultClearResponse.fromJson(response.data);
       return res;
     }
     return null;

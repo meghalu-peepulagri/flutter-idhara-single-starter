@@ -53,8 +53,6 @@ class LocationRepoImpl extends LocationDropdownRepository {
   @override
   Future<DeleteLocationResponse?> deleteLocation(int locationId) async {
     final response = await NetworkManager().patch('/locations/$locationId');
-    print("line 268 -----------> $locationId");
-    print("line 269 -----------> ${response.data}");
     if (response.statusCode == 200 ||
         response.statusCode == 201 ||
         response.statusCode == 422) {

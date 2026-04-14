@@ -57,8 +57,6 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
       if (code != null && context.mounted) {
-        // Handle the scanned QR code here
-        print('QR Code detected: $code');
 
         // Turn off torch before navigating
         if (isTorchOn) {
@@ -82,7 +80,6 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
         isTorchOn = !isTorchOn;
       });
     } catch (e) {
-      print('Error toggling torch: $e');
     }
   }
 
@@ -162,7 +159,7 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                       padding: EdgeInsets.symmetric(horizontal: 30.0),
                       child: Center(
                         child: Text(
-                          'Please scan the QR code on the PCB to proceed.',
+                          'Please scan the QR code on the Serial Number to proceed.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0XFF101828),
@@ -204,12 +201,11 @@ class _QRCodeWidgetState extends State<QRCodeWidget> {
                       child: Center(
                         child: GestureDetector(
                           onTap: () {
-                            print('Manual PCB entry tapped');
                             cameraController.dispose();
                             Get.offAllNamed(Routes.addDevices);
                           },
                           child: Text(
-                            'Or Enter PCB Number',
+                            'Or Enter Serial Number',
                             style: GoogleFonts.dmSans(
                               color: const Color(0XFF101828),
                               fontSize: 14,

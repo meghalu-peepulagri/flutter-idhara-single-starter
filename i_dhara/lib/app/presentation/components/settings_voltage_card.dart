@@ -73,12 +73,10 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
     final highMin = controller.data.value?.hvfMin?.toDouble() ?? 240.0;
     final highMax = controller.data.value?.hvfMax?.toDouble() ?? 550.0;
 
-    print("line 41 ------> $lowMin $lowMax");
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         SettingsDualSlider(
           key: ValueKey("voltage_slider_$_resetVersion"),
           heading: 'Voltage Faults',

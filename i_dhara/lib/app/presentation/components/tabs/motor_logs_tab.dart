@@ -3,11 +3,13 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
-import 'package:i_dhara/app/presentation/components/tabs/widgets/alerts_list_widget.dart';
+import 'package:i_dhara/app/presentation/components/tabs/widgets/all_logs_widget.dart';
 import 'package:i_dhara/app/presentation/components/tabs/widgets/empty_logs_widget.dart';
-import 'package:i_dhara/app/presentation/components/tabs/widgets/faults_list_widget.dart';
 import 'package:i_dhara/app/presentation/components/tabs/widgets/pump_logs_list_widget.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+
+const _kPrimary = Color(0xFF004E7E);
+const _filterOptions = ['Faults', 'Alerts', 'PUMP ON', 'PUMP OFF', 'PUMP MODE'];
 
 class MotorLogsTab extends StatefulWidget {
   final String? initialFilter;
@@ -18,20 +20,167 @@ class MotorLogsTab extends StatefulWidget {
 }
 
 class _MotorLogsTabState extends State<MotorLogsTab> {
-  String? selectedFilter;
+  Set<String> selectedFilters = {};
   final MotorLogsController logsController = Get.put(MotorLogsController());
 
   @override
   void initState() {
     super.initState();
-    selectedFilter = widget.initialFilter ?? 'Faults';
-    logsController.currentFilter.value = selectedFilter!;
-    logsController.resetPagination();
-    if (selectedFilter == 'Alerts') {
-      logsController.fetchMotorAlerts();
-    } else {
-      logsController.fetchMotorFaults();
+    if (widget.initialFilter != null && widget.initialFilter != 'All') {
+      selectedFilters = {widget.initialFilter!};
     }
+    logsController.selectedFilters
+      ..clear()
+      ..addAll(selectedFilters);
+    logsController.resetPagination();
+    if (selectedFilters.isEmpty) {
+      logsController.fetchAllLogs();
+    } else {
+      logsController.fetchLogsWithFilters(selectedFilters);
+    }
+  }
+
+  void _applyFilters(Set<String> newFilters) {
+    setState(() => selectedFilters = newFilters);
+    logsController.selectedFilters
+      ..clear()
+      ..addAll(newFilters);
+    logsController.resetPagination();
+    if (newFilters.isEmpty) {
+      logsController.fetchAllLogs();
+    } else {
+      logsController.fetchLogsWithFilters(newFilters);
+    }
+  }
+
+  void _removeFilter(String filter) {
+    final updated = Set<String>.from(selectedFilters)..remove(filter);
+    _applyFilters(updated);
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    Set<String> tempFilters = Set.from(selectedFilters);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Filter Logs',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    if (tempFilters.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => setModalState(() => tempFilters.clear()),
+                        child: Text(
+                          'Clear All',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: _kPrimary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ..._filterOptions.map((option) {
+                  final isSelected = tempFilters.contains(option);
+                  final color = _getFilterColor(option);
+                  return InkWell(
+                    onTap: () => setModalState(() {
+                      if (isSelected) {
+                        tempFilters.remove(option);
+                      } else {
+                        tempFilters.add(option);
+                      }
+                    }),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 4),
+                      child: Row(
+                        children: [
+                          _buildCheckbox(isSelected, color),
+                          const SizedBox(width: 12),
+                          Text(
+                            option,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color:
+                                  isSelected ? color : const Color(0xFF1F2937),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _applyFilters(tempFilters);
+                    },
+                    child: Text(
+                      'Apply Filters',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCheckbox(bool isSelected, Color color) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: isSelected ? color : Colors.transparent,
+        border: Border.all(
+          color: isSelected ? color : const Color(0xFFD1D5DB),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: isSelected
+          ? const Icon(Icons.check, size: 14, color: Colors.white)
+          : null,
+    );
   }
 
   @override
@@ -40,9 +189,8 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
 
     return Obx(() {
       if (controller.isLoading.value &&
-          controller.motorFaultsList.isEmpty &&
-          controller.motorAlertsList.isEmpty &&
-          controller.motorLogsList.isEmpty) {
+          controller.motorLogsList.isEmpty &&
+          controller.logsData.isEmpty) {
         return const Padding(
             padding: EdgeInsets.only(bottom: 50, right: 50),
             child: Center(child: AppLottieLoading()));
@@ -50,86 +198,70 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
 
       return Column(
         children: [
-          // Sticky Filter Header
-          Container(
-            //   color: Theme.of(context).scaffoldBackgroundColor,
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          // Filter header row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 8, 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(
-                  height: 36,
-                  child: selectedFilter != null
-                      ? _buildSelectedFilterInlineChip(
-                          _isPumpFilter(selectedFilter!)
-                              ? 'Pump: $selectedFilter'
-                              : selectedFilter!,
-                          _getFilterColor(selectedFilter!),
-                          selectedFilter != 'Faults'
-                              ? () {
-                                  setState(() {
-                                    selectedFilter = 'Faults';
-                                    logsController.currentFilter.value =
-                                        'Faults';
-                                    logsController.resetPagination();
-                                    logsController.fetchMotorFaults();
-                                  });
-                                }
-                              : null,
-                        )
-                      : const SizedBox(),
+                // Selected filter chips
+                Expanded(
+                  child: selectedFilters.isEmpty
+                      ? const SizedBox.shrink()
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: selectedFilters.map((f) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child:
+                                    _buildFilterChip(f, () => _removeFilter(f)),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(
-                    Icons.filter_list,
-                    color: Color(0xFF004E7E),
-                    size: 26,
+                // Filter icon button
+                IconButton(
+                  onPressed: () => _showFilterSheet(context),
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.filter_list,
+                        color: _kPrimary,
+                        size: 26,
+                      ),
+                      if (selectedFilters.isNotEmpty)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: _kPrimary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${selectedFilters.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  offset: const Offset(0, 40),
-                  onSelected: (value) {
-                    setState(() {
-                      if (selectedFilter == value) {
-                        selectedFilter = 'Faults';
-                        logsController.currentFilter.value = 'Faults';
-                        logsController.resetPagination();
-                        logsController.fetchMotorFaults();
-                      } else {
-                        selectedFilter = value;
-                        logsController.currentFilter.value = value;
-                        logsController.resetPagination();
-
-                        if (value == 'Alerts') {
-                          logsController.fetchMotorAlerts();
-                        } else if (value == 'Faults') {
-                          logsController.fetchMotorFaults();
-                        } else if (value == 'MODE') {
-                          logsController.fetchMotorLogs('MODE');
-                        } else if (value == 'ON') {
-                          logsController.fetchMotorLogs('ON');
-                        } else if (value == 'OFF') {
-                          logsController.fetchMotorLogs('OFF');
-                        }
-                      }
-                    });
-                  },
-                  itemBuilder: (context) => [
-                    _buildMainMenuItem('Faults', selectedFilter == 'Faults'),
-                    _buildMainMenuItem('Alerts', selectedFilter == 'Alerts'),
-                    PopupMenuItem<String>(
-                      enabled: false,
-                      padding: EdgeInsets.zero,
-                      child: _buildPumpsMenuItemWithSubmenu(context),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
 
-          // Scrollable Content
+          // Scrollable content
           Expanded(
             child: Skeletonizer(
               enabled: controller.isRefreshing.value,
@@ -138,22 +270,17 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
-                  // Show initial loading
                   if (logsController.isLoading.value &&
                       !logsController.isLoadingMore.value)
                     SizedBox(
                       height: MediaQuery.of(context).size.height * 0.55,
                       child: const Padding(
                         padding: EdgeInsets.only(bottom: 50, right: 50),
-                        child: Center(
-                          child: AppLottieLoading(),
-                        ),
+                        child: Center(child: AppLottieLoading()),
                       ),
                     )
                   else
                     _buildLogsContent(),
-
-                  // Show loading more indicator
                   if (logsController.isLoadingMore.value)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -161,9 +288,7 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
                         child: SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
                         ),
                       ),
                     ),
@@ -180,109 +305,26 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
   }
 
   Widget _buildLogsContent() {
-    if (selectedFilter == null || selectedFilter == 'Faults') {
-      return FaultsListWidget(faults: logsController.motorFaultsList);
-    } else if (selectedFilter == 'Alerts') {
-      return AlertsListWidget(alerts: logsController.motorAlertsList);
-    } else if (_isPumpFilter(selectedFilter!)) {
-      final logs = logsController.motorLogsList;
-      return PumpLogsListWidget(logs: logs, filterType: selectedFilter!);
+    if (selectedFilters.isEmpty) {
+      return AllLogsWidget(logs: logsController.logsData);
     }
-    return const EmptyLogsWidget(message: 'No logs available');
-  }
-
-  bool _isPumpFilter(String filter) {
-    return filter == 'ON' || filter == 'OFF' || filter == 'MODE';
-  }
-
-  Widget _buildPumpsMenuItemWithSubmenu(BuildContext context) {
-    bool isPumpSelected =
-        selectedFilter != null && _isPumpFilter(selectedFilter!);
-
-    return PopupMenuButton<String>(
-      offset: const Offset(-120, 0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      onSelected: (value) {
-        setState(() {
-          if (selectedFilter == value) {
-            selectedFilter = 'Faults';
-            logsController.currentFilter.value = 'Faults';
-            logsController.resetPagination();
-            logsController.fetchMotorFaults();
-          } else {
-            selectedFilter = value;
-            logsController.currentFilter.value = value;
-            logsController.resetPagination();
-            logsController.fetchMotorLogs(value);
-          }
-        });
-        Navigator.of(context).pop();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: isPumpSelected
-                    ? const Color(0xFF3B82F6)
-                    : Colors.transparent,
-                border: Border.all(
-                  color: isPumpSelected
-                      ? const Color(0xFF3B82F6)
-                      : const Color(0xFFD1D5DB),
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: isPumpSelected
-                  ? const Icon(
-                      Icons.check,
-                      size: 14,
-                      color: Colors.white,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Pump',
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isPumpSelected
-                    ? const Color(0xFF3B82F6)
-                    : const Color(0xFF1F2937),
-              ),
-            ),
-          ],
-        ),
-      ),
-      itemBuilder: (context) => [
-        _buildPumpMenuItem('ON', selectedFilter == 'ON'),
-        _buildPumpMenuItem('OFF', selectedFilter == 'OFF'),
-        _buildPumpMenuItem('MODE', selectedFilter == 'MODE'),
-      ],
+    if (logsController.motorLogsList.isEmpty) {
+      return const EmptyLogsWidget(message: 'No logs available');
+    }
+    return PumpLogsListWidget(
+      logs: logsController.motorLogsList,
+      filterType: selectedFilters.length == 1 ? selectedFilters.first : '',
     );
   }
 
-  Widget _buildSelectedFilterInlineChip(
-    String label,
-    Color color,
-    VoidCallback? onRemove,
-  ) {
+  Widget _buildFilterChip(String label, VoidCallback onRemove) {
+    final color = _getFilterColor(label);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -290,22 +332,16 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
           Text(
             label,
             style: GoogleFonts.dmSans(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
               color: color,
             ),
           ),
-          if (onRemove != null) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onRemove,
-              child: Icon(
-                Icons.close,
-                size: 16,
-                color: color,
-              ),
-            ),
-          ],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(Icons.close, size: 14, color: color),
+          ),
         ],
       ),
     );
@@ -317,82 +353,14 @@ class _MotorLogsTabState extends State<MotorLogsTab> {
         return const Color(0xFFEF4444);
       case 'Alerts':
         return const Color(0xFFF59E0B);
-      case 'ON':
+      case 'PUMP ON':
         return const Color(0xFF10B981);
-      case 'OFF':
+      case 'PUMP OFF':
         return const Color(0xFFEF4444);
-      case 'MODE':
+      case 'PUMP MODE':
         return const Color(0xFF8B5CF6);
       default:
         return const Color(0xFF6B7280);
     }
-  }
-
-  PopupMenuItem<String> _buildMainMenuItem(String value, bool isSelected) {
-    return PopupMenuItem<String>(
-      value: value,
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      child: Row(children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: isSelected ? _getFilterColor(value) : Colors.transparent,
-            border: Border.all(
-              color:
-                  isSelected ? _getFilterColor(value) : const Color(0xFFD1D5DB),
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: isSelected
-              ? const Icon(
-                  Icons.check,
-                  size: 14,
-                  color: Colors.white,
-                )
-              : null,
-        ),
-        const SizedBox(width: 12),
-        Text(
-          value,
-          style: GoogleFonts.dmSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color:
-                isSelected ? _getFilterColor(value) : const Color(0xFF1F2937),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  PopupMenuItem<String> _buildPumpMenuItem(String value, bool isSelected) {
-    return PopupMenuItem<String>(
-      value: value,
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color:
-                  isSelected ? _getFilterColor(value) : const Color(0xFF1F2937),
-            ),
-          ),
-          if (isSelected)
-            Icon(
-              Icons.check,
-              size: 18,
-              color: _getFilterColor(value),
-            ),
-        ],
-      ),
-    );
   }
 }

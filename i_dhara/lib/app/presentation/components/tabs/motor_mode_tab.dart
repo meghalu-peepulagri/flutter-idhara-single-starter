@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import 'package:toggle_switch/toggle_switch.dart';
 
 import '../motor_card/motor_card_dialogs.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
+import 'motor_mode_info_sheet.dart';
 
 class MotorModeTab extends StatefulWidget {
   final AnalyticsController controller;
@@ -21,6 +21,8 @@ class MotorModeTab extends StatefulWidget {
 
 class _MotorModeTabState extends State<MotorModeTab> {
   late ValueNotifier<int> _modeNotifier;
+  Worker? _modeWorker;
+  bool _isDialogOpen = false;
 
   @override
   void initState() {
@@ -28,19 +30,16 @@ class _MotorModeTabState extends State<MotorModeTab> {
     _modeNotifier = ValueNotifier<int>(widget.controller.localModeIndex.value);
 
     // Listen to controller mode changes and update the notifier
-    ever(widget.controller.localModeIndex, (value) {
+    _modeWorker = ever(widget.controller.localModeIndex, (value) {
       if (mounted && _modeNotifier.value != value) {
         _modeNotifier.value = value;
-        if (kDebugMode) {
-          print(
-              '🔄 Mode notifier updated: $value (${value == 1 ? "Auto" : "Manual"})');
-        }
       }
     });
   }
 
   @override
   void dispose() {
+    _modeWorker?.dispose();
     _modeNotifier.dispose();
     super.dispose();
   }
@@ -64,103 +63,128 @@ class _MotorModeTabState extends State<MotorModeTab> {
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                Text(
-                  'Motor Mode',
-                  style: GoogleFonts.dmSans(
-                    color: const Color(0xFF004E7E),
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.w600,
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    Text(
+                      'Motor Mode',
+                      style: GoogleFonts.dmSans(
+                        color: const Color(0xFF004E7E),
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Switch between Auto and Manual modes',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.dmSans(
+                        color: const Color(0xFF6B7280),
+                        fontSize: 13.0,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _modeNotifier,
+                      builder: (context, currentModeIndex, child) {
+                        final isAuto = currentModeIndex == 1;
+                        final int uiIndex = isAuto ? 0 : 1;
+
+                        return Obx(() {
+                          final isDisabled =
+                              widget.controller.isWaitingForModeAck.value ||
+                                  !widget.controller.canChangeMode.value;
+
+                          return Column(
+                            children: [
+                              ToggleSwitch(
+                                key: ValueKey('mode_toggle_$currentModeIndex'),
+                                changeOnTap: false,
+                                customWidths: const [90, 90],
+                                radiusStyle: true,
+                                minWidth: 80.0,
+                                minHeight: 30.0,
+                                initialLabelIndex: uiIndex,
+                                cornerRadius: 8.0,
+                                activeBgColors: !isDisabled
+                                    ? [
+                                        [const Color(0xFFFFA500)],
+                                        [const Color(0xFF2F80ED)]
+                                      ]
+                                    : [
+                                        [
+                                          const Color(0xFFFFA500)
+                                              .withValues(alpha: 0.3)
+                                        ],
+                                        [
+                                          const Color(0xFF2F80ED)
+                                              .withValues(alpha: 0.3)
+                                        ],
+                                      ],
+                                activeFgColor:
+                                    !isDisabled ? Colors.white : Colors.black54,
+                                inactiveBgColor: Colors.white,
+                                inactiveFgColor: Colors.black,
+                                fontSize: 12,
+                                totalSwitches: 2,
+                                labels: const ['Auto', 'Manual'],
+                                borderWidth: 1,
+                                borderColor: [Colors.grey.shade300],
+                                onToggle: !isDisabled
+                                    ? (index) {
+                                        if (index == null || _isDialogOpen)
+                                          return;
+                                        final newModeIndex = index == 0 ? 1 : 0;
+                                        if (newModeIndex != currentModeIndex) {
+                                          setState(() => _isDialogOpen = true);
+                                          MotorCardDialogs.showModeChangeDialog(
+                                            context,
+                                            widget.controller.motorName.value,
+                                            newModeIndex,
+                                            widget.controller.handleModeChange,
+                                          ).then((_) {
+                                            if (mounted) {
+                                              setState(
+                                                  () => _isDialogOpen = false);
+                                            }
+                                          });
+                                        }
+                                      }
+                                    : null,
+                              ),
+                            ],
+                          );
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              // Info icon in top-right corner
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => MotorModeInfoSheet.show(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        color: Color(0xFF004E7E),
+                        size: 22,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Switch between Auto and Manual modes',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.dmSans(
-                    color: const Color(0xFF6B7280),
-                    fontSize: 13.0,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ValueListenableBuilder<int>(
-                  valueListenable: _modeNotifier,
-                  builder: (context, currentModeIndex, child) {
-                    final isAuto = currentModeIndex == 1;
-                    final int uiIndex = isAuto ? 0 : 1;
-
-                    return Obx(() {
-                      final isDisabled =
-                          widget.controller.isWaitingForModeAck.value ||
-                              !widget.controller.canChangeMode.value;
-
-                      if (kDebugMode) {
-                        print(
-                            '🎨 UI Rebuild: mode=$currentModeIndex (${isAuto ? "Auto" : "Manual"}), '
-                            'uiIndex=$uiIndex, disabled=$isDisabled');
-                      }
-
-                      return Column(
-                        children: [
-                          ToggleSwitch(
-                            key: ValueKey('mode_toggle_$currentModeIndex'),
-                            changeOnTap: false,
-                            customWidths: const [90, 90],
-                            radiusStyle: true,
-                            minWidth: 80.0,
-                            minHeight: 30.0,
-                            initialLabelIndex: uiIndex,
-                            cornerRadius: 8.0,
-                            activeBgColors: !isDisabled
-                                ? [
-                                    [const Color(0xFFFFA500)],
-                                    [const Color(0xFF2F80ED)]
-                                  ]
-                                : [
-                                    [
-                                      const Color(0xFFFFA500)
-                                          .withValues(alpha: 0.3)
-                                    ],
-                                    [
-                                      const Color(0xFF2F80ED)
-                                          .withValues(alpha: 0.3)
-                                    ],
-                                  ],
-                            activeFgColor:
-                                !isDisabled ? Colors.white : Colors.black54,
-                            inactiveBgColor: Colors.white,
-                            inactiveFgColor: Colors.black,
-                            fontSize: 12,
-                            totalSwitches: 2,
-                            labels: const ['Auto', 'Manual'],
-                            borderWidth: 1,
-                            borderColor: [Colors.grey.shade300],
-                            onToggle: !isDisabled
-                                ? (index) {
-                                    if (index == null) return;
-                                    final newModeIndex = index == 0 ? 1 : 0;
-                                    if (newModeIndex != currentModeIndex) {
-                                      MotorCardDialogs.showModeChangeDialog(
-                                        context,
-                                        widget.controller.motorName.value,
-                                        newModeIndex,
-                                        widget.controller.handleModeChange,
-                                      );
-                                    }
-                                  }
-                                : null,
-                          ),
-                        ],
-                      );
-                    });
-                  },
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],

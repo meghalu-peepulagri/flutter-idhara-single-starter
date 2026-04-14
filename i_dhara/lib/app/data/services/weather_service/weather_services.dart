@@ -5,8 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:i_dhara/app/core/constants/app_constant.dart';
 
 class WeatherService {
-  static const String _baseUrl = AppConstants.weather_url;
-  static const String _apiKey = AppConstants.weather_key;
+  static String get _baseUrl => AppConstants.weather_url;
+  static String get _apiKey => AppConstants.weather_key;
 
   Future<LocationPermissionStatus> handleLocationPermission() async {
     bool serviceEnabled;
@@ -47,7 +47,6 @@ class WeatherService {
         timeLimit: const Duration(seconds: 10),
       );
     } catch (e) {
-      print('Error getting position: $e');
       return null;
     }
   }
@@ -57,11 +56,8 @@ class WeatherService {
     try {
       Position? position = await getCurrentPosition();
       if (position == null) {
-        print('Position is null');
         return null;
       }
-
-      print('Got position: ${position.latitude}, ${position.longitude}');
 
       final url = Uri.parse(
         '$_baseUrl?key=$_apiKey&q=${position.latitude},${position.longitude}&days=1&aqi=no&alerts=no',
@@ -71,23 +67,17 @@ class WeatherService {
       final response = await http.get(url).timeout(
         const Duration(seconds: 20),
         onTimeout: () {
-          print('Weather API request timeout');
           throw Exception('Request timeout');
         },
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('Weather data parsed successfully');
         return WeatherData.fromJson(data);
-      } else {
-        print('Weather API error: ${response.statusCode} - ${response.body}');
       }
 
       return null;
     } catch (e) {
-      print('Error fetching weather data: $e');
-
       return null;
     }
   }
@@ -98,6 +88,7 @@ enum LocationPermissionStatus {
   denied,
   deniedForever,
   serviceDisabled,
+  bothDisabled,
 }
 
 class WeatherData {

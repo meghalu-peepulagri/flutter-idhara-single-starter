@@ -72,72 +72,75 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
                       color: FlutterFlowTheme.of(context).secondaryBackground,
                     ),
             ),
-            Column(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(36, 0, 36, 0),
-                    child: Container(
-                      decoration: const BoxDecoration(),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(0),
-                            child: SvgPicture.asset(
-                              'assets/images/idhara_splash_logo.svg',
-                              fit: BoxFit.cover,
+            SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding:
+                          const EdgeInsetsDirectional.fromSTEB(36, 0, 36, 0),
+                      child: Container(
+                        decoration: const BoxDecoration(),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(0),
+                              child: SvgPicture.asset(
+                                'assets/images/idhara_splash_logo.svg',
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Smart pump control and monitoring, at your fingertips',
-                            textAlign: TextAlign.center,
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.dmSans(
+                            Text(
+                              'Smart pump control and monitoring, at your fingertips',
+                              textAlign: TextAlign.center,
+                              style: FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .override(
+                                    font: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w600,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .fontStyle,
+                                    ),
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    letterSpacing: 0.0,
                                     fontWeight: FontWeight.w600,
                                     fontStyle: FlutterFlowTheme.of(context)
                                         .bodyMedium
                                         .fontStyle,
                                   ),
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FontWeight.w600,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontStyle,
-                                ),
-                          ),
-                        ].divide(const SizedBox(height: 36)),
+                            ),
+                          ].divide(const SizedBox(height: 36)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF004E7E),
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: GestureDetector(
-                    onTap: () {
-                      Get.toNamed(Routes.loginwithmobile);
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: FaIcon(
-                        FontAwesomeIcons.arrowRight,
-                        color: Colors.white,
-                        size: 24,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF004E7E),
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        Get.toNamed(Routes.loginwithmobile);
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: FaIcon(
+                          FontAwesomeIcons.arrowRight,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ].addToEnd(const SizedBox(height: 64)),
+                ].addToEnd(const SizedBox(height: 64)),
+              ),
             ),
           ],
         ),

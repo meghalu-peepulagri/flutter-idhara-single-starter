@@ -110,16 +110,17 @@ class MotorLogs {
   int? entityId;
   String? message;
   DateTime? createdAt;
+  DateTime? timestamp;
 
-  MotorLogs({
-    this.id,
-    this.performedBy,
-    this.action,
-    this.entityType,
-    this.entityId,
-    this.message,
-    this.createdAt,
-  });
+  MotorLogs(
+      {this.id,
+      this.performedBy,
+      this.action,
+      this.entityType,
+      this.entityId,
+      this.message,
+      this.createdAt,
+      this.timestamp});
 
   factory MotorLogs.fromJson(Map<String, dynamic> json) => MotorLogs(
         id: json["id"],
@@ -131,6 +132,9 @@ class MotorLogs {
         createdAt: json["created_at"] == null
             ? null
             : DateTime.parse(json["created_at"]),
+        timestamp: json["timestamp"] == null
+            ? null
+            : DateTime.parse(json["timestamp"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -141,5 +145,6 @@ class MotorLogs {
         "entity_id": entityId,
         "message": message,
         "created_at": createdAt?.toIso8601String(),
+        "timestamp": timestamp?.toIso8601String(),
       };
 }

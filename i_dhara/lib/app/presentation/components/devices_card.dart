@@ -12,10 +12,13 @@ import 'package:i_dhara/app/data/models/devices/motor_model.dart'
     as motor_model;
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
-import 'package:i_dhara/app/presentation/components/testrun_verificaiton_card.dart';
+import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+
+
+import '../../core/utils/dialogs/info_popup.dart';
+import '../../core/utils/mqtt_utils.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
@@ -63,6 +66,13 @@ class DevicesCard extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DeviceOptionsBottomSheet(
+          ontapInfo: () {
+            showSimInfoPopup(
+              context: context,
+              simNumber: device.deviceMobileNumber ?? 'N/A',
+              expiryDate: device.simRechargeExpire ?? "N/A",
+            );
+          },
           hasMotor: hasMotor,
           hasLocation: hasLocation,
           onRename: () {
@@ -178,9 +188,10 @@ class DevicesCard extends StatelessWidget {
             )
           : null,
       starter: motor_model.Starter(
+        deviceAllocation: device.deviceAllocation,
         id: device.id,
         name: device.name,
-        macAddress: device.starterNumber,
+        macAddress: device.macAddress,
         pcbNumber: device.pcbNumber,
         signalQuality: device.signalQuality,
         power: device.power,
@@ -194,24 +205,54 @@ class DevicesCard extends StatelessWidget {
     _showConfirmTestRunDialog(Get.context!, motorModelMotor);
   }
 
+  String _getMotorId() {
+    if (device.motors == null) return '';
+    final mac = device.macAddress;
+    final pcb = device.pcbNumber;
+    final deviceallow = device.deviceAllocation;
+    final publishedNumber = getMotorIdentifier(
+        deviceallow.toString(), pcb.toString(), mac.toString());
+    if (device.motors == null) return '';
+    final motorData = _getMotorData();
+    if (motorData?.groupId != null) {
+      if (motorData!.macAddress?.isNotEmpty == true) {
+        return '$publishedNumber-${motorData.groupId}';
+      }
+      if (motorData.pcbNumber?.isNotEmpty == true) {
+        return '$publishedNumber-${motorData.groupId}';
+      }
+    }
+    if (mac?.isNotEmpty == true) return '$publishedNumber-G01';
+    if (pcb?.isNotEmpty == true) return '$publishedNumber-G01';
+    return '';
+  }
+
   void _showConfirmTestRunDialog(
       BuildContext ctx, motor_model.Motor motorModelMotor) async {
+    mqttService.motors.clear();
+    mqttService.motorDataMap.clear();
     final cloudConnectionVerified = ValueNotifier<bool>(false);
     final inputPowerVerified = ValueNotifier<bool>(false);
     final avgflc = ValueNotifier<double>(0.0);
 
     // Publish verification command (type 5)
-    try {
-      final identifier = _getMotorIdentifier(motorModelMotor);
-      if (identifier.isNotEmpty) {
-        final groupId = _getMotorGroupId(mqttService, identifier);
-        final mqttMotorId = '$identifier-$groupId';
 
-        await mqttService.publishTestRunCommand(mqttMotorId, 1,
-            data: 1, type: 5);
+    final deviceallow = motorModelMotor.starter!.deviceAllocation.toString();
+    final pcb = motorModelMotor.starter?.pcbNumber.toString();
+    final mac = motorModelMotor.starter?.macAddress.toString();
+
+    try {
+      final identifier = getMotorIdentifier(
+          deviceallow.toString(), pcb.toString(), mac.toString());
+      final map = {identifier: motorModelMotor};
+      mqttService.updateMotors(map);
+      if (identifier.isNotEmpty) {
+        final id = _getMotorId();
+
+        await mqttService.publishTestRunCommand(id, 1, data: 1, type: 5);
       }
     } catch (e) {
-      print("Error publishing verification command: $e");
+      // ignore
     }
 
     if (!ctx.mounted) return;
@@ -222,7 +263,7 @@ class DevicesCard extends StatelessWidget {
       builder: (context) => ValueListenableBuilder(
           valueListenable: mqttService.dataUpdateNotifier,
           builder: (context, _, __) {
-            final motorData = _getMotorData(mqttService, motorModelMotor);
+            final motorData = _getMotorData();
             return ConfirmTestRunScreen(
               motorData: motorData,
               motor: motorModelMotor,
@@ -236,28 +277,9 @@ class DevicesCard extends StatelessWidget {
     );
   }
 
-  String _getMotorIdentifier(motor_model.Motor motor) {
-    if (motor.starter == null) return '';
-    final mac = motor.starter!.macAddress;
-    final pcb = motor.starter!.pcbNumber;
-    if (pcb?.isNotEmpty == true) return pcb!;
-
-    return '';
-  }
-
-  String _getMotorGroupId(MqttService mqttService, String identifier) {
-    const allowedGroups = ['G01', 'G02'];
-    for (final groupId in allowedGroups) {
-      final motorData = mqttService.motorDataMap['$identifier-$groupId'];
-      if (motorData != null) return groupId;
-    }
-    return 'G01';
-  }
-
-  MotorData? _getMotorData(MqttService mqttService, motor_model.Motor motor) {
-    if (motor.starter == null) return null;
-    final mac = motor.starter!.macAddress;
-    final pcb = motor.starter!.pcbNumber;
+  MotorData? _getDeviceMotorData() {
+    final mac = device.macAddress;
+    final pcb = device.pcbNumber;
 
     MotorData? bestData;
     DateTime? bestTime;
@@ -291,48 +313,88 @@ class DevicesCard extends StatelessWidget {
     return bestData;
   }
 
+  MotorData? _getMotorData() {
+    if (device.motors == null) return null;
+    final mac = device.macAddress;
+    final pcb = device.pcbNumber;
+    MotorData? bestData;
+    DateTime? bestTime;
+    for (var entry in mqttService.motorDataMap.entries) {
+      final data = entry.value;
+      if (data.hasReceivedData != true) continue;
+      final key = entry.key;
+      final matchesByKey =
+          (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
+              (pcb != null && pcb.isNotEmpty && key.startsWith('$pcb-'));
+      final matchesByData = (mac != null &&
+              mac.isNotEmpty &&
+              (data.macAddress == mac || data.pcbNumber == mac)) ||
+          (pcb != null &&
+              pcb.isNotEmpty &&
+              (data.macAddress == pcb || data.pcbNumber == pcb));
+      if (matchesByKey || matchesByData) {
+        final ackTime = mqttService.getLastAckTime(key);
+        if (bestData == null ||
+            (ackTime != null &&
+                (bestTime == null || ackTime.isAfter(bestTime)))) {
+          bestData = data;
+          bestTime = ackTime;
+        }
+      }
+    }
+    return bestData;
+  }
+
   @override
   Widget build(BuildContext context) {
     final motor =
         device.motors?.isNotEmpty == true ? device.motors!.first : null;
 
-    return GestureDetector(
-      // onTap: () => _navigateToTestRun(motor),
-      child: Container(
-        decoration: BoxDecoration(
-          color: FlutterFlowTheme.of(context).secondaryBackground,
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F3F3),
-                  borderRadius: BorderRadius.circular(6.0),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      _buildHeader(context, motor),
-                      _buildPcbAndPowerStatus(context, motor),
-                    ].divide(const SizedBox(height: 12.0)),
+    return ValueListenableBuilder(
+      valueListenable: mqttService.dataUpdateNotifier,
+      builder: (context, _, __) {
+        final motorData = _getDeviceMotorData();
+
+        return GestureDetector(
+          // onTap: () => _navigateToTestRun(motor),
+          child: Container(
+            decoration: BoxDecoration(
+              color: FlutterFlowTheme.of(context).secondaryBackground,
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F3F3),
+                      borderRadius: BorderRadius.circular(6.0),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          _buildHeader(context, motor, motorData),
+                          _buildPcbAndPowerStatus(context, motor, motorData),
+                        ].divide(const SizedBox(height: 12.0)),
+                      ),
+                    ),
                   ),
-                ),
+                  _buildLocationRow(context, motor),
+                ].divide(const SizedBox(height: 8.0)),
               ),
-              _buildLocationRow(context, motor),
-            ].divide(const SizedBox(height: 8.0)),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(BuildContext context, Motor? motor) {
+  Widget _buildHeader(
+      BuildContext context, Motor? motor, MotorData? motorData) {
     final displayName = _getMotorDisplayName(motor);
 
     return Row(
@@ -381,21 +443,12 @@ class DevicesCard extends StatelessWidget {
                   Row(
                     spacing: 10,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          SharedPreference.setStarterId(device.id ?? 0);
-                          Get.offNamed(Routes.usersettings);
-                        },
-                        child: const Icon(
-                          Icons.settings_outlined,
-                          color: Colors.black87,
-                          size: 20,
-                        ),
-                      ),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(0.0),
                         child: SvgPicture.asset(
-                          device.power == 1
+                          (motorData?.hasReceivedData == true
+                                  ? motorData!.power == 1
+                                  : device.power == 1)
                               ? 'assets/images/power.svg'
                               : 'assets/images/Power_red.svg',
                           width: 17,
@@ -431,7 +484,8 @@ class DevicesCard extends StatelessWidget {
     return name.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  Widget _buildPcbAndPowerStatus(BuildContext context, Motor? motor) {
+  Widget _buildPcbAndPowerStatus(
+      BuildContext context, Motor? motor, MotorData? motorData) {
     String starterText = device.starterNumber ?? 'N/A';
     String displayText = starterText.length > 12
         ? '${starterText.substring(0, 12)}...'
@@ -482,7 +536,9 @@ class DevicesCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(0.0),
           child: SvgPicture.asset(
-            (motor?.state == 1)
+            (motorData?.hasReceivedData == true
+                    ? motorData!.state == 1
+                    : motor?.state == 1)
                 ? 'assets/images/pump.svg'
                 : 'assets/images/pump_off.svg',
             width: 34,

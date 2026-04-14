@@ -12,6 +12,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/config/env.dart';
+import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/routes/app_pages.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -19,6 +20,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'app/core/flutter_flow/flutter_flow_theme.dart';
 import 'app/core/flutter_flow/flutter_flow_util.dart';
+import 'app/data/services/mqtt_manager/mqtt_service.dart';
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -86,13 +88,9 @@ Future<void> _firebasemessageBackgroundHandler(RemoteMessage message) async {
 
 Future<void> _requestFCMPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-    provisional: false,
-  );
-  debugPrint('FCM Permission: ${settings.authorizationStatus}');
+  NotificationSettings settings =
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
+  if (settings.authorizationStatus == AuthorizationStatus.denied) {}
 }
 
 Future<void> _requestNotificationPermission() async {
@@ -116,7 +114,6 @@ Future<void> _requestNotificationPermission() async {
 }
 
 void _handleNotificationTap(String? payload) {
-  print("line --->");
   if (payload == null || payload.isEmpty) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.offAllNamed(Routes.dashboard);
@@ -125,16 +122,15 @@ void _handleNotificationTap(String? payload) {
   }
   try {
     Map<String, dynamic> data = json.decode(payload);
-    print("line 66 $payload");
     String title = data['title'] ?? "";
     String? body = data['body'];
     String motorId = data['motor_id'];
     String starterId = data['starter_id'];
     int motorId0 = int.parse(motorId);
     int starterId0 = int.parse(starterId);
+
     if (starterId.isNotEmpty) {
       SharedPreference.setStarterId(starterId0);
-      print("line 75 starter $starterId0");
     }
 
     if (title.toLowerCase().contains("state") && title.isNotEmpty) {
@@ -145,6 +141,14 @@ void _handleNotificationTap(String? payload) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         SharedPreference.setMotorId(motorId0);
         Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 0});
+      });
+    } else if (title.toLowerCase().contains("recharge") && title.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        SharedPreference.setMotorId(motorId0);
+        SharedPreference.setStarterId(starterId0);
+        Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 0});
+        // SharedPreference.setMotorId(motorId0);
+        // Get.offAllNamed(Routes.motorDetails, arguments: {'tabIndex': 0});
       });
     } else if (title.toLowerCase().contains("fault") && title.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -160,8 +164,7 @@ void _handleNotificationTap(String? payload) {
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SharedPreference.clear();
-        Get.offAllNamed(Routes.loginwithmobile);
+        Get.offAllNamed(Routes.dashboard);
       });
     }
   } catch (e) {
@@ -203,9 +206,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kIsWeb) {
+    try {
+      await dotenv.load(fileName: '.env');
+      AppEnvironment.setup();
+    } catch (e) {
+      debugPrint('Error loading .env file: $e');
+    }
     await SharedPreference.init();
     usePathUrlStrategy();
     await FlutterFlowTheme.initialize();
+    Get.put<ConnectivityService>(ConnectivityService(), permanent: true);
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
     };
@@ -256,7 +266,8 @@ void main() async {
         }
         debugPrint('APNS Token: $apnsToken');
         if (apnsToken == null) {
-          debugPrint('WARNING: APNS token is null - FCM token will also be null');
+          debugPrint(
+              'WARNING: APNS token is null - FCM token will also be null');
         }
       }
 
@@ -291,11 +302,25 @@ void main() async {
     usePathUrlStrategy();
 
     await FlutterFlowTheme.initialize();
+    Get.put<ConnectivityService>(ConnectivityService(), permanent: true);
+
+    // If the user is already logged in (returning user), start the global MQTT
+    // connection immediately so it is live before Dashboard finishes loading.
+    if (SharedPreference.getAccessToken().isNotEmpty) {
+      MqttService().initializeMqttClient().then((_) {
+        debugPrint('Startup: Global MQTT connection established');
+      }).catchError((e) {
+        debugPrint('Startup: MQTT init failed: $e');
+      });
+    }
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark, // For Android
+        statusBarBrightness: Brightness.light, // For iOS
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
 
@@ -368,7 +393,7 @@ class _MyAppState extends State<MyApp> {
           _handleNotificationTap(details.notificationResponse!.payload);
         }
       } catch (e) {
-        debugPrint("line error --------------> $e");
+        // ignore
       }
     });
   }
@@ -381,34 +406,36 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _showLocalNotification(RemoteMessage message) {
-    // iOS foreground notifications are handled by setForegroundNotificationPresentationOptions.
-    // Showing a local notification here on iOS causes conflicts and duplicate/suppressed alerts.
-    if (Platform.isIOS) return;
+    // Get title & body from notification OR fallback to data
+    String? title = message.notification?.title ?? message.data['title'];
+    String? body = message.notification?.body ?? message.data['body'];
 
-    RemoteNotification? notification = message.notification;
-    if (notification != null) {
+    if (title != null && body != null) {
       Map<String, dynamic> fullData = Map<String, dynamic>.from(message.data);
-      fullData['title'] = notification.title ?? '';
-      fullData['body'] = notification.body ?? '';
-      flutterLocalNotificationsPlugin
-          .show(
-            notification.hashCode,
-            notification.title,
-            notification.body,
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'high_importance_channel',
-                'High Importance Notifications',
-                importance: Importance.max,
-                priority: Priority.high,
-                showWhen: false,
-                icon: '@drawable/ic_notification',
-                color: Color(0xFF1B5E8A),
-              ),
+
+      fullData['title'] = title;
+      fullData['body'] = body;
+
+      flutterLocalNotificationsPlugin.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body, // ✅ Body will now always show
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'high_importance_channel',
+            'High Importance Notifications',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: true,
+            icon: '@drawable/idhara_logo',
+            color: Color(0xFF1B5E8A),
+            styleInformation: BigTextStyleInformation(
+              '', // Will auto expand large text
             ),
-            payload: json.encode(fullData),
-          )
-          .catchError((e) {});
+          ),
+        ),
+        payload: json.encode(fullData),
+      );
     }
   }
 

@@ -45,8 +45,21 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     final highMin = controller.data.value?.olfMin?.toDouble() ?? 0.0;
     final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
 
-    lowCurrentValue = widget.initialLowCurrent.clamp(lowMin, lowMax);
-    highCurrentValue = widget.initialHighCurrent.clamp(highMin, highMax);
+    // DRF (low thumb): if value > 100, display at 100.
+    final mappedLow =
+        widget.initialLowCurrent > 100 ? 100.0 : widget.initialLowCurrent;
+    // OLF (high thumb): if value < 100, display at 101.
+    final mappedHigh =
+        widget.initialHighCurrent < 100 ? 101.0 : widget.initialHighCurrent;
+
+    lowCurrentValue = mappedLow.clamp(lowMin, lowMax);
+    highCurrentValue = mappedHigh.clamp(highMin, highMax);
+
+    // Guarantee exactly two thumbs: SfRangeSlider shows a blank third thumb
+    // when start >= end. Always keep high strictly above low.
+    if (highCurrentValue <= lowCurrentValue) {
+      highCurrentValue = lowCurrentValue + 1.0;
+    }
   }
 
   void resetValues() {
@@ -83,7 +96,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         SettingsDualSlider(
           key: _sliderKey,
           heading: 'Current Faults',

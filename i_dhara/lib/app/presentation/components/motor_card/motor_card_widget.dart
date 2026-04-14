@@ -6,25 +6,29 @@ import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_row.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
-import 'package:i_dhara/app/presentation/components/testrun_verificaiton_card.dart';
+import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
+
+import '../../../core/utils/mqtt_utils.dart';
+import '../../../core/utils/snackbars/error_snackbar.dart';
+import '../../../core/utils/snackbars/success_snackbar.dart';
 
 class MotorCardWidget extends StatefulWidget {
   final Motor motor;
   final MqttService mqttService;
   final Function(Motor, bool) onToggleMotor;
-
   const MotorCardWidget({
     super.key,
     required this.motor,
     required this.mqttService,
     required this.onToggleMotor,
   });
-
   @override
   State<MotorCardWidget> createState() => _MotorCardWidgetState();
 }
@@ -32,27 +36,22 @@ class MotorCardWidget extends StatefulWidget {
 class _MotorCardWidgetState extends State<MotorCardWidget> {
   late ValueNotifier<bool> _localSwitchController;
   late ValueNotifier<int> _localModeController;
-  // bool _isInitialized = false; // Not strictly used in snippet
   bool _hasPendingSwitchCommand = false;
   bool _hasPendingModeCommand = false;
   bool? _pendingSwitchValue;
   int? _pendingModeValue;
-  // bool _isUpdatingFromMqtt = false;
   bool _isWaitingForSwitchAck = false;
   bool _isWaitingForModeAck = false;
-
+  bool _isWaitingForFaultClear = false;
   Timer? _switchAckTimer;
   Timer? _modeAckTimer;
   static const Duration _ackTimeout = Duration(seconds: 13);
-
   @override
   void initState() {
     super.initState();
-
     final motorData = _getMotorData();
     bool initialState;
     int initialMode;
-
     if (motorData != null && motorData.hasReceivedData) {
       initialState = motorData.state == 1;
       initialMode = motorData.modeIndex ?? 1;
@@ -61,12 +60,38 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       initialState = apiState == 1;
       initialMode = _getSimplifiedModeIndex(widget.motor.mode ?? 'AUTO') ?? 1;
     }
-
     _localSwitchController = ValueNotifier(initialState);
     _localModeController = ValueNotifier(initialMode);
-    // _isInitialized = true;
     widget.mqttService.commandStatusNotifier
         .addListener(_onCommandStatusChanged);
+    widget.mqttService.faultClearResultNotifier
+        .addListener(_onFaultClearResult);
+    _localModeController.addListener(_onModeControllerChanged);
+  }
+
+  void _onModeControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onFaultClearResult() async {
+    final clearedMotorId = widget.mqttService.faultClearResultNotifier.value;
+    if (clearedMotorId == null || !mounted) return;
+
+    // Check if this ACK is for our motor
+    final ourMotorId = _getMotorId();
+    if (clearedMotorId != ourMotorId) return;
+
+    _isWaitingForFaultClear = false;
+    setState(() {});
+
+    // Show snackbar immediately before clearFaultAck, because clearFaultAck
+    // sets isLoading=true which rebuilds the widget tree and unmounts this card.
+    getsuccessSnackBar('Fault cleared successfully');
+
+    // Call API to patch fault clear and then fetch motors
+    if (Get.isRegistered<DashboardController>()) {
+      await Get.find<DashboardController>().clearFaultAck(widget.motor);
+    }
   }
 
   // --- Logic Methods ---
@@ -77,11 +102,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       if (mounted && _hasPendingSwitchCommand) {
         debugPrint(
             ' Switch ACK timeout - reverting to previous state: $previousValue');
-
         _localSwitchController.value = previousValue;
         _hasPendingSwitchCommand = false;
         _pendingSwitchValue = null;
-
         if (mounted) {
           setState(() {
             _isWaitingForSwitchAck = false;
@@ -97,11 +120,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       if (mounted && _hasPendingModeCommand) {
         debugPrint(
             ' Mode ACK timeout - reverting to previous mode: $previousValue');
-
         _localModeController.value = previousValue;
         _hasPendingModeCommand = false;
         _pendingModeValue = null;
-
         if (mounted) {
           setState(() {
             _isWaitingForModeAck = false;
@@ -124,6 +145,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (message != null && mounted) {
       final motorName = _formatMotorName(widget.motor.aliasName ?? 'Motor');
       if (message.contains(motorName)) {
+        // Reset fault clear waiting state on timeout so user can retry
+        if (_isWaitingForFaultClear) {
+          setState(() => _isWaitingForFaultClear = false);
+        }
         showTopSnackBar(
           Overlay.of(context),
           Container(
@@ -155,6 +180,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   void dispose() {
     widget.mqttService.commandStatusNotifier
         .removeListener(_onCommandStatusChanged);
+    widget.mqttService.faultClearResultNotifier
+        .removeListener(_onFaultClearResult);
+    _localModeController.removeListener(_onModeControllerChanged);
     _switchAckTimer?.cancel();
     _modeAckTimer?.cancel();
     _localSwitchController.dispose();
@@ -166,15 +194,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     if (widget.motor.starter == null) return null;
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
-
-    // Find the best matching entry with the most recent data
     MotorData? bestData;
     DateTime? bestTime;
-
     for (var entry in widget.mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
-
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -185,7 +209,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           (pcb != null &&
               pcb.isNotEmpty &&
               (data.macAddress == pcb || data.pcbNumber == pcb));
-
       if (matchesByKey || matchesByData) {
         final ackTime = widget.mqttService.getLastAckTime(key);
         if (bestData == null ||
@@ -196,27 +219,28 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         }
       }
     }
-
     return bestData;
   }
 
   String _getMotorId() {
     if (widget.motor.starter == null) return '';
-    final motorData = _getMotorData();
-
-    if (motorData?.groupId != null) {
-      if (motorData!.macAddress?.isNotEmpty == true) {
-        return '${motorData.macAddress}-${motorData.groupId}';
-      }
-      if (motorData.pcbNumber?.isNotEmpty == true) {
-        return '${motorData.pcbNumber}-${motorData.groupId}';
-      }
-    }
-
     final mac = widget.motor.starter!.macAddress;
     final pcb = widget.motor.starter!.pcbNumber;
-    if (mac?.isNotEmpty == true) return '$mac-G01';
-    if (pcb?.isNotEmpty == true) return '$pcb-G01';
+    final deviceallow = widget.motor.starter?.deviceAllocation;
+    final publishedNumber = getMotorIdentifier(
+        deviceallow.toString(), pcb.toString(), mac.toString());
+    if (widget.motor.starter == null) return '';
+    final motorData = _getMotorData();
+    if (motorData?.groupId != null) {
+      if (motorData!.macAddress?.isNotEmpty == true) {
+        return '$publishedNumber-${motorData.groupId}';
+      }
+      if (motorData.pcbNumber?.isNotEmpty == true) {
+        return '$publishedNumber-${motorData.groupId}';
+      }
+    }
+    if (mac?.isNotEmpty == true) return '$publishedNumber-G01';
+    if (pcb?.isNotEmpty == true) return '$publishedNumber-G01';
     return '';
   }
 
@@ -226,22 +250,108 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     return (mac?.isNotEmpty == true) || (pcb?.isNotEmpty == true);
   }
 
+  /// Check if motor is currently in fault state
+  bool _isMotorInFault() {
+    // Check if fault is cleared by API
+    final starterParams = widget.motor.starter?.starterParameters;
+    final isFaultCleared = starterParams?.firstOrNull?.faultCleared == true;
+
+    if (isFaultCleared) {
+      return false;
+    }
+
+    final motorData = _getMotorData();
+    if (motorData != null && motorData.hasReceivedData) {
+      return motorData.fault != 0;
+    }
+    // Also check API data
+    if (starterParams != null && starterParams.isNotEmpty) {
+      return (starterParams.first.fault ?? 0) != 0;
+    }
+    return false;
+  }
+
   Future<void> _handleToggle(bool newValue) async {
-    // if (_isUpdatingFromMqtt || _isWaitingForSwitchAck) return;
     if (_isWaitingForSwitchAck) return;
     if (!_isMotorAvailable()) return;
-
     final motorId = _getMotorId();
     if (motorId.isEmpty) return;
 
-    final previousValue = _localSwitchController.value;
+    // If fault clear was waiting but the pending command is gone (retries
+    // exhausted or ACK received), reset the flag so the user can retry.
+    if (_isWaitingForFaultClear) {
+      _isWaitingForFaultClear = false;
+      setState(() {});
+    }
 
+    // If turning ON and motor has fault, show fault clear dialog first.
+    // After fault is cleared, _onFaultClearResult will show the switch dialog.
+    if (newValue && _isMotorInFault()) {
+      MotorCardDialogs.showFaultClearDialog(
+        context,
+        widget.motor,
+        () => _sendFaultClearCommand(motorId),
+      );
+      return;
+    }
+
+    // If turning OFF while in Auto mode, show the auto-mode warning dialog
+    if (!newValue && _localModeController.value == 1) {
+      MotorCardDialogs.showAutoModeOffWarningDialog(
+        context,
+        widget.motor,
+        onOffAnyway: () {
+          // Temporary off — just send switch command, motor stays in Auto mode
+          _executeSwitchCommand(motorId, false);
+        },
+        onModeChange: () {
+          // Navigate to motor details page so user can change mode themselves
+          SharedPreference.setMotorId(widget.motor.id ?? 0);
+          SharedPreference.setStarterId(widget.motor.starter?.id ?? 0);
+          Get.offAllNamed(Routes.motorDetails, arguments: {
+            'motorId': widget.motor.id,
+            'tabIndex': 0,
+          });
+        },
+      );
+      return;
+    }
+
+    // No fault — show switch confirmation dialog, then execute on confirm
+    _showSwitchDialogAndExecute(motorId, newValue);
+  }
+
+  void _showSwitchDialogAndExecute(String motorId, bool newValue) {
+    MotorCardDialogs.showSwitchCommandDialog(
+      context,
+      widget.motor,
+      newValue,
+      (confirmed) => _executeSwitchCommand(motorId, confirmed),
+    );
+  }
+
+  /// Send fault clear command with retry logic
+  Future<void> _sendFaultClearCommand(String motorId) async {
+    setState(() => _isWaitingForFaultClear = true);
+    try {
+      await widget.mqttService.publishFaultClearCommand(motorId);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isWaitingForFaultClear = false);
+        errorSnackBar(
+            context, 'Failed to send fault clear command. Please try again.');
+      }
+    }
+  }
+
+  /// Execute the actual motor switch command
+  Future<void> _executeSwitchCommand(String motorId, bool newValue) async {
+    final previousValue = _localSwitchController.value;
     setState(() => _isWaitingForSwitchAck = true);
     _localSwitchController.value = newValue;
     _hasPendingSwitchCommand = true;
     _pendingSwitchValue = newValue;
     _startSwitchAckTimer(previousValue);
-
     try {
       await widget.mqttService.publishMotorCommand(motorId, newValue ? 1 : 0);
     } catch (e) {
@@ -261,11 +371,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
   void _updateSwitchFromMqtt(bool newState) {
     if (_localSwitchController.value != newState) {
-      // _isUpdatingFromMqtt = true;
       _localSwitchController.value = newState;
-      // Future.delayed(const Duration(milliseconds: 50), () {
-      //   _isUpdatingFromMqtt = false;
-      // });
     }
   }
 
@@ -275,13 +381,45 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     }
   }
 
+  void _handleModeChange(int newMode) {
+    if (_isWaitingForModeAck) return;
+    if (!_isMotorAvailable()) return;
+    final motorId = _getMotorId();
+    if (motorId.isEmpty) return;
+    final motorName = widget.motor.aliasName ?? widget.motor.name ?? 'Motor';
+    MotorCardDialogs.showModeChangeDialog(context, motorName, newMode,
+        (confirmedMode) async {
+      final previousMode = _localModeController.value;
+      setState(() => _isWaitingForModeAck = true);
+      _localModeController.value = confirmedMode;
+      _hasPendingModeCommand = true;
+      _pendingModeValue = confirmedMode;
+      _startModeAckTimer(previousMode);
+
+      try {
+        await widget.mqttService.publishModeCommand(motorId, confirmedMode);
+      } catch (e) {
+        _modeAckTimer?.cancel();
+        _localModeController.value = previousMode;
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+        if (mounted) setState(() => _isWaitingForModeAck = false);
+      }
+    });
+  }
+
   bool _canControlMotor(MotorData? motorData) {
     if (!_isMotorAvailable()) return false;
+    final int signalBars = _getSignalBars(motorData);
+
+    // If motor is in test run, skip power check — only signal matters
+    if (_isNewDeviceWithoutAck(motorData)) {
+      return signalBars > 0;
+    }
+
     final isPowerOn = (motorData?.hasReceivedData == true)
         ? motorData!.power == 1
         : (widget.motor.starter?.power ?? 0) == 1;
-
-    int signalBars = _getSignalBars(motorData);
     return isPowerOn && signalBars > 0;
   }
 
@@ -314,8 +452,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     //   arguments: {'motorId': widget.motor.id},
     // );
 
-    Get.offAllNamed(Routes.motorDetails,
-        arguments: {'tabIndex': 2, 'logFilter': 'Faults'});
+    Get.offAllNamed(Routes.motorDetails, arguments: {
+      'motorId': widget.motor.id,
+      'tabIndex': 3,
+      'logFilter': 'Faults'
+    });
   }
 
   void _navigateToTestRun() {
@@ -331,15 +472,21 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     // Publish verification command (type 5)
     try {
-      final identifier = _getMotorIdentifier();
+      final identifier = getMotorIdentifier(
+          widget.motor.starter!.deviceAllocation.toString(),
+          widget.motor.starter!.pcbNumber.toString(),
+          widget.motor.starter!.macAddress.toString());
+      final map = {identifier: widget.motor};
+      widget.mqttService.updateMotors(map);
       if (identifier.isNotEmpty) {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
+
         await widget.mqttService
             .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
       }
     } catch (e) {
-      print("Error publishing verification command: $e");
+      // ignore
     }
 
     if (!mounted) return;
@@ -361,15 +508,6 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
             );
           }),
     );
-  }
-
-  String _getMotorIdentifier() {
-    if (widget.motor.starter == null) return '';
-    final mac = widget.motor.starter!.macAddress;
-    final pcb = widget.motor.starter!.pcbNumber;
-    if (mac?.isNotEmpty == true) return mac!;
-    if (pcb?.isNotEmpty == true) return pcb!;
-    return '';
   }
 
   String _getMotorGroupId(String identifier) {
@@ -472,81 +610,80 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
           } else {
             if (motorData.modeIndex != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && !_hasPendingModeCommand)
+                if (mounted && !_hasPendingModeCommand) {
                   _updateModeFromMqtt(motorData.modeIndex!);
-                setState(() {});
+                }
               });
             }
           }
         }
 
-        final isManualMode = _localModeController.value == 0;
-        final isTestRunBlocked = _isNewDeviceWithoutAck(motorData);
-        final isSwitchDisabled = isTestRunBlocked ||
-            _isWaitingForSwitchAck ||
-            !(canControl && isManualMode);
+        final isSwitchDisabled = _isWaitingForSwitchAck || !(canControl);
+        final hasSignal = _getSignalBars(motorData) > 0;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 10.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                MotorHeader(
-                  ontapFault: ontapFault,
-                  motor: widget.motor,
-                  motorData: motorData,
-                  onTap: _navigateToDetails,
-                  onTestRun: _navigateToTestRun,
-                  isTestRunEnabled: _shouldShowTestRun(motorData),
-                  showTestRun: _isNewDeviceWithoutAck(motorData),
-                ),
-                const Divider(
-                    height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _isNewDeviceWithoutAck(motorData)
-                      ? _navigateToTestRun
-                      : _navigateToDetails,
-                  child: AbsorbPointer(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          12.0, 0.0, 12.0, 0.0),
-                      child: VoltageCurrentValuesCard(
-                        motor: widget.motor,
-                        mqttService: widget.mqttService,
-                        isTestRunRequired: _isNewDeviceWithoutAck(motorData),
+        return Opacity(
+          opacity: hasSignal ? 1.0 : 0.5,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Padding(
+              padding:
+                  const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 10.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  MotorHeader(
+                    ontapFault: ontapFault,
+                    motor: widget.motor,
+                    motorData: motorData,
+                    onTap: _navigateToDetails,
+                    onTestRun: _navigateToTestRun,
+                    isTestRunEnabled: _shouldShowTestRun(motorData),
+                    showTestRun: _isNewDeviceWithoutAck(motorData),
+                  ),
+                  const Divider(
+                      height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _navigateToDetails,
+                    child: AbsorbPointer(
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                            12.0, 0.0, 12.0, 0.0),
+                        child: VoltageCurrentValuesCard(
+                          motor: widget.motor,
+                          mqttService: widget.mqttService,
+                          isTestRunRequired: false,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const Divider(
-                    height: 2, thickness: 1.0, color: Color(0xFFECECEC)),
-                MotorControlsRow(
-                  motor: widget.motor,
-                  motorData: motorData,
-                  switchController: _localSwitchController,
-                  modeController: _localModeController,
-                  onToggleSwitch: _handleToggle,
-                  onModeChange: (_) {
-                    //  logic
-                  },
-                  isSwitchDisabled: isSwitchDisabled,
-                  isModeDisabled: isTestRunBlocked ||
-                      _isWaitingForModeAck ||
-                      !canChangeMode,
-                  onNavigateToDetails: _isNewDeviceWithoutAck(motorData)
-                      ? _navigateToTestRun
-                      : _navigateToDetails,
-                  onTestRunTap: _navigateToTestRun,
-                  showTestRun: _isNewDeviceWithoutAck(motorData),
-                  isTestRunRequired: _isNewDeviceWithoutAck(motorData),
-                ),
-              ].divide(const SizedBox(height: 4.0)),
+                  const Divider(
+                      height: 2, thickness: 1.0, color: Color(0xFFECECEC)),
+                  MotorControlsRow(
+                    motor: widget.motor,
+                    motorData: motorData,
+                    switchController: _localSwitchController,
+                    modeController: _localModeController,
+                    onToggleSwitch: _handleToggle,
+                    onModeChange: _handleModeChange,
+                    isSwitchDisabled: isSwitchDisabled,
+                    isModeDisabled: _isWaitingForModeAck || !canChangeMode,
+                    onNavigateToDetails: _navigateToDetails,
+                    onScheduleTap: () {
+                      SharedPreference.setMotorId(widget.motor.id ?? 0);
+                      SharedPreference.setStarterId(
+                          widget.motor.starter?.id ?? 0);
+                      Get.offAllNamed(Routes.motorDetails, arguments: {
+                        'motorId': widget.motor.id,
+                        'tabIndex': 1,
+                      });
+                    },
+                  ),
+                ].divide(const SizedBox(height: 4.0)),
+              ),
             ),
           ),
         );

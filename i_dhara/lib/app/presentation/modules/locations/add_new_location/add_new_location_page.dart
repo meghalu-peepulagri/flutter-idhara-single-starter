@@ -18,6 +18,7 @@ class AddNewLocation extends StatefulWidget {
 
 class _AddNewLocationState extends State<AddNewLocation> {
   late AddNewLocationController _model;
+  final Map<String, dynamic> _localErrors = {};
 
   @override
   void initState() {
@@ -104,16 +105,20 @@ class _AddNewLocationState extends State<AddNewLocation> {
                       ),
                       const SizedBox(height: 8.0),
                       TextFieldComponent(
+                          maxlength: 21,
                           controller: _model.textController!,
-                          errors: _model.errorInstance,
+                          errors: _localErrors,
                           errorKey: 'name',
                           hintText: 'Enter location name',
                           onChanged: (value) {
-                            if (_model.errorInstance.containsKey('name')) {
-                              setState(() {
-                                _model.errorInstance.remove('name');
-                              });
-                            }
+                            setState(() {
+                              if (value.length > 20) {
+                                _localErrors['name'] =
+                                    'Location name must not exceed 20 characters';
+                              } else {
+                                _localErrors.remove('name');
+                              }
+                            });
                           },
                           readOnly: false),
                     ],
@@ -179,19 +184,20 @@ class _AddNewLocationState extends State<AddNewLocation> {
                           final isSuccess = await _model.fetchnewlocation(
                             name: _model.textController!.text.trim(),
                           );
-                          setState(() {});
+                          setState(() {
+                            if (!isSuccess) {
+                              _localErrors.addAll(_model.errorInstance);
+                            } else {
+                              _localErrors.clear();
+                            }
+                          });
                           if (!isSuccess) {
                             return;
                           }
-                          print("line 36 loc id-----------> ${_model.error}");
-                          print(
-                              "line 37 loc id-----------> ${_model.errorInstance}");
-
                           SharedPreference.setLocationId(
                               _model.locationId.toString());
                           final locationName =
                               _model.textController!.text.trim();
-
                           Get.back();
                           getsuccessSnackBar("Location added successfully");
                           widget.onLocationAdded(locationName);

@@ -431,9 +431,7 @@ class _FiltersBottomsheetWidgetState extends State<FiltersBottomsheetWidget> {
                   children: [
                     Expanded(
                       child: FFButtonWidget(
-                        onPressed: () {
-                          print('Button pressed ...');
-                        },
+                        onPressed: () {},
                         text: 'Reset All ',
                         options: FFButtonOptions(
                           height: 40,
@@ -467,9 +465,7 @@ class _FiltersBottomsheetWidgetState extends State<FiltersBottomsheetWidget> {
                     ),
                     Expanded(
                       child: FFButtonWidget(
-                        onPressed: () {
-                          print('Button pressed ...');
-                        },
+                        onPressed: () {},
                         text: 'Apply Filters',
                         options: FFButtonOptions(
                           height: 40,

@@ -27,7 +27,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
   late EditLocationModel _model;
   final LocationsController locationsController =
       Get.find<LocationsController>();
-  //  String? errorMessage; // Error message state
+  final Map<String, dynamic> _localErrors = {};
 
   @override
   void initState() {
@@ -36,6 +36,7 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
     _model.textController ??= TextEditingController();
     _model.textFieldFocusNode ??= FocusNode();
     _model.textController!.text = widget.locationName;
+    _model.errorInstance = <String, dynamic>{};
     _getLocationName();
   }
 
@@ -126,19 +127,21 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                         ),
                         const SizedBox(height: 8.0),
                         TextFieldComponent(
+                          maxlength: 21,
                           controller: _model.textController!,
-                          errors: _model.errorInstance,
+                          errors: _localErrors,
                           errorKey: 'name',
                           hintText: 'Enter location name',
                           readOnly: false,
                           onChanged: (value) {
-                            if (value.isNotEmpty) {
-                              setState(() {
-                                _model.errorInstance =
-                                    Map.from(_model.errorInstance)
-                                      ..remove('name');
-                              });
-                            }
+                            setState(() {
+                              if (value.length > 20) {
+                                _localErrors['name'] =
+                                    'Location name must not exceed 20 above characters';
+                              } else {
+                                _localErrors.remove('name');
+                              }
+                            });
                           },
                         ),
                       ],
@@ -218,6 +221,12 @@ class _LocationpopupWidgetState extends State<EditLocationWidget> {
                                   locationsController.message ?? '';
                               _model.errorInstance =
                                   locationsController.errorInstance;
+                              final serverErrors =
+                                  locationsController.errorInstance;
+                              if (serverErrors is Map) {
+                                _localErrors.addAll(
+                                    Map<String, dynamic>.from(serverErrors));
+                              }
                             });
 
                             return;

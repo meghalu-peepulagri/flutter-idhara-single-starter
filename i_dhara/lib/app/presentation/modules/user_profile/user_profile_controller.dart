@@ -1,24 +1,42 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:i_dhara/app/data/models/user_profile/user_profile_model.dart';
 import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 import '../../../data/repository/auth/auth_repository_impl.dart';
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
 import '../../../data/services/storages/shared_preference.dart';
 import '../dashboard/dashboard_controller.dart';
 import '../devices/devices_controller.dart';
 import '../locations/locations_controller.dart';
 
-class UserProfileController extends GetxController {
+class UserProfileController extends GetxController with ConnectivityMixin {
   final Rxn<UserProfile> userProfile = Rxn<UserProfile>();
   final isLoading = true.obs;
   final isRefreshing = false.obs;
+  final appVersion = ''.obs;
+  final appBuildNumber = ''.obs;
+
+  @override
+  Future<void> onRetry() async {
+    Get.log('UserProfileController: Retrying API calls after reconnection');
+    await fetchUserProfile();
+  }
 
   @override
   void onInit() {
     fetchUserProfile();
+    _fetchAppVersion();
     super.onInit();
+  }
+
+  Future<void> _fetchAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    appVersion.value = info.version;
+    appBuildNumber.value = info.buildNumber;
   }
 
   Future<void> onRefresh() async {
@@ -42,6 +60,9 @@ class UserProfileController extends GetxController {
   Future<void> fetchFcmToken() async {
     final response = await AuthRepositoryImpl().fetchlogout();
     if (response?.status == 200 || response?.status == 201) {
+      // Disconnect MQTT before clearing state so the broker connection is
+      // closed cleanly and the singleton is reset for the next login session.
+      MqttService().disconnectOnly();
       await SharedPreference.clear();
       FirebaseMessaging.instance.getToken().then((value) {
         SharedPreference.setFcmToken(value!);

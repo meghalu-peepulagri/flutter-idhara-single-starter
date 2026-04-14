@@ -1,19 +1,21 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
 
+import '../../../core/utils/mqtt_utils.dart';
 import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 
-class SettingsController extends GetxController {
+class SettingsController extends GetxController with ConnectivityMixin {
   TabController? tabBarController;
 
   final Rx<UserSettings2?> userSettings2 = Rx<UserSettings2?>(null);
 
   // ✅ Typed reactive map
   final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
+  Map<String, dynamic> defaultSettingspayload = {};
 
   var lvf = 0.obs;
   var hvf = 0.obs;
@@ -39,47 +41,14 @@ class SettingsController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   var data = Rxn<UserSettingsLimits>();
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
   bool mqttInitialized = false;
   var flc = 0.0.obs;
 
   @override
-  void onInit() {
-    super.onInit();
-    fetchdata();
-    _initConnectivity();
-  }
-
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
-  }
-
-  String pcbnumberPass(SettingStarter? starter) {
-    try {
-      if (starter != null) {
-        if (starter.pcbNumber != null) {
-          return starter.pcbNumber.toString();
-        } else if (starter.macAddress != null) {
-          return starter.macAddress.toString();
-        } else {
-          return '';
-        }
-      } else {
-        return '0';
-      }
-    } catch (e) {
-      print("error ---> $e");
-      return '';
-    }
+  Future<void> onRetry() async {
+    Get.log('SettingsController: Retrying API calls after reconnection');
+    await fetchdata();
   }
 
   Future<void> fetchdata() async {
@@ -132,9 +101,15 @@ class SettingsController extends GetxController {
           response.success == true &&
           response.data != null) {
         userSettings2.value = response.data;
+        final deviceallocate = userSettings2.value?.starter?.deviceAllocation;
+        final pcb = userSettings2.value?.starter?.pcbNumber;
+        final mac = userSettings2.value?.starter?.macAddress;
+
         pumpName.value = motorName();
         pumpHP.value = motorHP();
-        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        pcbNumber.value = getMotorIdentifier(
+            deviceallocate ?? 'true', pcb.toString(), mac.toString());
+
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
@@ -165,7 +140,6 @@ class SettingsController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
     }
   }
 
@@ -188,6 +162,20 @@ class SettingsController extends GetxController {
     }
   }
 
+  Future<void> fetchDefaultupdateSettings() async {
+    try {
+      UserUpdateSettingsDto dto =
+          UserUpdateSettingsDto.fromJson(updateSettingDto);
+      final response = await SettingsRepositoryImpl().updateSettings(dto);
+      if (response?.status == 200 || response?.status == 201) {
+      } else {
+        errorMessage.value = response?.message ?? 'Failed to update settings';
+      }
+    } catch (e) {
+      errorMessage.value = 'Error updating settings: $e';
+    }
+  }
+
   Future<void> fetchupdateSettings() async {
     try {
       updateSettingDto['lvf'] = lvf.value;
@@ -207,7 +195,6 @@ class SettingsController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
     }
   }
 
@@ -217,31 +204,68 @@ class SettingsController extends GetxController {
       final res = await SettingsRepositoryImpl().getDefaultSettings();
       if (res?.status == 200 || res?.status == 201) {
         userSettings2.value = res?.data;
-        pcbNumber.value = pcbnumberPass(res?.data?.starter);
         macAddress.value = res?.data?.starter?.macAddress ?? '';
         lvf.value = userSettings2.value?.lvf ?? 0;
         hvf.value = userSettings2.value?.hvf ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+        final data = userSettings2.value;
+        final hvr = (data?.hvf?.toDouble() ?? 0) - 10;
+        final lvr = (data?.lvf?.toDouble() ?? 0) + 10;
 
-        payload = {
+        defaultSettingspayload = {
           "dvc_c": {
-            "lvf": lvf.value,
-            "hvf": hvf.value,
-            "drf": drf.value,
-            "olf": olf.value,
-          },
+            "allflt_en": data?.allfltEn ?? 0,
+            "flc": data?.flc ?? 0,
+            "as_dly": data?.asDly,
+            "ipf": data?.ipf ?? 0,
+            "lvf": data?.lvf ?? 0,
+            "hvf": data?.hvf ?? 0,
+            "vif": data?.vif ?? 0,
+            "paminf": data?.paminf ?? 0,
+            "pamaxf": data?.pamaxf ?? 0,
+            "lvr": lvr ?? 0.0,
+            "hvr": hvr ?? 0.0,
+            "drf": calculatedFlc(
+                data?.drf?.toDouble() ?? 0, data!.flc!.toDouble()),
+            "olf":
+                calculatedFlc(data.olf?.toDouble() ?? 0, data.flc!.toDouble()),
+            "lrf":
+                calculatedFlc(data.lrf?.toDouble() ?? 0, data.flc!.toDouble()),
+            "opf": data.opf ?? 0,
+            "cif": data.cir ?? 0,
+            "olr":
+                calculatedFlc(data.olr?.toDouble() ?? 0, data.flc!.toDouble()),
+            "lrr":
+                calculatedFlc(data.lrr?.toDouble() ?? 0, data.flc!.toDouble()),
+            "cir": data.cir ?? 0,
+            "pr_flt_en": data.prFltEn ?? 0
+          }
         };
 
         updateSettingDto.assignAll(res!.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>
             key == "updated_at" || key == "created_at" || key == "created_by");
       }
-    } catch (e) {
-      print("error ---> $e");
     } finally {
       isLoading.value = false;
       Get.back();
+    }
+  }
+
+  Future<void> fetchupdateSettingsAck() async {
+    try {
+      try {
+        final response = await SettingsRepositoryImpl().updateSettingsAck();
+        if (response?.status == 200 || response?.status == 201) {
+        } else {
+          errorMessage.value = response?.message ?? 'Failed to update settings';
+        }
+      } catch (e) {
+        errorMessage.value = 'Error updating settings: $e';
+      }
+    } finally {
+      await fetchUserSettings2();
     }
   }
 

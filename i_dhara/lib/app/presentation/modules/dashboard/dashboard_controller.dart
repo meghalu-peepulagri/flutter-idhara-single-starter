@@ -1,6 +1,8 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
+import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
@@ -13,8 +15,9 @@ import '../../../data/models/settings/user_setting_limits2_model.dart';
 import '../../../data/repository/devices/devices_repo_impl.dart';
 import '../../../data/repository/devices/devices_repository.dart';
 import '../../../data/repository/settings/settings_repo_impl.dart';
+import '../../../data/services/storages/shared_preference.dart';
 
-class DashboardController extends GetxController {
+class DashboardController extends GetxController with ConnectivityMixin {
   final motors = <Motor>[].obs;
   final allMotors = <Motor>[].obs;
   final locations = <LocationDropDown>[].obs;
@@ -34,8 +37,7 @@ class DashboardController extends GetxController {
   bool mqttInitialized = false;
 
   final Map<int, String> _motorIdToGroupId = {};
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
   var totalPages = 1.obs;
   var currentPage = 0.obs;
   var page = 1.obs;
@@ -59,9 +61,82 @@ class DashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _initConnectivity();
-    _loadAllData();
     _requestPermissionAndLoad();
+    final args = Get.arguments;
+    final forceRefresh = args != null && args['refresh'] == true;
+    if (!forceRefresh && _canRestoreFromMqtt()) {
+      // MQTT is already connected with live motor data (e.g. navigating back
+      // from Motor Details). Restore the motor list from the singleton and
+      // skip the API call entirely — real-time updates come from MQTT.
+      _restoreFromMqtt();
+    } else {
+      // First load after login, after logout+login, when MQTT has no data,
+      // or when returning after a device add/delete (forceRefresh=true).
+      _loadAllData();
+    }
+  }
+
+  /// Returns true when the MQTT singleton already holds a live connection with
+  /// motor data from a previous Dashboard session.
+  bool _canRestoreFromMqtt() {
+    final mqtt = MqttService();
+    return mqtt.isConnected && mqtt.motors.isNotEmpty;
+  }
+
+  /// Restore the motor list from the MQTT singleton without hitting the API.
+  ///
+  /// The MQTT service is a singleton that persists across controller instances.
+  /// Its [motors] map holds the full [Motor] objects updated in real time by
+  /// [_onMqttUpdate]. By reading those objects we get the latest state, mode,
+  /// voltage and current without a network round-trip.
+  ///
+  /// Crucially we do NOT call [MqttService(initialMotors: ...)] here because
+  /// that would rebuild [motorDataMap] and reset [hasReceivedData] to false on
+  /// every entry, losing live data. We only get the singleton reference and
+  /// attach a fresh listener.
+  Future<void> _restoreFromMqtt() async {
+    try {
+      isLoading.value = true;
+
+      // Deduplicate motors: the MQTT motor map stores 4 entries per motor
+      // (one per group G01–G04) pointing to the same Motor object.
+      final seen = <int>{};
+      final restored = <Motor>[];
+      for (final motor in MqttService().motors.values) {
+        if (motor.id != null && seen.add(motor.id!)) {
+          restored.add(motor);
+        }
+      }
+
+      allMotors.value = restored;
+      motors.value = restored.toList();
+
+      // Rebuild _motorIdToGroupId so toggleMotor / changeMotorMode work.
+      // We intentionally discard the returned map — the MQTT service already
+      // has its motorDataMap intact; rebuilding it would wipe live data.
+      _buildMotorMap(allMotors);
+
+      // Set pagination to a safe state: currentPage == totalPages prevents
+      // the scroll listener from firing an unintended loadMoreMotors call.
+      currentPage.value = 1;
+      totalPages.value = 1;
+
+      // Attach to the existing singleton connection.
+      if (mqttInitialized) {
+        mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
+      }
+      mqttService = MqttService(); // singleton reference — no rebuild
+      mqttInitialized = true;
+      mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
+
+      // Sync the UI immediately with whatever MQTT has already received.
+      _onMqttUpdate();
+
+      // Locations are needed for the filter dropdown — fast, non-critical.
+      await fetchLocationDropDown();
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   Future<void> refreshDashboard() async {
@@ -82,24 +157,57 @@ class DashboardController extends GetxController {
         await PermissionService.requestLocationPermission();
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-    });
+  @override
+  Future<void> onRetry() async {
+    Get.log('DashboardController: Retrying API calls after reconnection');
+    await refreshDashboard();
   }
 
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  Future<void> clearFaultAck(Motor motor) async {
+    isLoading.value = true;
+    try {
+      SharedPreference.setStarterId(motor.starter?.id ?? 0);
+      SharedPreference.setMotorId(motor.id ?? 0);
+
+      final response = await MotorsRepositoryImpl().clearFault();
+      if (response != null) {
+        debugPrint('Fault cleared via API successfully.');
+      }
+
+      // Perform a complete reload to show AppLottieLoading
+      page.value = 1;
+      currentPage.value = 0;
+      await fetchMotors();
+      await fetchLocationDropDown();
+    } catch (e) {
+      debugPrint('Error in clearFaultAck: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> fetchupdateSettingsAck() async {
+    try {
+      try {
+        final response = await SettingsRepositoryImpl().updateSettingsAck();
+        if (response?.status == 200 || response?.status == 201) {
+        } else {
+          errorMessage.value = response?.message ?? 'Failed to update settings';
+        }
+      } catch (e) {
+        errorMessage.value = 'Error updating settings: $e';
+        debugPrint('Error updating user settings: $e');
+      }
+    } finally {
+      await fetchUserSettings2();
+    }
   }
 
   Future<void> _loadAllData() async {
     try {
       isLoading.value = true;
-
       await Future.wait([
-        fetchMotors(),
+        fetchMotors(enableRetry: true),
         fetchLocationDropDown(),
       ]);
     } finally {
@@ -116,27 +224,6 @@ class DashboardController extends GetxController {
     super.onClose();
   }
 
-  String pcbnumberPass(SettingStarter? starter) {
-    try {
-      if (starter != null) {
-        if (starter.pcbNumber != null) {
-          return starter.pcbNumber.toString();
-        } else if (starter.macAddress != null) {
-          return starter.macAddress.toString();
-        } else {
-          return '';
-        }
-      } else {
-        return '0';
-      }
-    } catch (e) {
-      print("error ---> $e");
-      return '';
-    }
-  }
-
-  /// Build motor map - creates entries for ALL groups (G01-G04) for each identifier
-  /// This ensures any MQTT data on any group can be matched to the motor
   Map<String, Motor> _buildMotorMap(List<Motor> motorsList) {
     final motorMap = <String, Motor>{};
     _motorIdToGroupId.clear();
@@ -273,7 +360,7 @@ class DashboardController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = 'Error loading more: $e';
-      print('Error loading more motors: $e');
+      debugPrint('Error loading more motors: $e');
     } finally {
       isLoadingMore.value = false;
     }
@@ -294,7 +381,12 @@ class DashboardController extends GetxController {
           response.success == true &&
           response.data != null) {
         userSettings2.value = response.data;
-        pcbNumber.value = pcbnumberPass(response.data?.starter);
+        final deviceallow = userSettings2.value?.starter?.deviceAllocation;
+        final pcb = userSettings2.value?.starter?.pcbNumber;
+        final mac = userSettings2.value?.starter?.macAddress;
+
+        pcbNumber.value = getMotorIdentifier(
+            deviceallow.toString(), pcb.toString(), mac.toString());
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         drf.value = userSettings2.value?.drf?.toDouble() ?? 0;
@@ -311,7 +403,7 @@ class DashboardController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = 'Error loading settings: $e';
-      print('Error fetching user settings: $e');
+      debugPrint('Error fetching user settings: $e');
     }
   }
 
@@ -327,7 +419,7 @@ class DashboardController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = 'Error updating settings: $e';
-      print('Error updating user settings: $e');
+      debugPrint('Error updating user settings: $e');
     }
   }
 
@@ -361,13 +453,20 @@ class DashboardController extends GetxController {
     return await updateTestRunStatus(motorId, TestRunStatus.completed);
   }
 
-  Future<void> fetchMotors() async {
+  Future<void> fetchMotors({bool enableRetry = false}) async {
     try {
-      final response =
-          await MotorsRepositoryImpl().getMotors(page.value, limit.value);
+      final response = enableRetry
+          ? await withRetry(
+              call: () =>
+                  MotorsRepositoryImpl().getMotors(page.value, limit.value),
+              isSuccess: (r) => r != null && r.data != null,
+            )
+          : await MotorsRepositoryImpl().getMotors(page.value, limit.value);
+      debugPrint('fetchMotors response: $response');
 
       if (response != null && response.data != null) {
         this.response = response.data;
+
         allMotors.value = response.data!.records ?? [];
         motors.value = allMotors;
 
@@ -377,43 +476,49 @@ class DashboardController extends GetxController {
         // Build motor map
         final motorMap = _buildMotorMap(allMotors);
 
+        // Update the singleton motor map with the freshly fetched motors.
+        // If the listener was already registered (e.g. after a refresh), remove
+        // it first so we don't double-fire on every MQTT notification.
+        if (mqttInitialized) {
+          mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
+        }
         mqttService = MqttService(initialMotors: motorMap);
         mqttInitialized = true;
-
-        await mqttService.initializeMqttClient();
         mqttService.dataUpdateNotifier.addListener(_onMqttUpdate);
 
-        if (motorMap.isNotEmpty) {
-          _onMqttUpdate();
+        if (mqttService.isConnected) {
+          // MQTT is already connected (global connection established at login
+          // or by a previous screen). Just sync the UI with current data.
+          debugPrint('DASHBOARD: MQTT already connected — reusing connection');
+          if (motorMap.isNotEmpty) _onMqttUpdate();
+        } else {
+          // Not connected yet (first launch or after logout+login). Establish
+          // the connection in the background so the UI is not blocked.
+          debugPrint('DASHBOARD: Initializing MQTT client...');
+          mqttService.initializeMqttClient().then((_) {
+            debugPrint('DASHBOARD: MQTT client initialized successfully');
+            if (motorMap.isNotEmpty) _onMqttUpdate();
+          }).catchError((e) {
+            debugPrint('DASHBOARD: MQTT initialization failed: $e');
+          });
         }
       } else {
         errorMessage.value = 'Failed to load motors';
       }
     } catch (e) {
       errorMessage.value = 'Error: $e';
-      print('Error fetching motors: $e');
+      debugPrint('Error fetching motors: $e');
     } finally {
       isRefreshing.value = false;
     }
   }
 
   void _onMqttUpdate() {
-    int mqttDataCount = 0;
-    for (var key in mqttService.motorDataMap.keys) {
-      final data = mqttService.motorDataMap[key];
-      if (data?.hasReceivedData == true) {
-        mqttDataCount++;
-      }
-    }
-
-    print('✓ Total MQTT data entries: $mqttDataCount');
-
     for (var motor in allMotors) {
       if (motor.starter == null) continue;
 
       final mac = motor.starter!.macAddress;
       final pcb = motor.starter!.pcbNumber;
-      final currentGroupId = _getGroupIdForMotor(motor);
 
       MotorData? currentMotorData;
 
@@ -522,7 +627,7 @@ class DashboardController extends GetxController {
         locations.insert(0, LocationDropDown(id: null, name: 'All'));
       }
     } catch (e) {
-      print('Error fetching locations: $e');
+      debugPrint('Error fetching locations: $e');
     } finally {
       isLoadingLocations.value = false;
     }

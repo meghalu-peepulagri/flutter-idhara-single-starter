@@ -44,7 +44,6 @@ class AuthRepositoryImpl extends AuthRepository {
   @override
   Future<OtpResponse?> verifyOtp(String phone, String otp) async {
     final fcmtoken = SharedPreference.getFcmToken() ?? "";
-    print("line 42 $fcmtoken");
     final body = {'phone': phone, 'otp': otp, 'fcm_token': fcmtoken};
     final response =
         await NetworkManager().post('/auth/verify-otp', data: body, {});

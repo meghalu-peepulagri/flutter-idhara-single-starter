@@ -1,13 +1,9 @@
-import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
-import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/services/weather_service/weather_services.dart';
+import 'package:intl/intl.dart';
 
 class WeatherCard extends StatefulWidget {
   const WeatherCard({super.key});
@@ -22,247 +18,93 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
 
   WeatherData? _weatherData;
   LocationPermissionStatus? _permissionStatus;
-  bool _hasRequestedPermission = false;
-  Timer? _hourCheckTimer;
-  StreamSubscription<ServiceStatus>? _serviceStatusSubscription;
-  bool _isInitializing = false;
 
-  static DateTime? _lastFetchTime;
-  static WeatherData? _cachedWeatherData;
-  static LocationPermissionStatus? _cachedPermissionStatus;
-  static const Duration _cacheDuration = Duration(hours: 1);
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeWeatherCard();
-    _startHourCheckTimer();
-    if (!kIsWeb) {
-      _listenToLocationServiceChanges();
-    }
+    _initializeWeather();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _hourCheckTimer?.cancel();
-    _serviceStatusSubscription?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
 
+  /// Refresh when returning from settings
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkAndRefreshIfNeeded();
-    }
-  }
-
-  void _startHourCheckTimer() {
-    _hourCheckTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (mounted) {
-        setState(() {});
+      // Re-check if permission wasn't granted or weather data is missing
+      // This handles returning from OS permission dialog or app settings
+      if (_weatherData == null ||
+          _permissionStatus != LocationPermissionStatus.granted) {
+        _initializeWeather();
       }
-    });
-  }
-
-  void _listenToLocationServiceChanges() {
-    if (kIsWeb) return;
-
-    _serviceStatusSubscription = Geolocator.getServiceStatusStream().listen(
-      (ServiceStatus status) {
-        if (status == ServiceStatus.enabled) {
-          _forceRefresh();
-        } else {
-          setState(() {
-            _permissionStatus = LocationPermissionStatus.serviceDisabled;
-            _cachedPermissionStatus = LocationPermissionStatus.serviceDisabled;
-            _weatherData = null;
-            _cachedWeatherData = null;
-            _lastFetchTime = null;
-            _isInitializing = false;
-          });
-        }
-      },
-    );
-  }
-
-  bool _isCacheValid() {
-    if (_lastFetchTime == null || _cachedWeatherData == null) {
-      return false;
-    }
-    final now = DateTime.now();
-    final difference = now.difference(_lastFetchTime!);
-    return difference < _cacheDuration;
-  }
-
-  void _checkAndRefreshIfNeeded() {
-    if (_isCacheValid()) {
-      setState(() {
-        _weatherData = _cachedWeatherData;
-        _permissionStatus = _cachedPermissionStatus;
-        _isInitializing = false;
-      });
-    } else {
-      _forceRefresh();
     }
   }
 
-  Future<void> _forceRefresh() async {
-    setState(() => _isInitializing = true);
-    _lastFetchTime = null;
-    _cachedWeatherData = null;
-    _cachedPermissionStatus = null;
-    await _initializeWeatherCard();
-  }
-
-  Future<void> _initializeWeatherCard() async {
-    if (_isCacheValid() && !_isInitializing) {
-      setState(() {
-        _weatherData = _cachedWeatherData;
-        _permissionStatus = _cachedPermissionStatus;
-      });
-      _scrollToCurrentHour();
-      return;
-    }
-
-    if (!_isInitializing) {
-      setState(() => _isInitializing = true);
-    }
+  /// CHECK LOCATION + FETCH WEATHER
+  Future<void> _initializeWeather() async {
+    setState(() => _isLoading = true);
 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      setState(() {
-        _permissionStatus = LocationPermissionStatus.serviceDisabled;
-        _cachedPermissionStatus = LocationPermissionStatus.serviceDisabled;
-        _isInitializing = false;
-      });
-      return;
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (!serviceEnabled && permission == LocationPermission.denied) {
+      _permissionStatus = LocationPermissionStatus.bothDisabled;
+    } else if (!serviceEnabled) {
+      _permissionStatus = LocationPermissionStatus.serviceDisabled;
+    } else if (permission == LocationPermission.denied) {
+      _permissionStatus = LocationPermissionStatus.denied;
+    } else if (permission == LocationPermission.deniedForever) {
+      _permissionStatus = LocationPermissionStatus.deniedForever;
+    } else {
+      _permissionStatus = LocationPermissionStatus.granted;
+
+      final data = await _weatherService.getWeatherData();
+      _weatherData = data;
     }
 
+    setState(() => _isLoading = false);
+  }
+
+  /// ENABLE GPS
+  Future<void> _enableGPS() async {
+    await Geolocator.openLocationSettings();
+  }
+
+  /// REQUEST LOCATION PERMISSION
+  Future<void> _requestPermission() async {
     LocationPermission permission = await Geolocator.checkPermission();
+
     if (permission == LocationPermission.denied) {
-      setState(() {
-        _permissionStatus = LocationPermissionStatus.denied;
-        _cachedPermissionStatus = LocationPermissionStatus.denied;
-        _isInitializing = false;
-      });
-      return;
+      permission = await Geolocator.requestPermission();
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _permissionStatus = LocationPermissionStatus.deniedForever;
-        _cachedPermissionStatus = LocationPermissionStatus.deniedForever;
-        _isInitializing = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _permissionStatus = LocationPermissionStatus.granted;
-      _cachedPermissionStatus = LocationPermissionStatus.granted;
-    });
-
-    final weatherData = await _weatherService.getWeatherData();
-    if (weatherData != null) {
-      _lastFetchTime = DateTime.now();
-      _cachedWeatherData = weatherData;
-    }
-
-    setState(() {
-      _weatherData = weatherData;
-      _isInitializing = false;
-    });
-
-    _scrollToCurrentHour();
-  }
-
-  void _scrollToCurrentHour() {
-    if (_weatherData == null || !_scrollController.hasClients) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _scrollController.hasClients) {
-          _scrollToCurrentHourActual();
-        }
-      });
-      return;
-    }
-    _scrollToCurrentHourActual();
-  }
-
-  void _scrollToCurrentHourActual() {
-    if (!mounted || _weatherData == null || !_scrollController.hasClients) return;
-
-    final position = _scrollController.position;
-    if (!position.hasContentDimensions) return;
-
-    final now = DateTime.now();
-    int currentHourIndex = -1;
-
-    for (int i = 0; i < _weatherData!.hourlyForecast.length; i++) {
-      if (_isCurrentHour(_weatherData!.hourlyForecast[i].time)) {
-        currentHourIndex = i;
-        break;
-      }
-    }
-
-    if (currentHourIndex != -1) {
-      const itemWidth = 50.0;
-      final scrollPosition = currentHourIndex * itemWidth;
-      final clampedPosition = scrollPosition.clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-
-      _scrollController.animateTo(
-        clampedPosition,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  Future<void> _handleEnableLocation() async {
-    if (_permissionStatus == LocationPermissionStatus.deniedForever) {
       await Geolocator.openAppSettings();
-    } else if (_permissionStatus == LocationPermissionStatus.serviceDisabled) {
-      await Geolocator.openLocationSettings();
-    } else if (_permissionStatus == LocationPermissionStatus.denied) {
-      _hasRequestedPermission = true;
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _permissionStatus = LocationPermissionStatus.denied;
-          _cachedPermissionStatus = LocationPermissionStatus.denied;
-        });
-      } else if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _permissionStatus = LocationPermissionStatus.deniedForever;
-          _cachedPermissionStatus = LocationPermissionStatus.deniedForever;
-        });
-      } else {
-        await _forceRefresh();
-      }
+      return;
+    }
+
+    if (permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse) {
+      _initializeWeather();
     }
   }
 
-  String _getButtonText() {
-    switch (_permissionStatus) {
-      case LocationPermissionStatus.deniedForever:
-        return 'Open Settings';
-      case LocationPermissionStatus.serviceDisabled:
-        return 'Enable Location';
-      default:
-        return 'Enable Location';
-    }
-  }
-
-  String _getTimeFormat(DateTime time) {
+  /// FORMAT TIME
+  String _formatTime(DateTime time) {
     final now = DateTime.now();
+
     if (time.hour == now.hour && time.day == now.day) {
-      return 'Now';
+      return "Now";
     }
+
     return DateFormat('h a').format(time);
   }
 
@@ -271,67 +113,80 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     return time.hour == now.hour && time.day == now.day;
   }
 
-  bool _isPastHour(DateTime time) {
-    final now = DateTime.now();
-    return time.isBefore(DateTime(now.year, now.month, now.day, now.hour));
-  }
-
-  HourlyForecast? _getCurrentHourForecast() {
+  HourlyForecast? _currentForecast() {
     if (_weatherData == null) return null;
 
     final now = DateTime.now();
-    for (var forecast in _weatherData!.hourlyForecast) {
-      if (forecast.time.hour == now.hour && forecast.time.day == now.day) {
-        return forecast;
+
+    for (var item in _weatherData!.hourlyForecast) {
+      if (item.time.hour == now.hour) {
+        return item;
       }
     }
-    return _weatherData!.hourlyForecast.isNotEmpty
-        ? _weatherData!.hourlyForecast.first
-        : null;
+
+    return _weatherData!.hourlyForecast.first;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 140.0,
-      width: double.infinity,
+      height: 150,
+      margin: const EdgeInsets.symmetric(horizontal: 0),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
           colors: [
-            Color(0xFF004E7E),
-            Color(0xFF3686AF),
+            Color(0xFF0A4D8C),
+            Color(0xFF2D87C8),
           ],
         ),
-        borderRadius: BorderRadius.circular(10.0),
       ),
-      child: _isInitializing
-          ? const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          : (_permissionStatus != LocationPermissionStatus.granted ||
-                  _weatherData == null)
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : _permissionStatus != LocationPermissionStatus.granted
               ? _buildPermissionUI()
-              : _buildWeatherContent(),
+              : _weatherData == null
+                  ? _buildRetryUI()
+                  : _buildWeatherUI(),
     );
   }
 
+  /// PERMISSION UI
   Widget _buildPermissionUI() {
+    bool gpsOff =
+        _permissionStatus == LocationPermissionStatus.serviceDisabled ||
+            _permissionStatus == LocationPermissionStatus.bothDisabled;
+
+    bool permissionDenied =
+        _permissionStatus == LocationPermissionStatus.denied ||
+            _permissionStatus == LocationPermissionStatus.deniedForever ||
+            _permissionStatus == LocationPermissionStatus.bothDisabled;
+
+    String title = "Location Permission Required";
+    String subtitle =
+        "Allow this app to access your location to show local weather.";
+
+    if (gpsOff && permissionDenied) {
+      title = "Location Access Needed";
+      subtitle =
+          "Turn on Device Location (GPS) and allow this app to access your location.";
+    } else if (gpsOff) {
+      title = "Device Location (GPS) is OFF";
+      subtitle =
+          "Please enable GPS on your phone to see weather for your location.";
+    } else if (_permissionStatus == LocationPermissionStatus.deniedForever) {
+      subtitle =
+          "Location permission is permanently denied. Enable it from App Settings.";
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Icon(
-            _permissionStatus == LocationPermissionStatus.serviceDisabled
-                ? Icons.location_disabled
-                : Icons.location_off,
-            size: 36,
-            color: Colors.grey[400],
+          const Icon(
+            Icons.location_off,
+            size: 34,
+            color: Colors.white70,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -340,33 +195,111 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Location Permission Required',
-                  style: FlutterFlowTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        color: const Color(0XFFFFFFFF),
-                        fontSize: 13.0,
-                      ),
+                  title,
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (gpsOff)
+                      _actionButton(
+                        "Enable GPS",
+                        Icons.settings,
+                        _enableGPS,
+                      ),
+                    if (permissionDenied)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: _actionButton(
+                          _permissionStatus ==
+                                  LocationPermissionStatus.deniedForever
+                              ? "Open Settings"
+                              : "Allow Access",
+                          Icons.lock_open,
+                          _requestPermission,
+                        ),
+                      )
+                  ],
+                )
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _handleEnableLocation,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton(String label, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4CAF50),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
-              minimumSize: const Size(0, 0),
-            ),
-            child: Text(
-              _getButtonText(),
-              style: const TextStyle(fontSize: 12),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// RETRY UI (permission granted but data failed to load)
+  Widget _buildRetryUI() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off, size: 34, color: Colors.white70),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Weather data unavailable',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Failed to fetch weather. Check your connection.',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _actionButton('Retry', Icons.refresh, _initializeWeather),
+              ],
             ),
           ),
         ],
@@ -374,177 +307,95 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildWeatherContent() {
-    final currentForecast = _getCurrentHourForecast();
+  /// WEATHER UI
+  Widget _buildWeatherUI() {
+    final current = _currentForecast();
 
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 10.0),
+      padding: const EdgeInsets.all(14),
       child: Column(
-        mainAxisSize: MainAxisSize.max,
         children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Today\'s Forecast - ${_weatherData!.location}',
-                    style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          font: GoogleFonts.dmSans(
-                            fontWeight: FontWeight.w500,
-                          ),
-                          color: const Color(0xFFFFFFFF),
-                          fontSize: 12.0,
-                          letterSpacing: 0.0,
-                        ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  "Today's Forecast • ${_weatherData!.location}",
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontSize: 12,
                   ),
                 ),
-                if (currentForecast != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+              ),
+              if (current != null)
+                Row(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: "https:${current.icon}",
+                      width: 26,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${current.tempC.round()}°C",
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    )
+                  ],
+                )
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              itemCount: _weatherData!.hourlyForecast.length,
+              itemBuilder: (context, index) {
+                final item = _weatherData!.hourlyForecast[index];
+                bool isNow = _isCurrentHour(item.time);
+
+                return Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: isNow ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CachedNetworkImage(
-                        imageUrl: 'https:${currentForecast.icon}',
-                        width: 24,
-                        height: 24,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Center(
-                            child: SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error, size: 24),
-                      ),
-                      const SizedBox(width: 4),
                       Text(
-                        '${currentForecast.tempC.round()}°C',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              font: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              color: const Color(0xFFFFFFFF),
-                              fontSize: 18.0,
-                              letterSpacing: 0.0,
-                            ),
+                        _formatTime(item.time),
+                        style: GoogleFonts.dmSans(
+                          color: isNow ? Colors.blue : Colors.white,
+                          fontSize: 12,
+                          fontWeight:
+                              isNow ? FontWeight.bold : FontWeight.normal,
+                        ),
                       ),
+                      const SizedBox(height: 4),
+                      CachedNetworkImage(
+                        imageUrl: "https:${item.icon}",
+                        width: 30,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "${item.tempC.round()}°C",
+                        style: GoogleFonts.dmSans(
+                          color: isNow ? Colors.blue : Colors.white,
+                          fontSize: 12,
+                        ),
+                      )
                     ],
                   ),
-              ],
+                );
+              },
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding:
-                  const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
-              child: ListView.separated(
-                controller: _scrollController,
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                scrollDirection: Axis.horizontal,
-                itemCount: _weatherData!.hourlyForecast.length,
-                separatorBuilder: (context, index) => const Row(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    SizedBox(
-                      height: 50.0,
-                      child: VerticalDivider(
-                        thickness: 1.0,
-                        color: Color(0xFFFFFF99),
-                      ),
-                    ),
-                  ],
-                ),
-                itemBuilder: (context, index) {
-                  final forecast = _weatherData!.hourlyForecast[index];
-                  final isNow = _isCurrentHour(forecast.time);
-                  final isPast = _isPastHour(forecast.time);
-
-                  return Container(
-                    decoration: BoxDecoration(
-                      color:
-                          isNow ? const Color(0xFFE3F2FD) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Opacity(
-                      opacity: isPast ? 0.5 : 1.0,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _getTimeFormat(forecast.time),
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.dmSans(
-                                    fontWeight: isNow
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                  ),
-                                  color: isNow
-                                      ? const Color(0xFF1976D2)
-                                      : const Color(0xFFFFFFFF),
-                                  fontSize: 12.0,
-                                  letterSpacing: 0.0,
-                                ),
-                          ),
-                          CachedNetworkImage(
-                            imageUrl: 'https:${forecast.icon}',
-                            width: 32,
-                            height: 32,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: Center(
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) =>
-                                const Icon(Icons.error, size: 32),
-                          ),
-                          Text(
-                            '${forecast.tempC.round()}°C',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.dmSans(
-                                    fontWeight: isNow
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                  ),
-                                  color: isNow
-                                      ? const Color(0xFF1976D2)
-                                      : const Color(0xFFFFFFFF),
-                                  fontSize: 12.0,
-                                  letterSpacing: 0.0,
-                                ),
-                          ),
-                        ].divide(const SizedBox(height: 2.0)),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ].divide(const SizedBox(height: 16.0)),
+          )
+        ],
       ),
     );
   }

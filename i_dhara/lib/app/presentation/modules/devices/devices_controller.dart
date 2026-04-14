@@ -1,13 +1,14 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
 import '../../../data/services/mqtt_manager/mqtt_service.dart';
 
-class DevicesController extends GetxController {
+class DevicesController extends GetxController with ConnectivityMixin {
   final controller1 = TextEditingController();
   final RxList<Devices> devicesList = <Devices>[].obs;
 
@@ -28,8 +29,7 @@ class DevicesController extends GetxController {
   var searchQuery = ''.obs;
   Map<String, dynamic> errorInstance = {};
   String message = '';
-  final connectivity = Connectivity();
-  var hasInternet = true.obs;
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
 
@@ -40,7 +40,6 @@ class DevicesController extends GetxController {
   void onInit() {
     mqttService = MqttService();
     super.onInit();
-    _initConnectivity();
     fetchDevices(isInitial: true);
     _addScrollListener();
     debounce<String>(
@@ -70,16 +69,10 @@ class DevicesController extends GetxController {
     });
   }
 
-  void _initConnectivity() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    _updateConnectionStatus(connectivityResult.first);
-    connectivity.onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results.first);
-    });
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    hasInternet.value = result != ConnectivityResult.none;
+  @override
+  Future<void> onRetry() async {
+    Get.log('DevicesController: Retrying API calls after reconnection');
+    await fetchDevices(isInitial: true);
   }
 
   @override
@@ -103,11 +96,20 @@ class DevicesController extends GetxController {
         page.value = 1;
       }
 
-      final response = await _repository.getDevices(
-        page.value,
-        searchQuery.value.isEmpty ? null : searchQuery.value,
-        limit.value,
-      );
+      final response = isInitial
+          ? await withRetry(
+              call: () => _repository.getDevices(
+                page.value,
+                searchQuery.value.isEmpty ? null : searchQuery.value,
+                limit.value,
+              ),
+              isSuccess: (r) => r != null && r.data != null,
+            )
+          : await _repository.getDevices(
+              page.value,
+              searchQuery.value.isEmpty ? null : searchQuery.value,
+              limit.value,
+            );
 
       if (response != null && response.data != null) {
         final newList = response.data!.records ?? [];
@@ -139,12 +141,12 @@ class DevicesController extends GetxController {
   }
 
   Future<void> renamedevice(
-      {required int motorId, required double hp, required String name}) async {
+      {required int motorId, required double? hp, required String name}) async {
+    errorInstance = {};
     try {
       isRenameLoading.value = true;
-
-      final response = await _repository.renameDevice(motorId, name, hp);
-
+      final response =
+          await _repository.renameDevice(motorId, name, hp);
       if (response != null && response.errors == null) {
         await fetchDevices(isInitial: true);
         Get.back();
@@ -192,7 +194,7 @@ class DevicesController extends GetxController {
       }
     } catch (e) {
       // Handle error if needed
-      print("Error replacing location: $e");
+      debugPrint('Error replacing location: $e');
     } finally {
       isLocationReplacing.value = false;
     }

@@ -1,11 +1,14 @@
 import 'package:dio/dio.dart';
-import 'package:i_dhara/app/core/constants/app_constant.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:get/get.dart' hide Response;
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class NetworkManager {
-  String baseUrl = AppConstants.dev_url;
+  String baseUrl = AppEnvironment.baseApiUrl;
   final Dio _dio;
   NetworkManager() : _dio = Dio() {
     _dio.options.baseUrl = baseUrl;
@@ -109,30 +112,44 @@ class NetworkManager {
                 return error.response;
               case 401:
                 geterrorSnackBar(errorsMap["unauthorized_error"]);
+                SharedPreference.clear();
+                FirebaseMessaging.instance.getToken().then((token) {
+                  if (token != null) SharedPreference.setFcmToken(token);
+                });
+                Get.offAllNamed(Routes.loginwithmobile);
                 return error.response;
               case 404:
                 geterrorSnackBar(responseData['message']);
                 return error.response;
+
               case 403:
-                geterrorSnackBar(errorsMap["bad_request_error"]);
+                geterrorSnackBar(responseData['message']);
                 return error.response;
               case 409:
                 geterrorSnackBar(responseData['message']);
                 return error.response;
               case 422:
                 return error.response;
+              case 429:
+                geterrorSnackBar(responseData['message']);
+                return error.response;
               case 500:
                 geterrorSnackBar("Internal Server Error");
                 return error.response;
+              case 502:
+                geterrorSnackBar("Bad Gateway");
+                return error.response;
               case 555:
                 geterrorSnackBar(errorsMap["internal_server_error"]);
+                return error.response;
+              default:
+                geterrorSnackBar("Internal Server error");
                 return error.response;
             }
           } else {
             throw NetworkException("No response from server.");
           }
 
-          throw UnimplementedError();
         case DioExceptionType.cancel:
           throw UnimplementedError();
         case DioExceptionType.connectionError:

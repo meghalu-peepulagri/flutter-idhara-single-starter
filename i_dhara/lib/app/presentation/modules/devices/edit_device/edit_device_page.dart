@@ -27,6 +27,7 @@ class EditDevicePage extends StatefulWidget {
 
 class _EditDevicePageState extends State<EditDevicePage> {
   late EditDeviceController _model;
+  final Map<String, dynamic> _localErrors = {};
 
   final DevicesController devicesController = Get.find<DevicesController>();
 
@@ -37,6 +38,8 @@ class _EditDevicePageState extends State<EditDevicePage> {
     _model.textController ??= TextEditingController();
     _model.textFieldFocusNode ??= FocusNode();
     _model.textController!.text = widget.motorName;
+    _model.textController2 ??= TextEditingController();
+    _model.textController2!.text = widget.hp.toString();
     _getLocationName();
   }
 
@@ -127,19 +130,49 @@ class _EditDevicePageState extends State<EditDevicePage> {
                         ),
                         const SizedBox(height: 8.0),
                         TextFieldComponent(
+                          maxlength: 21,
                           controller: _model.textController!,
-                          errors: _model.errorInstance,
+                          errors: _localErrors,
                           errorKey: 'name',
                           hintText: 'Enter Pump name',
                           readOnly: false,
                           onChanged: (value) {
-                            if (value.isNotEmpty) {
-                              setState(() {
-                                _model.errorInstance =
-                                    Map.from(_model.errorInstance)
-                                      ..remove('name');
-                              });
-                            }
+                            setState(() {
+                              if (value.length > 20) {
+                                _localErrors['name'] =
+                                    'Pump name must not exceed 20 above characters';
+                              } else {
+                                _localErrors.remove('name');
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 8.0),
+                        RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                                color: Colors.black), // Default text style
+                            children: [
+                              TextSpan(text: 'Pump Hp'),
+                              TextSpan(
+                                text: '*',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8.0),
+                        TextFieldComponent(
+                          maxlength: 21,
+                          controller: _model.textController2!,
+                          errors: _localErrors,
+                          errorKey: 'hp',
+                          hintText: 'Enter HP',
+                          readOnly: false,
+                          onChanged: (value) {
+                            setState(() {
+                              _localErrors.remove('hp');
+                            });
                           },
                         ),
                       ],
@@ -196,32 +229,32 @@ class _EditDevicePageState extends State<EditDevicePage> {
                         ),
                         child: FFButtonWidget(
                           onPressed: () async {
-                            FocusScope.of(context).unfocus();
+                            try {
+                              FocusScope.of(context).unfocus();
+                              final newName =
+                                  _model.textController!.text.trim();
+                              final pumpHp = _model.textController2.text
+                                      .toString()
+                                      .isNotEmpty
+                                  ? double.parse(_model.textController2.text)
+                                  : null;
+                              await devicesController.renamedevice(
+                                motorId: widget.motorId,
+                                name: newName,
+                                hp: pumpHp,
+                              );
+                              setState(() {
+                                _model.error = true;
+                                _model.message =
+                                    devicesController.message ?? '';
+                                _model.errorInstance =
+                                    devicesController.errorInstance;
+                                _localErrors
+                                    .addAll(devicesController.errorInstance);
+                              });
 
-                            final newName = _model.textController!.text.trim();
-
-                            // if (newName.isEmpty) {
-                            //   setState(() {
-                            //     _model.errorInstance = {
-                            //       'title': ['Motor name is required']
-                            //     };
-                            //   });
-                            //   return;
-                            // }
-
-                            await devicesController.renamedevice(
-                              motorId: widget.motorId,
-                              name: newName,
-                              hp: widget.hp,
-                            );
-                            setState(() {
-                              _model.error = true;
-                              _model.message = devicesController.message ?? '';
-                              _model.errorInstance =
-                                  devicesController.errorInstance;
-                            });
-
-                            return;
+                              return;
+                            } catch (e) {}
 
                             // widget.onLocationAdded(newName);
                           },

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository_impl.dart';
+import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 
@@ -69,11 +70,18 @@ class OtpController extends GetxController with CodeAutoFill {
 
     if (response?.data != null && response?.errors == null) {
       error.value = false;
-      Get.offNamed(Routes.dashboard);
       SharedPreference.setAccessToken(
           response?.data?.accessToken.toString() ?? "");
       final userId = response!.data!.userDetails!.id;
       SharedPreference.setUserId(userId!);
+      // Establish the global MQTT connection right after login so it is live
+      // before Dashboard finishes loading motors. Non-blocking.
+      MqttService().initializeMqttClient().then((_) {
+        debugPrint('OTP: Global MQTT connection established after login');
+      }).catchError((e) {
+        debugPrint('OTP: MQTT init after login failed: $e');
+      });
+      Get.offNamed(Routes.dashboard);
       await SmsAutoFill().unregisterListener();
       pinCodeController.text = '';
     } else {

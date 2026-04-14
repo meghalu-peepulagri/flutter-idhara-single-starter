@@ -13,16 +13,73 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
+import '../../../core/services/connectivity_service.dart';
 import 'dashboard_controller.dart';
 
 export 'dashboard_controller.dart';
 
-class DashboardWidget extends StatelessWidget {
+class DashboardWidget extends StatefulWidget {
   DashboardWidget({super.key});
 
+  @override
+  State<DashboardWidget> createState() => _DashboardWidgetState();
+}
+
+class _DashboardWidgetState extends State<DashboardWidget>
+    with WidgetsBindingObserver {
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  final controller = Get.find<DashboardController>();
+  late final DashboardController controller;
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolve the controller once; the binding guarantees a fresh instance
+    // exists by the time this State is created.
+    controller = Get.find<DashboardController>();
+    WidgetsBinding.instance.addObserver(this);
+    // Register the scroll listener exactly once so loadMoreMotors() is called
+    // a single time per scroll event, regardless of how many Obx rebuilds occur.
+    _scrollController.addListener(_onScroll);
+  }
+
+  bool _didPause = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _didPause = true;
+    } else if (state == AppLifecycleState.resumed) {
+      // Only refresh when truly returning from background (paused → resumed).
+      // Skips spurious cycles caused by the system panel (notification shade /
+      // quick-settings) and the Recent-apps switcher, which produce an
+      // inactive → resumed transition without ever reaching paused.
+      if (_didPause) {
+        _didPause = false;
+        controller.refreshDashboard();
+      }
+    } else if (state == AppLifecycleState.inactive) {
+      // Do nothing – this fires for system-panel and recent-apps interactions.
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !controller.isLoadingMore.value &&
+        !controller.isLoading.value &&
+        !controller.isRefreshing.value) {
+      controller.loadMoreMotors();
+    }
+  }
 
   void onTapMenu() {
     scaffoldKey.currentState!.openEndDrawer();
@@ -30,17 +87,6 @@ class DashboardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Add scroll listener for pagination
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 200 &&
-          !controller.isLoadingMore.value &&
-          !controller.isLoading.value &&
-          !controller.isRefreshing.value) {
-        controller.loadMoreMotors();
-      }
-    });
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -56,9 +102,14 @@ class DashboardWidget extends StatelessWidget {
         },
         child: Scaffold(
           key: scaffoldKey,
-          backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
+          backgroundColor: const Color(0xFFEBF3FE),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-          body: SafeArea(
+          body: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
+            ),
             child: Container(
               decoration: BoxDecoration(
                 image: DecorationImage(
@@ -68,39 +119,42 @@ class DashboardWidget extends StatelessWidget {
                   ).image,
                 ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          16.0, 0.0, 16.0, 0.0),
-                      child: Obx(() {
-                        if (controller.isLoading.value) {
-                          return const Padding(
-                            padding: EdgeInsets.only(right: 50),
-                            child: Center(
-                              child: AppLottieLoading(),
-                            ),
+              child: SafeArea(
+                top: true,
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                            16.0, 0.0, 16.0, 0.0),
+                        child: Obx(() {
+                          if (controller.isLoading.value) {
+                            return const Padding(
+                              padding: EdgeInsets.only(right: 50),
+                              child: Center(
+                                child: AppLottieLoading(),
+                              ),
+                            );
+                          } else if (!ConnectivityService.to.isConnected) {
+                            return const Center(
+                              child: NoInternetWidget(),
+                            );
+                          }
+                          return Column(
+                            children: [
+                              const WeatherCard(),
+                              Expanded(child: _buildMotorList()),
+                            ]
+                                .divide(const SizedBox(height: 10.0))
+                                .addToStart(const SizedBox(height: 10.0)),
                           );
-                        } else if (!controller.hasInternet.value) {
-                          return const Center(
-                            child: NoInternetWidget(),
-                          );
-                        }
-                        return Column(
-                          children: [
-                            const WeatherCard(),
-                            Expanded(child: _buildMotorList()),
-                          ]
-                              .divide(const SizedBox(height: 10.0))
-                              .addToStart(const SizedBox(height: 10.0)),
-                        );
-                      }),
+                        }),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -154,7 +208,7 @@ class DashboardWidget extends StatelessWidget {
         showModalBottomSheet(
           context: context,
           backgroundColor: Colors.transparent,
-          builder: (_) => const LocationBottomSheet(),
+          builder: (_) => LocationBottomSheet(controller: controller),
         );
       },
       child: Obx(() {

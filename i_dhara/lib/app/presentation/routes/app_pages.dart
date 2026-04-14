@@ -11,9 +11,10 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/locations/locations_page.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_page.dart';
 import 'package:i_dhara/app/presentation/modules/qr_code/qr_code_page.dart';
+import 'package:i_dhara/app/presentation/modules/schedules/schedule_page.dart';
+import 'package:i_dhara/app/presentation/modules/settings/settings_devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
-import 'package:i_dhara/app/presentation/modules/test_run/test_run_page.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -93,10 +94,17 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 300),
     ),
     GetPage(
-      name: Routes.testRun,
-      page: () => const TestRunPage(),
-      transition: Transition.rightToLeft,
+      name: Routes.schedule,
+      page: () => const SchedulePage(),
+      transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.settingsDevices,
+      page: () => SettingsDevicesPage(),
+      transition: Transition.fade,
+      transitionDuration: const Duration(milliseconds: 300),
+      binding: DevicesBinding(),
     ),
   ];
 }
