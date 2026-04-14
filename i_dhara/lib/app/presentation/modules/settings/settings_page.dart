@@ -484,6 +484,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           key: scaffoldKey,
           backgroundColor: const Color(0xFFEBF3FE),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
+          endDrawerEnableOpenDragGesture: false,
           body: SafeArea(
             top: true,
             child: Column(
