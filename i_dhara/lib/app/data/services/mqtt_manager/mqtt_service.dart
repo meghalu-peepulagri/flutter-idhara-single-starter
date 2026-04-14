@@ -513,6 +513,7 @@ class MqttService {
     required int powerRecovery,
     required int enabled,
     int? sequenceNumber,
+    bool isEdit = false,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -567,7 +568,7 @@ class MqttService {
     );
     _registerPendingCommand(
       commandKey,
-      23,
+      isEdit ? 24 : 23,
       payload,
       seq,
       pcbnumber: identifier,
@@ -962,6 +963,9 @@ class MqttService {
             break;
           case 33:
             _handleScheduleAck(identifier, payloadData);
+            break;
+          case 24:
+            _handleScheduleAck(identifier, payloadData, isEdit: true);
             break;
           case 54:
             _handleScheduleActionAck(identifier, payloadData);
@@ -1426,7 +1430,8 @@ class MqttService {
     }
   }
 
-  void _handleScheduleAck(String identifier, dynamic payloadData) {
+  void _handleScheduleAck(String identifier, dynamic payloadData,
+      {bool isEdit = false}) {
     final scheduleCommandKey = 'schedule_$identifier';
 
     // Ignore late ACKs that arrive after retries were exhausted
@@ -1445,11 +1450,12 @@ class MqttService {
 
     // ACK arrived; clear retry/error status for this identifier.
     commandStatusNotifier.value = null;
-    _clearPendingCommand(scheduleCommandKey, 23);
+    _clearPendingCommand(scheduleCommandKey, isEdit ? 24 : 23);
 
     final ackMap = <String, dynamic>{
       'topic': identifier,
       'D': d,
+      'type': isEdit ? 24 : 33,
     };
     scheduleAckController.add(ackMap);
 

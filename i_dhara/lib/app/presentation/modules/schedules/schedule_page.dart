@@ -13,6 +13,7 @@ import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_card.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_dialogs.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -50,6 +51,10 @@ class _SchedulePageState extends State<SchedulePage> {
         final currentId = _resolveIdentifier();
         final ackId = (ack['topic'] ?? '').toString();
         if (currentId.isNotEmpty && ackId != currentId) return;
+
+        final ackType = ack['type'] as int?;
+        if (ackType == 33) return; // Only accept 24 in edit mode
+
         final d = ack['D'] as int? ?? 0;
         if (_ackCompleter != null && !_ackCompleter!.isCompleted) {
           _ackCompleter!.complete(d == 1);
@@ -200,6 +205,7 @@ class _SchedulePageState extends State<SchedulePage> {
         cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
         powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
         enabled: 1,
+        isEdit: true,
       );
     } catch (e) {
       _ackCompleter = null;
@@ -222,12 +228,21 @@ class _SchedulePageState extends State<SchedulePage> {
       return false; // stops dialog loading, keeps dialog open
     }
 
-    // Step 3: ACK success → show snackbar instantly, call PATCH API in background
+    // Step 3: ACK success → show snackbar instantly, run PATCH API in
+    // background AND refresh the schedules list once the PATCH commits.
+    // We chain `.then()` instead of `unawaited(...)` so that the list fetch
+    // fires AFTER the backend has persisted the edit — otherwise a delayed
+    // ACK (~2s) pops the page before PATCH commits and the GET returns
+    // stale data.
     SharedPreference.setscheduleid(_editRecord?.id ?? 0);
     final dto = _buildDto(form);
     getsuccessSnackBar('Schedule updated successfully');
     _scheduleSaved = true;
-    unawaited(_scheduleController.updateSchedule(dto: dto));
+    _scheduleController.updateSchedule(dto: dto).then((_) {
+      if (Get.isRegistered<MotorScheduleController>()) {
+        Get.find<MotorScheduleController>().fetchSchedules();
+      }
+    });
     return true; // dialog closes immediately after ACK, no wait for API
   }
 

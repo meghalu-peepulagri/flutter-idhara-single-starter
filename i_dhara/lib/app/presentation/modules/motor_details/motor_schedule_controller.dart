@@ -380,15 +380,31 @@ class MotorScheduleController extends GetxController {
         _mqttService.scheduleAckStream.listen((ack) async {
       final currentId = _resolveIdentifier();
       final ackId = (ack['topic'] ?? '').toString();
-      if (currentId.isNotEmpty && ackId != currentId) return;
+      debugPrint('📥 Schedule ACK received: $ack (currentId=$currentId)');
+      if (currentId.isNotEmpty && ackId != currentId) {
+        debugPrint('↪️ Schedule ACK ignored — identifier mismatch');
+        return;
+      }
 
       final d = ack['D'] as int? ?? 0;
-      if (d == 1) {
-        // SchedulePage already shows its own success snackbar — skip duplicate
-        unawaited(Future.wait([
-          fetchacknowledgement(),
-          fetchSchedules(),
-        ]));
+      if (d != 1) {
+        debugPrint('↪️ Schedule ACK ignored — D=$d');
+        return;
+      }
+
+      // Sequential: ack endpoint first, then list refresh. Awaiting instead
+      // of `unawaited(Future.wait(...))` makes delayed-ACK timing deterministic
+      // and ensures exceptions surface in debug logs.
+      try {
+        await fetchacknowledgement();
+      } catch (e) {
+        debugPrint('⚠️ fetchacknowledgement failed: $e');
+      }
+      try {
+        await fetchSchedules();
+        debugPrint('✅ fetchSchedules completed after schedule ACK');
+      } catch (e) {
+        debugPrint('⚠️ fetchSchedules failed after ACK: $e');
       }
     });
   }

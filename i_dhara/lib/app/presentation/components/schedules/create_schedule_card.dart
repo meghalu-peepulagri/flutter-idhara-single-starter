@@ -158,16 +158,46 @@ class ScheduleFormState extends State<ScheduleForm> {
   TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
   TimeOfDay get endTime => TimeOfDay(hour: endHour, minute: endMinute);
 
+  // int get durationMinutes {
+  //   int s = startHour * 60 + startMinute;
+  //   int e = endHour * 60 + endMinute;
+  //   if (e <= s) e += 1440;
+  //   return e - s;
+  // }
+
   int get durationMinutes {
-    int s = startHour * 60 + startMinute;
-    int e = endHour * 60 + endMinute;
-    if (e <= s) e += 1440;
-    return e - s;
+    final start = DateTime(
+      startDate.year,
+      startDate.month,
+      startDate.day,
+      startHour,
+      startMinute,
+    );
+    final end = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      endHour,
+      endMinute,
+    );
+
+    // If end datetime is before or equal to start, add 1 day to end
+    final endAdjusted = end.isBefore(start) || end.isAtSameMomentAs(start)
+        ? end.add(const Duration(days: 1))
+        : end;
+
+    return endAdjusted.difference(start).inMinutes;
   }
 
   String get durationText {
-    final h = durationMinutes ~/ 60;
-    final m = durationMinutes % 60;
+    final total = durationMinutes;
+    final d = total ~/ 1440;
+    final h = (total % 1440) ~/ 60;
+    final m = total % 60;
+
+    if (d > 0) {
+      return '${d}d ${h}h ${m.toString().padLeft(2, '0')}m';
+    }
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
@@ -488,51 +518,51 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          // const SizedBox(height: 10),
           // Day chips — only days within the date range are tappable
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final dayNum = i; // Sun=0, Mon=1...Sat=6
-              final valid = _validDays.contains(dayNum);
-              final isActive = selectedDays.contains(dayNum);
-              return GestureDetector(
-                onTap: valid ? () => _toggleDay(dayNum) : null,
-                child: Opacity(
-                  opacity: valid ? 1.0 : 0.35,
-                  child: Container(
-                    width: 36,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFEBF3FE)
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: isActive
-                            ? const Color(0xFF3686AF)
-                            : const Color(0xFFCBD5E1),
-                        width: 1.2,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        dayLabels[i],
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive
-                              ? const Color(0xFF004E7E)
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //   children: List.generate(7, (i) {
+          //     final dayNum = i; // Sun=0, Mon=1...Sat=6
+          //     final valid = _validDays.contains(dayNum);
+          //     final isActive = selectedDays.contains(dayNum);
+          //     return GestureDetector(
+          //       onTap: valid ? () => _toggleDay(dayNum) : null,
+          //       child: Opacity(
+          //         opacity: valid ? 1.0 : 0.35,
+          //         child: Container(
+          //           width: 36,
+          //           height: 32,
+          //           decoration: BoxDecoration(
+          //             color: isActive
+          //                 ? const Color(0xFFEBF3FE)
+          //                 : Colors.transparent,
+          //             border: Border.all(
+          //               color: isActive
+          //                   ? const Color(0xFF3686AF)
+          //                   : const Color(0xFFCBD5E1),
+          //               width: 1.2,
+          //             ),
+          //             borderRadius: BorderRadius.circular(6),
+          //           ),
+          //           child: Center(
+          //             child: Text(
+          //               dayLabels[i],
+          //               style: GoogleFonts.dmSans(
+          //                 fontSize: 10,
+          //                 fontWeight:
+          //                     isActive ? FontWeight.w700 : FontWeight.w500,
+          //                 color: isActive
+          //                     ? const Color(0xFF004E7E)
+          //                     : const Color(0xFF64748B),
+          //               ),
+          //             ),
+          //           ),
+          //         ),
+          //       ),
+          //     );
+          //   }),
+          // ),
         ],
       ),
     );
