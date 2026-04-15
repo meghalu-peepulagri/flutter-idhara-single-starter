@@ -379,7 +379,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       Text(
                         widget.unit.contains("A")
                             ? 'DRY RUN LIMIT'
-                            : 'LOW VOLTS',
+                            : 'LOW VOLTAGE',
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
                           fontWeight: FontWeight.w500,
@@ -407,7 +407,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       Text(
                         widget.unit.contains("A")
                             ? 'OVERLOAD LIMIT'
-                            : 'HIGH VOLTS',
+                            : 'HIGH VOLTAGE',
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
                           fontWeight: FontWeight.w500,

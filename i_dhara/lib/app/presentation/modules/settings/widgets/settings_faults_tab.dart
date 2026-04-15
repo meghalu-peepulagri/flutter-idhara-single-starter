@@ -14,19 +14,18 @@ import 'package:i_dhara/app/presentation/modules/settings/settings_controller.da
 import 'package:i_dhara/app/presentation/modules/settings/widgets/settings_action_buttons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// A single fault row definition: human label, bit value used in the bitwise
-/// `pr_flt_en` payload, and a getter that pulls the current value from
-/// [UserSettings2] so nothing is hardcoded.
+/// A single fault row definition: human label and the bit value used in the
+/// bitwise `pr_flt_en` payload. The ON/OFF state of each toggle is derived
+/// entirely from `pr_flt_en` via bitwise AND with [bit].
 class _FaultDef {
   final String label;
   final String description;
   final String offDescription;
   final int bit;
-  final int Function(UserSettings2 s) read;
   final bool isVisible;
   final int uiOrder;
   const _FaultDef(
-      this.label, this.description, this.offDescription, this.bit, this.read,
+      this.label, this.description, this.offDescription, this.bit,
       {this.isVisible = true, this.uiOrder = 99});
 }
 
@@ -57,53 +56,46 @@ class SettingsFaultsTab extends StatefulWidget {
 class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   // Order here is the order shown on screen.
   // Bit values match the device contract for `pr_flt_en`.
-  static final List<_FaultDef> _defs = [
+  static const List<_FaultDef> _defs = [
     _FaultDef(
         'Under Voltage',
         'Stops the motor when the voltage drops below safe limits.',
         'Motor will run even if voltage drops below safe limits, which may cause damage.',
         1,
-        (s) => s.vfltUnderVoltage ?? 0,
         uiOrder: 2),
     _FaultDef(
         'Over Voltage',
         'Stops the motor when the voltage spikes above safe limits.',
         'Motor will run even if voltage spikes above safe limits, which may cause damage.',
         2,
-        (s) => s.vfltOverVoltage ?? 0,
         uiOrder: 3),
-    _FaultDef(
-        'Voltage Imbalance', '', '', 4, (s) => s.vfltVoltageImbalance ?? 0,
+    _FaultDef('Voltage Imbalance', '', '', 4,
         isVisible: false, uiOrder: 99),
     _FaultDef(
         'Phase Failure',
         'Stops the motor if the incoming power supply loses a phase.',
         'Motor won\'t stop if a phase is lost, which can lead to overheating and damage.',
         8,
-        (s) => s.vfltPhaseFailure ?? 0,
         uiOrder: 1),
     _FaultDef(
         'Dry Run',
         'Stops the pump if there is no water to prevent damage.',
         'Pump will keep running even without water, which could result in severe damage.',
         16,
-        (s) => s.cfltDryRun ?? 0,
         uiOrder: 4),
     _FaultDef(
         'Over Current',
         'Stops the motor if it draws excessive load current.',
         'Motor will not be protected against drawing excessive current, risking failure.',
         32,
-        (s) => s.cfltOverCurrent ?? 0,
         uiOrder: 5),
     _FaultDef(
         'Output Phase Failure',
         'Stops the motor if the connection to the motor is lost.',
         'Motor will not stop if the connection to the motor is lost, which may cause issue.',
         64,
-        (s) => s.cfltOutputPhaseFail ?? 0,
         uiOrder: 6),
-    _FaultDef('Current Imbalance', '', '', 128, (s) => s.cfltCurrImbalance ?? 0,
+    _FaultDef('Current Imbalance', '', '', 128,
         isVisible: false, uiOrder: 99),
   ];
 
@@ -168,9 +160,10 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     }
 
     final s = widget.settings;
+    final prFltEn = s?.prFltEn ?? 0;
     _initialValues = List<bool>.generate(
       _defs.length,
-      (i) => s == null ? false : _defs[i].read(s) == 1,
+      (i) => s == null ? false : (prFltEn & _defs[i].bit) != 0,
     );
     _controllers = List<ValueNotifier<bool>>.generate(
       _defs.length,

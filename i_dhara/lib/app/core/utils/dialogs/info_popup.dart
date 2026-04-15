@@ -209,7 +209,7 @@ class _SimInfoDialog extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _InfoRow extends StatefulWidget {
   final IconData icon;
   final String label;
   final String value;
@@ -225,6 +225,22 @@ class _InfoRow extends StatelessWidget {
   });
 
   @override
+  State<_InfoRow> createState() => _InfoRowState();
+}
+
+class _InfoRowState extends State<_InfoRow> {
+  bool _copied = false;
+
+  void _handleCopy() {
+    if (widget.onCopy == null) return;
+    widget.onCopy!();
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -238,14 +254,14 @@ class _InfoRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: accentColor),
+          Icon(widget.icon, size: 15, color: widget.accentColor),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  widget.label,
                   style: const TextStyle(
                     color: Color(0xFF9090A8),
                     fontSize: 11,
@@ -255,7 +271,7 @@ class _InfoRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  value,
+                  widget.value,
                   style: const TextStyle(
                     color: Color(0xFF1A1A2E),
                     fontSize: 14,
@@ -265,13 +281,24 @@ class _InfoRow extends StatelessWidget {
               ],
             ),
           ),
-          if (onCopy != null)
+          if (widget.onCopy != null)
             GestureDetector(
-              onTap: onCopy,
-              child: const Icon(
-                Icons.copy_rounded,
-                size: 15,
-                color: Color(0xFFB0B0C0),
+              onTap: _handleCopy,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _copied
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        key: ValueKey('check'),
+                        size: 18,
+                        color: Color(0xFF10B981),
+                      )
+                    : const Icon(
+                        Icons.copy_rounded,
+                        key: ValueKey('copy'),
+                        size: 15,
+                        color: Color(0xFFB0B0C0),
+                      ),
               ),
             ),
         ],

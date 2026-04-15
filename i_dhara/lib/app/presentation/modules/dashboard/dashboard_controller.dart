@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
@@ -35,6 +36,11 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
   late MqttService mqttService;
   bool mqttInitialized = false;
+
+  // Periodically refreshes motor data from the API in the background.
+  // This keeps API-only fields (fault description, run-time, etc.) in sync
+  // without triggering any loading indicator.
+  Timer? _backgroundRefreshTimer;
 
   final Map<int, String> _motorIdToGroupId = {};
   // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
@@ -136,6 +142,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       await fetchLocationDropDown();
     } finally {
       isLoading.value = false;
+      _startBackgroundRefresh();
     }
   }
 
@@ -173,8 +180,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
       if (response != null) {
         debugPrint('Fault cleared via API successfully.');
       }
-
-      // Perform a complete reload to show AppLottieLoading
       page.value = 1;
       currentPage.value = 0;
       await fetchMotors();
@@ -183,6 +188,47 @@ class DashboardController extends GetxController with ConnectivityMixin {
       debugPrint('Error in clearFaultAck: $e');
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Fetches motors from the API and updates the UI silently (no loading indicator).
+  /// Used after ACK operations like fault clear so the card updates without
+  /// showing a full-screen loader.
+  Future<void> fetchMotorsSilently() async {
+    try {
+      final response = await MotorsRepositoryImpl().getMotors(1, limit.value);
+
+      if (response != null && response.data != null) {
+        this.response = response.data;
+        final fetchedMotors = response.data!.records ?? [];
+        allMotors.value = fetchedMotors;
+
+        if (selectedLocationId.value != null) {
+          motors.value = allMotors
+              .where((m) => m.location?.id == selectedLocationId.value)
+              .toList();
+        } else {
+          motors.value = allMotors.toList();
+        }
+
+        currentPage.value = response.data!.paginationInfo!.currentPage!.toInt();
+        totalPages.value = response.data!.paginationInfo!.totalPages!.toInt();
+
+        // Rebuild motor map and sync MQTT
+        if (mqttInitialized) {
+          final motorMap = _buildMotorMap(allMotors);
+          mqttService.updateMotors(motorMap);
+          await mqttService.resubscribeToTopics();
+          await Future.delayed(const Duration(milliseconds: 300));
+          _onMqttUpdate();
+        }
+
+        motors.refresh();
+        allMotors.refresh();
+        debugPrint('fetchMotorsSilently: UI refreshed silently.');
+      }
+    } catch (e) {
+      debugPrint('Error in fetchMotorsSilently: $e');
     }
   }
 
@@ -212,16 +258,28 @@ class DashboardController extends GetxController with ConnectivityMixin {
       ]);
     } finally {
       isLoading.value = false;
+      _startBackgroundRefresh();
     }
   }
 
   @override
   void onClose() {
+    _backgroundRefreshTimer?.cancel();
     if (mqttInitialized) {
       mqttService.dataUpdateNotifier.removeListener(_onMqttUpdate);
       // mqttService.dispose();
     }
     super.onClose();
+  }
+
+  /// Starts a periodic timer that silently fetches motors every 10 seconds.
+  /// Cancels any previous timer first so there is never more than one running.
+  void _startBackgroundRefresh() {
+    _backgroundRefreshTimer?.cancel();
+    _backgroundRefreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => fetchMotorsSilently(),
+    );
   }
 
   Map<String, Motor> _buildMotorMap(List<Motor> motorsList) {
@@ -603,6 +661,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
             }
           }
 
+          // Only overwrite the API fault value when MQTT reports a non-zero
+          // fault. Keeping 0 from MQTT would erase the real fault description
+          // that was just fetched from the API via fetchMotorsSilently.
           if (currentMotorData.fault != 0) {
             params.fault = currentMotorData.fault;
           }
@@ -677,6 +738,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
     try {
       await mqttService.publishMotorCommand(motorId, newState ? 1 : 0);
+      // Instantly refresh API data after toggle so fault description
+      // and run-time update immediately without waiting for the timer.
+      fetchMotorsSilently();
     } catch (e) {
       errorMessage.value = 'Failed to toggle motor: $e';
     }
@@ -706,6 +770,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
     try {
       await mqttService.publishModeCommand(motorId, modeIndex);
+      // Instantly refresh API data after mode change so description
+      // updates immediately without waiting for the background timer.
+      fetchMotorsSilently();
     } catch (e) {
       errorMessage.value = 'Failed to change mode: $e';
     }

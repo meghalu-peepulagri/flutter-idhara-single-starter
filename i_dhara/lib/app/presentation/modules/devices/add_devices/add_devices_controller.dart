@@ -136,7 +136,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
         if (Get.isRegistered<DashboardController>()) {
           Get.delete<DashboardController>();
         }
-        Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
+        Get.offAllNamed(Routes.devices, arguments: {'refresh': true});
       }
     } catch (e) {}
   }
