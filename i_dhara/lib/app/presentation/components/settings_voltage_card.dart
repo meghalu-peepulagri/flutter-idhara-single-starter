@@ -79,7 +79,7 @@ class SettingsVoltageCardState extends State<SettingsVoltageCard> {
         const SizedBox(height: 4),
         SettingsDualSlider(
           key: ValueKey("voltage_slider_$_resetVersion"),
-          heading: 'Voltage Faults',
+          heading: 'Voltage Protection',
           leadingSvg: 'assets/images/Voltage.svg',
           // leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),

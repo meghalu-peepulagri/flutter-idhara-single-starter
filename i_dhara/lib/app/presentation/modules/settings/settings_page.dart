@@ -12,7 +12,6 @@ import 'package:i_dhara/app/presentation/components/popups/default_setting_popup
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
-import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
 
@@ -22,6 +21,7 @@ import 'widgets/settings_confirm_dialog.dart';
 import 'widgets/settings_content.dart';
 import 'widgets/settings_device_info_bar.dart';
 import 'widgets/settings_faults_tab.dart';
+import 'widgets/settings_info_sheet.dart';
 import 'widgets/settings_tab_bar.dart';
 
 class SettingsWidget extends StatefulWidget {
@@ -34,8 +34,6 @@ class SettingsWidget extends StatefulWidget {
 class _SettingsWidgetState extends State<SettingsWidget> {
   final SettingsController controller =
       Get.put(SettingsController(), permanent: true);
-  final scaffoldKey = GlobalKey<ScaffoldState>();
-
   Map<String, dynamic> updatedpayload = {};
   Map<String, dynamic> defaultupdatedpayload = {};
 
@@ -159,10 +157,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   }
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-
-  void onTapMenu() {
-    scaffoldKey.currentState!.openEndDrawer();
-  }
 
   Future<void> _handleCancel() async {
     _currentVoltageLow = null;
@@ -472,7 +466,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Get.offAllNamed(Routes.settingsDevices);
+        final args = Get.arguments;
+        final from = args is Map ? args['from'] as String? : null;
+        Get.offAllNamed(from ?? Routes.settingsDevices);
         return false;
       },
       child: GestureDetector(
@@ -481,16 +477,18 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           FocusManager.instance.primaryFocus?.unfocus();
         },
         child: Scaffold(
-          key: scaffoldKey,
           backgroundColor: const Color(0xFFEBF3FE),
-          endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
-          endDrawerEnableOpenDragGesture: false,
           body: SafeArea(
             top: true,
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
-                SettingsAppBar(onMenuTap: onTapMenu),
+                SettingsAppBar(
+                  onInfoTap: () => showSettingsInfoSheet(
+                    context,
+                    selectedTab: _selectedTab,
+                  ),
+                ),
                 Expanded(
                   child: Obx(() {
                     if (controller.isLoading.value) {
@@ -571,12 +569,26 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                     });
                                   },
                                   onVoltageChanged: (low, high) {
+                                    // Capture originals on first edit
+                                    _originalVoltageLow ??= controller
+                                        .userSettings2.value?.lvf
+                                        ?.toInt();
+                                    _originalVoltageHigh ??= controller
+                                        .userSettings2.value?.hvf
+                                        ?.toInt();
                                     _currentVoltageLow = safeToWholeDouble(low);
                                     _currentVoltageHigh =
                                         safeToWholeDouble(high);
                                     _checkForChanges();
                                   },
                                   onCurrentChanged: (low, high) {
+                                    // Capture originals on first edit
+                                    _originalCurrentLow ??= controller
+                                        .userSettings2.value?.drf
+                                        ?.toInt();
+                                    _originalCurrentHigh ??= controller
+                                        .userSettings2.value?.olf
+                                        ?.toInt();
                                     _currentCurrentLow =
                                         (low ?? 0).toInt().toDouble();
                                     _currentCurrentHigh =

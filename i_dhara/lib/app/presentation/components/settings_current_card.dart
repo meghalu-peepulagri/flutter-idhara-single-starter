@@ -99,7 +99,7 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
         const SizedBox(height: 4),
         SettingsDualSlider(
           key: _sliderKey,
-          heading: 'Current Faults',
+          heading: 'Current Protection',
           leadingSvg: 'assets/images/Current.svg',
           // leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),

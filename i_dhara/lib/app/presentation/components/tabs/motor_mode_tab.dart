@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
-import '../motor_card/motor_card_dialogs.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
+import '../motor_card/motor_card_dialogs.dart';
 import 'motor_mode_info_sheet.dart';
 
 class MotorModeTab extends StatefulWidget {

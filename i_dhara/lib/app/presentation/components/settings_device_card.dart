@@ -23,7 +23,8 @@ class SettingsDeviceCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         SharedPreference.setStarterId(device.id ?? 0);
-        Get.offNamed(Routes.usersettings);
+        Get.offNamed(Routes.usersettings,
+            arguments: {'from': Routes.settingsDevices});
       },
       child: Container(
         padding: const EdgeInsets.all(16),

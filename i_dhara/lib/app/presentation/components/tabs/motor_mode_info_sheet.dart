@@ -50,7 +50,7 @@ class MotorModeInfoSheet {
                       height: 28,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0F0F0),
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: const Color(0xFFE0E0E0),
                           width: 1,
@@ -96,21 +96,21 @@ class MotorModeInfoSheet {
                   'After a power cycle, it remains OFF (no automatic start).',
                 ],
               ),
-              const SizedBox(height: 12),
+              // const SizedBox(height: 12),
               // Schedule Mode
-              _buildModeInfoCard(
-                icon: Icons.schedule_rounded,
-                iconColor: const Color(0xFF27AE60),
-                bgColor: const Color(0xFFE8F5E9),
-                borderColor: const Color(0xFFA5D6A7),
-                title: 'SCHEDULE MODE',
-                titleColor: const Color(0xFF27AE60),
-                bullets: [
-                  'Motor follows your preset ON/OFF schedule.',
-                  'Set daily or weekly timings easily.',
-                ],
-              ),
-              const SizedBox(height: 16),
+              // _buildModeInfoCard(
+              //   icon: Icons.schedule_rounded,
+              //   iconColor: const Color(0xFF27AE60),
+              //   bgColor: const Color(0xFFE8F5E9),
+              //   borderColor: const Color(0xFFA5D6A7),
+              //   title: 'SCHEDULE MODE',
+              //   titleColor: const Color(0xFF27AE60),
+              //   bullets: [
+              //     'Motor follows your preset ON/OFF schedule.',
+              //     'Set daily or weekly timings easily.',
+              //   ],
+              // ),
+              // const SizedBox(height: 16),
             ],
           ),
         );

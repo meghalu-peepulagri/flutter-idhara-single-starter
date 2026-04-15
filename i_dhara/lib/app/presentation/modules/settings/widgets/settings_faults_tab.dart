@@ -24,8 +24,7 @@ class _FaultDef {
   final int bit;
   final bool isVisible;
   final int uiOrder;
-  const _FaultDef(
-      this.label, this.description, this.offDescription, this.bit,
+  const _FaultDef(this.label, this.description, this.offDescription, this.bit,
       {this.isVisible = true, this.uiOrder = 99});
 }
 
@@ -69,8 +68,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
         'Motor will run even if voltage spikes above safe limits, which may cause damage.',
         2,
         uiOrder: 3),
-    _FaultDef('Voltage Imbalance', '', '', 4,
-        isVisible: false, uiOrder: 99),
+    _FaultDef('Voltage Imbalance', '', '', 4, isVisible: false, uiOrder: 99),
     _FaultDef(
         'Phase Failure',
         'Stops the motor if the incoming power supply loses a phase.',
@@ -95,8 +93,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
         'Motor will not stop if the connection to the motor is lost, which may cause issue.',
         64,
         uiOrder: 6),
-    _FaultDef('Current Imbalance', '', '', 128,
-        isVisible: false, uiOrder: 99),
+    _FaultDef('Current Imbalance', '', '', 128, isVisible: false, uiOrder: 99),
   ];
 
   late List<ValueNotifier<bool>> _controllers;
@@ -522,8 +519,8 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
         children: [
           // ── Left icon ──────────────────────────────────────────────────
           Container(
-            width: 48,
-            height: 48,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: const Color(0xFFF3F4F6),
               borderRadius: BorderRadius.circular(10),
@@ -534,7 +531,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
               color: const Color(0xFF374151),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           // ── Right content ──────────────────────────────────────────────
           Expanded(
             child: Column(

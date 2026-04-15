@@ -338,41 +338,50 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Icon, Title, and Values
+          // Header: icon + heading (left, wraps if needed) | value columns (right, fixed)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Left — heading shrinks/wraps so right side always has room
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (widget.leadingSvg != null)
+                      SvgPicture.asset(
+                        widget.leadingSvg!,
+                        width: 22,
+                        height: 22,
+                        colorFilter: widget.leadingSvgColor != null
+                            ? ColorFilter.mode(
+                                widget.leadingSvgColor!,
+                                BlendMode.srcIn,
+                              )
+                            : null,
+                      ),
+                    if (widget.leadingSvg != null) const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        widget.heading,
+                        maxLines: 2,
+                        overflow: TextOverflow.clip,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0A0A0A),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Right — value columns at intrinsic width, never squeezed
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (widget.leadingSvg != null)
-                    SvgPicture.asset(
-                      widget.leadingSvg!,
-                      width: 22,
-                      height: 22,
-                      colorFilter: widget.leadingSvgColor != null
-                          ? ColorFilter.mode(
-                              widget.leadingSvgColor!,
-                              BlendMode.srcIn,
-                            )
-                          : null,
-                    ),
-                  if (widget.leadingSvg != null) const SizedBox(width: 6),
-                  Text(
-                    widget.heading,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0A0A0A),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                spacing: 8,
-                children: [
-                  // Low Label and Value
+                  // Low value column
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -400,7 +409,8 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       ),
                     ],
                   ),
-                  // High Label and Value
+                  const SizedBox(width: 12),
+                  // High value column
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -429,7 +439,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                     ],
                   ),
                 ],
-              )
+              ),
             ],
           ),
           const SizedBox(height: 12),
