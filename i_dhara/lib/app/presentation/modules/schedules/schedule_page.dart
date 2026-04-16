@@ -27,6 +27,8 @@ class SchedulePage extends StatefulWidget {
 
 class _SchedulePageState extends State<SchedulePage> {
   GlobalKey<ScheduleFormState> _formKey = GlobalKey<ScheduleFormState>();
+  GlobalKey<MultiScheduleFormState> _multiFormKey =
+      GlobalKey<MultiScheduleFormState>();
   final _mqttService = MqttService();
   late final ScheduleController _scheduleController;
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSub;
@@ -51,9 +53,6 @@ class _SchedulePageState extends State<SchedulePage> {
         final currentId = _resolveIdentifier();
         final ackId = (ack['topic'] ?? '').toString();
         if (currentId.isNotEmpty && ackId != currentId) return;
-
-        final ackType = ack['type'] as int?;
-        if (ackType == 33) return; // Only accept 24 in edit mode
 
         final d = ack['D'] as int? ?? 0;
         if (_ackCompleter != null && !_ackCompleter!.isCompleted) {
@@ -112,6 +111,16 @@ class _SchedulePageState extends State<SchedulePage> {
   int _computeBitwiseDays(List<int> daysOfWeek) =>
       daysOfWeek.fold(0, (acc, d) => acc | (_bitwiseMap[d] ?? 0));
 
+  /// Returns 1 if the motor has no schedules yet (first-time create),
+  /// or 2 if it already has at least one schedule.
+  int _mqttIdx() {
+    if (Get.isRegistered<MotorScheduleController>()) {
+      final existing = Get.find<MotorScheduleController>().schedules;
+      if (existing.isNotEmpty) return 2;
+    }
+    return 1;
+  }
+
   CreateScheduleDto _buildDto(ScheduleFormState form) {
     final isCyclic = form.cyclicMode;
     return CreateScheduleDto(
@@ -138,7 +147,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final form = _formKey.currentState!;
     final dto = _buildDto(form);
 
-    final response = await _scheduleController.createSchedule(dto: dto);
+    final response = await _scheduleController.createSchedule(dtos: [dto]);
     if (response == null) {
       return false;
     }
@@ -174,6 +183,7 @@ class _SchedulePageState extends State<SchedulePage> {
             cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
             powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
             enabled: 1,
+            idx: _mqttIdx(),
           );
         } catch (e) {
           geterrorSnackBar('Saved but MQTT failed: $e');
@@ -206,6 +216,7 @@ class _SchedulePageState extends State<SchedulePage> {
         powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
         enabled: 1,
         isEdit: true,
+        idx: 2, // editing means motor already has schedules
       );
     } catch (e) {
       _ackCompleter = null;
@@ -244,6 +255,194 @@ class _SchedulePageState extends State<SchedulePage> {
       }
     });
     return true; // dialog closes immediately after ACK, no wait for API
+  }
+
+  /// Build a single MQTT schedule item (shape matches the m1[] entries the
+  /// device expects). Dates come from the shared multi-form state; time,
+  /// cyclic and power-recovery come from the individual child form.
+  Map<String, dynamic> _buildMqttScheduleItem({
+    required int scheduleId,
+    required DateTime startDate,
+    required DateTime endDate,
+    required ScheduleFormState form,
+    required int enabled,
+  }) {
+    final isCyclic = form.cyclicMode;
+    return {
+      'id': scheduleId,
+      'sd': _dateToYYMMDD(startDate),
+      'ed': _dateToYYMMDD(endDate),
+      'st': form.startHour * 100 + form.startMinute,
+      'et': form.endHour * 100 + form.endMinute,
+      'en': enabled,
+      if (isCyclic) ...{
+        'cy': 1,
+        'on': form.cyclicOnMinutes,
+        'off': form.cyclicOffMinutes,
+        'pwr_rec': 0,
+      } else ...{
+        'pwr_rec': form.powerLossRecovery ? 1 : 0,
+      },
+    };
+  }
+
+  CreateScheduleDto _buildDtoForMulti({
+    required ScheduleFormState form,
+    required DateTime startDate,
+    required DateTime endDate,
+    required Set<int> selectedDays,
+  }) {
+    final isCyclic = form.cyclicMode;
+    final durationMinutes = () {
+      final start = DateTime(startDate.year, startDate.month, startDate.day,
+          form.startHour, form.startMinute);
+      final end = DateTime(endDate.year, endDate.month, endDate.day,
+          form.endHour, form.endMinute);
+      final endAdjusted = end.isBefore(start) || end.isAtSameMomentAs(start)
+          ? end.add(const Duration(days: 1))
+          : end;
+      return endAdjusted.difference(start).inMinutes;
+    }();
+    return CreateScheduleDto(
+      motorId: SharedPreference.getMotorId(),
+      starterId: SharedPreference.getStarterId(),
+      scheduleType: isCyclic ? 'CYCLIC' : 'TIME_BASED',
+      startTime: _formatTimeHHMM(form.startHour, form.startMinute),
+      endTime: isCyclic ? null : _formatTimeHHMM(form.endHour, form.endMinute),
+      scheduleStartDate: _dateToYYMMDD(startDate),
+      scheduleEndDate: _dateToYYMMDD(endDate),
+      cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
+      cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
+      daysOfWeek: selectedDays.toList()..sort(),
+      bitwiseDays: _computeBitwiseDays(selectedDays.toList()),
+      runtimeMinutes: durationMinutes,
+      powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
+      repeat: 0,
+      enabled: true,
+    );
+  }
+
+  /// Create all schedules sequentially via the existing single-create API,
+  /// collect their scheduleIds, then publish ONE T:3 MQTT command with all
+  /// items in ascending-id order.
+  Future<bool> _createMultipleSchedules() async {
+    final multi = _multiFormKey.currentState;
+    if (multi == null) return false;
+
+    final forms = multi.scheduleStates;
+    if (forms.isEmpty) {
+      geterrorSnackBar('No schedules to publish');
+      return false;
+    }
+    if (forms.length != multi.scheduleCount) {
+      geterrorSnackBar('Please expand all schedules before publishing');
+      return false;
+    }
+
+    final sharedStart = multi.startDate;
+    final sharedEnd = multi.endDate;
+    final sharedDays = multi.selectedDays;
+
+    // 1) API: single bulk call — array of all DTOs sent in one request
+    final dtos = forms
+        .map((form) => _buildDtoForMulti(
+              form: form,
+              startDate: sharedStart,
+              endDate: sharedEnd,
+              selectedDays: sharedDays,
+            ))
+        .toList();
+
+    final response =
+        await _scheduleController.createSchedule(dtos: dtos);
+    if (response == null) {
+      geterrorSnackBar(
+          _scheduleController.message ?? 'Failed to create schedules');
+      return false;
+    }
+    if (response.data?.id != null) {
+      SharedPreference.setscheduleid(response.data!.id!);
+    }
+    getsuccessSnackBar(response.message ?? 'Schedules created successfully');
+
+    // Derive scheduleIds for MQTT — use scheduleId from response (single) and
+    // fall back to sequential (1-based) when server returns data: null for bulk.
+    final baseId = response.data?.scheduleId ?? 1;
+    final scheduleIds =
+        List.generate(forms.length, (i) => baseId + i);
+
+    // 2) MQTT: publish combined T:3 payload only if startDate is within 3 days
+    final id = _resolveIdentifier();
+    if (id.isNotEmpty) {
+      final today = DateTime.now();
+      final todayNorm = DateTime(today.year, today.month, today.day);
+      final startNorm =
+          DateTime(sharedStart.year, sharedStart.month, sharedStart.day);
+      final daysDiff = startNorm.difference(todayNorm).inDays;
+      final shouldPublishMqtt = daysDiff <= 2;
+
+      if (shouldPublishMqtt) {
+        final items = <Map<String, dynamic>>[];
+        for (int i = 0; i < forms.length; i++) {
+          items.add(_buildMqttScheduleItem(
+            scheduleId: scheduleIds[i],
+            startDate: sharedStart,
+            endDate: sharedEnd,
+            form: forms[i],
+            enabled: 1,
+          ));
+        }
+        try {
+          await _mqttService.publishMultipleSchedulesCommand(
+            identifier: id,
+            items: items,
+            idx: _mqttIdx(),
+          );
+        } catch (e) {
+          geterrorSnackBar('Saved but MQTT failed: $e');
+        }
+      }
+    }
+
+    _scheduleSaved = true;
+    return true;
+  }
+
+  void _onMultiSaveTapped() async {
+    final multi = _multiFormKey.currentState;
+    if (multi == null) return;
+    final forms = multi.scheduleStates;
+    if (forms.isEmpty) {
+      geterrorSnackBar('No schedules to publish');
+      return;
+    }
+    if (forms.length != multi.scheduleCount) {
+      geterrorSnackBar('Please expand all schedules before publishing');
+      return;
+    }
+
+    _scheduleSaved = false;
+    final items = forms.map((f) {
+      return MultiScheduleDialogItem(
+        typeLabel: f.cyclicMode ? 'Cyclic' : 'Time Based',
+        startTime: formatTime24h(f.startTime),
+        endTime: formatTime24h(f.endTime),
+        duration: f.durationText,
+        powerRecovery: f.powerLossRecovery ? 'ON' : 'OFF',
+        isCyclic: f.cyclicMode,
+        cyclicOnMinutes: f.cyclicOnMinutes,
+        cyclicOffMinutes: f.cyclicOffMinutes,
+      );
+    }).toList();
+
+    await showMultiScheduleConfirmDialog(
+      context: context,
+      startDate: _formatDateStr(multi.startDate),
+      endDate: _formatDateStr(multi.endDate),
+      schedules: items,
+      onConfirm: _createMultipleSchedules,
+    );
+    if (_scheduleSaved && mounted) Navigator.of(context).pop(true);
   }
 
   void _onSaveTapped() async {
@@ -288,6 +487,7 @@ class _SchedulePageState extends State<SchedulePage> {
     if (!mounted) return;
     setState(() {
       _formKey = GlobalKey<ScheduleFormState>();
+      _multiFormKey = GlobalKey<MultiScheduleFormState>();
     });
   }
 
@@ -316,28 +516,35 @@ class _SchedulePageState extends State<SchedulePage> {
                   enabled: _scheduleController.isRefreshing.value,
                   child: RefreshIndicator(
                     onRefresh: _onPullToRefresh,
-                    child: ScheduleForm(
-                      key: _formKey,
-                      onSave: _onSaveTapped,
-                      onBack: () => Get.back(),
-                      isEditMode: _isEditMode,
-                      initialStartHour: record != null ? sh : null,
-                      initialStartMinute: record != null ? sm : null,
-                      initialEndHour: record != null ? eh : null,
-                      initialEndMinute: record != null ? em : null,
-                      initialStartDate:
-                          _yymmddToDate(record?.scheduleStartDate),
-                      initialEndDate: _yymmddToDate(record?.scheduleEndDate),
-                      initialCyclicMode: record != null ? isCyclic : null,
-                      initialCyclicOnMinutes: record != null
-                          ? (record.cycleOnMinutes as num?)?.toInt()
-                          : null,
-                      initialCyclicOffMinutes: record != null
-                          ? (record.cycleOffMinutes as num?)?.toInt()
-                          : null,
-                      initialPowerLossRecovery: record?.powerLossRecovery,
-                      initialSelectedDays: record?.daysOfWeek,
-                    ),
+                    child: _isEditMode
+                        ? ScheduleForm(
+                            key: _formKey,
+                            onSave: _onSaveTapped,
+                            onBack: () => Get.back(),
+                            isEditMode: true,
+                            initialStartHour: record != null ? sh : null,
+                            initialStartMinute: record != null ? sm : null,
+                            initialEndHour: record != null ? eh : null,
+                            initialEndMinute: record != null ? em : null,
+                            initialStartDate:
+                                _yymmddToDate(record?.scheduleStartDate),
+                            initialEndDate:
+                                _yymmddToDate(record?.scheduleEndDate),
+                            initialCyclicMode: record != null ? isCyclic : null,
+                            initialCyclicOnMinutes: record != null
+                                ? (record.cycleOnMinutes as num?)?.toInt()
+                                : null,
+                            initialCyclicOffMinutes: record != null
+                                ? (record.cycleOffMinutes as num?)?.toInt()
+                                : null,
+                            initialPowerLossRecovery: record?.powerLossRecovery,
+                            initialSelectedDays: record?.daysOfWeek,
+                          )
+                        : MultiScheduleForm(
+                            key: _multiFormKey,
+                            onSave: _onMultiSaveTapped,
+                            onBack: () => Get.back(),
+                          ),
                   ),
                 ),
               ),

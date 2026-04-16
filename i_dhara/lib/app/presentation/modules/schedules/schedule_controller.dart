@@ -24,12 +24,15 @@ class ScheduleController extends GetxController {
     super.onClose();
   }
 
+  /// [dtos] — pass a single-item list for single schedule,
+  ///          pass multiple items for bulk creation.
+  /// Body is always sent as a JSON array to the server.
   Future<CreateScheduleResponse?> createSchedule({
-    required CreateScheduleDto dto,
+    required List<CreateScheduleDto> dtos,
   }) async {
     isLoading.value = true;
     try {
-      final response = await _scheduleRepo.createschedule(dto);
+      final response = await _scheduleRepo.createschedule(dtos);
       isLoading.value = false;
 
       if (response != null && response.success == true) {

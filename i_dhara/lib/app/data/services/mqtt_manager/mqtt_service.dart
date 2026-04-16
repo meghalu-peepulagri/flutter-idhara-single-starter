@@ -514,6 +514,9 @@ class MqttService {
     required int enabled,
     int? sequenceNumber,
     bool isEdit = false,
+
+    /// 1 = first schedule on this motor, 2 = motor already has schedules
+    int idx = 1,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -548,7 +551,7 @@ class MqttService {
       'T': 3,
       'S': seq,
       'D': {
-        'idx': scheduleId,
+        'idx': idx,
         'last': 1,
         'sch_cnt': 1,
         'plr': 30,
@@ -568,12 +571,78 @@ class MqttService {
     );
     _registerPendingCommand(
       commandKey,
-      isEdit ? 24 : 23,
+      23, // both create and edit use type 23
       payload,
       seq,
       pcbnumber: identifier,
     );
     statusMessage = 'Schedule command sent successfully';
+    _dataUpdateNotifier.value++;
+  }
+
+  /// Publish multiple schedules in a single T:3 command.
+  /// Items MUST be complete MQTT schedule maps (same shape as the single
+  /// [publishScheduleCommand] builds). Items are sorted by `id` ascending
+  /// before publishing, as the device expects ascending order.
+  Future<void> publishMultipleSchedulesCommand({
+    required String identifier,
+    required List<Map<String, dynamic>> items,
+    int plr = 30,
+    int? sequenceNumber,
+
+    /// 1 = first schedule on this motor, 2 = motor already has schedules
+    int idx = 1,
+  }) async {
+    if (_mqttClient == null || !isConnected) {
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+
+    if (identifier.trim().isEmpty) {
+      throw Exception('Invalid identifier for schedule publish');
+    }
+
+    if (items.isEmpty) {
+      throw Exception('No schedule items to publish');
+    }
+
+    // Sort ascending by id
+    final sorted = List<Map<String, dynamic>>.from(items)
+      ..sort(
+          (a, b) => ((a['id'] as int?) ?? 0).compareTo((b['id'] as int?) ?? 0));
+
+    final seq = sequenceNumber ?? _random.nextInt(251);
+
+    final payload = <String, dynamic>{
+      'T': 3,
+      'S': seq,
+      'D': {
+        'idx': idx,
+        'last': 1,
+        'sch_cnt': sorted.length,
+        'plr': plr,
+        'm1': sorted,
+      },
+    };
+
+    final commandKey = 'schedule_$identifier';
+    _lastAckTimes.remove(commandKey);
+    _expiredScheduleKeys.remove(commandKey);
+
+    await _publishScheduleCommandInternal(
+      payload,
+      identifier,
+      sequenceNumber: seq,
+    );
+    _registerPendingCommand(
+      commandKey,
+      23,
+      payload,
+      seq,
+      pcbnumber: identifier,
+    );
+    statusMessage = 'Multi schedule command sent successfully';
     _dataUpdateNotifier.value++;
   }
 
@@ -602,7 +671,7 @@ class MqttService {
     final ids = 1 << (scheduleId - 1);
 
     final payload = <String, dynamic>{
-      'T': 23,
+      'T': 24,
       'S': seq,
       'D': {
         'ids': ids,
@@ -963,9 +1032,6 @@ class MqttService {
             break;
           case 33:
             _handleScheduleAck(identifier, payloadData);
-            break;
-          case 24:
-            _handleScheduleAck(identifier, payloadData, isEdit: true);
             break;
           case 54:
             _handleScheduleActionAck(identifier, payloadData);
@@ -1430,8 +1496,7 @@ class MqttService {
     }
   }
 
-  void _handleScheduleAck(String identifier, dynamic payloadData,
-      {bool isEdit = false}) {
+  void _handleScheduleAck(String identifier, dynamic payloadData) {
     final scheduleCommandKey = 'schedule_$identifier';
 
     // Ignore late ACKs that arrive after retries were exhausted
@@ -1449,13 +1514,14 @@ class MqttService {
     }
 
     // ACK arrived; clear retry/error status for this identifier.
+    // Type 23 covers both create and edit — edit no longer uses type 24.
     commandStatusNotifier.value = null;
-    _clearPendingCommand(scheduleCommandKey, isEdit ? 24 : 23);
+    _clearPendingCommand(scheduleCommandKey, 23);
 
     final ackMap = <String, dynamic>{
       'topic': identifier,
       'D': d,
-      'type': isEdit ? 24 : 33,
+      'type': 33,
     };
     scheduleAckController.add(ackMap);
 

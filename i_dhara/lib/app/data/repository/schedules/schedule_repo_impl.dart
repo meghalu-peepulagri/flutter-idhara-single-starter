@@ -35,8 +35,11 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
   }
 
   @override
-  Future<CreateScheduleResponse?> createschedule(CreateScheduleDto dto) async {
-    final body = dto.toJson();
+  Future<CreateScheduleResponse?> createschedule(
+      List<CreateScheduleDto> dtos) async {
+    // Always send as an array — single schedule becomes [{ ... }],
+    // multiple schedules become [{ ... }, { ... }, ...]
+    final body = dtos.map((d) => d.toJson()).toList();
     final response =
         await NetworkManager().post('/motor-schedules', data: body, {});
 
