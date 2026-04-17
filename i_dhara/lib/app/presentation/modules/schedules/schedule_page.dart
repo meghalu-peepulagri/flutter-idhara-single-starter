@@ -54,9 +54,25 @@ class _SchedulePageState extends State<SchedulePage> {
         final ackId = (ack['topic'] ?? '').toString();
         if (currentId.isNotEmpty && ackId != currentId) return;
 
+        // schedule_ids is a List<int> decoded from the bitmask
+        final ackedScheduleIds = (ack['schedule_ids'] as List?)
+                ?.whereType<int>()
+                .toList() ??
+            <int>[];
         final d = ack['D'] as int? ?? 0;
-        if (_ackCompleter != null && !_ackCompleter!.isCompleted) {
-          _ackCompleter!.complete(d == 1);
+
+        final expectedId = _editRecord?.scheduleId ?? 0;
+
+        // Accept if this ACK covers our scheduleId, OR legacy success (D=1, empty list)
+        final isMatch = ackedScheduleIds.contains(expectedId) ||
+            (ackedScheduleIds.isEmpty && d == 1);
+
+        if (isMatch && _ackCompleter != null && !_ackCompleter!.isCompleted) {
+          _ackCompleter!.complete(true);
+        } else if (d == 0 &&
+            _ackCompleter != null &&
+            !_ackCompleter!.isCompleted) {
+          _ackCompleter!.complete(false);
         }
       });
     }
@@ -121,6 +137,24 @@ class _SchedulePageState extends State<SchedulePage> {
     return 1;
   }
 
+  /// Returns the next scheduleId to use for MQTT.
+  /// Prefers the server-returned scheduleId if valid (> 0).
+  /// Falls back to maxExistingScheduleId + 1 so new schedules never reuse IDs.
+  int _resolveBaseScheduleId(int? serverScheduleId) {
+    if (serverScheduleId != null && serverScheduleId > 0) {
+      return serverScheduleId;
+    }
+    int maxId = 0;
+    if (Get.isRegistered<MotorScheduleController>()) {
+      final existing = Get.find<MotorScheduleController>().schedules;
+      for (final s in existing) {
+        final sid = s.scheduleId ?? 0;
+        if (sid > maxId) maxId = sid;
+      }
+    }
+    return maxId + 1;
+  }
+
   CreateScheduleDto _buildDto(ScheduleFormState form) {
     final isCyclic = form.cyclicMode;
     return CreateScheduleDto(
@@ -173,7 +207,7 @@ class _SchedulePageState extends State<SchedulePage> {
         try {
           await _mqttService.publishScheduleCommand(
             identifier: id,
-            scheduleId: response.data?.scheduleId ?? 1,
+            scheduleId: _resolveBaseScheduleId(response.data?.scheduleId),
             startTimeHHMM: form.startHour * 100 + form.startMinute,
             endTimeHHMM: form.endHour * 100 + form.endMinute,
             startDateYYMMDD: _dateToYYMMDD(form.startDate),
@@ -268,12 +302,33 @@ class _SchedulePageState extends State<SchedulePage> {
     required int enabled,
   }) {
     final isCyclic = form.cyclicMode;
+
+    final stEpoch = DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+          form.startHour,
+          form.startMinute,
+        ).millisecondsSinceEpoch ~/
+        1000;
+
+    final edEpoch = DateTime(
+          endDate.year,
+          endDate.month,
+          endDate.day,
+          form.endHour,
+          form.endMinute,
+        ).millisecondsSinceEpoch ~/
+        1000;
+
     return {
       'id': scheduleId,
       'sd': _dateToYYMMDD(startDate),
       'ed': _dateToYYMMDD(endDate),
       'st': form.startHour * 100 + form.startMinute,
       'et': form.endHour * 100 + form.endMinute,
+      'st_ep': stEpoch,
+      'ed_ep': edEpoch,
       'en': enabled,
       if (isCyclic) ...{
         'cy': 1,
@@ -353,8 +408,7 @@ class _SchedulePageState extends State<SchedulePage> {
             ))
         .toList();
 
-    final response =
-        await _scheduleController.createSchedule(dtos: dtos);
+    final response = await _scheduleController.createSchedule(dtos: dtos);
     if (response == null) {
       geterrorSnackBar(
           _scheduleController.message ?? 'Failed to create schedules');
@@ -365,11 +419,11 @@ class _SchedulePageState extends State<SchedulePage> {
     }
     getsuccessSnackBar(response.message ?? 'Schedules created successfully');
 
-    // Derive scheduleIds for MQTT — use scheduleId from response (single) and
-    // fall back to sequential (1-based) when server returns data: null for bulk.
-    final baseId = response.data?.scheduleId ?? 1;
-    final scheduleIds =
-        List.generate(forms.length, (i) => baseId + i);
+    // Derive scheduleIds for MQTT.
+    // Prefer server-returned scheduleId; fall back to maxExistingScheduleId+1
+    // so that adding more schedules to a motor never reuses IDs 1, 2, …
+    final baseId = _resolveBaseScheduleId(response.data?.scheduleId);
+    final scheduleIds = List.generate(forms.length, (i) => baseId + i);
 
     // 2) MQTT: publish combined T:3 payload only if startDate is within 3 days
     final id = _resolveIdentifier();

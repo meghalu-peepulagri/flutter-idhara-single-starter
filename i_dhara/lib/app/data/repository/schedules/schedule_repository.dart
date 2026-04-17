@@ -10,7 +10,7 @@ abstract class ScheduleRepository {
   Future<ScheduleListResponse?> getScheduleList(int? page, int? limit,
       {String? scheduleStatus, int? scheduleStartDate});
   Future<CreateScheduleResponse?> createschedule(List<CreateScheduleDto> dtos);
-  Future<ScheduleAcknowledgement?> scheduleAcknowledgement();
+  Future<ScheduleAcknowledgement?> scheduleAcknowledgement(List<int> ids);
   Future<ScheduleDeleteResponse?> scheduleDelete();
   Future<ScheduleUpdateResponse?> scheduleupdate(CreateScheduleDto dto);
   Future<ScheduleStopAndRestartResponse?> scheduleStopAndRestart(int cmd);

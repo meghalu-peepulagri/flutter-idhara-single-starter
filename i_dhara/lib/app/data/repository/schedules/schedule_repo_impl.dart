@@ -54,9 +54,11 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
   }
 
   @override
-  Future<ScheduleAcknowledgement?> scheduleAcknowledgement() async {
-    final response = await NetworkManager()
-        .patch('/motor-schedules/${SharedPreference.getscheduleid()}/ack');
+  Future<ScheduleAcknowledgement?> scheduleAcknowledgement(
+      List<int> ids) async {
+    final body = {'schedule_ids': ids};
+    final response =
+        await NetworkManager().patch('/motor-schedules/bulk/ack', data: body);
 
     if (response.statusCode == 200 ||
         response.statusCode == 422 ||

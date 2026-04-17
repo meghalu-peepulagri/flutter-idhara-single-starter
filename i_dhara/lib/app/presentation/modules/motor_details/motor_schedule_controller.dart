@@ -141,9 +141,9 @@ class MotorScheduleController extends GetxController {
     }
   }
 
-  Future<void> fetchacknowledgement() async {
+  Future<void> fetchacknowledgement(List<int> ids) async {
     try {
-      await _scheduleRepo.scheduleAcknowledgement();
+      await _scheduleRepo.scheduleAcknowledgement(ids);
     } catch (_) {
       // silently fail
     }
@@ -388,15 +388,36 @@ class MotorScheduleController extends GetxController {
 
       final d = ack['D'] as int? ?? 0;
       if (d != 1) {
-        debugPrint('↪️ Schedule ACK ignored — D=$d');
+        debugPrint('↪️ Schedule ACK failed — D=$d');
         return;
       }
 
-      // Sequential: ack endpoint first, then list refresh. Awaiting instead
-      // of `unawaited(Future.wait(...))` makes delayed-ACK timing deterministic
-      // and ensures exceptions surface in debug logs.
+      // Decode which scheduleIds were ACK'd from the bitmask.
+      // Each entry in schedule_ids is a scheduleId (record.scheduleId).
+      // We map them to their database object IDs (record.id) for the API call.
+      final ackedScheduleIds = (ack['schedule_ids'] as List?)
+              ?.whereType<int>()
+              .toList() ??
+          <int>[];
+
+      debugPrint('ACK scheduleIds: $ackedScheduleIds');
+
+      // Collect object IDs of matching records; fall back to all if list is empty
+      final objectIds = ackedScheduleIds.isNotEmpty
+          ? schedules
+              .where((r) =>
+                  r.scheduleId != null &&
+                  ackedScheduleIds.contains(r.scheduleId))
+              .map((r) => r.id)
+              .whereType<int>()
+              .toList()
+          : schedules.map((r) => r.id).whereType<int>().toList();
+
+      debugPrint('📤 Sending acknowledgement for objectIds: $objectIds');
+
+      // Sequential: ack endpoint first, then list refresh.
       try {
-        await fetchacknowledgement();
+        await fetchacknowledgement(objectIds);
       } catch (e) {
         debugPrint('⚠️ fetchacknowledgement failed: $e');
       }

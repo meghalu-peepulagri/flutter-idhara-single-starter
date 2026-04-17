@@ -530,12 +530,34 @@ class MqttService {
 
     final seq = sequenceNumber ?? _random.nextInt(251);
 
+    // Reconstruct full DateTime from YYMMDD + HHMM for epoch conversion
+    final stYear = 2000 + (startDateYYMMDD ~/ 10000);
+    final stMonth = (startDateYYMMDD % 10000) ~/ 100;
+    final stDay = startDateYYMMDD % 100;
+    final stHour = startTimeHHMM ~/ 100;
+    final stMin = startTimeHHMM % 100;
+
+    final edYear = 2000 + (endDateYYMMDD ~/ 10000);
+    final edMonth = (endDateYYMMDD % 10000) ~/ 100;
+    final edDay = endDateYYMMDD % 100;
+    final edHour = endTimeHHMM ~/ 100;
+    final edMin = endTimeHHMM % 100;
+
+    final stEpoch = DateTime(stYear, stMonth, stDay, stHour, stMin)
+            .millisecondsSinceEpoch ~/
+        1000;
+    final edEpoch = DateTime(edYear, edMonth, edDay, edHour, edMin)
+            .millisecondsSinceEpoch ~/
+        1000;
+
     final scheduleItem = <String, dynamic>{
       'id': scheduleId,
       'sd': startDateYYMMDD,
       'ed': endDateYYMMDD,
       'st': startTimeHHMM,
       'et': endTimeHHMM,
+      'st_ep': stEpoch,
+      'ed_ep': edEpoch,
       'en': enabled,
       if (isCyclic) ...{
         'cy': 1,
@@ -1505,27 +1527,49 @@ class MqttService {
       return;
     }
 
-    // ACK payload D is a plain integer: 1 = success, 0 = failure
-    final d = payloadData is int ? payloadData : int.tryParse('$payloadData');
+    // ACK payload D is a Map with a bitmask field "ids".
+    // The bitmask encodes which scheduleIds are acknowledged:
+    //   bit position N (0-indexed from LSB) set → scheduleId = N+1
+    //   e.g. ids=5  (binary 0101) → scheduleIds [1, 3]
+    //        ids=10 (binary 1010) → scheduleIds [2, 4]
+    // Also supports legacy plain-int D (1=success / 0=failure) for old firmware.
+    final List<int> ackedScheduleIds = [];
+    int successFlag = 0;
 
-    if (d == null) {
-      debugPrint('⚠️ Invalid schedule ACK payload: $payloadData');
-      return;
+    if (payloadData is Map<String, dynamic>) {
+      final idsRaw = payloadData['ids'];
+      final bitmask = idsRaw is int ? idsRaw : int.tryParse('$idsRaw') ?? 0;
+
+      for (int bit = 0; bit < 32; bit++) {
+        if ((bitmask >> bit) & 1 == 1) {
+          ackedScheduleIds.add(bit + 1); // scheduleId = bit position + 1
+        }
+      }
+      successFlag = ackedScheduleIds.isNotEmpty ? 1 : 0;
+
+      debugPrint(
+          '✓ Schedule ACK (bitmask) from $identifier: bitmask=$bitmask → scheduleIds=$ackedScheduleIds');
+    } else {
+      // Legacy: D is a plain int (1 = success, 0 = failure)
+      successFlag =
+          payloadData is int ? payloadData : int.tryParse('$payloadData') ?? 0;
+      debugPrint('✓ Schedule ACK (legacy) from $identifier: D=$successFlag');
     }
 
-    // ACK arrived; clear retry/error status for this identifier.
-    // Type 23 covers both create and edit — edit no longer uses type 24.
+    // Clear retry/error status and pending command
     commandStatusNotifier.value = null;
     _clearPendingCommand(scheduleCommandKey, 23);
 
+    // Emit ONE event with all decoded scheduleIds as a list.
+    // The controller uses this list to look up matching object IDs and sends
+    // only those to the acknowledgement API.
     final ackMap = <String, dynamic>{
       'topic': identifier,
-      'D': d,
+      'schedule_ids': ackedScheduleIds, // List<int> decoded from bitmask
+      'D': successFlag,
       'type': 33,
     };
     scheduleAckController.add(ackMap);
-
-    debugPrint('✓ Schedule ACK received from $identifier: D=$d');
   }
 
   /// Handle schedule action ACK (type 54) — stop/resume/delete
