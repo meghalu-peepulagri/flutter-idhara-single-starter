@@ -343,25 +343,28 @@ class MotorScheduleController extends GetxController {
     );
   }
 
-  void navigateToCreateSchedule() {
-    Get.toNamed(
+  Future<void> navigateToCreateSchedule() async {
+    await Get.toNamed(
       Routes.schedule,
       arguments: {'motor': _buildMotorFromDetails()},
-    )?.then((_) {
-      fetchSchedules();
-    });
+    );
+    fetchSchedules();
   }
 
-  void navigateToEditSchedule(Record record) {
-    Get.toNamed(
+  Future<void> navigateToEditSchedule(Record record) async {
+    await Get.toNamed(
       Routes.schedule,
       arguments: {
         'motor': _buildMotorFromDetails(),
         'record': record,
       },
-    )?.then((_) {
-      fetchSchedules();
-    });
+    );
+    fetchSchedules();
+  }
+
+  Future<void> navigateToScheduleManage() async {
+    await Get.toNamed(Routes.scheduleManage);
+    fetchSchedules();
   }
 
   String _resolveIdentifier() {
@@ -395,10 +398,8 @@ class MotorScheduleController extends GetxController {
       // Decode which scheduleIds were ACK'd from the bitmask.
       // Each entry in schedule_ids is a scheduleId (record.scheduleId).
       // We map them to their database object IDs (record.id) for the API call.
-      final ackedScheduleIds = (ack['schedule_ids'] as List?)
-              ?.whereType<int>()
-              .toList() ??
-          <int>[];
+      final ackedScheduleIds =
+          (ack['schedule_ids'] as List?)?.whereType<int>().toList() ?? <int>[];
 
       debugPrint('ACK scheduleIds: $ackedScheduleIds');
 
