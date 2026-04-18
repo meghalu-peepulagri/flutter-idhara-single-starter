@@ -668,12 +668,29 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
-  /// Publish schedule action command (T:24)
+  /// Publish schedule action command (T:24) for a single schedule.
   /// cmd: 1=stop, 2=resume, 3=delete
   /// ids = 2^(scheduleId - 1): bitmask representation of the schedule ID
   Future<void> publishScheduleActionCommand({
     required String identifier,
     required int scheduleId,
+    required int cmd,
+    int? sequenceNumber,
+  }) async {
+    await publishBulkScheduleActionCommand(
+      identifier: identifier,
+      scheduleIds: [scheduleId],
+      cmd: cmd,
+      sequenceNumber: sequenceNumber,
+    );
+  }
+
+  /// Publish schedule action command (T:24) for multiple schedules at once.
+  /// cmd: 1=stop, 2=resume, 3=delete
+  /// ids bitmask = OR of 2^(scheduleId - 1) for each scheduleId
+  Future<void> publishBulkScheduleActionCommand({
+    required String identifier,
+    required List<int> scheduleIds,
     required int cmd,
     int? sequenceNumber,
   }) async {
@@ -687,10 +704,14 @@ class MqttService {
       throw Exception('Invalid identifier for schedule action');
     }
 
+    if (scheduleIds.isEmpty) {
+      throw Exception('No schedule IDs provided');
+    }
+
     final seq = sequenceNumber ?? _random.nextInt(251);
 
-    // Convert scheduleId to bitmask: ids = 2^(scheduleId - 1)
-    final ids = 1 << (scheduleId - 1);
+    // Compute combined bitmask for all scheduleIds
+    final ids = scheduleIds.fold(0, (acc, id) => acc | (1 << (id - 1)));
 
     final payload = <String, dynamic>{
       'T': 24,
@@ -702,15 +723,24 @@ class MqttService {
     };
 
     final commandKey = 'schedule_action_$identifier';
+    // Guard: only send the initial publish if no command is already in-flight
+    // for this identifier. The existing retry loop will deliver the command.
+    // _registerPendingCommand below resets the retry timer regardless.
+    final alreadyInFlight = _pendingCommands.containsKey('${commandKey}_24');
     _lastAckTimes.remove(commandKey);
     // Clear expired status so a fresh command's ACK is accepted
     _expiredActionKeys.remove(commandKey);
 
-    await _publishScheduleCommandInternal(
-      payload,
-      identifier,
-      sequenceNumber: seq,
-    );
+    if (!alreadyInFlight) {
+      await _publishScheduleCommandInternal(
+        payload,
+        identifier,
+        sequenceNumber: seq,
+      );
+    } else {
+      debugPrint(
+          '⚠️ Schedule action already in-flight for $identifier — skipping duplicate publish');
+    }
     _registerPendingCommand(
       commandKey,
       24,
@@ -1592,8 +1622,12 @@ class MqttService {
       return;
     }
 
-    // Recover scheduleId from bitmask: ids = 2^(scheduleId-1)
-    final scheduleId = ids > 0 ? ids.bitLength : 0;
+    // Decode ALL set bits to recover all acknowledged scheduleIds
+    final List<int> ackedScheduleIds = [];
+    for (int bit = 0; bit < 32; bit++) {
+      if ((ids >> bit) & 1 == 1) ackedScheduleIds.add(bit + 1);
+    }
+    final scheduleId = ackedScheduleIds.isNotEmpty ? ackedScheduleIds.last : 0;
 
     final commandKey = 'schedule_action_$identifier';
 
@@ -1609,13 +1643,14 @@ class MqttService {
     final ackMap = <String, dynamic>{
       'topic': identifier,
       'id': scheduleId,
+      'ids': ackedScheduleIds,
       'ack': ack,
       'status': 1, // ACK received = success
     };
     scheduleActionAckController.add(ackMap);
 
     debugPrint(
-        '✓ Schedule Action ACK received from $identifier: ids=$ids, ack=$ack, scheduleId=$scheduleId');
+        '✓ Schedule Action ACK received from $identifier: ids=$ids, ack=$ack, scheduleIds=$ackedScheduleIds');
   }
 
   /// Handle heartbeat (type 40)
@@ -1807,6 +1842,9 @@ class MqttService {
   void _registerPendingCommand(String motorId, int type, dynamic data, int seq,
       {String? pcbnumber}) {
     final key = '${motorId}_$type';
+
+    // Cancel any existing timer for this key to prevent duplicate retries.
+    _pendingCommands.remove(key)?.cancelTimer();
 
     final command = PendingCommand(
       motorId: motorId,

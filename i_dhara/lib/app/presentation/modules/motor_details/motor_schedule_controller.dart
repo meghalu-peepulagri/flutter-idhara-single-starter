@@ -47,9 +47,20 @@ class MotorScheduleController extends GetxController {
   // Completers for stop/restart (cmd=1/2): resolved after ACK + post API
   final _toggleCompleters = <int, Completer<bool>>{};
 
+  // Bulk completers: key = sorted scheduleIds joined by comma
+  final _bulkDeleteCompleters = <String, Completer<bool>>{};
+  final _bulkToggleCompleters = <String, Completer<bool>>{};
+
+  // Bulk metadata: bulkKey → {scheduleId: objectId}, bulkKey → cmd
+  final _bulkObjectIds = <String, Map<int, int>>{};
+  final _bulkCmds = <String, int>{};
+
   /// Converts a DateTime to YYMMDD int format (e.g. 2026-03-17 → 260317)
   static int dateToYYMMDD(DateTime d) =>
       (d.year % 100) * 10000 + d.month * 100 + d.day;
+
+  String _bulkKey(List<int> scheduleIds) =>
+      (List<int>.from(scheduleIds)..sort()).join(',');
 
   @override
   void onInit() {
@@ -176,6 +187,8 @@ class MotorScheduleController extends GetxController {
   /// Dialog stays loading until this resolves.
   Future<bool> deleteSchedule(Record record) async {
     final scheduleId = record.scheduleId ?? 0;
+    // Guard: skip if this schedule already has an in-flight action from any path.
+    if (_pendingActions.containsKey(scheduleId)) return false;
     final completer = Completer<bool>();
     _deleteCompleters[scheduleId] = completer;
     await publishScheduleAction(record, 3);
@@ -196,6 +209,8 @@ class MotorScheduleController extends GetxController {
   /// Returns true on success, false on failure.
   Future<bool> toggleSchedule(Record record, bool enabled) async {
     final scheduleId = record.scheduleId ?? 0;
+    // Guard: skip if this schedule already has an in-flight action from any path.
+    if (_pendingActions.containsKey(scheduleId)) return false;
     final completer = Completer<bool>();
     _toggleCompleters[scheduleId] = completer;
     await publishScheduleAction(record, enabled ? 2 : 1);
@@ -206,6 +221,113 @@ class MotorScheduleController extends GetxController {
         _pendingActions.remove(scheduleId);
         geterrorSnackBar('No response from device');
         // fetchSchedules();
+        return false;
+      },
+    );
+  }
+
+  /// Publish a single MQTT T:24 for multiple schedules (combined bitmask).
+  Future<void> _publishBulkScheduleAction(List<Record> records, int cmd) async {
+    final id = _resolveIdentifier();
+    if (id.isEmpty) return;
+    final scheduleIds =
+        records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
+    if (scheduleIds.isEmpty) return;
+    for (final sid in scheduleIds) {
+      _pendingActions[sid] = cmd;
+    }
+    try {
+      await _mqttService.publishBulkScheduleActionCommand(
+        identifier: id,
+        scheduleIds: scheduleIds,
+        cmd: cmd,
+      );
+    } catch (e) {
+      for (final sid in scheduleIds) {
+        _pendingActions.remove(sid);
+      }
+      rethrow;
+    }
+  }
+
+  /// Bulk delete: send a single MQTT cmd:3 for all records, wait for ACK,
+  /// then call DELETE /motor-schedules/bulk API.
+  Future<bool> deleteBulkSchedules(List<Record> records) async {
+    final scheduleIds =
+        records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
+    if (scheduleIds.isEmpty) return false;
+    // Guard: skip if any of these schedules already has an in-flight action.
+    if (scheduleIds.any((sid) => _pendingActions.containsKey(sid))) return false;
+
+    final key = _bulkKey(scheduleIds);
+    final completer = Completer<bool>();
+    _bulkDeleteCompleters[key] = completer;
+    _bulkObjectIds[key] = {
+      for (final r in records)
+        if (r.scheduleId != null && r.id != null) r.scheduleId!: r.id!
+    };
+    _bulkCmds[key] = 3;
+
+    try {
+      await _publishBulkScheduleAction(records, 3);
+    } catch (e) {
+      _bulkDeleteCompleters.remove(key);
+      _bulkObjectIds.remove(key);
+      _bulkCmds.remove(key);
+      geterrorSnackBar('Failed to send command: $e');
+      return false;
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 12),
+      onTimeout: () {
+        _bulkDeleteCompleters.remove(key);
+        _bulkObjectIds.remove(key);
+        _bulkCmds.remove(key);
+        for (final sid in scheduleIds) _pendingActions.remove(sid);
+        geterrorSnackBar('No response from device');
+        return false;
+      },
+    );
+  }
+
+  /// Bulk stop/restart: send a single MQTT cmd:1/2 for all records, wait for
+  /// ACK, then call POST /motor-schedules/bulk/stop|restart API.
+  Future<bool> toggleBulkSchedules(List<Record> records, bool enabled) async {
+    final scheduleIds =
+        records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
+    if (scheduleIds.isEmpty) return false;
+    // Guard: skip if any of these schedules already has an in-flight action.
+    if (scheduleIds.any((sid) => _pendingActions.containsKey(sid))) return false;
+
+    final cmd = enabled ? 2 : 1;
+    final key = _bulkKey(scheduleIds);
+    final completer = Completer<bool>();
+    _bulkToggleCompleters[key] = completer;
+    _bulkObjectIds[key] = {
+      for (final r in records)
+        if (r.scheduleId != null && r.id != null) r.scheduleId!: r.id!
+    };
+    _bulkCmds[key] = cmd;
+
+    try {
+      await _publishBulkScheduleAction(records, cmd);
+    } catch (e) {
+      _bulkToggleCompleters.remove(key);
+      _bulkObjectIds.remove(key);
+      _bulkCmds.remove(key);
+      geterrorSnackBar('Failed to send command: $e');
+      return false;
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 12),
+      onTimeout: () {
+        _bulkToggleCompleters.remove(key);
+        _bulkObjectIds.remove(key);
+        _bulkCmds.remove(key);
+        for (final sid in scheduleIds) _pendingActions.remove(sid);
+        geterrorSnackBar('No response from device');
         return false;
       },
     );
@@ -246,12 +368,63 @@ class MotorScheduleController extends GetxController {
 
         final status = ack['status'] as int? ?? 0;
         scheduleId = ack['id'] as int? ?? 0;
+        final ackedIds =
+            (ack['ids'] as List?)?.whereType<int>().toList() ?? <int>[];
         final receivedAckCmd = ack['ack'] as int?;
 
+        // ── BULK PATH ──────────────────────────────────────────────────────
+        if (ackedIds.isNotEmpty) {
+          final key = _bulkKey(ackedIds);
+          final hasBulkDelete = _bulkDeleteCompleters.containsKey(key);
+          final hasBulkToggle = _bulkToggleCompleters.containsKey(key);
+
+          if (hasBulkDelete || hasBulkToggle) {
+            for (final sid in ackedIds) {
+              _pendingActions.remove(sid);
+            }
+            final objectIdMap = _bulkObjectIds.remove(key) ?? {};
+            final cmd = _bulkCmds.remove(key) ?? receivedAckCmd ?? 0;
+            final objectIds = objectIdMap.values.toList();
+
+            if (status == 1) {
+              if (cmd == 3) {
+                try {
+                  await _scheduleRepo.bulkDeleteSchedules(objectIds);
+                  getsuccessSnackBar('Schedules deleted successfully');
+                  _bulkDeleteCompleters.remove(key)?.complete(true);
+                } catch (_) {
+                  geterrorSnackBar('Failed to delete schedules');
+                  _bulkDeleteCompleters.remove(key)?.complete(false);
+                }
+              } else if (cmd == 1 || cmd == 2) {
+                try {
+                  if (cmd == 1) {
+                    await _scheduleRepo.bulkStopSchedules(objectIds);
+                  } else {
+                    await _scheduleRepo.bulkRestartSchedules(objectIds);
+                  }
+                  getsuccessSnackBar(
+                      cmd == 1 ? 'Schedules stopped' : 'Schedules restarted');
+                  _bulkToggleCompleters.remove(key)?.complete(true);
+                } catch (_) {
+                  geterrorSnackBar('Failed to update schedules');
+                  _bulkToggleCompleters.remove(key)?.complete(false);
+                }
+              }
+            } else {
+              geterrorSnackBar('Schedule action failed');
+              _bulkDeleteCompleters.remove(key)?.complete(false);
+              _bulkToggleCompleters.remove(key)?.complete(false);
+            }
+            fetchSchedules();
+            return;
+          }
+        }
+
+        // ── SINGLE PATH (existing) ─────────────────────────────────────────
         final cmd = _pendingActions[scheduleId];
         if (cmd == null) return;
 
-        // Ensure the received ack explicitly matches the pending action command
         if (receivedAckCmd != null && receivedAckCmd != cmd) {
           debugPrint('⚠️ Ignored ACK: expected $cmd but got $receivedAckCmd');
           return;
@@ -261,11 +434,11 @@ class MotorScheduleController extends GetxController {
 
         if (status == 1) {
           if (cmd == 3) {
-            // ── DELETE: set id, call delete API, complete completer ──
+            // ── DELETE: call delete API, complete completer ──
             await _deleteScheduleAfterAck(scheduleId);
             _deleteCompleters.remove(scheduleId)?.complete(true);
           } else if (cmd == 1 || cmd == 2) {
-            // ── STOP / RESTART: set id, call post API, complete completer ──
+            // ── STOP / RESTART: call post API, complete completer ──
             final record =
                 schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
             if (record != null) {
@@ -290,7 +463,7 @@ class MotorScheduleController extends GetxController {
             fetchSchedules();
           }
         } else {
-          // ── ACK FAILURE / TIMEOUT ──
+          // ── ACK FAILURE ──
           geterrorSnackBar('Schedule action failed');
           _deleteCompleters.remove(scheduleId)?.complete(false);
           _toggleCompleters.remove(scheduleId)?.complete(false);
