@@ -177,15 +177,11 @@ class ScheduleManageController extends GetxController {
     final records = selectedRecords;
     if (records.isEmpty) return false;
 
-    bool hasSuccess = false;
-    for (final record in records) {
-      final success = await motorScheduleController.deleteSchedule(record);
-      hasSuccess = hasSuccess || success;
-    }
-
+    final success = await motorScheduleController.deleteBulkSchedules(records);
+    isLoading.value = true;
     await fetchSchedules();
     clearSelection();
-    return hasSuccess;
+    return success;
   }
 
   Future<bool> toggleSelectedSchedules(
@@ -195,16 +191,12 @@ class ScheduleManageController extends GetxController {
     final records = selectedRecords;
     if (records.isEmpty) return false;
 
-    bool hasSuccess = false;
-    for (final record in records) {
-      final success =
-          await motorScheduleController.toggleSchedule(record, enabled);
-      hasSuccess = hasSuccess || success;
-    }
-
+    final success =
+        await motorScheduleController.toggleBulkSchedules(records, enabled);
+    isLoading.value = true;
     await fetchSchedules();
     clearSelection();
-    return hasSuccess;
+    return success;
   }
 
   void _syncSelection() {

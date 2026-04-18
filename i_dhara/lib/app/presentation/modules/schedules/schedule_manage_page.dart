@@ -1,5 +1,6 @@
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
@@ -47,6 +48,23 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     _motorScheduleController = Get.find<MotorScheduleController>();
   }
 
+  List<Record> _getActionFilteredSchedules(List<Record> schedules) {
+    switch (_selectedAction) {
+      case _BulkScheduleAction.stop:
+        return schedules.where((r) {
+          final s = (r.scheduleStatus ?? '').toUpperCase();
+          return s == 'RUNNING' || s == 'PENDING' || s == 'SCHEDULED';
+        }).toList();
+      case _BulkScheduleAction.restart:
+        return schedules.where((r) {
+          final s = (r.scheduleStatus ?? '').toUpperCase();
+          return s == 'STOPPED';
+        }).toList();
+      case _BulkScheduleAction.delete:
+        return schedules; // all schedules
+    }
+  }
+
   @override
   void dispose() {
     if (Get.isRegistered<ScheduleManageController>(tag: _controllerTag)) {
@@ -63,50 +81,61 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         child: Column(
           children: [
             _buildHeader(),
+            // Fixed sticky section — never scrolls
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Column(
+                children: [
+                  _buildDateSelector(),
+                  const SizedBox(height: 12),
+                  _buildActionSelector(),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+            // Only the schedule list scrolls
             Expanded(
-              child: Obx(() {
-                final isLoading = _controller.isLoading.value;
-                final isRefreshing = _controller.isRefreshing.value;
-                final schedules = _controller.schedules;
-                final isLoadingMore = _controller.isLoadingMore.value;
+              child: ClipRect(
+                child: Obx(() {
+                  final isLoading = _controller.isLoading.value;
+                  final isRefreshing = _controller.isRefreshing.value;
+                  final allSchedules = _controller.schedules;
+                  final schedules = _getActionFilteredSchedules(allSchedules);
+                  // final schedules = _controller.schedules;
+                  final isLoadingMore = _controller.isLoadingMore.value;
 
-                if (isLoading) {
-                  return const Padding(
-                    padding: EdgeInsets.only(bottom: 50, right: 50),
-                    child: Center(child: AppLottieLoading()),
-                  );
-                }
+                  if (isLoading) {
+                    return const Padding(
+                      padding: EdgeInsets.only(bottom: 50, right: 50),
+                      child: Center(child: AppLottieLoading()),
+                    );
+                  }
 
-                return Skeletonizer(
-                  enabled: isRefreshing,
-                  child: RefreshIndicator(
-                    color: const Color(0xFF004E7E),
-                    backgroundColor: Colors.white,
-                    onRefresh: () =>
-                        _controller.fetchSchedules(isRefresh: true),
-                    child: ListView(
-                      controller: _controller.scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
-                      children: [
-                        _buildDateSelector(),
-                        const SizedBox(height: 16),
-                        // _buildFilterRow(),
-                        // const SizedBox(height: 12),
-                        _buildActionSelector(),
-                        const SizedBox(height: 14),
-                        if (schedules.isEmpty)
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.42,
-                            child: _buildEmptyState(),
-                          )
-                        else
-                          ..._buildScheduleList(schedules, isLoadingMore),
-                      ],
+                  return Skeletonizer(
+                    enabled: isRefreshing,
+                    child: RefreshIndicator(
+                      color: const Color(0xFF004E7E),
+                      backgroundColor: Colors.white,
+                      onRefresh: () =>
+                          _controller.fetchSchedules(isRefresh: true),
+                      child: ListView(
+                        controller: _controller.scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                        children: [
+                          if (schedules.isEmpty)
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.42,
+                              child: _buildEmptyState(),
+                            )
+                          else
+                            ..._buildScheduleList(schedules, isLoadingMore),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ),
           ],
         ),
@@ -153,74 +182,45 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   }
 
   Widget _buildDateSelector() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFD7E3F0),
-          width: 1.2,
+    return Obx(() {
+      final fromDate = _controller.fromDate.value;
+      final toDate = _controller.toDate.value;
+
+      return Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFB8CCE4), width: 1.5),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Heading + single calendar icon
+            Row(
+              children: [
+                Text(
                   'Date Range',
                   style: GoogleFonts.dmSans(
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF005A96),
                   ),
                 ),
-              ),
-              Obx(() {
-                final fromDate = _controller.fromDate.value;
-                return InkWell(
-                  onTap: () => _openDateDialog(
-                    initialDate: fromDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(DateTime.now().year + 2),
-                    onPicked: (date) => _controller.updateDateRange(from: date),
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: const SizedBox(
-                    height: 36,
-                    width: 36,
-                    child: Icon(
-                      Icons.calendar_month_outlined,
-                      color: Color(0xFF004E7E),
-                      size: 20,
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Obx(() {
-            final fromDate = _controller.fromDate.value;
-            final toDate = _controller.toDate.value;
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+                const Spacer(),
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  size: 18,
+                  color: Color(0xFF004E7E),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Start → End date row
+            Row(
               children: [
                 Expanded(
-                  child: _buildDateCard(
-                    label: 'Start Date',
-                    value: _formatCardDate(fromDate),
-                    isActive: true,
+                  child: InkWell(
                     onTap: () => _openDateDialog(
                       initialDate: fromDate,
                       firstDate: DateTime.now(),
@@ -228,100 +228,95 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                       onPicked: (date) =>
                           _controller.updateDateRange(from: date),
                     ),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: SizedBox(
-                    height: 72,
-                    child: Center(
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Color(0xFF004E7E),
-                        size: 22,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: const Color(0xFF94A9C2), width: 1.4),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Start Date',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF004E7E),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatCardDate(fromDate),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.arrow_forward_rounded,
+                      size: 16, color: Color(0xFF004E7E)),
+                ),
                 Expanded(
-                  child: _buildDateCard(
-                    label: 'End Date',
-                    value: _formatCardDate(toDate),
-                    isActive: false,
+                  child: InkWell(
                     onTap: () => _openDateDialog(
                       initialDate: toDate,
                       firstDate: fromDate,
                       lastDate: DateTime(DateTime.now().year + 2),
                       onPicked: (date) => _controller.updateDateRange(to: date),
                     ),
-                  ),
-                ),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateCard({
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-    bool isActive = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFEBF3FE) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive ? const Color(0xFF004E7E) : const Color(0xFF94A9C2),
-            width: isActive ? 1.8 : 1.4,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isActive
-                          ? const Color(0xFF004E7E)
-                          : const Color(0xFF93A3B8),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: const Color(0xFF94A9C2), width: 1.4),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'End Date',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF93A3B8),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatCardDate(toDate),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                // Icon(
-                //   Icons.edit_calendar_outlined,
-                //   size: 13,
-                //   color: isActive
-                //       ? const Color(0xFF004E7E)
-                //       : const Color(0xFF93A3B8),
-                // ),
               ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF0F172A),
-              ),
             ),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildActionSelector() {
@@ -400,7 +395,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               }),
             ],
           ),
-          const SizedBox(height: 10),
+          // const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -425,7 +420,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          // const SizedBox(height: 10),
           Obx(() {
             final selectedCount = _controller.selectedRecordIds.length;
             return Text(
@@ -498,6 +493,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       onTap: () {
         setState(() {
           _selectedAction = value;
+          _controller.clearSelection();
         });
       },
       borderRadius: BorderRadius.circular(12),
@@ -565,12 +561,13 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         (record) => Obx(() {
           final isSelected = _controller.isSelected(record);
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 8),
             child: ScheduleCard(
               key: ValueKey(record.scheduleId ?? record.id),
               record: record,
               showEditAction: false,
               showDeleteAction: false,
+              disableToggle: true,
               leading: Checkbox(
                 value: isSelected,
                 onChanged: (_) => _controller.toggleSelection(record),
@@ -701,51 +698,29 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     });
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({String? message}) {
     return Center(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
                 color: Color(0xFFEBF3FE),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.event_busy_rounded,
-                size: 34,
-                color: const Color(0xFF004E7E).withValues(alpha: 0.85),
-              ),
+              child: SvgPicture.asset(
+                  width: 45, height: 45, 'assets/images/schedule.svg')),
+          const SizedBox(height: 4),
+          Text(
+            'No schedules',
+            style: GoogleFonts.dmSans(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF14181B),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No schedules in this range',
-              style: GoogleFonts.dmSans(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF14181B),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Try changing the dates or create a new schedule from the motor schedule tab.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                height: 1.5,
-                color: const Color(0xFF667788),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -932,13 +907,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         iconAssetPath: 'assets/images/schedule.svg',
         isactive: action == _BulkScheduleAction.restart,
         onDelete: () async {
-          final success = await _runBulkAction(action);
-          if (dialogCtx.mounted) {
-            Navigator.pop(dialogCtx);
-          }
-          if (success && mounted) {
-            setState(() {});
-          }
+          // Keep the dialog open so FFButtonWidget's loading indicator
+          // stays active and blocks double-taps (prevents duplicate MQTT sends).
+          await _runBulkAction(action);
+          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
         },
         onCancel: () => Navigator.pop(dialogCtx),
       ),

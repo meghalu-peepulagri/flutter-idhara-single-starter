@@ -125,4 +125,27 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
       return null;
     }
   }
+
+  @override
+  Future<bool> bulkStopSchedules(List<int> objectIds) async {
+    final response = await NetworkManager()
+        .post('/motor-schedules/bulk/stop', data: {'ids': objectIds}, {});
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  @override
+  Future<bool> bulkRestartSchedules(List<int> objectIds) async {
+    final response = await NetworkManager()
+        .post('/motor-schedules/bulk/restart', data: {'ids': objectIds}, {});
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  @override
+  Future<bool> bulkDeleteSchedules(List<int> objectIds) async {
+    final response = await NetworkManager()
+        .delete('/motor-schedules/bulk', data: {'ids': objectIds});
+    return response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204;
+  }
 }

@@ -14,4 +14,7 @@ abstract class ScheduleRepository {
   Future<ScheduleDeleteResponse?> scheduleDelete();
   Future<ScheduleUpdateResponse?> scheduleupdate(CreateScheduleDto dto);
   Future<ScheduleStopAndRestartResponse?> scheduleStopAndRestart(int cmd);
+  Future<bool> bulkStopSchedules(List<int> objectIds);
+  Future<bool> bulkRestartSchedules(List<int> objectIds);
+  Future<bool> bulkDeleteSchedules(List<int> objectIds);
 }

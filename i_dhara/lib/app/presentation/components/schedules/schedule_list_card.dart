@@ -12,6 +12,7 @@ class ScheduleCard extends StatelessWidget {
   final Widget? leading;
   final bool showEditAction;
   final bool showDeleteAction;
+  final bool disableToggle;
   // Called when the user taps Cancel in the confirm dialog. Used to abort
   // any in-flight MQTT retry loop for this schedule's stop/restart/delete.
   final void Function(Record record)? onCancelAction;
@@ -24,6 +25,7 @@ class ScheduleCard extends StatelessWidget {
       this.leading,
       this.showEditAction = true,
       this.showDeleteAction = true,
+      this.disableToggle = false,
       this.onCancelAction});
 
   @override
@@ -111,49 +113,57 @@ class ScheduleCard extends StatelessWidget {
               SizedBox(
                 height: 25,
                 child: GestureDetector(
-                  onTap: () {
-                    final newValue = !switchController.value;
-                    // Single-pop guard: cancel-tap and confirm-completion both
-                    // try to pop the dialog. Without this flag the second pop
-                    // fires after the dialog is already gone and tears down
-                    // the underlying schedules screen → black screen.
-                    bool dismissed = false;
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (dialogCtx) => PopupDialog(
-                        title: newValue ? 'Restart Schedule' : 'Stop Schedule',
-                        description: newValue
-                            ? 'Are you sure you want to restart this schedule?'
-                            : 'Are you sure you want to stop this schedule?',
-                        iconAssetPath: 'assets/images/schedule.svg',
-                        buttonlable: newValue ? 'Restart' : 'Stop',
-                        isactive: newValue,
-                        onDelete: () async {
-                          final success =
-                              await onToggle?.call(record, newValue) ?? false;
-                          if (dismissed) return;
-                          dismissed = true;
-                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                          if (success) switchController.value = newValue;
+                  onTap: disableToggle
+                      ? null
+                      : () {
+                          final newValue = !switchController.value;
+                          // Single-pop guard: cancel-tap and confirm-completion both
+                          // try to pop the dialog. Without this flag the second pop
+                          // fires after the dialog is already gone and tears down
+                          // the underlying schedules screen → black screen.
+                          bool dismissed = false;
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (dialogCtx) => PopupDialog(
+                              title: newValue
+                                  ? 'Restart Schedule'
+                                  : 'Stop Schedule',
+                              description: newValue
+                                  ? 'Are you sure you want to restart this schedule?'
+                                  : 'Are you sure you want to stop this schedule?',
+                              iconAssetPath: 'assets/images/schedule.svg',
+                              buttonlable: newValue ? 'Restart' : 'Stop',
+                              isactive: newValue,
+                              onDelete: () async {
+                                final success =
+                                    await onToggle?.call(record, newValue) ??
+                                        false;
+                                if (dismissed) return;
+                                dismissed = true;
+                                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                if (success) switchController.value = newValue;
+                              },
+                              onCancel: () {
+                                if (dismissed) return;
+                                dismissed = true;
+                                // Abort the in-flight MQTT retry loop before
+                                // dismissing — otherwise stop/restart payloads keep
+                                // being republished after the user backs out.
+                                onCancelAction?.call(record);
+                                Navigator.pop(dialogCtx);
+                              },
+                            ),
+                          );
                         },
-                        onCancel: () {
-                          if (dismissed) return;
-                          dismissed = true;
-                          // Abort the in-flight MQTT retry loop before
-                          // dismissing — otherwise stop/restart payloads keep
-                          // being republished after the user backs out.
-                          onCancelAction?.call(record);
-                          Navigator.pop(dialogCtx);
-                        },
-                      ),
-                    );
-                  },
                   child: AbsorbPointer(
                     child: AdvancedSwitch(
                       controller: switchController,
                       initialValue: isActive,
-                      activeColor: const Color(0xFF34C759),
+                      activeColor:
+                          disableToggle // ← dim the switch when disabled
+                              ? const Color(0xFFB0B0B0)
+                              : const Color(0xFF34C759),
                       inactiveColor: const Color(0xFFE0E0E0),
                       borderRadius: const BorderRadius.all(Radius.circular(15)),
                       width: 46,
