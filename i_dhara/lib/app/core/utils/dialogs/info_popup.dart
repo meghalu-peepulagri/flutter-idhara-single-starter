@@ -111,12 +111,6 @@ class _SimInfoDialog extends StatelessWidget {
                     value: simNumber,
                     onCopy: () {
                       Clipboard.setData(ClipboardData(text: simNumber));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('SIM number copied!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
                     },
                   ),
                   const SizedBox(height: 10),
@@ -233,8 +227,8 @@ class _InfoRowState extends State<_InfoRow> {
 
   void _handleCopy() {
     if (widget.onCopy == null) return;
-    widget.onCopy!();
     setState(() => _copied = true);
+    widget.onCopy!();
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);
     });
