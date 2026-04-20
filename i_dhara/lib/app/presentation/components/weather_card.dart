@@ -21,6 +21,30 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
 
   bool _isLoading = true;
 
+  static const double _itemWidth = 62.0;
+
+  int get _currentHourIndex {
+    if (_weatherData == null) return 0;
+    final now = DateTime.now();
+    final idx = _weatherData!.hourlyForecast
+        .indexWhere((item) => item.time.hour == now.hour);
+    return idx < 0 ? 0 : idx;
+  }
+
+  void _scrollToCurrentHour() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final viewport = _scrollController.position.viewportDimension;
+      final offset =
+          (_currentHourIndex * _itemWidth) - (viewport / 2 - _itemWidth / 2);
+      _scrollController.animateTo(
+        offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +95,10 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
     }
 
     setState(() => _isLoading = false);
+    if (_permissionStatus == LocationPermissionStatus.granted &&
+        _weatherData != null) {
+      _scrollToCurrentHour();
+    }
   }
 
   /// ENABLE GPS
@@ -357,39 +385,42 @@ class _WeatherCardState extends State<WeatherCard> with WidgetsBindingObserver {
                 final item = _weatherData!.hourlyForecast[index];
                 bool isNow = _isCurrentHour(item.time);
 
-                return Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: isNow ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _formatTime(item.time),
-                        style: GoogleFonts.dmSans(
-                          color: isNow ? Colors.blue : Colors.white,
-                          fontSize: 12,
-                          fontWeight:
-                              isNow ? FontWeight.bold : FontWeight.normal,
+                return SizedBox(
+                  width: _itemWidth,
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: isNow ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _formatTime(item.time),
+                          style: GoogleFonts.dmSans(
+                            color: isNow ? Colors.blue : Colors.white,
+                            fontSize: 12,
+                            fontWeight:
+                                isNow ? FontWeight.bold : FontWeight.normal,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      CachedNetworkImage(
-                        imageUrl: "https:${item.icon}",
-                        width: 30,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${item.tempC.round()}°C",
-                        style: GoogleFonts.dmSans(
-                          color: isNow ? Colors.blue : Colors.white,
-                          fontSize: 12,
+                        const SizedBox(height: 4),
+                        CachedNetworkImage(
+                          imageUrl: "https:${item.icon}",
+                          width: 30,
                         ),
-                      )
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          "${item.tempC.round()}°C",
+                          style: GoogleFonts.dmSans(
+                            color: isNow ? Colors.blue : Colors.white,
+                            fontSize: 12,
+                          ),
+                        )
+                      ],
+                    ),
                   ),
                 );
               },

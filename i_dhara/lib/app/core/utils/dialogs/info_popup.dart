@@ -8,6 +8,8 @@ void showSimInfoPopup({
   required BuildContext context,
   required String simNumber,
   required String expiryDate,
+  String? starterNumber,
+  String? pcbNumber,
 }) {
   showGeneralDialog(
     context: context,
@@ -28,6 +30,8 @@ void showSimInfoPopup({
           child: _SimInfoDialog(
             simNumber: simNumber,
             expiryDate: expiryDate,
+            starterNumber: starterNumber,
+            pcbNumber: pcbNumber,
           ),
         ),
       );
@@ -38,10 +42,14 @@ void showSimInfoPopup({
 class _SimInfoDialog extends StatelessWidget {
   final String simNumber;
   final String expiryDate;
+  final String? starterNumber;
+  final String? pcbNumber;
 
   const _SimInfoDialog({
     required this.simNumber,
     required this.expiryDate,
+    this.starterNumber,
+    this.pcbNumber,
   });
 
   @override
@@ -120,6 +128,30 @@ class _SimInfoDialog extends StatelessWidget {
                     value: expiryDate,
                     accentColor: expiryColor,
                   ),
+                  if (starterNumber != null && starterNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _InfoRow(
+                      icon: Icons.confirmation_number_outlined,
+                      label: 'Starter Number',
+                      value: starterNumber!,
+                      accentColor: const Color(0xFF6C63FF),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: starterNumber!));
+                      },
+                    ),
+                  ],
+                  if (pcbNumber != null && pcbNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _InfoRow(
+                      icon: Icons.developer_board_outlined,
+                      label: 'PCB Number',
+                      value: pcbNumber!,
+                      accentColor: const Color(0xFF0288D1),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: pcbNumber!));
+                      },
+                    ),
+                  ],
 
                   const SizedBox(height: 20),
 

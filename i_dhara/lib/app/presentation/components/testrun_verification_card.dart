@@ -39,7 +39,8 @@ class ConfirmTestRunScreen extends StatefulWidget {
   State<ConfirmTestRunScreen> createState() => _ConfirmTestRunScreenState();
 }
 
-class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
+class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
+    with WidgetsBindingObserver {
   // --- Connectivity state ---
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isOffline = false;
@@ -73,6 +74,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   // --- Phase 2: Measuring state ---
   static const int _totalSeconds = 60;
   int _remainingSeconds = _totalSeconds;
+  DateTime? _testStartTime;
   Timer? _timer;
   final List<double> _flcData = [];
   final ValueNotifier<double> _avgCurrent = ValueNotifier(0);
@@ -161,6 +163,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initConnectivity();
     // Delay listener registration so loading icons are always shown for at
     // least 1 second each time the dialog opens, even when MQTT is already
@@ -341,7 +344,23 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _phase == _TestRunPhase.measuring &&
+        _testStartTime != null) {
+      final elapsed = DateTime.now().difference(_testStartTime!).inSeconds;
+      if (elapsed >= _totalSeconds) {
+        _timer?.cancel();
+        _completeTestRun();
+      } else {
+        setState(() => _remainingSeconds = _totalSeconds - elapsed);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
     widget.mqttService.heartbeatNotifier.removeListener(_onFirstHeartbeat);
     widget.mqttService.liveDataNotifier.removeListener(_onFirstLiveData);
@@ -410,6 +429,22 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
 
   // --- Phase transitions ---
 
+  void _completeTestRun() {
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+    final sum = _flcData.isNotEmpty ? _flcData.reduce((a, b) => a + b) : 0.0;
+    final average = _flcData.isNotEmpty ? sum / _flcData.length : 0.0;
+    _overalCurrent.value = average;
+    if (_mqttMotorId.isNotEmpty) {
+      widget.mqttService.publishMotorOFF(_mqttMotorId, 1, data: 0, type: 1);
+    }
+    if (mounted) {
+      setState(() {
+        _remainingSeconds = 0;
+        _phase = _TestRunPhase.completed;
+      });
+    }
+  }
+
   void _startMeasuring() {
     _preCheckTimeoutTimer?.cancel();
     _avgCurrent.value = 0;
@@ -426,6 +461,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
     _mqttMotorId = identifier.isNotEmpty ? '$identifier-$groupId' : '';
     final mqttMotorId = _mqttMotorId;
 
+    _testStartTime = DateTime.now();
     setState(() {
       _phase = _TestRunPhase.measuring;
       _remainingSeconds = _totalSeconds;
@@ -440,27 +476,22 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen> {
           .publishTestRunCommand(mqttMotorId, 1, data: 2, type: 1);
     }
 
+    // Use wall-clock elapsed time so the countdown stays accurate even when
+    // the OS throttles or pauses Dart timers while the app is in the background.
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
+      final elapsed = DateTime.now().difference(_testStartTime!).inSeconds;
+      final remaining = (_totalSeconds - elapsed).clamp(0, _totalSeconds);
 
-        if (mqttMotorId.isNotEmpty && _remainingSeconds % 10 == 0) {
-          widget.mqttService
-              .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
-        }
+      if (mqttMotorId.isNotEmpty && elapsed > 0 && elapsed % 10 == 0) {
+        widget.mqttService
+            .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+      }
+
+      if (remaining > 0) {
+        if (mounted) setState(() => _remainingSeconds = remaining);
       } else {
         timer.cancel();
-        widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
-        final sum =
-            _flcData.isNotEmpty ? _flcData.reduce((a, b) => a + b) : 0.0;
-        final average = _flcData.isNotEmpty ? sum / _flcData.length : 0.0;
-        _overalCurrent.value = average;
-        widget.mqttService.publishMotorOFF(mqttMotorId, 1, data: 0, type: 1);
-        setState(() {
-          _phase = _TestRunPhase.completed;
-        });
+        _completeTestRun();
       }
     });
   }

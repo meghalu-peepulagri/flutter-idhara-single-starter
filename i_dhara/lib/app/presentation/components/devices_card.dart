@@ -71,6 +71,8 @@ class DevicesCard extends StatelessWidget {
               context: context,
               simNumber: device.deviceMobileNumber ?? 'N/A',
               expiryDate: device.simRechargeExpire ?? "N/A",
+              starterNumber: device.starterNumber,
+              pcbNumber: device.pcbNumber,
             );
           },
           hasMotor: hasMotor,
@@ -235,29 +237,56 @@ class DevicesCard extends StatelessWidget {
     final inputPowerVerified = ValueNotifier<bool>(false);
     final avgflc = ValueNotifier<double>(0.0);
 
-    // Publish verification command (type 5)
-
     final deviceallow = motorModelMotor.starter!.deviceAllocation.toString();
     final pcb = motorModelMotor.starter?.pcbNumber.toString();
     final mac = motorModelMotor.starter?.macAddress.toString();
 
+    String identifier = '';
     try {
-      final identifier = getMotorIdentifier(
+      identifier = getMotorIdentifier(
           deviceallow.toString(), pcb.toString(), mac.toString());
-      final map = {identifier: motorModelMotor};
-      mqttService.updateMotors(map);
-      if (identifier.isNotEmpty) {
-        final id = _getMotorId();
+      mqttService.updateMotors({identifier: motorModelMotor});
+    } catch (_) {}
 
-        await mqttService.publishTestRunCommand(id, 1, data: 1, type: 5);
-      }
-    } catch (e) {
-      // ignore
+    final motorId = identifier.isNotEmpty ? _getMotorId() : '';
+    bool commandSent = false;
+
+    Future<void> sendTestRunCommand() async {
+      if (commandSent || motorId.isEmpty) return;
+      try {
+        await mqttService.publishTestRunCommand(motorId, 1, data: 1, type: 5);
+        commandSent = true;
+      } catch (_) {}
     }
 
-    if (!ctx.mounted) return;
+    // Publish immediately if MQTT is connected; otherwise register a one-shot
+    // listener that fires the command as soon as the connection is restored.
+    // This prevents the 3-4 min delay caused by silently dropping the command
+    // when MQTT is still reconnecting after an app restart.
+    VoidCallback? reconnectListener;
+    if (mqttService.isConnected) {
+      await sendTestRunCommand();
+    } else {
+      late final VoidCallback listener;
+      listener = () {
+        if (mqttService.isConnected && !commandSent) {
+          mqttService.dataUpdateNotifier.removeListener(listener);
+          reconnectListener = null;
+          sendTestRunCommand();
+        }
+      };
+      reconnectListener = listener;
+      mqttService.dataUpdateNotifier.addListener(listener);
+    }
 
-    showDialog(
+    if (!ctx.mounted) {
+      if (reconnectListener != null) {
+        mqttService.dataUpdateNotifier.removeListener(reconnectListener!);
+      }
+      return;
+    }
+
+    await showDialog<void>(
       context: ctx,
       barrierDismissible: false,
       builder: (context) => ValueListenableBuilder(
@@ -275,6 +304,13 @@ class DevicesCard extends StatelessWidget {
             );
           }),
     );
+
+    // Clean up the reconnect listener when the dialog closes, so a stale
+    // publish is never sent after the user has already dismissed the dialog.
+    if (reconnectListener != null) {
+      mqttService.dataUpdateNotifier.removeListener(reconnectListener!);
+      reconnectListener = null;
+    }
   }
 
   MotorData? _getDeviceMotorData() {
