@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
-import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
 
 class MotorControlsRow extends StatelessWidget {
   final Motor motor;
@@ -16,6 +15,7 @@ class MotorControlsRow extends StatelessWidget {
   final bool isSwitchDisabled;
   final bool isModeDisabled;
   final VoidCallback? onNavigateToDetails;
+  final VoidCallback? onScheduleTap;
 
   const MotorControlsRow({
     super.key,
@@ -28,6 +28,7 @@ class MotorControlsRow extends StatelessWidget {
     required this.isSwitchDisabled,
     required this.isModeDisabled,
     this.onNavigateToDetails,
+    this.onScheduleTap,
   });
 
   @override
@@ -80,7 +81,11 @@ class MotorControlsRow extends StatelessWidget {
               ],
             ),
           ),
-          const Expanded(child: SizedBox(height: 25)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatusInfo(),
+          ),
+          const SizedBox(width: 12),
           ValueListenableBuilder(
             valueListenable: modeController,
             builder: (context, modeIndex, _) {
@@ -88,14 +93,8 @@ class MotorControlsRow extends StatelessWidget {
                 valueListenable: switchController,
                 builder: (context, isOn, child) {
                   return GestureDetector(
-                    onTap: !isSwitchDisabled
-                        ? () {
-                            MotorCardDialogs.showSwitchCommandDialog(
-                                context, motor, !isOn, (newValue) {
-                              onToggleSwitch(newValue);
-                            });
-                          }
-                        : null,
+                    onTap:
+                        !isSwitchDisabled ? () => onToggleSwitch(!isOn) : null,
                     behavior: HitTestBehavior.opaque,
                     child: AbsorbPointer(
                       absorbing: true,
@@ -140,5 +139,106 @@ class MotorControlsRow extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildStatusInfo() {
+    // Priority 1: Fault description
+    final starterParams = motor.starter?.starterParameters;
+    final hasFault = starterParams != null &&
+        starterParams.isNotEmpty &&
+        (starterParams.first.fault ?? 0) != 0 &&
+        starterParams.first.faultCleared != true;
+
+    if (hasFault) {
+      final faultDesc =
+          starterParams.first.faultDescription ?? 'Fault detected';
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: Color(0xFFDB3B2A), size: 14),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              faultDesc,
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFFDB3B2A),
+                height: 1.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Priority 2: Runtime / last activity
+    final runtime = motor.runtime;
+    if (runtime != null &&
+        runtime.lastState != null &&
+        runtime.stateDuration != null) {
+      final isOn = runtime.lastState?.toUpperCase() == 'ON';
+      final stateLabel = isOn ? 'ON' : 'OFF';
+      final duration = _formatDuration(runtime.stateDuration!);
+
+      return Padding(
+        padding: const EdgeInsets.only(right: 6.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              'Last activity: $stateLabel',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+                height: 1.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              'since $duration',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+                height: 1.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Nothing to show
+    return const SizedBox.shrink();
+  }
+
+  /// Parses duration like "1583 h 45 m 43 sec" and returns "1583h 45m" (no seconds)
+  String _formatDuration(String raw) {
+    final hourMatch = RegExp(r'(\d+)\s*h').firstMatch(raw);
+    final minMatch = RegExp(r'(\d+)\s*m(?!a)').firstMatch(raw);
+
+    final hours = hourMatch?.group(1);
+    final minutes = minMatch?.group(1);
+
+    if (hours != null && minutes != null) {
+      return '${hours}h ${minutes}m';
+    } else if (hours != null) {
+      return '${hours}h';
+    } else if (minutes != null) {
+      return '${minutes}m';
+    }
+    return raw.replaceAll(RegExp(r'\d+\s*sec.*'), '').trim();
   }
 }

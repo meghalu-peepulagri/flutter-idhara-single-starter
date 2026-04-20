@@ -81,6 +81,7 @@ class DevicesPage extends StatelessWidget {
             ),
           ),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
+          endDrawerEnableOpenDragGesture: false,
           body: Stack(children: [
             SafeArea(
               top: true,

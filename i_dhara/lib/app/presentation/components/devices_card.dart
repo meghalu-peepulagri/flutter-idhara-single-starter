@@ -446,7 +446,8 @@ class DevicesCard extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           SharedPreference.setStarterId(device.id ?? 0);
-                          Get.offNamed(Routes.usersettings);
+                          Get.offNamed(Routes.usersettings,
+                              arguments: {'from': Routes.devices});
                         },
                         child: const Icon(
                           Icons.settings_outlined,

@@ -46,13 +46,11 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     final highMax = controller.data.value?.olfMax?.toDouble() ?? 100.0;
 
     // DRF (low thumb): if value > 100, display at 100.
-    final mappedLow = widget.initialLowCurrent > 100
-        ? 100.0
-        : widget.initialLowCurrent;
+    final mappedLow =
+        widget.initialLowCurrent > 100 ? 100.0 : widget.initialLowCurrent;
     // OLF (high thumb): if value < 100, display at 101.
-    final mappedHigh = widget.initialHighCurrent < 100
-        ? 101.0
-        : widget.initialHighCurrent;
+    final mappedHigh =
+        widget.initialHighCurrent < 100 ? 101.0 : widget.initialHighCurrent;
 
     lowCurrentValue = mappedLow.clamp(lowMin, lowMax);
     highCurrentValue = mappedHigh.clamp(highMin, highMax);
@@ -98,10 +96,10 @@ class SettingsCurrentCardState extends State<SettingsCurrentCard> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         SettingsDualSlider(
           key: _sliderKey,
-          heading: 'Current Faults',
+          heading: 'Current Protection',
           leadingSvg: 'assets/images/Current.svg',
           // leadingSvgBgColor: const Color(0xFFFFF3E0),
           // leadingSvgColor: const Color(0xFFFF6F00),

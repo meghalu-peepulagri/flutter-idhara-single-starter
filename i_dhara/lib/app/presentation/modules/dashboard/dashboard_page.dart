@@ -104,6 +104,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
           key: scaffoldKey,
           backgroundColor: const Color(0xFFEBF3FE),
           endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
+          endDrawerEnableOpenDragGesture: false,
           body: AnnotatedRegion<SystemUiOverlayStyle>(
             value: const SystemUiOverlayStyle(
               statusBarColor: Colors.transparent,

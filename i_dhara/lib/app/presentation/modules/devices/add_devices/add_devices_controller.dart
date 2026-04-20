@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart' hide Location;
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
@@ -137,7 +136,7 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
         if (Get.isRegistered<DashboardController>()) {
           Get.delete<DashboardController>();
         }
-        Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
+        Get.offAllNamed(Routes.devices, arguments: {'refresh': true});
       }
     } catch (e) {}
   }
@@ -160,22 +159,17 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     final response = await DevicesRepositoryImpl().deviceassign(dto);
 
     if (response != null && response.errors == null) {
+      if (response.data?.starterId != null) {
+        SharedPreference.setStarterId(response.data?.starterId ?? 0);
+      }
       if (imageFile != null) {
-        if (response.data?.starterId != null) {
-          SharedPreference.setStarterId(response.data?.starterId ?? 0);
-          await fetchupload();
-        } else {
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (Get.isRegistered<DashboardController>()) {
-            Get.delete<DashboardController>();
-          }
-          Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
-        }
+        await fetchupload();
+      } else {
         await Future.delayed(const Duration(milliseconds: 500));
         if (Get.isRegistered<DashboardController>()) {
           Get.delete<DashboardController>();
         }
-        Get.offAllNamed(Routes.dashboard, arguments: {'refresh': true});
+        Get.offAllNamed(Routes.devices, arguments: {'refresh': true});
       }
     } else if (response?.errors != null) {
       errorInstance.clear();
@@ -205,19 +199,48 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
     }
 
     try {
-      Position position = await Geolocator.getCurrentPosition();
+      // iOS needs explicit LocationSettings with a timeout,
+      // otherwise getCurrentPosition() hangs silently on iOS.
+      final LocationSettings locationSettings = Platform.isIOS
+          ? AppleSettings(
+              accuracy: LocationAccuracy.high,
+              activityType: ActivityType.other,
+              timeLimit: const Duration(seconds: 15),
+              pauseLocationUpdatesAutomatically: false,
+              allowBackgroundLocationUpdates: false,
+            )
+          : AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: const Duration(seconds: 15),
+            );
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
+      );
       List<Placemark> placemarks =
           await placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        String address =
-            "${place.locality ?? ''}, ${place.subAdministrativeArea ?? ''}"
-                .replaceAll(RegExp(r'^, |^, |, $'), '')
-                .trim();
-        if (address.isEmpty) {
-          address = place.name ?? 'New Location';
+
+        // Build address using only one field to avoid duplicates and commas.
+        // API only allows characters (no commas or special chars).
+        String locality = place.locality ?? '';
+        String subArea = place.subAdministrativeArea ?? '';
+
+        String address;
+        if (locality.isNotEmpty) {
+          address = locality;
+        } else if (subArea.isNotEmpty) {
+          address = subArea;
+        } else if ((place.name ?? '').isNotEmpty) {
+          address = place.name!;
+        } else {
+          address = 'New Location';
         }
+
+        // Remove any characters not allowed by the API (commas, digits, specials)
+        address = address.replaceAll(RegExp(r'[^a-zA-Z\s]'), '').trim();
 
         // Check if location already exists
         final existingResponse = await LocationRepoImpl().getLocations();
@@ -248,8 +271,8 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
           }
         }
       }
-    } on MissingPluginException catch (e) {
     } catch (e) {
+      print(e);
     }
     return null;
   }

@@ -49,3 +49,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# APNs key files - keep private
+*.p8
+AuthKey_*.p8
+
+# Internal project planning — not for version control
+PROJECT_IMPROVEMENT_PLAN.md
+
+# APNs key files - keep private
+*.p8
+AuthKey_*.p8

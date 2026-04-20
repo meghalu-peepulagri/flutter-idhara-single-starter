@@ -112,7 +112,7 @@ class Motor {
   bool? testrunSignal;
   bool? testrunPower;
   bool? testrunVoltageRange;
-
+  Runtimee? runtime;
 
   Motor({
     this.id,
@@ -127,6 +127,7 @@ class Motor {
     this.testrunSignal,
     this.testrunPower,
     this.testrunVoltageRange,
+    this.runtime,
   });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
@@ -142,6 +143,8 @@ class Motor {
         testrunStatus: json["test_run_status"],
         starter:
             json["starter"] == null ? null : Starter.fromJson(json["starter"]),
+        runtime:
+            json["run_time"] == null ? null : Runtimee.fromJson(json["run_time"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -153,7 +156,8 @@ class Motor {
         "alias_name": aliasName,
         "location": location?.toJson(),
         "starter": starter?.toJson(),
-        "test_run_status": testrunStatus
+        "test_run_status": testrunStatus,
+        "run_time": runtime?.toJson(),
       };
 }
 
@@ -174,6 +178,26 @@ class Location {
   Map<String, dynamic> toJson() => {
         "id": id,
         "name": name,
+      };
+}
+
+class Runtimee {
+  String? lastState;
+  String? stateDuration;
+
+  Runtimee({
+    this.lastState,
+    this.stateDuration,
+  });
+
+  factory Runtimee.fromJson(Map<String, dynamic> json) => Runtimee(
+        lastState: json["last_state"],
+        stateDuration: json["state_duration"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "last_state": lastState,
+        "state_duration": stateDuration,
       };
 }
 
@@ -241,6 +265,7 @@ class StarterParameter {
   int? id;
   DateTime? timeStamp;
   int? fault;
+  bool? faultCleared;
   String? faultDescription;
   num? lineVoltageR;
   num? lineVoltageY;
@@ -253,6 +278,7 @@ class StarterParameter {
     this.id,
     this.timeStamp,
     this.fault,
+    this.faultCleared,
     this.faultDescription,
     this.lineVoltageR,
     this.lineVoltageY,
@@ -269,6 +295,7 @@ class StarterParameter {
             ? null
             : DateTime.parse(json["time_stamp"]),
         fault: json["fault"],
+        faultCleared: json["fault_cleared"],
         faultDescription: json["fault_description"],
         lineVoltageR: json["line_voltage_r"],
         lineVoltageY: json["line_voltage_y"]?.toDouble(),
@@ -282,6 +309,7 @@ class StarterParameter {
         "id": id,
         "time_stamp": timeStamp?.toIso8601String(),
         "fault": fault,
+        "fault_cleared": faultCleared,
         "fault_description": faultDescription,
         "line_voltage_r": lineVoltageR,
         "line_voltage_y": lineVoltageY,

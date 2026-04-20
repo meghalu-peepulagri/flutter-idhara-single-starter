@@ -201,6 +201,21 @@ class SidebarWidget extends StatelessWidget {
                         // count: SharedPreference.getstarterStats(),
                         context: context),
                     _buildMenuItem(
+                        route: Routes.settingsDevices,
+                        label: 'Settings',
+                        icon: Icon(
+                          Icons.settings_outlined,
+                          color: _controller.selectedRoute.value ==
+                                  Routes.settingsDevices
+                              ? Colors.white
+                              : Colors.black.withOpacity(0.7),
+                          size: 22,
+                        ),
+                        onTap: () {
+                          Get.offNamed(Routes.settingsDevices);
+                        },
+                        context: context),
+                    _buildMenuItem(
                         route: Routes.userprofile,
                         label: 'Profile',
                         icon: Icon(
@@ -212,7 +227,6 @@ class SidebarWidget extends StatelessWidget {
                           size: 24,
                         ),
                         onTap: () {
-                          // SharedPreference.setlocationdropdownid(0);
                           Get.offNamed(Routes.userprofile);
                         },
                         count: null,

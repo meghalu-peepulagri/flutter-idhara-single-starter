@@ -134,9 +134,8 @@ class GradientTrackShape extends SfTrackShape {
     if (showBoundaryLine) {
       final totalWidth = trackRect.width;
       final valueRange = maxLimit - minLimit;
-      final boundaryValue = highMaxLimit > 100
-          ? 100.0
-          : (lowMaxLimit + highMinLimit) / 2;
+      final boundaryValue =
+          highMaxLimit > 100 ? 100.0 : (lowMaxLimit + highMinLimit) / 2;
       final boundaryPosition =
           (boundaryValue - minLimit) / valueRange * totalWidth;
       final boundaryX = trackRect.left + boundaryPosition;
@@ -339,18 +338,21 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Icon, Title, and Values
+          // Header: icon + heading (left, wraps if needed) | value columns (right, fixed)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  if (widget.leadingSvg != null)
-                    Container(
-                      child: SvgPicture.asset(
+              // Left — heading shrinks/wraps so right side always has room
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (widget.leadingSvg != null)
+                      SvgPicture.asset(
                         widget.leadingSvg!,
-                        width: 24,
-                        height: 24,
+                        width: 22,
+                        height: 22,
                         colorFilter: widget.leadingSvgColor != null
                             ? ColorFilter.mode(
                                 widget.leadingSvgColor!,
@@ -358,33 +360,40 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                               )
                             : null,
                       ),
+                    if (widget.leadingSvg != null) const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        widget.heading,
+                        maxLines: 2,
+                        overflow: TextOverflow.clip,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0A0A0A),
+                        ),
+                      ),
                     ),
-                  if (widget.leadingSvg != null) const SizedBox(width: 12),
-                  Text(
-                    widget.heading,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0A0A0A),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
+              // Right — value columns at intrinsic width, never squeezed
               Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                spacing: 16,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Low Label and Value
+                  // Low value column
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'LOW ${widget.unit.contains("A") ? "AMPS" : "VOLTS"}',
+                        widget.unit.contains("A")
+                            ? 'DRY RUN LIMIT'
+                            : 'LOW VOLTAGE',
                         style: GoogleFonts.dmSans(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF999999),
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.3,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -393,24 +402,27 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                             ? '${calculatedLow.toStringAsFixed(2)}${widget.unit}'
                             : '${(isDragging ? tempLowValue : lowValue).toInt()}${widget.unit}',
                         style: GoogleFonts.dmSans(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFFE5B800),
                         ),
                       ),
                     ],
                   ),
-                  // High Label and Value
+                  const SizedBox(width: 12),
+                  // High value column
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'HIGH ${widget.unit.contains("A") ? "AMPS" : "VOLTS"}',
+                        widget.unit.contains("A")
+                            ? 'OVERLOAD LIMIT'
+                            : 'HIGH VOLTAGE',
                         style: GoogleFonts.dmSans(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF999999),
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.3,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -419,7 +431,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                             ? '${calculatedHigh.toStringAsFixed(2)}${widget.unit}'
                             : '${(isDragging ? tempHighValue : highValue).toInt()}${widget.unit}',
                         style: GoogleFonts.dmSans(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFFFFA2A2),
                         ),
@@ -427,10 +439,10 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                     ],
                   ),
                 ],
-              )
+              ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 12),
 
           // Custom Slider with Tooltip Badges
           Stack(
@@ -472,8 +484,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       borderColor: const Color(0xFFE5B800),
                       shadowColor:
                           const Color(0XFFFFD230).withValues(alpha: 0.2),
-                      isOverlapping:
-                          (lowValue - highValue).abs() < 1,
+                      isOverlapping: (lowValue - highValue).abs() < 1,
                       offsetLeft: true,
                     ),
                     endThumbIcon: _buildThumbIcon(
@@ -482,8 +493,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       borderColor: const Color(0xFFFFA2A2),
                       shadowColor:
                           const Color(0XFFFFA2A2).withValues(alpha: 0.4),
-                      isOverlapping:
-                          (lowValue - highValue).abs() < 1,
+                      isOverlapping: (lowValue - highValue).abs() < 1,
                       offsetLeft: false,
                     ),
                     onChanged: (SfRangeValues newValues) {
@@ -493,7 +503,8 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       double start = (newValues.start as double)
                           .clamp(widget.lowMinLimit, effectiveLowMax);
                       final effectiveHighMin = widget.unit.contains("A")
-                          ? 100.0.clamp(widget.highMinLimit, widget.highMaxLimit)
+                          ? 100.0
+                              .clamp(widget.highMinLimit, widget.highMaxLimit)
                           : widget.highMinLimit;
                       double end = (newValues.end as double)
                           .clamp(effectiveHighMin, widget.highMaxLimit);
@@ -520,7 +531,8 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                       double start = (newValues.start as double)
                           .clamp(widget.lowMinLimit, effectiveLowMax);
                       final effectiveHighMin = widget.unit.contains("A")
-                          ? 100.0.clamp(widget.highMinLimit, widget.highMaxLimit)
+                          ? 100.0
+                              .clamp(widget.highMinLimit, widget.highMaxLimit)
                           : widget.highMinLimit;
                       double end = (newValues.end as double)
                           .clamp(effectiveHighMin, widget.highMaxLimit);
@@ -539,10 +551,8 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
               // Tooltip-style badges above thumbs
               Builder(
                 builder: (context) {
-                  final currentLow =
-                      isDragging ? tempLowValue : lowValue;
-                  final currentHigh =
-                      isDragging ? tempHighValue : highValue;
+                  final currentLow = isDragging ? tempLowValue : lowValue;
+                  final currentHigh = isDragging ? tempHighValue : highValue;
                   final thumbsOverlapping =
                       (currentLow - currentHigh).abs() < 1;
                   final badgeOffset = thumbsOverlapping ? 25.0 : 0.0;
@@ -550,32 +560,32 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                   return SizedBox(
                     height: 35,
                     child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned(
-                        left: 15 +
-                            _calculatePosition(currentLow,
-                                widget.minLimit, widget.maxLimit) -
-                            badgeOffset,
-                        top: 5,
-                        child: _buildTooltipBadge(
-                          '${currentLow.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
-                          const Color(0xFFE5B800),
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          left: 15 +
+                              _calculatePosition(currentLow, widget.minLimit,
+                                  widget.maxLimit) -
+                              badgeOffset,
+                          top: 5,
+                          child: _buildTooltipBadge(
+                            '${currentLow.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
+                            const Color(0xFFE5B800),
+                          ),
                         ),
-                      ),
-                      Positioned(
-                        left: _calculatePosition(currentHigh,
-                                widget.minLimit, widget.maxLimit) -
-                            10 +
-                            badgeOffset,
-                        top: 5,
-                        child: _buildTooltipBadge(
-                          '${currentHigh.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
-                          const Color(0xFFFFA2A2),
+                        Positioned(
+                          left: _calculatePosition(currentHigh, widget.minLimit,
+                                  widget.maxLimit) -
+                              10 +
+                              badgeOffset,
+                          top: 5,
+                          child: _buildTooltipBadge(
+                            '${currentHigh.toInt()}${widget.unit.contains("A") ? "%" : widget.unit}',
+                            const Color(0xFFFFA2A2),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -667,9 +677,7 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
     required bool offsetLeft,
   }) {
     return Transform.translate(
-      offset: isOverlapping
-          ? Offset(offsetLeft ? -14 : 14, 0)
-          : Offset.zero,
+      offset: isOverlapping ? Offset(offsetLeft ? -14 : 14, 0) : Offset.zero,
       child: Container(
         width: 36,
         height: 36,

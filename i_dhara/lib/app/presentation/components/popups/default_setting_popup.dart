@@ -11,6 +11,7 @@ Future<bool?> showDeviceSettingConfirmDialog(
   String noText = "Cancel",
   required Function()? onConfirm,
   String? svgPath,
+  bool showIcon = true,
 }) {
   return showDialog<bool>(
     context: context,
@@ -74,25 +75,26 @@ Future<bool?> showDeviceSettingConfirmDialog(
             children: [
               const SizedBox(height: 8),
               // Icon with background
-              SizedBox(
-                height: iconContainerSize + 14,
-                width: iconContainerSize + 14,
-                child: Center(
-                  child: svgPath != null
-                      ? SvgPicture.asset(
-                          svgPath,
-                          width: 100,
-                          height: 100,
-                        )
-                      : const Icon(
-                          Icons.settings_backup_restore_rounded,
-                          color: Colors.black,
-                          size: 50,
-                        ),
+              if (showIcon) ...[
+                SizedBox(
+                  height: iconContainerSize + 14,
+                  width: iconContainerSize + 14,
+                  child: Center(
+                    child: svgPath != null
+                        ? SvgPicture.asset(
+                            svgPath,
+                            width: 100,
+                            height: 100,
+                          )
+                        : const Icon(
+                            Icons.settings_backup_restore_rounded,
+                            color: Colors.black,
+                            size: 50,
+                          ),
+                  ),
                 ),
-              ),
-
-              SizedBox(height: iconToTitleSpacing + 4),
+                SizedBox(height: iconToTitleSpacing + 4),
+              ],
 
               // Title
               Text(

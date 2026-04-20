@@ -1,5 +1,6 @@
 import 'package:i_dhara/app/core/config/app_config.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/models/motors/fault_clear_model.dart';
 import 'package:i_dhara/app/data/models/motors/faults_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_alerts_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
@@ -102,6 +103,17 @@ class MotorsRepositoryImpl implements MotorsRepository {
         queryParameters: params);
     if (response.statusCode == 200) {
       final res = MotorLogsResponse.fromJson(response.data);
+      return res;
+    }
+    return null;
+  }
+
+  @override
+  Future<FaultClearResponse?> clearFault() async {
+    final response = await NetworkManager().patch(
+        '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/fault-clear');
+    if (response.statusCode == 200) {
+      final res = FaultClearResponse.fromJson(response.data);
       return res;
     }
     return null;

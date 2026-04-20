@@ -13,4 +13,6 @@ class Routes {
   static const String userprofile = '/userprofile';
   static const String usersettings = '/usersettings';
   static const String testRun = '/test-run';
+  static const String schedule = '/schedule';
+  static const String settingsDevices = '/settings-devices';
 }
