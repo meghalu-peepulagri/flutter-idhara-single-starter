@@ -1,3 +1,7 @@
+# Environment variables
+.env
+.env.*
+
 # Miscellaneous
 *.class
 *.log
@@ -15,10 +19,7 @@
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -48,3 +49,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# APNs key files - keep private
+*.p8
+AuthKey_*.p8
+
+# Internal project planning — not for version control
+PROJECT_IMPROVEMENT_PLAN.md
+
+# APNs key files - keep private
+*.p8
+AuthKey_*.p8

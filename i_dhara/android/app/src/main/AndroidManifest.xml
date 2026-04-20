@@ -2,14 +2,28 @@
     package="com.mycompany.idhara"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
-
-
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.autofocus" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
-        android:label="I Dhara"
+        android:name="${applicationName}"
+        android:label="iDhara"
         tools:replace="android:label"
-        android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true">
-
+        android:icon="@mipmap/launcher_icon"
+        android:requestLegacyExternalStorage="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyDqUxrYmR3T1ZzxwkxGGL1YdBXt-SZLqyo"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

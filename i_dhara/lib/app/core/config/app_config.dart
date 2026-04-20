@@ -1,27 +1,31 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:get/get.dart' hide Response;
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class NetworkManager {
-  final _baseUrl = "https://dev-api-single-starter.up.railway.app/v1.0";
+  String baseUrl = AppEnvironment.baseApiUrl;
   final Dio _dio;
   NetworkManager() : _dio = Dio() {
-    _dio.options.baseUrl = _baseUrl;
-    _dio.interceptors.add(PrettyDioLogger());
+    _dio.options.baseUrl = baseUrl;
+    _dio.interceptors.add(PrettyDioLogger(enabled: true, requestBody: true));
     _dio.interceptors.add(InterceptorsWrapper(
         onRequest: _onRequest, onError: _onError, onResponse: _onResponse));
   }
   void _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = await SharedPreference.getAccessToken();
+    final token = SharedPreference.getAccessToken();
     options.headers["Authorization"] = "Bearer $token";
 
     handler.next(options);
   }
 
   Future<Response<T>> get<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 10}) async {
+      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.get<T>(path,
           queryParameters: queryParameters,
@@ -33,7 +37,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> post<T>(String path, Map<String, dynamic> queryParameters,
-      {dynamic data, int timeoutSeconds = 10}) async {
+      {dynamic data, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.post<T>(path,
           queryParameters: queryParameters,
@@ -57,7 +61,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> patch<T>(String path,
-      {dynamic data, int timeoutSeconds = 10}) async {
+      {dynamic data, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.patch<T>(path,
           data: data, options: _getRequestOptions(timeoutSeconds));
@@ -68,7 +72,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> delete<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 10}) async {
+      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.delete<T>(path,
           queryParameters: queryParameters,
@@ -81,9 +85,7 @@ class NetworkManager {
 
   Options _getRequestOptions(int timeoutSeconds) {
     return Options(
-      receiveTimeout: Duration(
-          milliseconds:
-              timeoutSeconds * 1000), 
+      receiveTimeout: Duration(milliseconds: timeoutSeconds * 1000),
       sendTimeout: Duration(milliseconds: timeoutSeconds * 1000),
     );
   }
@@ -95,14 +97,10 @@ class NetworkManager {
           geterrorSnackBar(errorsMap['timeout_error']);
           break;
         case DioExceptionType.connectionTimeout:
-
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.sendTimeout:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.badCertificate:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.badResponse:
           if (error.response != null) {
@@ -114,39 +112,49 @@ class NetworkManager {
                 return error.response;
               case 401:
                 geterrorSnackBar(errorsMap["unauthorized_error"]);
+                SharedPreference.clear();
+                FirebaseMessaging.instance.getToken().then((token) {
+                  if (token != null) SharedPreference.setFcmToken(token);
+                });
+                Get.offAllNamed(Routes.loginwithmobile);
                 return error.response;
               case 404:
                 geterrorSnackBar(responseData['message']);
                 return error.response;
+
               case 403:
-                geterrorSnackBar(errorsMap["bad_request_error"]);
+                geterrorSnackBar(responseData['message']);
                 return error.response;
               case 409:
                 geterrorSnackBar(responseData['message']);
                 return error.response;
               case 422:
                 return error.response;
+              case 429:
+                geterrorSnackBar(responseData['message']);
+                return error.response;
               case 500:
                 geterrorSnackBar("Internal Server Error");
                 return error.response;
+              case 502:
+                geterrorSnackBar("Bad Gateway");
+                return error.response;
               case 555:
                 geterrorSnackBar(errorsMap["internal_server_error"]);
+                return error.response;
+              default:
+                geterrorSnackBar("Internal Server error");
                 return error.response;
             }
           } else {
             throw NetworkException("No response from server.");
           }
 
-          // TODO: Handle this case.
-          throw UnimplementedError();
         case DioExceptionType.cancel:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.connectionError:
-          // TODO: Handle this case.
           throw UnimplementedError();
         case DioExceptionType.unknown:
-          // TODO: Handle this case.
           throw UnimplementedError();
       }
     }

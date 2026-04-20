@@ -1,15 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/repository/auth/auth_repository_impl.dart';
+import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:sms_autofill/sms_autofill.dart';
-import 'package:uuid/uuid.dart';
+
 import '../../../routes/app_routes.dart';
 
 // Controller for OTP screen
@@ -21,25 +18,12 @@ class OtpController extends GetxController with CodeAutoFill {
   final isLoading = false.obs;
   final maskedPhoneNumber = ''.obs;
   final error = false.obs;
-  final isValidation = false.obs;
-  final message = ''.obs;
-  final user = ''.obs;
   final errorInstance = ''.obs;
-  final clientId = Rxn<String>();
   final codeValue = ''.obs;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void onInit() {
     super.onInit();
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      bool isConnected = results.any((result) =>
-          result == ConnectivityResult.wifi ||
-          result == ConnectivityResult.mobile ||
-          result == ConnectivityResult.ethernet);
-    });
     _startTimer();
     String phone = SharedPreference.getPhone();
     if (phone.length >= 4) {
@@ -50,7 +34,6 @@ class OtpController extends GetxController with CodeAutoFill {
     }
     SmsAutoFill().unregisterListener();
     _listenSmsCode();
-    // pinCodeController.addListener(verifying2);
   }
 
   void _startTimer() {
@@ -66,84 +49,63 @@ class OtpController extends GetxController with CodeAutoFill {
     });
   }
 
-  Future<bool> _checkConnectivity() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      return false;
-    }
-    try {
-      final result = await InternetAddress.lookup('google.com')
-          .timeout(Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    } on TimeoutException catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> verifying2(BuildContext context) async {
-    if (pinCodeController.text.trim().length == 4) {
-      isLoading.value = true;
-      await verifying(context);
-      isLoading.value = false;
-      if (message.value.isNotEmpty && error.value) {
-        errorSnackBar(Get.context!, message.value);
-      }
-    }
-  }
-
-  // Future<void> verifying(BuildContext context) async {
-  //   try {
-  //     isLoading.value = true;
-  //     errorInstance.value = '';
-  //     FocusScope.of(context).unfocus();
-  //     await fetchOtp(
-  //         phone: SharedPreference.getPhone(),
-  //         otp: pinCodeController.text.trim());
-  //     isLoading.value = false;
-  //     if (!error.value && message.value.isNotEmpty) {
-  //       Get.toNamed(Routes.dashboard);
-  //       // ToastService.showsuccessToast(message.value);
-  //       await SmsAutoFill().unregisterListener();
-  //       pinCodeController.text = '';
-  //     } else if (error.value &&
-  //         message.value.isNotEmpty &&
-  //         errorInstance.value.isEmpty) {
-  //       geterrorSnackBar(message.value);
-  //     }
-  //   } catch (e) {}
-  // }
-   Future<void> verifying(BuildContext context) async {
+  Future<void> verifying(BuildContext context) async {
     try {
       isLoading.value = true;
+      error.value = false;
       errorInstance.value = '';
       FocusScope.of(context).unfocus();
       await fetchOtp(
           phone: SharedPreference.getPhone(),
           otp: pinCodeController.text.trim());
+    } catch (e) {
+      debugPrint('Error during verification: $e');
+    } finally {
       isLoading.value = false;
-    } catch (e) {}
+    }
   }
 
-   Future<void> fetchOtp({String phone = '', required String otp}) async {
-
+  Future<void> fetchOtp({String phone = '', required String otp}) async {
     final response = await AuthRepositoryImpl().verifyOtp(phone, otp);
 
-    if (response?.data != null && response?.errors == null){
-      Get.offNamed(Routes.dashboard);
-        SharedPreference.setAccessToken(
+    if (response?.data != null && response?.errors == null) {
+      error.value = false;
+      SharedPreference.setAccessToken(
           response?.data?.accessToken.toString() ?? "");
-        final userId = response!.data!.userDetails!.id;
-        SharedPreference.setUserId(userId!);
+      final userId = response!.data!.userDetails!.id;
+      SharedPreference.setUserId(userId!);
+      // Establish the global MQTT connection right after login so it is live
+      // before Dashboard finishes loading motors. Non-blocking.
+      MqttService().initializeMqttClient().then((_) {
+        debugPrint('OTP: Global MQTT connection established after login');
+      }).catchError((e) {
+        debugPrint('OTP: MQTT init after login failed: $e');
+      });
+      Get.offNamed(Routes.dashboard);
       await SmsAutoFill().unregisterListener();
-      // ToastService.showsuccessToast(response?.message?.toString() ?? "");
       pinCodeController.text = '';
-   
-    }else {
+    } else {
+      error.value = true;
       errorInstance.value = response?.errors?.otp.toString() ?? "";
     }
-    
+  }
+
+  Future<void> fetchResendOtp({required String phone, String sid = ''}) async {
+    errorInstance.value = '';
+    final response = await AuthRepositoryImpl().resendOtp(phone, sid);
+
+    if (response != null && response.errors == null) {
+      // Success case for resend OTP
+    } else if (response?.errors != null) {
+      errorInstance.value = response!.errors!.toJson().toString();
+    }
+  }
+
+  void resendOtp() async {
+    isTimerRunning.value = true;
+    _startTimer();
+    String id = await SmsAutoFill().getAppSignature;
+    await fetchResendOtp(phone: SharedPreference.getPhone(), sid: id);
   }
 
   Future<void> _listenSmsCode() async {
@@ -157,11 +119,9 @@ class OtpController extends GetxController with CodeAutoFill {
 
   @override
   void onClose() {
-    // pinCodeController.removeListener(verifying2);
     pinCodeController.dispose();
     SmsAutoFill().unregisterListener();
     timer.value?.cancel();
-    _connectivitySubscription?.cancel();
     super.onClose();
   }
 }

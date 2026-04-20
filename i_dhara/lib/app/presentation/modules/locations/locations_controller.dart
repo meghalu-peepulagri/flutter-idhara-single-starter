@@ -1,43 +1,132 @@
-import '../../widgets/location_card_widget.dart';
-import '../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import 'locations_page.dart' show LocationsWidget;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
+import 'package:i_dhara/app/data/models/locations/location_model.dart';
+import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 
-class LocationsModel extends FlutterFlowModel<LocationsWidget> {
-  ///  State fields for stateful widgets in this page.
+class LocationsController extends GetxController with ConnectivityMixin {
+  final LocationRepoImpl _locationRepo = LocationRepoImpl();
+  final controller1 = TextEditingController();
 
-  // Model for Location_Card component.
-  late LocationCardModel locationCardModel1;
-  // Model for Location_Card component.
-  late LocationCardModel locationCardModel2;
-  // Model for Location_Card component.
-  late LocationCardModel locationCardModel3;
-  // Model for Location_Card component.
-  late LocationCardModel locationCardModel4;
-  // Model for Location_Card component.
-  late LocationCardModel locationCardModel5;
+  var isLoading = false.obs;
+  var isRefreshing = false.obs;
+  var locationsList = <Location>[].obs;
+  var expandedLocationIds = <int>{}.obs;
+  var locationscount = 0.obs;
+
+  var page = 1.obs;
+  var limit = 10.obs;
+  var searchQuery = ''.obs;
+
+  dynamic errorInstance = {};
+  String? message = '';
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
 
   @override
-  void initState(BuildContext context) {
-    locationCardModel1 = createModel(context, () => LocationCardModel());
-    locationCardModel2 = createModel(context, () => LocationCardModel());
-    locationCardModel3 = createModel(context, () => LocationCardModel());
-    locationCardModel4 = createModel(context, () => LocationCardModel());
-    locationCardModel5 = createModel(context, () => LocationCardModel());
+  void onInit() {
+    super.onInit();
+    fetchLocations(enableRetry: true);
+    debounce<String>(
+      searchQuery,
+      (_) => fetchLocations(),
+      time: const Duration(milliseconds: 400),
+    );
+
+    controller1.addListener(() {
+      final value = controller1.text.trim();
+      if (value == searchQuery.value) return;
+      searchQuery.value = value;
+    });
   }
 
   @override
-  void dispose() {
-    locationCardModel1.dispose();
-    locationCardModel2.dispose();
-    locationCardModel3.dispose();
-    locationCardModel4.dispose();
-    locationCardModel5.dispose();
+  Future<void> onRetry() async {
+    Get.log('LocationsController: Retrying API calls after reconnection');
+    await fetchLocations();
+  }
+
+  @override
+  void onClose() {
+    controller1.dispose();
+    super.onClose();
+  }
+
+  Future<void> fetchLocations({String? search, bool enableRetry = false}) async {
+    try {
+      if (!isRefreshing.value) isLoading.value = true;
+      final response = enableRetry
+          ? await withRetry(
+              call: () => _locationRepo.getAllLocations(
+                page.value,
+                limit.value,
+                searchQuery.value.isEmpty ? null : searchQuery.value,
+              ),
+              isSuccess: (r) => r != null && r.success == true && r.data != null,
+            )
+          : await _locationRepo.getAllLocations(
+              page.value,
+              limit.value,
+              searchQuery.value.isEmpty ? null : searchQuery.value,
+            );
+
+      if (response != null &&
+          response.success == true &&
+          response.data != null) {
+        locationsList.value = response.data!.records ?? [];
+        locationscount.value = response.data!.locationsCount ?? 0;
+      }
+    } catch (e) {
+      debugPrint('Error fetching locations: $e');
+    } finally {
+      isLoading.value = false;
+      isRefreshing.value = false;
+    }
+  }
+
+  Future<void> renamelocation(
+      {required int locationId, required String name}) async {
+    errorInstance = {};
+    final response = await LocationRepoImpl().renameLocation(locationId, name);
+    if (response != null && response.errors == null) {
+      await fetchLocations();
+      Get.back();
+      getsuccessSnackBar(response.message ?? 'Location renamed successfully');
+    } else if (response?.errors != null) {
+      errorInstance = response!.errors!.toJson();
+    }
+  }
+
+  Future<bool> deleteLocation(int locationId) async {
+    final response = await _locationRepo.deleteLocation(locationId);
+    if (response != null && response.errors == null) {
+      await fetchLocations();
+      getsuccessSnackBar(response.message ?? 'Location Deleted successfully');
+      return true;
+    } else if (response?.errors != null) {
+      errorInstance = response!.errors!.toJson();
+      geterrorSnackBar(response.errors!.message ?? 'Failed to delete location');
+      return false;
+    }
+    return false;
+  }
+
+  Future<void> refreshLocations() async {
+    // isRefreshing.value = true;
+    await fetchLocations();
+  }
+
+  void toggleLocationExpansion(int locationId) {
+    if (expandedLocationIds.contains(locationId)) {
+      expandedLocationIds.remove(locationId);
+    } else {
+      expandedLocationIds.add(locationId);
+    }
+  }
+
+  bool isLocationExpanded(int locationId) {
+    return expandedLocationIds.contains(locationId);
   }
 }

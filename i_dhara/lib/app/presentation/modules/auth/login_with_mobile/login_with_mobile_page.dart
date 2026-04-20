@@ -2,11 +2,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/core/flutter_flow/flutter_flow_widgets.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_textfield.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
@@ -14,12 +18,11 @@ import 'package:i_dhara/app/presentation/modules/auth/login_with_mobile/login_wi
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 
-import '../../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../../core/flutter_flow/flutter_flow_widgets.dart';
-
 class LoginwithmobileWidget extends StatefulWidget {
   const LoginwithmobileWidget({super.key});
+
+  static String routeName = 'Login_Page';
+  static String routePath = '/loginPage';
 
   @override
   State<LoginwithmobileWidget> createState() => _LoginwithmobileWidgetState();
@@ -27,59 +30,35 @@ class LoginwithmobileWidget extends StatefulWidget {
 
 class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
   late LoginwithmobileModel _model;
-  bool showVerifyButton = false;
-
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  TextEditingController controller1 = TextEditingController();
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  TextEditingController phoneController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginwithmobileModel());
 
-    _model.textController ??= TextEditingController();
-    _model.textFieldFocusNode ??= FocusNode();
-
     _loadSavedPhoneNumber();
 
-    controller1.addListener(() {
-      if (_model.errorInstance != null && controller1.text.isNotEmpty) {
+    phoneController.addListener(() {
+      if (_model.errorInstance != null && phoneController.text.isNotEmpty) {
         setState(() {
           _model.errorInstance = null; // Clear error when user starts typing
         });
       }
     });
-
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      bool isConnected = results.any((result) =>
-          result == ConnectivityResult.wifi ||
-          result == ConnectivityResult.mobile ||
-          result == ConnectivityResult.ethernet);
-      if (!isConnected) {
-        errorSnackBar(context, 'No Internet Please Check Your Connectivity');
-      } else {}
-    });
   }
 
   Future<void> _loadSavedPhoneNumber() async {
-    String? phoneNumber = await SharedPreference.getPhone();
-    if (phoneNumber != null && phoneNumber.isNotEmpty) {
-      setState(() {
-        controller1.text = phoneNumber;
-      });
+    String? phoneNumber = SharedPreference.getPhone();
+    if (phoneNumber.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          phoneController.text = phoneNumber;
+        });
+      }
     }
-  }
-
-  @override
-  void dispose() {
-    _model.dispose();
-    controller1.dispose();
-    super.dispose();
-    _connectivitySubscription?.cancel();
   }
 
   Future<bool> _checkConnectivity() async {
@@ -89,179 +68,348 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
     }
     try {
       final result = await InternetAddress.lookup('google.com')
-          .timeout(Duration(seconds: 5));
+          .timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (e) {
+    } on SocketException catch (_) {
       return false;
-    } on TimeoutException catch (e) {
+    } on TimeoutException catch (_) {
       return false;
     }
   }
 
   @override
+  void dispose() {
+    _model.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
           FocusManager.instance.primaryFocus?.unfocus();
         },
         child: Scaffold(
-          resizeToAvoidBottomInset: false,
           key: scaffoldKey,
           backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-          body: SafeArea(
-            top: true,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+          body: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  fit: BoxFit.cover,
+                  image: Image.asset(
+                    'assets/images/Verify OTP.png',
+                  ).image,
+                ),
+              ),
+              child: SafeArea(
+                top: true,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                      16.0, 0.0, 16.0, 0.0),
+                  child: Column(mainAxisSize: MainAxisSize.max, children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(0.0),
                             child: SvgPicture.asset(
-                              'assets/images/Peepul_Agri_logo.svg',
+                              'assets/images/login_image.svg',
                               fit: BoxFit.cover,
                             ),
                           ),
-                        ],
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          Column(
+                        ),
+                      ],
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: FlutterFlowTheme.of(context)
+                                .secondaryBackground,
+                          ),
+                          child: Column(
                             mainAxisSize: MainAxisSize.max,
                             children: [
-                              Text(
-                                'Verify Your Phone Number',
-                                textAlign: TextAlign.center,
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      fontFamily: 'Lexend',
-                                      color: const Color(0xFF35353D),
-                                      fontSize: 18,
-                                      letterSpacing: 0,
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: FlutterFlowTheme.of(context)
+                                            .secondaryBackground,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.max,
+                                        children: [
+                                          Text(
+                                            'Verify Your Mobile Number',
+                                            style: FlutterFlowTheme.of(context)
+                                                .bodyMedium
+                                                .override(
+                                                  font: GoogleFonts.dmSans(
+                                                    fontWeight:
+                                                        FlutterFlowTheme.of(
+                                                                context)
+                                                            .bodyMedium
+                                                            .fontWeight,
+                                                    fontStyle:
+                                                        FlutterFlowTheme.of(
+                                                                context)
+                                                            .bodyMedium
+                                                            .fontStyle,
+                                                  ),
+                                                  color:
+                                                      const Color(0xFF35353D),
+                                                  fontSize: 18.0,
+                                                  letterSpacing: 0.0,
+                                                  fontWeight:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontWeight,
+                                                  fontStyle:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontStyle,
+                                                ),
+                                          ),
+                                          Text(
+                                            'Enter Mobile Number to Access Your Account',
+                                            style: FlutterFlowTheme.of(context)
+                                                .bodyMedium
+                                                .override(
+                                                  font: GoogleFonts.dmSans(
+                                                    fontWeight:
+                                                        FlutterFlowTheme.of(
+                                                                context)
+                                                            .bodyMedium
+                                                            .fontWeight,
+                                                    fontStyle:
+                                                        FlutterFlowTheme.of(
+                                                                context)
+                                                            .bodyMedium
+                                                            .fontStyle,
+                                                  ),
+                                                  color:
+                                                      const Color(0xFF6A7185),
+                                                  letterSpacing: 0.0,
+                                                  fontWeight:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontWeight,
+                                                  fontStyle:
+                                                      FlutterFlowTheme.of(
+                                                              context)
+                                                          .bodyMedium
+                                                          .fontStyle,
+                                                ),
+                                          ),
+                                        ].divide(const SizedBox(height: 12.0)),
+                                      ),
                                     ),
-                              ),
-                              Text(
-                                'Enter Phone Number to Access Your Account',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      fontFamily: 'Lexend',
-                                      color: const Color(0xFF6A7185),
-                                      letterSpacing: 0,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.max,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: SizedBox(
+                                            width: MediaQuery.sizeOf(context)
+                                                    .width *
+                                                0.25,
+                                            child: TextFieldComponent(
+                                              readOnly: false,
+                                              controller: phoneController,
+                                              errors: _model.errorInstance,
+                                              hintText:
+                                                  'Enter Your Mobile Number',
+                                              errorKey: 'phone',
+                                              keyboardType: TextInputType.phone,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .digitsOnly,
+                                                LengthLimitingTextInputFormatter(
+                                                    10),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ].divide(const SizedBox(width: 8.0)),
                                     ),
+                                  ].divide(const SizedBox(height: 24.0)),
+                                ),
                               ),
-                            ].divide(const SizedBox(height: 8)),
-                          ),
-                          TextFieldComponent(
-                            readOnly: false,
-                            controller: controller1,
-                            errors: _model.errorInstance,
-                            hintText: 'Enter Your Phone Number',
-                            errorKey: 'phone',
-                            // maxlength: 10,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(10),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                              FFButtonWidget(
+                              Container(
+                                width: double.infinity,
+                                height: 45,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF004E7E),
+                                      Color(0xFF3686AF),
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: FFButtonWidget(
                                   onPressed: () async {
                                     String id = '';
                                     if (!kIsWeb) {
-                                      await SmsAutoFill().unregisterListener();
-                                      id = await SmsAutoFill().getAppSignature;
                                       bool isConnected =
                                           await _checkConnectivity();
                                       if (!isConnected) {
-                                        errorSnackBar(context,
-                                            'No internet connection. Please check your network.');
+                                        if (mounted) {
+                                          errorSnackBar(context,
+                                              'No internet connection. Please check your network.');
+                                        }
                                         return;
                                       }
+                                      await SmsAutoFill().unregisterListener();
+                                      id = await SmsAutoFill().getAppSignature;
                                     }
 
-                                    // bool isConnected = await _checkConnectivity();
-                                    // if (!isConnected) {
-                                    //   errorSnackBar(context, 'No internet connection. Please check your network.');
-                                    //   return;
-                                    // }
-                                    await _model.fetchMobiel(
-                                        
-                                        phone: controller1.text.trim());
-                                    setState(() {
-                                      showVerifyButton =
-                                          _model.message == "User not verified";
-                                    });
+                                    await _model.fetchMobile(
+                                        sid: id,
+                                        phone: phoneController.text.trim());
+
+                                    if (!mounted) return;
+
                                     if (_model.error &&
                                         _model.message.isNotEmpty &&
                                         !_model.isValidation) {
                                       errorSnackBar(context, _model.message);
-                                    } else if (!_model.error &&
-                                        _model.message.isNotEmpty) {
-                                      Get.offNamed(Routes.otp);
-
-                                      // successSnackBar(context, _model.message);
-                                      SharedPreference.setPhone(
-                                          controller1.text);
-                                     
                                     }
+
+                                    // Navigating to OTP is handled in controller,
+                                    // but we should trigger UI update if error
+                                    setState(() {});
                                   },
-                                  text: 'Send OTP',
+                                  text: 'Generate OTP',
                                   options: FFButtonOptions(
                                     width: double.infinity,
-                                    height: 40,
+                                    height: 40.0,
                                     padding:
                                         const EdgeInsetsDirectional.fromSTEB(
-                                            16, 0, 16, 0),
+                                            16.0, 0.0, 16.0, 0.0),
                                     iconPadding:
                                         const EdgeInsetsDirectional.fromSTEB(
-                                            0, 0, 0, 0),
-                                    color: const Color(0xFF45A845),
+                                            0.0, 0.0, 0.0, 0.0),
+                                    color: Colors.transparent,
                                     textStyle: FlutterFlowTheme.of(context)
                                         .titleSmall
                                         .override(
-                                          fontFamily: 'Lexend',
+                                          font: GoogleFonts.dmSans(
+                                            fontWeight: FontWeight.normal,
+                                            fontStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .titleSmall
+                                                    .fontStyle,
+                                          ),
                                           color: Colors.white,
-                                          letterSpacing: 0,
+                                          letterSpacing: 0.0,
+                                          fontWeight: FontWeight.normal,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .titleSmall
+                                                  .fontStyle,
                                         ),
-                                    elevation: 0,
-                                    borderRadius: BorderRadius.circular(24),
+                                    elevation: 0.0,
+                                    borderRadius: BorderRadius.circular(8.0),
                                   ),
-                                ),                          
-                            
-                        ].divide(const SizedBox(height: 20)),
-                      ),
-                      
-                    ].divide(const SizedBox(height: 20)),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SvgPicture.asset(
-                        'assets/images/Login_vector.svg',
-                        fit: BoxFit.cover,
-                      ),
+                                ),
+                              ),
+                              Column(
+                                children: [
+                                  const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 100,
+                                        child: Divider(
+                                          color: Color(0xFFE0E0E0),
+                                          thickness: 0.5,
+                                          indent: 8,
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 8.0),
+                                        child: Text(
+                                          'or',
+                                          style: TextStyle(
+                                              color: Color(0xFF6A7185),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w300),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 100,
+                                        child: Divider(
+                                          color: Color(0xFFE0E0E0),
+                                          thickness: 0.5,
+                                          endIndent: 8,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  FFButtonWidget(
+                                    onPressed: () {
+                                      Get.toNamed(Routes.register);
+                                    },
+                                    text: 'Create an Account',
+                                    options: FFButtonOptions(
+                                      width: double.infinity,
+                                      height: 40,
+                                      padding:
+                                          const EdgeInsetsDirectional.fromSTEB(
+                                              16, 0, 16, 0),
+                                      iconPadding:
+                                          const EdgeInsetsDirectional.fromSTEB(
+                                              0, 0, 0, 0),
+                                      color: const Color(0XFFFFFFFF),
+                                      borderSide: const BorderSide(
+                                          color: Color(0xFF3686AF), width: 1),
+                                      textStyle: FlutterFlowTheme.of(context)
+                                          .titleSmall
+                                          .override(
+                                            fontFamily: 'Lexend',
+                                            color: const Color(0xFF3686AF),
+                                          ),
+                                      elevation: 0,
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                  ),
+                                ].divide(const SizedBox(height: 20)),
+                              ),
+                            ].divide(const SizedBox(height: 44.0)),
+                          ),
+                        ),
+                      ].divide(const SizedBox(height: 24.0)),
                     ),
-                  ),
-                ],
+                  ]),
+                ),
               ),
             ),
           ),

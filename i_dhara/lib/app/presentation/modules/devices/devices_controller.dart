@@ -1,17 +1,220 @@
-import '../../../core/flutter_flow/flutter_flow_theme.dart';
-import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../../core/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import 'devices_page.dart' show DevicesWidget;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
+import 'package:i_dhara/app/core/utils/api_retry.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
+import 'package:i_dhara/app/data/models/devices/devices_model.dart';
+import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 
-class DevicesModel extends FlutterFlowModel<DevicesWidget> {
-  @override
-  void initState(BuildContext context) {}
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
+
+class DevicesController extends GetxController with ConnectivityMixin {
+  final controller1 = TextEditingController();
+  final RxList<Devices> devicesList = <Devices>[].obs;
+
+  final RxBool isLoading = false.obs;
+  var isRefreshing = false.obs;
+  var isInitialLoading = true.obs;
+  var isHasMoreLoading = false.obs;
+  var isLocationReplacing = false.obs;
+  final RxBool isRenameLoading = false.obs;
+  final RxBool isDeleteLoading = false.obs;
+  var totalPages = 1.obs;
+  var currentPage = 0.obs;
+  var page = 1.obs;
+  var limit = 10.obs;
+
+  final RxString errorMessage = ''.obs;
+
+  var searchQuery = ''.obs;
+  Map<String, dynamic> errorInstance = {};
+  String message = '';
+  // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
+
+  final DevicesRepositoryImpl _repository = DevicesRepositoryImpl();
+
+  final ScrollController scrollController = ScrollController();
+  late MqttService mqttService;
 
   @override
-  void dispose() {}
+  void onInit() {
+    mqttService = MqttService();
+    super.onInit();
+    fetchDevices(isInitial: true);
+    _addScrollListener();
+    debounce<String>(
+      searchQuery,
+      (_) {
+        page.value = 1;
+        fetchDevices(isInitial: true);
+      },
+      time: const Duration(milliseconds: 400),
+    );
+
+    controller1.addListener(() {
+      final value = controller1.text.trim();
+      if (value == searchQuery.value) return;
+      searchQuery.value = value;
+    });
+  }
+
+  void _addScrollListener() {
+    scrollController.addListener(() {
+      if (scrollController.position.pixels >=
+              scrollController.position.maxScrollExtent - 200 &&
+          !isHasMoreLoading.value &&
+          page.value < totalPages.value) {
+        loadMoreDevices();
+      }
+    });
+  }
+
+  @override
+  Future<void> onRetry() async {
+    Get.log('DevicesController: Retrying API calls after reconnection');
+    await fetchDevices(isInitial: true);
+  }
+
+  @override
+  void onClose() {
+    controller1.dispose();
+    // scrollController.dispose();
+    super.onClose();
+  }
+
+  Future<void> loadMoreDevices() async {
+    isHasMoreLoading.value = true;
+    page.value += 1;
+    await fetchDevices();
+  }
+
+  Future<void> fetchDevices({bool isInitial = false}) async {
+    try {
+      if (isInitial) {
+        isInitialLoading.value = true;
+        devicesList.clear();
+        page.value = 1;
+      }
+
+      final response = isInitial
+          ? await withRetry(
+              call: () => _repository.getDevices(
+                page.value,
+                searchQuery.value.isEmpty ? null : searchQuery.value,
+                limit.value,
+              ),
+              isSuccess: (r) => r != null && r.data != null,
+            )
+          : await _repository.getDevices(
+              page.value,
+              searchQuery.value.isEmpty ? null : searchQuery.value,
+              limit.value,
+            );
+
+      if (response != null && response.data != null) {
+        final newList = response.data!.records ?? [];
+
+        if (page.value == 1) {
+          devicesList.assignAll(newList);
+        } else {
+          devicesList.addAll(newList);
+        }
+
+        currentPage.value =
+            response.data!.paginationInfo!.currentPage ?? page.value;
+        totalPages.value = response.data!.paginationInfo!.totalPages ?? 1;
+      }
+    } catch (e) {
+      errorMessage.value = 'Error fetching devices';
+    } finally {
+      isLoading.value = false;
+      isRefreshing.value = false;
+      isInitialLoading.value = false;
+      isHasMoreLoading.value = false;
+    }
+  }
+
+  Future<void> refreshDevices() async {
+    isRefreshing.value = true;
+    page.value = 1;
+    await fetchDevices();
+  }
+
+  Future<void> renamedevice(
+      {required int motorId, required double? hp, required String name}) async {
+    errorInstance = {};
+    try {
+      isRenameLoading.value = true;
+      final response =
+          await _repository.renameDevice(motorId, name, hp);
+      if (response != null && response.errors == null) {
+        await fetchDevices(isInitial: true);
+        Get.back();
+        getsuccessSnackBar(response.message ?? 'Device renamed successfully');
+      } else if (response?.errors != null) {
+        errorInstance = response!.errors!.toJson();
+      }
+    } catch (e) {
+      errorMessage.value = 'Rename failed';
+    } finally {
+      isRenameLoading.value = false;
+    }
+  }
+
+  Future<void> deleteDevice(int starterId) async {
+    try {
+      isDeleteLoading.value = true;
+
+      final response = await _repository.deletestarter(starterId);
+
+      if (response != null) {
+        await fetchDevices(isInitial: true);
+        getsuccessSnackBar(response.message ?? 'Device deleted successfully');
+      }
+    } catch (e) {
+      errorMessage.value = 'Delete failed';
+    } finally {
+      isDeleteLoading.value = false;
+    }
+  }
+
+  Future<void> locationreplace({
+    required int starterId,
+    required int locationId,
+    required int motorId,
+  }) async {
+    try {
+      isLocationReplacing.value = true;
+      final response =
+          await _repository.locationreplace(starterId, locationId, motorId);
+      if (response != null) {
+        await fetchDevices();
+        getsuccessSnackBar(
+            response.message ?? 'Location replaced successfully');
+      }
+    } catch (e) {
+      // Handle error if needed
+      debugPrint('Error replacing location: $e');
+    } finally {
+      isLocationReplacing.value = false;
+    }
+  }
+
+  List<Devices> searchDevices(String query) {
+    if (query.isEmpty) return devicesList;
+
+    return devicesList.where((device) {
+      final nameMatch =
+          device.name?.toLowerCase().contains(query.toLowerCase()) ?? false;
+      final pcbMatch =
+          device.pcbNumber?.toLowerCase().contains(query.toLowerCase()) ??
+              false;
+      final motorMatch = device.motors?.any((motor) =>
+              motor.name?.toLowerCase().contains(query.toLowerCase()) ??
+              false) ??
+          false;
+
+      return nameMatch || pcbMatch || motorMatch;
+    }).toList();
+  }
 }

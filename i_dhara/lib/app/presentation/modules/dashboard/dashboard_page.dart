@@ -1,344 +1,306 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/utils/bottom_nav/bottom_nav_bar.dart';
-import 'package:i_dhara/app/presentation/widgets/filter_bottomsheet/filter_bottomsheet.dart';
-import 'package:i_dhara/app/presentation/widgets/weather_card.dart';
+import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/app_loading.dart';
+import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
+import 'package:i_dhara/app/presentation/components/motor_card/motor_card_widget.dart';
+import 'package:i_dhara/app/presentation/components/weather_card.dart';
+import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
+import 'package:i_dhara/app/presentation/widgets/no_data_view.dart';
+import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/flutter_flow/flutter_flow_theme.dart';
 import '../../../core/flutter_flow/flutter_flow_util.dart';
-import '../../widgets/motor_card_widget.dart';
+import '../../../core/services/connectivity_service.dart';
 import 'dashboard_controller.dart';
 
 export 'dashboard_controller.dart';
 
 class DashboardWidget extends StatefulWidget {
-  const DashboardWidget({super.key});
-
-  static String routeName = 'Dashboard';
-  static String routePath = '/dashboard';
+  DashboardWidget({super.key});
 
   @override
   State<DashboardWidget> createState() => _DashboardWidgetState();
 }
 
-class _DashboardWidgetState extends State<DashboardWidget> {
-  late DashboardModel _model;
-
+class _DashboardWidgetState extends State<DashboardWidget>
+    with WidgetsBindingObserver {
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  late final DashboardController controller;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _model = createModel(context, () => DashboardModel());
+    // Resolve the controller once; the binding guarantees a fresh instance
+    // exists by the time this State is created.
+    controller = Get.find<DashboardController>();
+    WidgetsBinding.instance.addObserver(this);
+    // Register the scroll listener exactly once so loadMoreMotors() is called
+    // a single time per scroll event, regardless of how many Obx rebuilds occur.
+    _scrollController.addListener(_onScroll);
+  }
+
+  bool _didPause = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _didPause = true;
+    } else if (state == AppLifecycleState.resumed) {
+      // Only refresh when truly returning from background (paused → resumed).
+      // Skips spurious cycles caused by the system panel (notification shade /
+      // quick-settings) and the Recent-apps switcher, which produce an
+      // inactive → resumed transition without ever reaching paused.
+      if (_didPause) {
+        _didPause = false;
+        controller.refreshDashboard();
+      }
+    } else if (state == AppLifecycleState.inactive) {
+      // Do nothing – this fires for system-panel and recent-apps interactions.
+    }
   }
 
   @override
   void dispose() {
-    _model.dispose();
-
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !controller.isLoadingMore.value &&
+        !controller.isLoading.value &&
+        !controller.isRefreshing.value) {
+      controller.loadMoreMotors();
+    }
+  }
+
+  void onTapMenu() {
+    scaffoldKey.currentState!.openEndDrawer();
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        await SystemNavigator.pop();
       },
-      child: Scaffold(
-        bottomNavigationBar: const BottomNavigation(activeIndex: 0),
-        key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            print('FloatingActionButton pressed ...');
-          },
-          backgroundColor: FlutterFlowTheme.of(context).primary,
-          elevation: 8.0,
-          child: Icon(
-            Icons.add_rounded,
-            color: FlutterFlowTheme.of(context).info,
-            size: 24.0,
-          ),
-        ),
-        endDrawer: Drawer(
-          elevation: 16.0,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(
-                      Icons.close,
-                      color: FlutterFlowTheme.of(context).primaryText,
-                      size: 24.0,
-                    ),
-                  ],
-                ),
-              ].divide(const SizedBox(height: 24.0)),
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: const Color(0xFFEBF3FE),
+          endDrawer: Drawer(width: 250, elevation: 16, child: SidebarWidget()),
+          endDrawerEnableOpenDragGesture: false,
+          body: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
             ),
-          ),
-        ),
-        body: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              fit: BoxFit.cover,
-              image: Image.asset(
-                'assets/images/idhara_background.png',
-              ).image,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(0.0),
-                      child: SvgPicture.asset(
-                        'assets/images/idhara_logo.svg',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(0.0),
-                                  child: SvgPicture.asset(
-                                    'assets/images/location_pin.svg',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Text(
-                                  'Kandukur',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.dmSans(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: const Color(0xFF2B2B2B),
-                                        fontSize: 16.0,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: Color(0xFF2B2B2B),
-                                  size: 22.0,
-                                ),
-                              ].divide(const SizedBox(width: 4.0)),
-                            ),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(0.0),
-                              child: SvgPicture.asset(
-                                'assets/images/bell-simple_1.svg',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 8.0)),
-                        ),
-                        Container(
-                          decoration: const BoxDecoration(),
-                          child: const Padding(
-                            padding: EdgeInsets.all(6.0),
-                            child: Icon(
-                              Icons.menu_sharp,
-                              color: Color(0xFF121212),
-                              size: 24.0,
-                            ),
-                          ),
-                        ),
-                      ].divide(const SizedBox(width: 8.0)),
-                    ),
-                  ],
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  fit: BoxFit.cover,
+                  image: Image.asset(
+                    'assets/images/idhara_background.png',
+                  ).image,
                 ),
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                      16.0, 0.0, 16.0, 0.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      const WeatherCard(),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6.0),
-                          border: Border.all(
-                            color: const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              12.0, 8.0, 12.0, 8.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: SafeArea(
+                top: true,
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    _buildHeader(context),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                            16.0, 0.0, 16.0, 0.0),
+                        child: Obx(() {
+                          if (controller.isLoading.value) {
+                            return const Padding(
+                              padding: EdgeInsets.only(right: 50),
+                              child: Center(
+                                child: AppLottieLoading(),
+                              ),
+                            );
+                          } else if (!ConnectivityService.to.isConnected) {
+                            return const Center(
+                              child: NoInternetWidget(),
+                            );
+                          }
+                          return Column(
                             children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  const Icon(
-                                    Icons.search,
-                                    color: Color(0xFF828282),
-                                    size: 20.0,
-                                  ),
-                                  Text(
-                                    'Search Pumps ',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.dmSans(
-                                            fontWeight: FontWeight.w500,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: const Color(0xFF828282),
-                                          fontSize: 16.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w500,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ].divide(const SizedBox(width: 8.0)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0.0, 0.0, 6.0, 0.0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    SizedBox(
-                                      height: 30.0,
-                                      child: VerticalDivider(
-                                        thickness: 1.0,
-                                        color: FlutterFlowTheme.of(context)
-                                            .alternate,
-                                      ),
-                                    ),
-                                    Container(
-                                      decoration: const BoxDecoration(),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(6.0),
-                                        child: GestureDetector(
-                                          onTap: () async {
-                                            await showModalBottomSheet(
-                                              isScrollControlled: true,
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              context: context,
-                                              builder: (context) {
-                                                return Padding(
-                                                  padding:
-                                                      MediaQuery.of(context)
-                                                          .viewInsets,
-                                                  child:
-                                                      const FiltersBottomsheetWidget(),
-                                                );
-                                              },
-                                            );
-                                          },
-                                          child: Icon(
-                                            Icons.filter_list_outlined,
-                                            color: FlutterFlowTheme.of(context)
-                                                .primaryText,
-                                            size: 20.0,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ].divide(const SizedBox(width: 10.0)),
-                                ),
-                              ),
-                            ].divide(const SizedBox(width: 8.0)),
-                          ),
-                        ),
+                              const WeatherCard(),
+                              Expanded(child: _buildMotorList()),
+                            ]
+                                .divide(const SizedBox(height: 10.0))
+                                .addToStart(const SizedBox(height: 10.0)),
+                          );
+                        }),
                       ),
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(
-                            0,
-                            0,
-                            0,
-                            24.0,
-                          ),
-                          shrinkWrap: true,
-                          scrollDirection: Axis.vertical,
-                          children: [
-                            wrapWithModel(
-                              model: _model.motorCardModel1,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                            wrapWithModel(
-                              model: _model.motorCardModel2,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                            wrapWithModel(
-                              model: _model.motorCardModel3,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                            wrapWithModel(
-                              model: _model.motorCardModel4,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const MotorCardWidget(),
-                            ),
-                          ].divide(const SizedBox(height: 12.0)),
-                        ),
-                      ),
-                    ]
-                        .divide(const SizedBox(height: 24.0))
-                        .addToStart(const SizedBox(height: 24.0)),
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ]
-                .divide(const SizedBox(height: 0.0))
-                .addToStart(const SizedBox(height: 16.0)),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16.0, 12.0, 16.0, 0.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(0.0),
+            child: SvgPicture.asset(
+              'assets/images/idhara_logo.svg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              _buildLocationSelector(context),
+              GestureDetector(
+                onTap: onTapMenu,
+                child: Container(
+                  decoration: const BoxDecoration(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6.0),
+                    child: Icon(
+                      Icons.menu_sharp,
+                      color: Color(0xFF121212),
+                      size: 30.0,
+                    ),
+                  ),
+                ),
+              ),
+            ].divide(const SizedBox(width: 8.0)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationSelector(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (_) => LocationBottomSheet(controller: controller),
+        );
+      },
+      child: Obx(() {
+        final selectedId = controller.selectedLocationId.value;
+        String locationName;
+
+        if (selectedId == null) {
+          locationName = "All";
+        } else {
+          locationName = controller.locations
+                  .firstWhereOrNull((e) => e.id == selectedId)
+                  ?.name ??
+              "Location";
+        }
+
+        final displayName = locationName.length > 10
+            ? '${locationName.substring(0, 10)}…'
+            : locationName;
+
+        return Row(
+          children: [
+            SvgPicture.asset(
+              'assets/images/location_pin.svg',
+              width: 20,
+              fit: BoxFit.cover,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              displayName,
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 30,
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildMotorList() {
+    return Obx(() {
+      if (controller.isFiltering.value) {
+        return const Padding(
+          padding: EdgeInsets.only(right: 50),
+          child: Center(child: AppLottieLoading()),
+        );
+      } else if (controller.motors.isEmpty && !controller.isLoading.value) {
+        return const NoMotorFound();
+      }
+
+      return Skeletonizer(
+        enabled: controller.isRefreshing.value,
+        child: RefreshIndicator(
+          onRefresh: controller.refreshMotors,
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 24.0),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: controller.motors.length +
+                (controller.isLoadingMore.value ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == controller.motors.length) {
+                return Obx(() {
+                  if (controller.isLoadingMore.value) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                });
+              }
+
+              final motor = controller.motors[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: MotorCardWidget(
+                  motor: motor,
+                  mqttService: controller.mqttService,
+                  onToggleMotor: controller.toggleMotor,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
   }
 }
