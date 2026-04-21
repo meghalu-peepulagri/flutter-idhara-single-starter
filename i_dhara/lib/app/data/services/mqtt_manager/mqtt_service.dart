@@ -26,6 +26,34 @@ class MotorData {
   int fault = 0;
   int alert = 0;
   String runTime = '-';
+  DateTime? stateChangedAt;
+
+  /// Fault code bitmask to short description mapping
+  static const Map<int, String> faultCodeMap = {
+    0x01: 'Dry Run',
+    0x02: 'Overload',
+    0x04: 'Locked Rotor',
+    0x08: 'Current Imbalance',
+    0x10: 'Frequent Start',
+    0x20: 'Phase Failure',
+    0x40: 'Low Voltage',
+    0x80: 'High Voltage',
+    0x100: 'Voltage Imbalance',
+    0x200: 'Phase Reversal',
+    0x400: 'Frequency Deviation',
+    0x1000: 'Output Phase',
+  };
+
+  /// Decode a fault bitmask into a list of short fault descriptions
+  static List<String> decodeFaultDescriptions(int faultCode) {
+    final faults = <String>[];
+    for (final entry in faultCodeMap.entries) {
+      if (faultCode & entry.key != 0) {
+        faults.add('${entry.value} Fault');
+      }
+    }
+    return faults;
+  }
   bool hasReceivedData = false;
 
   String? macAddress;
@@ -1142,6 +1170,9 @@ class MqttService {
 
       final motorData = _motorDataMap[motorId];
       if (motorData != null) {
+        if (motorData.state != newState) {
+          motorData.stateChangedAt = DateTime.now();
+        }
         motorData.state = newState;
         motorData.controller.value = (newState == 1);
         motorData.hasReceivedData = true;
@@ -1164,6 +1195,9 @@ class MqttService {
 
         final motorData = _motorDataMap[fallbackId];
         if (motorData != null) {
+          if (motorData.state != newState) {
+            motorData.stateChangedAt = DateTime.now();
+          }
           motorData.state = newState;
           motorData.controller.value = (newState == 1);
           motorData.hasReceivedData = true;
@@ -1685,6 +1719,10 @@ class MqttService {
     // State
     if (data.containsKey('m_s') || data.containsKey('mtr_sts')) {
       final newState = (data['m_s'] ?? data['mtr_sts']) ?? 0;
+      // Track state change time for runtime calculation
+      if (motorData.stateChangedAt == null || motorData.state != newState) {
+        motorData.stateChangedAt = DateTime.now();
+      }
       motorData.state = newState;
       motorData.controller.value = (newState == 1);
     }

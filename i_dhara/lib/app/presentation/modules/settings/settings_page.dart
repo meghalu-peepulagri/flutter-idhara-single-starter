@@ -369,7 +369,16 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       }
 
       if (isVoltageRange || isCurrentRange || flcChanged) {
-        _handleSave(vmin, vmax, cmin, cmax, pcbNumber, flcChanged: flcChanged);
+        _handleSave(
+          vmin,
+          vmax,
+          cmin,
+          cmax,
+          pcbNumber,
+          flcChanged: flcChanged,
+          calculatedDrfA: calculatedCurrentValues?['calculatedLow'],
+          calculatedOlfA: calculatedCurrentValues?['calculatedHigh'],
+        );
       }
     });
   }
@@ -381,7 +390,26 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     bool cmax,
     String pcbNumber, {
     bool flcChanged = false,
+    double? calculatedDrfA,
+    double? calculatedOlfA,
   }) {
+    final flc = controller.flc.value;
+    final drfPct = controller.drf.value.toInt();
+    final olfPct = controller.olf.value.toInt();
+
+    final displayDrf = calculatedDrfA != null
+        ? '${calculatedDrfA.toStringAsFixed(2)} A'
+        : '$drfPct%';
+    final displayOlf = calculatedOlfA != null
+        ? '${calculatedOlfA.toStringAsFixed(2)} A'
+        : '$olfPct%';
+    final displayOrigLow = _originalCurrentLow != null
+        ? '${(_originalCurrentLow! / 100 * flc).toStringAsFixed(2)} A'
+        : null;
+    final displayOrigHigh = _originalCurrentHigh != null
+        ? '${(_originalCurrentHigh! / 100 * flc).toStringAsFixed(2)} A'
+        : null;
+
     showSettingsConfirmDialog(
       context,
       isVoltageRange: isVoltageRange,
@@ -395,10 +423,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       currentLvf: controller.lvf.value.toString(),
       originalVoltageHigh: _originalVoltageHigh?.toString(),
       currentHvf: controller.hvf.value.toString(),
-      originalCurrentLow: _originalCurrentLow?.toString(),
-      currentDrf: controller.drf.value.toInt().toString(),
-      originalCurrentHigh: _originalCurrentHigh?.toString(),
-      currentOlf: controller.olf.value.toString(),
+      originalCurrentLow: displayOrigLow,
+      currentDrf: displayDrf,
+      originalCurrentHigh: displayOrigHigh,
+      currentOlf: displayOlf,
       originalFlc:
           controller.userSettings2.value?.flc?.toStringAsFixed(2) ?? '0.00',
       currentFlc: controller.flc.value.toStringAsFixed(2),
