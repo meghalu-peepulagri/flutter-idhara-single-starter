@@ -667,6 +667,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
           // that was just fetched from the API via fetchMotorsSilently.
           if (currentMotorData.fault != 0) {
             params.fault = currentMotorData.fault;
+            // Reset faultCleared so the UI shows the new fault even if a
+            // previous fault was cleared via API.
+            params.faultCleared = false;
           }
 
           params.timeStamp = DateTime.now();
