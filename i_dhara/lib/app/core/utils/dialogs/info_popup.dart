@@ -113,21 +113,6 @@ class _SimInfoDialog extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Info rows
-                  _InfoRow(
-                    icon: Icons.sim_card,
-                    label: 'SIM Number',
-                    value: simNumber,
-                    onCopy: () {
-                      Clipboard.setData(ClipboardData(text: simNumber));
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _InfoRow(
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Recharge Expiry',
-                    value: expiryDate,
-                    accentColor: expiryColor,
-                  ),
                   if (starterNumber != null && starterNumber!.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     _InfoRow(
@@ -152,6 +137,22 @@ class _SimInfoDialog extends StatelessWidget {
                       },
                     ),
                   ],
+                  const SizedBox(height: 10),
+                  _InfoRow(
+                    icon: Icons.sim_card,
+                    label: 'SIM Number',
+                    value: simNumber,
+                    onCopy: () {
+                      Clipboard.setData(ClipboardData(text: simNumber));
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _InfoRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Recharge Expiry',
+                    value: expiryDate,
+                    accentColor: expiryColor,
+                  ),
 
                   const SizedBox(height: 20),
 

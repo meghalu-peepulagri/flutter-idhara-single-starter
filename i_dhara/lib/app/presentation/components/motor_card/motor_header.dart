@@ -10,9 +10,6 @@ class MotorHeader extends StatelessWidget {
   final Motor motor;
   final MotorData? motorData;
   final VoidCallback onTap;
-  final VoidCallback? onTestRun;
-  final bool isTestRunEnabled;
-  final bool showTestRun;
   final Function()? ontapFault;
 
   const MotorHeader(
@@ -20,9 +17,6 @@ class MotorHeader extends StatelessWidget {
       required this.motor,
       required this.motorData,
       required this.onTap,
-      this.onTestRun,
-      this.isTestRunEnabled = true,
-      this.showTestRun = false,
       this.ontapFault});
 
   bool get _isPowerOn {
@@ -33,7 +27,8 @@ class MotorHeader extends StatelessWidget {
   }
 
   int get _faultValue {
-    final bool isFaultCleared = motor.starter?.starterParameters?.firstOrNull?.faultCleared == true;
+    final bool isFaultCleared =
+        motor.starter?.starterParameters?.firstOrNull?.faultCleared == true;
     if (isFaultCleared) {
       return 0;
     }
@@ -106,51 +101,13 @@ class MotorHeader extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (showTestRun)
-                GestureDetector(
-                  onTap: isTestRunEnabled ? onTestRun : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20.0, vertical: 4.0),
-                    // decoration: BoxDecoration(
-                    //   color: isTestRunEnabled
-                    //       ? const Color(0xFF004E7E)
-                    //       : const Color(0xFFB0B0B0),
-                    //   borderRadius: BorderRadius.circular(4.0),
-                    // ),
-                    child: Text(
-                      'Test Run',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14.0,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0XFF4A5565),
-                      ),
-                    ),
-                  ),
-                ),
               const SizedBox(width: 8.0),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: showTestRun && onTestRun != null ? onTestRun : onTap,
+                onTap: onTap,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(0.0),
-                      child: SvgPicture.asset(
-                        _isPowerOn
-                            ? 'assets/images/power.svg'
-                            : 'assets/images/Power_red.svg',
-                        width: 17,
-                        height: 17,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    _SignalIcon(
-                      motor: motor,
-                      motorData: motorData,
-                    ),
                     if (_faultValue > 0) ...[
                       const SizedBox(width: 8.0),
                       GestureDetector(
@@ -182,6 +139,23 @@ class MotorHeader extends StatelessWidget {
                         ),
                       ),
                     ],
+                    const SizedBox(width: 8.0),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(0.0),
+                      child: SvgPicture.asset(
+                        _isPowerOn
+                            ? 'assets/images/power.svg'
+                            : 'assets/images/Power_red.svg',
+                        width: 17,
+                        height: 17,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 8.0),
+                    _SignalIcon(
+                      motor: motor,
+                      motorData: motorData,
+                    ),
                   ],
                 ),
               ),

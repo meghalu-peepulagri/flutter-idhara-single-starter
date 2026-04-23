@@ -11,12 +11,16 @@ class VoltageCurrentValuesCard extends StatelessWidget {
   final Motor motor;
   final MqttService mqttService;
   final bool isTestRunRequired;
+  final bool showTestRun;
+  final VoidCallback? onTestRun;
 
   const VoltageCurrentValuesCard({
     super.key,
     required this.motor,
     required this.mqttService,
     this.isTestRunRequired = false,
+    this.showTestRun = false,
+    this.onTestRun,
   });
 
   MotorData? _getMotorData() {
@@ -312,18 +316,51 @@ class VoltageCurrentValuesCard extends StatelessWidget {
                   ),
                 ].divide(const SizedBox(width: 16)),
               ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: motorState == 1
-                    ? Lottie.asset(
-                        'assets/lottie_animations/pump_on.json',
-                        fit: BoxFit.contain,
-                        repeat: true,
-                      )
-                    : SvgPicture.asset(
-                        'assets/images/red pump.svg',
-                        fit: BoxFit.contain,
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(0),
+                    child: motorState == 1
+                        ? Lottie.asset(
+                            'assets/lottie_animations/pump_on.json',
+                            fit: BoxFit.contain,
+                            repeat: true,
+                          )
+                        : SvgPicture.asset(
+                            'assets/images/red pump.svg',
+                            fit: BoxFit.contain,
+                          ),
+                  ),
+                  if (showTestRun && motorState == 0)
+                    GestureDetector(
+                      onTap: onTestRun,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF004E7E).withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.play_circle_outline,
+                                color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Test Run',
+                              style: GoogleFonts.dmSans(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ),
+                ],
               ),
             ],
           ),

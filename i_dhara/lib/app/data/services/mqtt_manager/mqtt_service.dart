@@ -54,6 +54,7 @@ class MotorData {
     }
     return faults;
   }
+
   bool hasReceivedData = false;
 
   String? macAddress;
@@ -1105,14 +1106,19 @@ class MqttService {
   void _handleMotorControlAck(String identifier, dynamic payloadData) {
     debugPrint('🔧 TYPE 31 received: identifier=$identifier');
 
-    // ========== CRITICAL: COMPLETELY IGNORE TYPE 31 IN TEST RUN ==========
-    // If in test run, IGNORE COMPLETELY - no ACK time, no state, NOTHING
+    // ========== TEST RUN: ACK received — stop retries, skip state update ==========
+    // When in test run, T:31 ACK stops the retry loop but must NOT update motor
+    // state — the test run manages the motor lifecycle independently.
     if (isIdentifierInTestRun(identifier)) {
-      debugPrint('   🚫🚫🚫 COMPLETELY IGNORING TYPE 31 - Test run active');
-      debugPrint('   → NOT recording ACK time');
-      debugPrint('   → NOT updating state');
-      debugPrint('   → Test run will NOT complete from this message');
-      return; // EXIT - do NOTHING
+      debugPrint('   ✅ T:31 for test run motor — clearing retry, skipping state update');
+      final testRunMotorId = _findMotorWithPendingCommand(identifier, 1) ??
+          _findAnyMotorWithIdentifier(identifier);
+      if (testRunMotorId != null) {
+        _lastAckTimes[testRunMotorId] = DateTime.now();
+        _clearPendingCommand(testRunMotorId, 1);
+      }
+      _dataUpdateNotifier.value++;
+      return;
     }
     debugPrint('   ✓ Not in test run - processing normally');
 
@@ -1478,9 +1484,10 @@ class MqttService {
       // Update motor data from payload
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
       motorData.testRunSignal = true;
+      // T:35 live data only verifies power supply and voltage range.
+      // Network connectivity (testRunSignal) is verified ONLY by T:40 heartbeat.
       motorData.testrunPowerSupply = true;
       motorData.testrunVoltageRange = true;
-
       motorData.updateSignalStrength(13);
       motorData.hasReceivedData = true;
       motorData.hasReceivedLiveData = true;
@@ -1519,6 +1526,8 @@ class MqttService {
     }
 
     // Force notify listeners
+    // T:35 live data only fires liveDataNotifier — NOT heartbeatNotifier.
+    // heartbeatNotifier is reserved for T:40 heartbeat (network signal only).
     debugPrint(
         '📢 Notifying listeners: dataUpdateNotifier=${_dataUpdateNotifier.value + 1}');
     _liveDataNotifier.value++;

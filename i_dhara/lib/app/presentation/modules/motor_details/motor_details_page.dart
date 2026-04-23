@@ -158,8 +158,22 @@ class MotorControlWidget extends StatelessWidget {
     return switch (controller.selectedTabIndex.value) {
       0 => MotorModeTab(controller: controller),
       1 => MotorRuntimeTab(controller: controller),
-      2 => MotorLogsTab(initialFilter: controller.logFilter.value),
+      2 => _buildLogsTab(),
       _ => MotorRuntimeTab(controller: controller),
     };
+  }
+
+  /// Builds the logs tab and consumes the navigation filter exactly once.
+  /// After the first frame, [logFilter] is cleared so that subsequent
+  /// remounts (e.g. after pull-to-refresh loading cycle unmounts the tab)
+  /// start with no filter instead of re-applying the original navigation filter.
+  Widget _buildLogsTab() {
+    final filter = controller.logFilter.value;
+    if (filter != null && filter.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.logFilter.value = null;
+      });
+    }
+    return MotorLogsTab(initialFilter: filter);
   }
 }

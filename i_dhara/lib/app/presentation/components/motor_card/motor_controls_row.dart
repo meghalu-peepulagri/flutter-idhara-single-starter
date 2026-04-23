@@ -82,7 +82,7 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
                         color: isAuto
                             ? const Color(0xFFFFA500).withValues(alpha: 0.8)
                             : const Color(0xFF2F80ED).withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(4.0),
+                        borderRadius: BorderRadius.circular(20.0),
                       ),
                       padding: const EdgeInsetsDirectional.fromSTEB(
                           8.0, 4.0, 8.0, 4.0),
@@ -101,6 +101,9 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
                                   fontSize: 14.0,
                                 ),
                           ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_forward,
+                              color: Colors.white, size: 14),
                         ],
                       ),
                     );
