@@ -392,7 +392,7 @@ class DevicesCard extends StatelessWidget {
         final motorData = _getDeviceMotorData();
 
         return GestureDetector(
-          // onTap: () => _navigateToTestRun(motor),
+          onTap: () => _showDeviceOptionsBottomSheet(context, motor),
           child: Container(
             decoration: BoxDecoration(
               color: FlutterFlowTheme.of(context).secondaryBackground,
