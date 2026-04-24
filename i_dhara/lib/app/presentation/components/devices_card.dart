@@ -17,7 +17,6 @@ import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart
 import 'package:i_dhara/app/presentation/modules/devices/edit_device/edit_device_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
-import '../../core/utils/dialogs/info_popup.dart';
 import '../../core/utils/mqtt_utils.dart';
 
 class DevicesCard extends StatelessWidget {
@@ -67,13 +66,20 @@ class DevicesCard extends StatelessWidget {
       builder: (context) {
         return DeviceOptionsBottomSheet(
           ontapInfo: () {
-            showSimInfoPopup(
-              context: context,
-              simNumber: device.deviceMobileNumber ?? 'N/A',
-              expiryDate: device.simRechargeExpire ?? "N/A",
-              starterNumber: device.starterNumber,
-              pcbNumber: device.pcbNumber,
-            );
+            Navigator.pop(context);
+            Get.toNamed(Routes.deviceInfo, arguments: {
+              'deviceName': _getMotorDisplayName(motor),
+              'starterId': device.id,
+              'starterNumber': device.starterNumber,
+              'pcbNumber': device.pcbNumber,
+              'simNumber': device.deviceMobileNumber,
+              'simRechargeExpiry': device.simRechargeExpire,
+              'deviceLocation': device.deviceInstalledLocation,
+              'photoUrl': device.installationPhotoUrl,
+              'testRunDate': device.motors?.isNotEmpty == true
+                  ? device.motors!.first.testRunCompletedAt
+                  : null,
+            });
           },
           hasMotor: hasMotor,
           hasLocation: hasLocation,

@@ -47,6 +47,7 @@ class MotorDetails {
   String? mode;
   int? createdBy;
   String? aliasName;
+  String? testRunCompletedAt;
   Location? location;
   Starter? starter;
 
@@ -58,6 +59,7 @@ class MotorDetails {
     this.mode,
     this.createdBy,
     this.aliasName,
+    this.testRunCompletedAt,
     this.location,
     this.starter,
   });
@@ -70,6 +72,7 @@ class MotorDetails {
         mode: json["mode"],
         createdBy: json["created_by"],
         aliasName: json["alias_name"],
+        testRunCompletedAt: json["test_run_completed_at"],
         location: json["location"] == null
             ? null
             : Location.fromJson(json["location"]),
@@ -123,6 +126,8 @@ class Starter {
   String? deviceAllocation;
   String? simRechargeexpiresDate;
   String? simNumber;
+  String? deviceInstalledLocation;
+  String? installationPhotoUrl;
 
   List<StarterParameter>? starterParameters;
 
@@ -139,7 +144,9 @@ class Starter {
       this.starterParameters,
       this.deviceAllocation,
       this.simRechargeexpiresDate,
-      this.simNumber});
+      this.simNumber,
+      this.deviceInstalledLocation,
+      this.installationPhotoUrl});
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
         id: json["id"],
@@ -154,6 +161,8 @@ class Starter {
         deviceAllocation: json["device_allocation"],
         simRechargeexpiresDate: json["sim_recharge_expires_at"],
         simNumber: json["device_mobile_number"],
+        deviceInstalledLocation: json["device_installed_location"],
+        installationPhotoUrl: json["installation_photo_url"],
         starterParameters: json["starterParameters"] == null
             ? []
             : List<StarterParameter>.from(json["starterParameters"]!

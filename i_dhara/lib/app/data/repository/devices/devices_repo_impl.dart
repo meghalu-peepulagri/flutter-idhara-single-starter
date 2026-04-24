@@ -6,6 +6,8 @@ import 'package:i_dhara/app/core/config/app_config.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
 import 'package:i_dhara/app/data/dto/image_upload_dto.dart';
 import 'package:i_dhara/app/data/models/devices/device_assign_model.dart';
+import 'package:i_dhara/app/data/models/devices/device_info_image_edit_model.dart';
+import 'package:i_dhara/app/data/models/devices/device_info_model.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/models/devices/location_replace_model.dart';
 import 'package:i_dhara/app/data/models/devices/rename_devices_model.dart';
@@ -117,40 +119,59 @@ class DevicesRepositoryImpl extends DevicesRepository {
     }
   }
 
+  Future<DeviceLocationEditResponse?> updateDeviceLocation(
+      int starterId, String location) async {
+    final response = await NetworkManager().patch(
+      '/starters/$starterId/installed-location',
+      data: {"device_installed_location": location},
+    );
+    try {
+      return DeviceLocationEditResponse.fromJson(response.data);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> fetchUploadImage(
-      ImageUploadDto dto, Uint8List? screenshotBytes) async {
-    final deviceID = SharedPreference.getStarterId();
+      ImageUploadDto dto, Uint8List? screenshotBytes,
+      {int? starterIdOverride}) async {
+    final deviceID = starterIdOverride ?? SharedPreference.getStarterId();
     final dio = Dio();
     final response = await NetworkManager().get(
       '/starters/$deviceID/installation-photo/upload-url',
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = response.data;
-
       try {
-        if (data['success'] == true && data['data'] != null) {
-          final targetUrl = data['data']['upload_url'];
-          final fileKey = data['data']['key'];
+        final parsed =
+            DeviceImageChangeResponse.fromJson(response.data as Map<String, dynamic>);
+        if (parsed.success == true && parsed.data != null) {
+          final targetUrl = parsed.data!.uploadUrl!;
+          final fileKey = parsed.data!.key!;
           final putResponse = await dio.put(
             targetUrl,
             data: screenshotBytes,
             options: Options(
-              headers: {
-                'Content-Type': 'image/png',
-              },
+              headers: {'Content-Type': dto.fileType},
             ),
           );
-          debugPrint("line 151 ----> ${putResponse.statusCode}");
-
           if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
             return fileKey;
-          } else {
-            return null;
           }
         }
       } catch (e) {
-        debugPrint("line 151 error ----> $e");
+        debugPrint('fetchUploadImage error: $e');
       }
+    }
+    return null;
+  }
+
+  /// Fetches the devices list (filtered by [search] when provided) and returns
+  /// the first record whose [Devices.id] matches [starterId].
+  Future<Devices?> getDeviceFromList(int starterId, {String? search}) async {
+    final response = await getDevices(1, search, 50);
+    final records = response?.data?.records ?? [];
+    for (final device in records) {
+      if (device.id == starterId) return device;
     }
     return null;
   }
