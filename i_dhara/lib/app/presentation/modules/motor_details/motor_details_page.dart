@@ -133,8 +133,7 @@ class MotorControlWidget extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: InkWell(
               onTap: () {
-                Get.offAllNamed(Routes.dashboard,
-                    arguments: {"refresh": true});
+                Get.offAllNamed(Routes.dashboard, arguments: {"refresh": true});
               },
               borderRadius: BorderRadius.circular(8),
               child: const Padding(
@@ -154,10 +153,9 @@ class MotorControlWidget extends StatelessWidget {
                 final starter = controller.motorDetails.value?.starter;
                 final motor = controller.motorDetails.value;
                 final alias = motor?.aliasName;
-                final displayName =
-                    (alias != null && alias.trim().isNotEmpty)
-                        ? alias
-                        : starter?.starterNumber;
+                final displayName = (alias != null && alias.trim().isNotEmpty)
+                    ? alias
+                    : starter?.starterNumber;
                 Get.toNamed(Routes.deviceInfo, arguments: {
                   'deviceName': displayName,
                   'starterId': starter?.id,
@@ -173,12 +171,12 @@ class MotorControlWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF3FF),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: const Color(0xFF004E7E).withValues(alpha: 0.25),
+                    color: const Color(0xFF004E7E).withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -186,10 +184,20 @@ class MotorControlWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.devices_rounded,
-                        size: 15, color: Color(0xFF004E7E)),
+                        size: 14, color: Color(0xFF004E7E)),
+                    SizedBox(width: 5),
+                    Text(
+                      'Info',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF004E7E),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                     SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_ios_rounded,
-                        size: 11, color: Color(0xFF004E7E)),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 13, color: Color(0xFF004E7E)),
                   ],
                 ),
               ),

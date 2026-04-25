@@ -10,7 +10,10 @@ import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
+import 'package:i_dhara/app/data/models/graphs/device_status_history_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
+import 'package:i_dhara/app/data/models/graphs/motor_status_history_model.dart';
+import 'package:i_dhara/app/data/models/graphs/power_status_history_model.dart';
 import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
@@ -36,6 +39,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   var motorOffChartData = <TimeSegment>[].obs;
   var powerChartData = <TimeSegment>[].obs;
   var powerOffChartData = <TimeSegment>[].obs;
+  var deviceOfflineChartData = <TimeSegment>[].obs;
 
   // --- UI State Variables ---
   var isMotorDetailsLoading = false.obs;
@@ -151,6 +155,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
     motorOffChartData.clear();
     powerChartData.clear();
     powerOffChartData.clear();
+    deviceOfflineChartData.clear();
     voltage.clear();
     current.clear();
     motortotalRuntime.value = '';

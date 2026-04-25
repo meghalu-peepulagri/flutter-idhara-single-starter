@@ -46,23 +46,14 @@ class DeviceInfoPage extends StatelessWidget {
       backgroundColor: const Color(0xFFEBF3FE),
       body: SafeArea(
         child: Obx(() {
-          // Initial load on first open
-          if (controller.isInitialLoading.value) {
+          if (controller.isInitialLoading.value ||
+              controller.isPageLoading.value) {
             return const Padding(
               padding: EdgeInsets.only(bottom: 50, right: 50),
               child: Center(child: AppLottieLoading()),
             );
           }
 
-          // Full-page loading during upload / location save
-          if (controller.isPageLoading.value) {
-            return const Padding(
-              padding: EdgeInsets.only(bottom: 50, right: 50),
-              child: Center(child: AppLottieLoading()),
-            );
-          }
-
-          // Normal content with pull-to-refresh + skeletonizer
           return Column(
             children: [
               _buildHeader(context, controller),
@@ -75,8 +66,23 @@ class DeviceInfoPage extends StatelessWidget {
                       enabled: controller.isRefreshing.value,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                        child: _buildInfoCard(context, controller),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Device Info :-',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF004E7E),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildCard(context, controller),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -131,130 +137,86 @@ class DeviceInfoPage extends StatelessWidget {
     );
   }
 
-  // ── Info card ──────────────────────────────────────────────────────────────
+  // ── Main card ──────────────────────────────────────────────────────────────
 
-  Widget _buildInfoCard(BuildContext context, DeviceInfoController controller) {
+  Widget _buildCard(BuildContext context, DeviceInfoController controller) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF000000).withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+            color: const Color(0xFF000000).withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card title row
+          // Fields
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 14, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF3FF),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.devices_rounded,
-                    size: 18,
-                    color: Color(0xFF004E7E),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Device Info',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF004E7E),
-                    letterSpacing: 0.1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF0F4FA)),
-          const SizedBox(height: 4),
-
-          // Info rows
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Column(
               children: [
-                _InfoRow(
-                  icon: Icons.confirmation_number_outlined,
+                _FieldRow(
                   label: 'Starter Number',
                   value: starterNumber,
-                  accentColor: const Color(0xFF6C63FF),
                   onCopy: starterNumber != null
                       ? () =>
                           Clipboard.setData(ClipboardData(text: starterNumber!))
                       : null,
                 ),
-                _InfoRow(
-                  icon: Icons.developer_board_outlined,
+                const _RowDivider(),
+                _FieldRow(
                   label: 'PCB Number',
                   value: pcbNumber,
-                  accentColor: const Color(0xFF0288D1),
                   onCopy: pcbNumber != null
                       ? () => Clipboard.setData(ClipboardData(text: pcbNumber!))
                       : null,
                 ),
-                _InfoRow(
-                  icon: Icons.sim_card_outlined,
+                const _RowDivider(),
+                _FieldRow(
                   label: 'SIM Number',
                   value: simNumber,
-                  accentColor: const Color(0xFF6C63FF),
                   onCopy: simNumber != null
                       ? () => Clipboard.setData(ClipboardData(text: simNumber!))
                       : null,
                 ),
-                _InfoRow(
-                  icon: Icons.calendar_today_rounded,
+                const _RowDivider(),
+                _FieldRow(
                   label: 'Recharge Expiry',
                   value: simRechargeExpiry,
-                  accentColor: _expiryColor(simRechargeExpiry),
                   valueColor: _expiryColor(simRechargeExpiry),
                 ),
-                // Device location — reactive + editable
-                Obx(() => _InfoRow(
-                      icon: Icons.location_on_outlined,
+                const _RowDivider(),
+                Obx(() => _FieldRow(
                       label: 'Device Location',
                       value: controller.deviceLocation.value,
-                      accentColor: const Color(0xFFEF4444),
                       onEdit: starterId != null
                           ? () => controller.showEditLocationSheet(context)
                           : null,
                     )),
-                _InfoRow(
-                  icon: Icons.check_circle_outline_rounded,
-                  label: 'Test Run Completed Date',
+                const _RowDivider(),
+                _FieldRow(
+                  label: 'Test Run Completed',
                   value: _formatDate(testRunDate),
-                  accentColor: const Color(0xFF10B981),
                 ),
+                const SizedBox(height: 4),
               ],
             ),
           ),
 
-          // Installation photo — reactive + editable
+          // Photo section
           Obx(() {
             final url = controller.photoUrl.value;
             final hasPhoto = url != null && url.isNotEmpty;
-            if (!hasPhoto && starterId == null) {
-              return const SizedBox.shrink();
-            }
+            if (!hasPhoto && starterId == null) return const SizedBox.shrink();
             return Column(
               children: [
-                const Divider(height: 1, color: Color(0xFFF0F4FA)),
+                const Divider(
+                    height: 1, thickness: 1, color: Color(0xFFF0F4FA)),
                 _buildPhotoSection(context, controller, url),
               ],
             );
@@ -271,7 +233,7 @@ class DeviceInfoPage extends StatelessWidget {
     final hasPhoto = url != null && url.isNotEmpty;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -313,7 +275,7 @@ class DeviceInfoPage extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (hasPhoto)
             GestureDetector(
               onTap: () => Navigator.push(
@@ -322,17 +284,43 @@ class DeviceInfoPage extends StatelessWidget {
                   builder: (_) => _FullScreenImageViewer(imageUrl: url),
                 ),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: url,
-                  width: double.infinity,
-                  height: 180,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => _photoPlaceholder(withHint: false),
-                  errorWidget: (_, __, ___) => _photoPlaceholder(),
-                ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      width: double.infinity,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          _photoPlaceholder(withHint: false),
+                      errorWidget: (_, __, ___) => _photoPlaceholder(),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(
+                        Icons.remove_red_eye_outlined,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            )
+          else if (starterId != null)
+            GestureDetector(
+              onTap: () => controller.pickAndUploadPhoto(context),
+              child: _photoPlaceholder(tappable: true),
             )
           else
             _photoPlaceholder(),
@@ -341,28 +329,42 @@ class DeviceInfoPage extends StatelessWidget {
     );
   }
 
-  Widget _photoPlaceholder({bool withHint = true}) {
+  Widget _photoPlaceholder({bool withHint = true, bool tappable = false}) {
     return Container(
       width: double.infinity,
       height: 120,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF3FF),
+        color: tappable ? const Color(0xFFEAF3FF) : const Color(0xFFEAF3FF),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: const Color(0xFFCFDFF5),
-          width: 1.5,
+          color: tappable
+              ? const Color(0xFF004E7E).withValues(alpha: 0.35)
+              : const Color(0xFFCFDFF5),
+          width: tappable ? 1.5 : 1.5,
+          strokeAlign: BorderSide.strokeAlignInside,
         ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.add_a_photo_outlined,
-              size: 32, color: Color(0xFF94A3B8)),
+          Icon(
+            tappable ? Icons.add_a_photo_rounded : Icons.add_a_photo_outlined,
+            size: 34,
+            color: tappable
+                ? const Color(0xFF004E7E).withValues(alpha: 0.6)
+                : const Color(0xFF94A3B8),
+          ),
           if (withHint) ...[
             const SizedBox(height: 6),
-            const Text(
-              'Tap Edit to add a photo',
-              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            Text(
+              tappable ? 'Tap to add a photo' : 'Tap Edit to add a photo',
+              style: TextStyle(
+                fontSize: 12,
+                color: tappable
+                    ? const Color(0xFF004E7E).withValues(alpha: 0.6)
+                    : const Color(0xFF94A3B8),
+                fontWeight: tappable ? FontWeight.w500 : FontWeight.w400,
+              ),
             ),
           ],
         ],
@@ -403,32 +405,28 @@ class DeviceInfoPage extends StatelessWidget {
   }
 }
 
-// ── _InfoRow ───────────────────────────────────────────────────────────────
+// ── _FieldRow ──────────────────────────────────────────────────────────────
 
-class _InfoRow extends StatefulWidget {
-  final IconData icon;
+class _FieldRow extends StatefulWidget {
   final String label;
   final String? value;
-  final Color accentColor;
   final Color? valueColor;
   final VoidCallback? onCopy;
   final VoidCallback? onEdit;
 
-  const _InfoRow({
-    required this.icon,
+  const _FieldRow({
     required this.label,
     this.value,
-    this.accentColor = const Color(0xFF6C63FF),
     this.valueColor,
     this.onCopy,
     this.onEdit,
   });
 
   @override
-  State<_InfoRow> createState() => _InfoRowState();
+  State<_FieldRow> createState() => _FieldRowState();
 }
 
-class _InfoRowState extends State<_InfoRow> {
+class _FieldRowState extends State<_FieldRow> {
   bool _copied = false;
 
   void _handleCopy() {
@@ -446,19 +444,10 @@ class _InfoRowState extends State<_InfoRow> {
         widget.value?.isNotEmpty == true ? widget.value! : 'N/A';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: widget.accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(widget.icon, size: 16, color: widget.accentColor),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,10 +458,10 @@ class _InfoRowState extends State<_InfoRow> {
                     fontSize: 11,
                     color: Color(0xFF9090A8),
                     fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
+                    letterSpacing: 0.4,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   displayValue,
                   style: TextStyle(
@@ -487,10 +476,14 @@ class _InfoRowState extends State<_InfoRow> {
           if (widget.onEdit != null)
             GestureDetector(
               onTap: widget.onEdit,
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(Icons.edit_outlined,
-                    size: 16, color: Color(0xFF004E7E)),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF3FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit_outlined,
+                    size: 15, color: Color(0xFF004E7E)),
               ),
             )
           else if (widget.onCopy != null && widget.value?.isNotEmpty == true)
@@ -512,6 +505,17 @@ class _InfoRowState extends State<_InfoRow> {
         ],
       ),
     );
+  }
+}
+
+// ── Divider between rows ───────────────────────────────────────────────────
+
+class _RowDivider extends StatelessWidget {
+  const _RowDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(height: 1, thickness: 0.8, color: Color(0xFFF0F4FA));
   }
 }
 
