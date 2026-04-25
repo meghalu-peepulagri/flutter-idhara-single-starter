@@ -188,7 +188,7 @@ class DevicesController extends GetxController with ConnectivityMixin {
       final response =
           await _repository.locationreplace(starterId, locationId, motorId);
       if (response != null) {
-        await fetchDevices();
+        await fetchDevices(isInitial: true);
         getsuccessSnackBar(
             response.message ?? 'Location replaced successfully');
       }

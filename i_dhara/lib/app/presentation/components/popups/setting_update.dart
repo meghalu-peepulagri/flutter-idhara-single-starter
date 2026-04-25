@@ -17,7 +17,9 @@ Widget infoCard(
     bool vmin = false,
     bool vmax = false,
     bool cmin = false,
-    bool cmax = false}) {
+    bool cmax = false,
+    String lowLabel = 'Low:',
+    String highLabel = 'High:'}) {
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -58,11 +60,11 @@ Widget infoCard(
           ],
         ),
         const SizedBox(height: 10),
-        if (vmin) rangeRow("Low:", lowOld, lowNew, valueColor),
-        if (cmin) rangeRow("Low:", lowOld, lowNew, valueColor),
+        if (vmin) rangeRow(lowLabel, lowOld, lowNew, valueColor),
+        if (cmin) rangeRow(lowLabel, lowOld, lowNew, valueColor),
         const SizedBox(height: 6),
-        if (vmax) rangeRow("High:", highOld, highNew, valueColor),
-        if (cmax) rangeRow("High:", highOld, highNew, valueColor),
+        if (vmax) rangeRow(highLabel, highOld, highNew, valueColor),
+        if (cmax) rangeRow(highLabel, highOld, highNew, valueColor),
       ],
     ),
   );
@@ -77,12 +79,9 @@ Widget rangeRow(
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      SizedBox(
-        width: 50,
-        child: Text(
-          label,
-          style: const TextStyle(color: Colors.black54),
-        ),
+      Text(
+        label,
+        style: const TextStyle(color: Colors.black54),
       ),
       Row(
         children: [

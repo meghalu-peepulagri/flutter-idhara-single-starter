@@ -1,121 +1,157 @@
 part of 'motor_details_controller.dart';
 
 // ---------------------------------------------------------------------------
-// Background isolate helpers (top-level — required by compute())
+// Status-history segment builders (top-level)
 // ---------------------------------------------------------------------------
 
-class _SegmentInput {
-  final List<Runtime> records;
-  final DateTime now;
-  const _SegmentInput(this.records, this.now);
-}
+/// Builds Motor ON segments from status-history records.
+/// Each record's [timeStamp] marks when the status changed to [status].
+/// The segment ends at the next record's timestamp (or now for the last ON).
+List<TimeSegment> _buildMotorOnSegments(List<Motorstatus> records) {
+  if (records.isEmpty) return [];
+  final sorted = List<Motorstatus>.from(records)
+    ..sort((a, b) {
+      if (a.timeStamp == null) return -1;
+      if (b.timeStamp == null) return 1;
+      return a.timeStamp!.compareTo(b.timeStamp!);
+    });
 
-class _SegmentResults {
-  final List<TimeSegment> motorOn;
-  final List<TimeSegment> motorOff;
-  final List<TimeSegment> powerOn;
-  final List<TimeSegment> powerOff;
-  const _SegmentResults(
-      this.motorOn, this.motorOff, this.powerOn, this.powerOff);
-}
+  final now = DateTime.now();
+  final segments = <TimeSegment>[];
 
-Duration _parseDuration(String str) {
-  final match = RegExp(r'(\d+)\s*h\s*(\d+)\s*m\s*(\d+)\s*sec').firstMatch(str);
-  if (match == null) return Duration.zero;
-  return Duration(
-    hours: int.tryParse(match.group(1) ?? '0') ?? 0,
-    minutes: int.tryParse(match.group(2) ?? '0') ?? 0,
-    seconds: int.tryParse(match.group(3) ?? '0') ?? 0,
-  );
-}
+  for (int i = 0; i < sorted.length; i++) {
+    final r = sorted[i];
+    if (r.timeStamp == null) continue;
+    final status = (r.status ?? '').toUpperCase().trim();
+    if (status != 'ON') continue;
 
-/// Single O(n) pass — replaces 4 separate passes and fixes the O(n²) bug in
-/// the original [convertRuntimeToTimeSegments] (which scanned forward on every
-/// motor-ON record to detect the "last" one).
-_SegmentResults _processSegments(_SegmentInput input) {
-  final records = input.records;
-  final now = input.now;
+    final start = r.timeStamp!;
+    final hasNext = i + 1 < sorted.length && sorted[i + 1].timeStamp != null;
+    final end = hasNext ? sorted[i + 1].timeStamp! : now;
+    final ongoing = !hasNext;
 
-  // Pre-scan once (O(n)) to find the last motor-ON and last power-ON indices.
-  int lastMotorOnIdx = -1;
-  for (int i = records.length - 1; i >= 0; i--) {
-    if (records[i].motorState == 1) {
-      lastMotorOnIdx = i;
-      break;
-    }
+    final duration = end.difference(start);
+    if (duration.inSeconds <= 0) continue;
+
+    segments.add(TimeSegment(start, end, 'MOTOR_ON', duration, isOngoing: ongoing));
   }
 
-  final motorOn = <TimeSegment>[];
-  final motorOff = <TimeSegment>[];
-  final powerOn = <TimeSegment>[];
-  final powerOff = <TimeSegment>[];
+  return segments;
+}
 
-  for (int i = 0; i < records.length; i++) {
-    final r = records[i];
+/// Builds Power ON segments from status-history records.
+List<TimeSegment> _buildPowerOnSegments(List<Powerstatus> records) {
+  if (records.isEmpty) return [];
+  final sorted = List<Powerstatus>.from(records)
+    ..sort((a, b) {
+      if (a.timeStamp == null) return -1;
+      if (b.timeStamp == null) return 1;
+      return a.timeStamp!.compareTo(b.timeStamp!);
+    });
 
-    // ── Motor ON ──────────────────────────────────────────────────────────
-    if (r.motorState == 1 && r.startTime != null) {
-      DateTime? endTime;
-      Duration? duration;
+  final now = DateTime.now();
+  final segments = <TimeSegment>[];
 
-      if (r.endTime != null) {
-        endTime = r.endTime!;
-        duration = r.duration != null
-            ? _parseDuration(r.duration!)
-            : endTime.difference(r.startTime!);
-      } else if (i == lastMotorOnIdx) {
-        // Still-running session: extend to now
-        endTime = now;
-        duration = now.difference(r.startTime!);
-      }
+  for (int i = 0; i < sorted.length; i++) {
+    final r = sorted[i];
+    if (r.timeStamp == null) continue;
+    final status = (r.status ?? '').toUpperCase().trim();
+    if (status != 'ON') continue;
 
-      if (endTime != null && duration != null && duration.inSeconds > 0) {
-        motorOn.add(TimeSegment(r.startTime!, endTime, 'ON', duration));
-      }
-    }
+    final start = r.timeStamp!;
+    final hasNext = i + 1 < sorted.length && sorted[i + 1].timeStamp != null;
+    final end = hasNext ? sorted[i + 1].timeStamp! : now;
+    final ongoing = !hasNext;
 
-    // ── Motor OFF ─────────────────────────────────────────────────────────
-    if (r.motorState == 0 && r.startTime != null && r.endTime != null) {
-      final duration = r.endTime!.difference(r.startTime!);
-      if (duration.inSeconds > 0) {
-        motorOff
-            .add(TimeSegment(r.startTime!, r.endTime!, 'MOTOR_OFF', duration));
-      }
-    }
+    final duration = end.difference(start);
+    if (duration.inSeconds <= 0) continue;
 
-    // ── Power ON ──────────────────────────────────────────────────────────
-    if (r.powerState == 1 && r.powerStart != null) {
-      DateTime? endTime;
-      Duration? duration;
-
-      if (r.powerEnd != null && r.powerDuration != null) {
-        endTime = r.powerEnd!;
-        duration = _parseDuration(r.powerDuration!);
-      } else if (r.powerEnd == null &&
-          r.powerDuration == null &&
-          i == records.length - 1) {
-        // Still-running power session (last record overall)
-        endTime = now;
-        duration = now.difference(r.powerStart!);
-      }
-
-      if (endTime != null && duration != null) {
-        powerOn.add(TimeSegment(r.powerStart!, endTime, 'POWER_ON', duration));
-      }
-    }
-
-    // ── Power OFF ─────────────────────────────────────────────────────────
-    if (r.powerState == 0 && r.powerStart != null && r.powerEnd != null) {
-      final duration = r.powerEnd!.difference(r.powerStart!);
-      if (duration.inSeconds > 0) {
-        powerOff.add(
-            TimeSegment(r.powerStart!, r.powerEnd!, 'POWER_OFF', duration));
-      }
-    }
+    segments.add(TimeSegment(start, end, 'POWER_ON', duration, isOngoing: ongoing));
   }
 
-  return _SegmentResults(motorOn, motorOff, powerOn, powerOff);
+  return segments;
 }
+
+/// Clips motor/power ON segments so they end at the moment the device went
+/// offline, preventing a running segment from visually spanning an offline gap.
+///
+/// Scenario: motor ON → device offline (no OFF record arrives) → device back
+/// online → motor ON again.  Without clipping the first ON segment would
+/// stretch all the way to the next ON record, through the entire offline band.
+/// With clipping it stops exactly where the offline period starts.
+List<TimeSegment> _clipSegmentsAtOffline(
+    List<TimeSegment> segments, List<TimeSegment> offlineSegs) {
+  if (offlineSegs.isEmpty) return segments;
+
+  final result = <TimeSegment>[];
+  for (final seg in segments) {
+    // Find the earliest offline period whose start falls strictly inside
+    // this segment (after start, before end).
+    DateTime? firstOfflineStart;
+    for (final offline in offlineSegs) {
+      if (offline.start.isAfter(seg.start) &&
+          offline.start.isBefore(seg.end)) {
+        if (firstOfflineStart == null ||
+            offline.start.isBefore(firstOfflineStart)) {
+          firstOfflineStart = offline.start;
+        }
+      }
+    }
+
+    if (firstOfflineStart != null) {
+      // Cap the segment at the offline boundary.
+      final clippedDuration = firstOfflineStart.difference(seg.start);
+      if (clippedDuration.inSeconds > 0) {
+        result.add(TimeSegment(
+          seg.start,
+          firstOfflineStart,
+          seg.type,
+          clippedDuration,
+        ));
+      }
+      // The part after the offline period is covered by the next ON record.
+    } else {
+      result.add(seg);
+    }
+  }
+  return result;
+}
+
+/// Builds Device Offline segments — shown as dotted grey lines on the graph.
+/// Status values treated as offline: 'inactive', 'offline', 'disconnected'.
+List<TimeSegment> _buildDeviceOfflineSegments(List<Devicestatus> records) {
+  if (records.isEmpty) return [];
+  final sorted = List<Devicestatus>.from(records)
+    ..sort((a, b) {
+      if (a.timeStamp == null) return -1;
+      if (b.timeStamp == null) return 1;
+      return a.timeStamp!.compareTo(b.timeStamp!);
+    });
+
+  final now = DateTime.now();
+  const offlineStatuses = {'inactive', 'offline', 'disconnected'};
+  final segments = <TimeSegment>[];
+
+  for (int i = 0; i < sorted.length; i++) {
+    final r = sorted[i];
+    if (r.timeStamp == null) continue;
+    final status = (r.status ?? '').toLowerCase().trim();
+    if (!offlineStatuses.contains(status)) continue;
+
+    final start = r.timeStamp!;
+    final hasNext = i + 1 < sorted.length && sorted[i + 1].timeStamp != null;
+    final end = hasNext ? sorted[i + 1].timeStamp! : now;
+    final ongoing = !hasNext;
+
+    final duration = end.difference(start);
+    if (duration.inSeconds <= 0) continue;
+
+    segments.add(TimeSegment(start, end, 'DEVICE_OFFLINE', duration, isOngoing: ongoing));
+  }
+
+  return segments;
+}
+
 
 // ---------------------------------------------------------------------------
 
@@ -210,9 +246,6 @@ extension AnalyticsControllerApi on AnalyticsController {
 
     try {
       await fetchMotorDetails(enableRetry: true);
-      if (selectedTabIndex.value == AnalyticsController.analyticsTabIndex) {
-        await fetchRuntime(daterange);
-      }
     } catch (e) {
       // ignore
     }
@@ -230,17 +263,11 @@ extension AnalyticsControllerApi on AnalyticsController {
 
       futures.add(fetchMotorDetails());
 
-      if (selectedTabIndex.value == AnalyticsController.analyticsTabIndex) {
+      if (selectedTabIndex.value == 1) {
         futures.add(fetchRuntime(daterange));
       }
 
-      if (selectedTabIndex.value == AnalyticsController.scheduleTabIndex &&
-          Get.isRegistered<MotorScheduleController>()) {
-        final scheduleController = Get.find<MotorScheduleController>();
-        futures.add(scheduleController.fetchSchedules(isRefresh: true));
-      }
-
-      if (selectedTabIndex.value == AnalyticsController.logsTabIndex) {
+      if (selectedTabIndex.value == 2) {
         final logsController = Get.find<MotorLogsController>();
         futures.add(logsController.refreshCurrentTab());
       }
@@ -264,6 +291,7 @@ extension AnalyticsControllerApi on AnalyticsController {
       motorOffChartData.clear();
       powerChartData.clear();
       powerOffChartData.clear();
+      deviceOfflineChartData.clear();
       voltage.clear();
       current.clear();
       motortotalRuntime.value = '';
@@ -273,14 +301,6 @@ extension AnalyticsControllerApi on AnalyticsController {
     valueNotifier.value = null;
   }
 
-  /// Downsamples records to at most [maxCount] entries.
-  /// Takes the last [maxCount] records so the most recent (including any
-  /// currently-running segment) is always preserved.
-  List<Runtime> _downsampleRecords(List<Runtime> records,
-      {int maxCount = 300}) {
-    if (records.length <= maxCount) return records;
-    return records.sublist(records.length - maxCount);
-  }
 
   Future<void> fetchRuntime(List<DateTime?> dateRange) async {
     if (dateRange.isEmpty ||
@@ -294,55 +314,64 @@ extension AnalyticsControllerApi on AnalyticsController {
     }
 
     try {
-      final response = await AnalyticsRepositoryImpl().getMotorRunTime(
-        DateFormat('yyyy-MM-dd').format(dateRange.first!),
-        DateFormat('yyyy-MM-dd').format(dateRange.last!),
-      );
+      final fromDate = DateFormat('yyyy-MM-dd').format(dateRange.first!);
+      final toDate = DateFormat('yyyy-MM-dd').format(dateRange.last!);
 
-      if (response != null && response.data != null) {
-        final allRecords = response.data!.records ?? [];
-        final records = _downsampleRecords(allRecords);
-        motorRuntimeData.value = records;
+      final repo = AnalyticsRepositoryImpl();
+      final responses = await Future.wait([
+        repo.getMotorStatusHistory(fromDate, toDate),
+        repo.getPowerStatusHistory(fromDate, toDate),
+        repo.getDeviceStatusHistory(fromDate, toDate),
+      ]);
 
-        // Use the API's total — strip seconds (HH:MM:SS → HH:MM)
-        final raw = response.data!.totalRunOnTime ?? '';
-        final timeParts = raw.split(':');
-        motortotalRuntime.value =
-            timeParts.length == 3 ? '${timeParts[0]}:${timeParts[1]}' : raw;
+      final motorResp = responses[0] as MotorStatusHistoryResponse?;
+      final powerResp = responses[1] as PowerStatusHistoryResponse?;
+      final deviceResp = responses[2] as DeviceStatusHistoryResponse?;
 
-        if (records.isNotEmpty) {
-          // Process all segment types in a single O(n) pass on a background
-          // isolate — keeps the UI thread free while building chart data.
-          final results = await compute(
-            _processSegments,
-            _SegmentInput(records, DateTime.now()),
-          );
+      final motorRecords = motorResp?.data ?? [];
+      final powerRecords = powerResp?.data ?? [];
+      final deviceRecords = deviceResp?.data ?? [];
 
-          chartData.value = results.motorOn;
-          motorOffChartData.value = results.motorOff;
-          powerChartData.value = results.powerOn;
-          powerOffChartData.value = results.powerOff;
+      final motorOnSegs = _buildMotorOnSegments(motorRecords);
+      final powerOnSegs = _buildPowerOnSegments(powerRecords);
+      final deviceOffSegs = _buildDeviceOfflineSegments(deviceRecords);
 
-          // Calculate power total runtime from isolate results
-          Duration totalPowerDuration = Duration.zero;
-          for (final segment in results.powerOn) {
-            totalPowerDuration += segment.duration;
-          }
-          final int hours = totalPowerDuration.inHours;
-          final int minutes = totalPowerDuration.inMinutes % 60;
-          powerTotalRuntime.value = '$hours h $minutes m';
-        }
-      } else {
-        motorRuntimeData.clear();
-        chartData.clear();
-        powerChartData.clear();
-        motortotalRuntime.value = '';
-        powerTotalRuntime.value = '';
+      // Clip motor/power segments that span into an offline period.
+      // If the device went offline while the motor/power was still running
+      // (and no OFF record arrived), the segment is capped at the offline
+      // start so it does not visually extend through the offline band.
+      final clippedMotorSegs = _clipSegmentsAtOffline(motorOnSegs, deviceOffSegs);
+      final clippedPowerSegs = _clipSegmentsAtOffline(powerOnSegs, deviceOffSegs);
+
+      chartData.value = clippedMotorSegs;
+      powerChartData.value = clippedPowerSegs;
+      deviceOfflineChartData.value = deviceOffSegs;
+      motorOffChartData.value = [];
+      powerOffChartData.value = [];
+
+      // Total motor runtime from clipped ON segments
+      Duration totalMotor = Duration.zero;
+      for (final s in clippedMotorSegs) {
+        totalMotor += s.duration;
       }
+      final mh = totalMotor.inHours;
+      final mm = (totalMotor.inMinutes % 60).toString().padLeft(2, '0');
+      motortotalRuntime.value =
+          clippedMotorSegs.isEmpty ? '' : '${mh.toString().padLeft(2, '0')}:$mm';
+
+      // Total power runtime from clipped ON segments
+      Duration totalPower = Duration.zero;
+      for (final s in clippedPowerSegs) {
+        totalPower += s.duration;
+      }
+      final ph = totalPower.inHours;
+      final pm = totalPower.inMinutes % 60;
+      powerTotalRuntime.value =
+          clippedPowerSegs.isEmpty ? '' : '$ph h $pm m';
     } catch (e) {
-      motorRuntimeData.clear();
       chartData.clear();
       powerChartData.clear();
+      deviceOfflineChartData.clear();
       motortotalRuntime.value = '';
       powerTotalRuntime.value = '';
     } finally {
@@ -571,13 +600,17 @@ class TimeSegment {
   final DateTime end;
   final String type;
   final Duration duration;
+  /// True when there was no real end in the API response — the segment is
+  /// still active (motor still ON, power still ON, device still offline).
+  final bool isOngoing;
 
   TimeSegment(
     this.start,
     this.end,
     this.type,
-    this.duration,
-  );
+    this.duration, {
+    this.isOngoing = false,
+  });
 
   @override
   String toString() {

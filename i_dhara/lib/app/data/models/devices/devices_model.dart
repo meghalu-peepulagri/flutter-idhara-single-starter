@@ -114,6 +114,9 @@ class Devices {
   String? deviceAllocation;
   String? deviceMobileNumber;
   String? simRechargeExpire;
+  String? deviceInstalledLocation;
+  String? installationPhotoKey;
+  String? installationPhotoUrl;
   List<Motor>? motors;
 
   Devices(
@@ -128,7 +131,10 @@ class Devices {
       this.motors,
       this.deviceAllocation,
       this.deviceMobileNumber,
-      this.simRechargeExpire});
+      this.simRechargeExpire,
+      this.deviceInstalledLocation,
+      this.installationPhotoKey,
+      this.installationPhotoUrl});
 
   factory Devices.fromJson(Map<String, dynamic> json) => Devices(
         id: json["id"],
@@ -142,6 +148,9 @@ class Devices {
         deviceAllocation: json["device_allocation"],
         simRechargeExpire: json["sim_recharge_expires_at"],
         deviceMobileNumber: json["device_mobile_number"],
+        deviceInstalledLocation: json["device_installed_location"],
+        installationPhotoKey: json["installation_photo_key"],
+        installationPhotoUrl: json["installation_photo_url"],
         motors: json["motors"] == null
             ? []
             : List<Motor>.from(json["motors"]!.map((x) => Motor.fromJson(x))),
@@ -159,6 +168,9 @@ class Devices {
         "device_allocation": deviceAllocation,
         "device_mobile_number": deviceMobileNumber,
         "sim_recharge_expires_at": simRechargeExpire,
+        "device_installed_location": deviceInstalledLocation,
+        "installation_photo_key": installationPhotoKey,
+        "installation_photo_url": installationPhotoUrl,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),
@@ -174,6 +186,7 @@ class Motor {
   String? aliasName;
   Location? location;
   String? testrunStatus;
+  String? testRunCompletedAt;
 
   Motor({
     this.id,
@@ -184,6 +197,7 @@ class Motor {
     this.aliasName,
     this.location,
     this.testrunStatus,
+    this.testRunCompletedAt,
   });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
@@ -197,6 +211,7 @@ class Motor {
             ? null
             : Location.fromJson(json["location"]),
         testrunStatus: json["test_run_status"],
+        testRunCompletedAt: json["test_run_completed_at"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -208,6 +223,7 @@ class Motor {
         "alias_name": aliasName,
         "location": location?.toJson(),
         "test_run_status": testrunStatus,
+        "test_run_completed_at": testRunCompletedAt,
       };
 }
 

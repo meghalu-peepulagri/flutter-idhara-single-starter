@@ -97,6 +97,7 @@ class MotorsRepositoryImpl implements MotorsRepository {
       'log_type': logTypes,
       'page': page,
       'page_size': 15,
+      'is_assigned': "true"
     };
     final response = await NetworkManager().get(
         '/starters/${SharedPreference.getStarterId()}/motors/${SharedPreference.getMotorId()}/logs',

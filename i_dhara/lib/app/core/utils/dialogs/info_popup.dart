@@ -8,6 +8,8 @@ void showSimInfoPopup({
   required BuildContext context,
   required String simNumber,
   required String expiryDate,
+  String? starterNumber,
+  String? pcbNumber,
 }) {
   showGeneralDialog(
     context: context,
@@ -28,6 +30,8 @@ void showSimInfoPopup({
           child: _SimInfoDialog(
             simNumber: simNumber,
             expiryDate: expiryDate,
+            starterNumber: starterNumber,
+            pcbNumber: pcbNumber,
           ),
         ),
       );
@@ -38,10 +42,14 @@ void showSimInfoPopup({
 class _SimInfoDialog extends StatelessWidget {
   final String simNumber;
   final String expiryDate;
+  final String? starterNumber;
+  final String? pcbNumber;
 
   const _SimInfoDialog({
     required this.simNumber,
     required this.expiryDate,
+    this.starterNumber,
+    this.pcbNumber,
   });
 
   @override
@@ -105,18 +113,37 @@ class _SimInfoDialog extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Info rows
+                  if (starterNumber != null && starterNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _InfoRow(
+                      icon: Icons.confirmation_number_outlined,
+                      label: 'Starter Number',
+                      value: starterNumber!,
+                      accentColor: const Color(0xFF6C63FF),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: starterNumber!));
+                      },
+                    ),
+                  ],
+                  if (pcbNumber != null && pcbNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _InfoRow(
+                      icon: Icons.developer_board_outlined,
+                      label: 'PCB Number',
+                      value: pcbNumber!,
+                      accentColor: const Color(0xFF0288D1),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: pcbNumber!));
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 10),
                   _InfoRow(
                     icon: Icons.sim_card,
                     label: 'SIM Number',
                     value: simNumber,
                     onCopy: () {
                       Clipboard.setData(ClipboardData(text: simNumber));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('SIM number copied!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
                     },
                   ),
                   const SizedBox(height: 10),
@@ -233,8 +260,8 @@ class _InfoRowState extends State<_InfoRow> {
 
   void _handleCopy() {
     if (widget.onCopy == null) return;
-    widget.onCopy!();
     setState(() => _copied = true);
+    widget.onCopy!();
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);
     });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/presentation/components/popups/setting_update.dart';
 
@@ -62,6 +63,13 @@ Future<void> showSettingsConfirmDialog(
                 ),
               ),
               SizedBox(height: verticalPadding),
+              if (flcChanged)
+                _flcCard(
+                  oldFlc: originalFlc,
+                  newFlc: currentFlc,
+                ),
+              if (flcChanged && (isVoltageRange || isCurrentRange))
+                const SizedBox(height: 12),
               if (isVoltageRange)
                 infoCard(
                   bgColor: const Color(0xFFEAF3FF),
@@ -77,42 +85,27 @@ Future<void> showSettingsConfirmDialog(
                   vmax: vmax,
                   cmin: false,
                   cmax: false,
+                  lowLabel: 'Low Volts:',
+                  highLabel: 'High Volts:',
                 ),
-              const SizedBox(height: 12),
+              if (isVoltageRange && isCurrentRange) const SizedBox(height: 12),
               if (isCurrentRange)
                 infoCard(
                   bgColor: const Color(0xFFFFF3E8),
                   iconBg: const Color(0xFFFF7A00),
                   svg: 'assets/images/Current.svg',
                   title: "Current Fault",
-                  lowOld: '${originalCurrentLow ?? currentDrf} A',
-                  lowNew: '$currentDrf A',
-                  highOld: '${originalCurrentHigh ?? currentOlf} A',
-                  highNew: '$currentOlf A',
+                  lowOld: originalCurrentLow ?? currentDrf,
+                  lowNew: currentDrf,
+                  highOld: originalCurrentHigh ?? currentOlf,
+                  highNew: currentOlf,
                   valueColor: const Color(0xFFF97316),
                   vmin: false,
                   vmax: false,
                   cmin: cmin,
                   cmax: cmax,
-                ),
-              const SizedBox(height: 12),
-              if (flcChanged && !isCurrentRange && !isVoltageRange)
-                infoCard(
-                  widthofSvg: 32,
-                  heightofSvg: 32,
-                  bgColor: const Color(0xFFEAF3FF),
-                  iconBg: Colors.transparent,
-                  svg: 'assets/images/flc_icon.svg',
-                  title: 'FLC',
-                  lowOld: '$originalFlc A',
-                  lowNew: '$currentFlc A',
-                  highOld: '',
-                  highNew: '',
-                  valueColor: const Color(0xFF2563EB),
-                  vmin: true,
-                  vmax: false,
-                  cmin: false,
-                  cmax: false,
+                  lowLabel: 'Dry Run:',
+                  highLabel: 'Overload:',
                 ),
             ],
           ),
@@ -163,5 +156,62 @@ Future<void> showSettingsConfirmDialog(
         ],
       );
     },
+  );
+}
+
+/// Compact single-line FLC card shown at the top of the confirm dialog.
+Widget _flcCard({required String oldFlc, required String newFlc}) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF3FF),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        SvgPicture.asset(
+          'assets/images/flc_icon.svg',
+          width: 28,
+          height: 28,
+        ),
+        const SizedBox(width: 10),
+        const Text(
+          'FLC',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2563EB),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                '$oldFlc A',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black54,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.arrow_right_alt,
+                    size: 18, color: Colors.black45),
+              ),
+              Text(
+                '$newFlc A',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 }

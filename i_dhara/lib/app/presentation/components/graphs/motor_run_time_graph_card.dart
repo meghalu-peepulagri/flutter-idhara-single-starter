@@ -28,7 +28,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
 
   bool _showMotorOn = true;
   bool _showPowerOn = true;
-  bool _showOff = true;
 
   @override
   void initState() {
@@ -56,164 +55,144 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     DateTime? xTime;
     if (cartPoint?.x is DateTime) {
       xTime = cartPoint?.x as DateTime?;
+    } else if (cartPoint?.x is num) {
+      // ScatterSeries (and some other series) pass the internal axis value
+      // (milliseconds since epoch) rather than a DateTime object.
+      xTime =
+          DateTime.fromMillisecondsSinceEpoch((cartPoint!.x as num).toInt());
     }
+    if (xTime == null) return const SizedBox.shrink();
 
-    final xLabel = xTime != null
-        ? DateFormat('dd-MM-yyyy hh:mm:ss').format(xTime.toLocal())
-        : '';
-
-    String formatDuration(Duration d) {
+    String fmtDur(Duration d) {
       final h = d.inHours.toString().padLeft(2, '0');
       final m = (d.inMinutes % 60).toString().padLeft(2, '0');
       final s = (d.inSeconds % 60).toString().padLeft(2, '0');
       return '$h:$m:$s';
     }
 
-    final yValue = cartPoint?.y as double?;
-    final isMotorLine = yValue != null && yValue > 2;
-    final isPowerLine = yValue != null && yValue < 2;
+    String fmt(DateTime dt) =>
+        DateFormat('dd-MM-yyyy hh:mm:ss a').format(dt.toLocal());
 
-    String tooltipText = xLabel;
+    bool ptMatch(DateTime t, TimeSegment seg) =>
+        (t.difference(seg.start).inMilliseconds.abs() < 500) ||
+        (t.difference(seg.end).inMilliseconds.abs() < 500);
 
-    if (xTime != null) {
-      if (isMotorLine) {
-        // Check motor ON segments first
-        bool found = false;
-        for (final e in analyticsController.chartData) {
-          if (xTime
-                  .isAfter(e.start.subtract(const Duration(microseconds: 1))) &&
-              xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
-            final startLabel =
-                DateFormat('dd-MM-yyyy hh:mm:ss').format(e.start.toLocal());
-            final endLabel =
-                DateFormat('dd-MM-yyyy hh:mm:ss').format(e.end.toLocal());
-            tooltipText =
-                'Motor ON\nStart: $startLabel\nEnd:   $endLabel\nDuration: ${formatDuration(e.duration)}';
-            found = true;
-            break;
-          }
+    // Y value tells us which row was tapped:
+    //   Y ≥ 2.0  →  motor row  (series plotted at Y = 3.0)
+    //   Y < 2.0  →  power row  (series plotted at Y = 1.0)
+    // Using Y prevents motor and power segments that share the same start
+    // time from incorrectly matching each other's tooltip.
+    final double yValue = cartPoint?.y is num
+        ? (cartPoint!.y as num).toDouble()
+        : 3.0; // default to motor row if unavailable
+
+    // ── Device offline — shown on both rows; check before motor/power
+    for (final seg in analyticsController.deviceOfflineChartData) {
+      if (ptMatch(xTime, seg)) {
+        if (seg.isOngoing) {
+          return _tooltip(
+            'Device Offline\nStart:  ${fmt(seg.start)}\nStatus: Offline',
+            Colors.grey.shade600,
+          );
         }
-        // Fall back to motor OFF segments
-        if (!found) {
-          for (final e in analyticsController.motorOffChartData) {
-            if (xTime.isAfter(
-                    e.start.subtract(const Duration(microseconds: 1))) &&
-                xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
-              final startLabel =
-                  DateFormat('dd-MM-yyyy hh:mm:ss').format(e.start.toLocal());
-              final endLabel =
-                  DateFormat('dd-MM-yyyy hh:mm:ss').format(e.end.toLocal());
-              tooltipText =
-                  'Motor OFF\nStart: $startLabel\nEnd:   $endLabel\nDuration: ${formatDuration(e.duration)}';
-              break;
-            }
+        return _tooltip(
+          'Device Offline\nStart:    ${fmt(seg.start)}\nEnd:      ${fmt(seg.end)}\nDuration: ${fmtDur(seg.duration)}',
+          Colors.grey.shade600,
+        );
+      }
+    }
+
+    if (yValue >= 2.0) {
+      // ── Motor row
+      for (final seg in analyticsController.chartData) {
+        if (ptMatch(xTime, seg)) {
+          if (seg.isOngoing) {
+            return _tooltip(
+              'Motor ON\nStart:  ${fmt(seg.start)}\nStatus: Running',
+              Colors.green.shade700,
+            );
           }
+          return _tooltip(
+            'Motor ON\nStart:  ${fmt(seg.start)}\nEnd:    ${fmt(seg.end)}\nDuration: ${fmtDur(seg.duration)}',
+            Colors.green.shade700,
+          );
         }
-      } else if (isPowerLine) {
-        // Check power ON segments first
-        bool found = false;
-        for (final e in analyticsController.powerChartData) {
-          if (xTime
-                  .isAfter(e.start.subtract(const Duration(microseconds: 1))) &&
-              xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
-            final startLabel =
-                DateFormat('dd-MM-yyyy hh:mm:ss').format(e.start.toLocal());
-            final endLabel =
-                DateFormat('dd-MM-yyyy hh:mm:ss').format(e.end.toLocal());
-            tooltipText =
-                'Power ON\nStart: $startLabel\nEnd:   $endLabel\nDuration: ${formatDuration(e.duration)}';
-            found = true;
-            break;
+      }
+    } else {
+      // ── Power row
+      for (final seg in analyticsController.powerChartData) {
+        if (ptMatch(xTime, seg)) {
+          if (seg.isOngoing) {
+            return _tooltip(
+              'Power ON\nStart:  ${fmt(seg.start)}\nStatus:  Running',
+              Colors.blue.shade700,
+            );
           }
-        }
-        // Fall back to power OFF segments
-        if (!found) {
-          for (final e in analyticsController.powerOffChartData) {
-            if (xTime.isAfter(
-                    e.start.subtract(const Duration(microseconds: 1))) &&
-                xTime.isBefore(e.end.add(const Duration(microseconds: 1)))) {
-              final startLabel =
-                  DateFormat('dd-MM-yyyy hh:mm:ss').format(e.start.toLocal());
-              final endLabel =
-                  DateFormat('dd-MM-yyyy hh:mm:ss').format(e.end.toLocal());
-              tooltipText =
-                  'Power OFF\nStart: $startLabel\nEnd:   $endLabel\nDuration: ${formatDuration(e.duration)}';
-              break;
-            }
-          }
+          return _tooltip(
+            'Power ON\nStart:    ${fmt(seg.start)}\nEnd:      ${fmt(seg.end)}\nDuration: ${fmtDur(seg.duration)}',
+            Colors.blue.shade700,
+          );
         }
       }
     }
 
+    return _tooltip(fmt(xTime), Colors.black87);
+  }
+
+  Widget _tooltip(String text, Color headerColor) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black87,
         borderRadius: BorderRadius.circular(6),
+        border: Border(left: BorderSide(color: headerColor, width: 3)),
       ),
       child: Text(
-        tooltipText,
-        style: const TextStyle(color: Colors.white, fontSize: 12),
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.5),
       ),
     );
   }
 
-  List<TimeSegment> buildChartData(List<TimeSegment> rawData) {
-    if (rawData.isEmpty) return [];
-    final sorted = List<TimeSegment>.from(rawData);
-    sorted.sort((a, b) => a.start.compareTo(b.start));
-    return sorted;
+  List<TimeSegment> _sorted(List<TimeSegment> data) {
+    final copy = List<TimeSegment>.from(data);
+    copy.sort((a, b) => a.start.compareTo(b.start));
+    return copy;
   }
 
-  DateTime? getMinTime(
-      List<TimeSegment> motorData,
-      List<TimeSegment> motorOffData,
-      List<TimeSegment> powerData,
-      List<TimeSegment> powerOffData) {
-    final allData = [
-      ...motorData,
-      ...motorOffData,
-      ...powerData,
-      ...powerOffData
-    ];
-    if (allData.isEmpty) return null;
-    return allData.map((e) => e.start).reduce((a, b) => a.isBefore(b) ? a : b);
+  DateTime? _minTime(List<List<TimeSegment>> allLists) {
+    DateTime? min;
+    for (final list in allLists) {
+      for (final seg in list) {
+        if (min == null || seg.start.isBefore(min)) min = seg.start;
+      }
+    }
+    return min;
   }
 
-  DateTime? getMaxTime(
-      List<TimeSegment> motorData,
-      List<TimeSegment> motorOffData,
-      List<TimeSegment> powerData,
-      List<TimeSegment> powerOffData) {
-    final allData = [
-      ...motorData,
-      ...motorOffData,
-      ...powerData,
-      ...powerOffData
-    ];
-    if (allData.isEmpty) return null;
-    return allData.map((e) => e.end).reduce((a, b) => a.isAfter(b) ? a : b);
+  DateTime? _maxTime(List<List<TimeSegment>> allLists) {
+    DateTime? max;
+    for (final list in allLists) {
+      for (final seg in list) {
+        if (max == null || seg.end.isAfter(max)) max = seg.end;
+      }
+    }
+    return max;
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final motorChartData = buildChartData(analyticsController.chartData);
-      final motorOffChartData =
-          buildChartData(analyticsController.motorOffChartData);
-      final powerChartData = buildChartData(analyticsController.powerChartData);
-      final powerOffChartData =
-          buildChartData(analyticsController.powerOffChartData);
+      final motorData = _sorted(analyticsController.chartData);
+      final powerData = _sorted(analyticsController.powerChartData);
+      final offlineData = _sorted(analyticsController.deviceOfflineChartData);
 
-      final minTime = getMinTime(
-          motorChartData, motorOffChartData, powerChartData, powerOffChartData);
-      final maxTime = getMaxTime(
-          motorChartData, motorOffChartData, powerChartData, powerOffChartData);
+      final minTime = _minTime([motorData, powerData, offlineData]);
+      final maxTime = _maxTime([motorData, powerData, offlineData]);
 
-      final hasData = motorChartData.isNotEmpty ||
-          motorOffChartData.isNotEmpty ||
-          powerChartData.isNotEmpty ||
-          powerOffChartData.isNotEmpty;
+      final hasData = motorData.isNotEmpty ||
+          powerData.isNotEmpty ||
+          offlineData.isNotEmpty;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -318,22 +297,16 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
                                           maximum: 4,
                                         ),
                                         series: [
+                                          ..._offlineSeries(
+                                              offlineData, 3.0), // motor row
+                                          ..._offlineSeries(
+                                              offlineData, 1.0), // power row
                                           if (_showMotorOn)
-                                            ..._buildMotorSeries(
-                                                motorChartData),
-                                          if (_showOff)
-                                            ..._buildMotorOffSeries(
-                                                motorOffChartData),
+                                            ..._motorOnSeries(motorData),
                                           if (_showPowerOn)
-                                            ..._buildPowerSeries(
-                                                powerChartData),
-                                          if (_showOff)
-                                            ..._buildPowerOffSeries(
-                                                powerOffChartData),
+                                            ..._powerOnSeries(powerData),
                                         ],
-                                        legend: const Legend(
-                                          isVisible: false,
-                                        ),
+                                        legend: const Legend(isVisible: false),
                                       ),
                                     ),
                                   ),
@@ -372,21 +345,6 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
       ),
       child: Row(
         children: [
-          // Container(
-          //   padding: const EdgeInsets.all(9),
-          //   decoration: BoxDecoration(
-          //     color: const Color(0xFF45A845).withValues(alpha: 0.12),
-          //     borderRadius: BorderRadius.circular(10),
-          //     border: Border.all(
-          //       color: const Color(0xFF45A845).withValues(alpha: 0.2),
-          //       width: 0.8,
-          //     ),
-          //   ),
-          //   child: Image.asset(
-          //     'assets/images/motorruntime.png',
-          //     height: 20,
-          //   ),
-          // ),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
@@ -407,18 +365,30 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
           Obx(() {
             final motorTotal = analyticsController.motortotalRuntime.value;
             if (motorTotal.isEmpty) return const SizedBox.shrink();
-            final parts = motorTotal.split(':');
-            final display = parts.length >= 3
-                ? '${parts[0]}:${parts[1]}'
-                : motorTotal
-                    .replaceAll(
-                        RegExp(r'\s*\d+\s*sec', caseSensitive: false), '')
-                    .trim();
-            return _runtimeBadge(display, Colors.green, Icons.timer_outlined);
+            return _runtimeBadge(
+              _fmtHhMm(motorTotal),
+              Colors.green,
+              Icons.timer_outlined,
+            );
           }),
         ],
       ),
     );
+  }
+
+  // Parses "HH:MM:SS" (or "H:MM:SS") from the API and returns "Xh Ym".
+  // Falls back to the raw string if the format is unrecognised.
+  String _fmtHhMm(String raw) {
+    final parts = raw.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      if (h > 0 && m > 0) return '${h}h ${m}m';
+      if (h > 0) return '${h}h';
+      if (m > 0) return '${m}m';
+      return '0m';
+    }
+    return raw;
   }
 
   Widget _runtimeBadge(String label, Color color, IconData icon) {
@@ -451,20 +421,17 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _legendChip(Colors.green, 'Motor On', Icons.power_rounded, _showMotorOn,
-            () => setState(() => _showMotorOn = !_showMotorOn)),
+        _legendChip(Colors.green, 'Motor On', Icons.power_rounded, false,
+            _showMotorOn, () => setState(() => _showMotorOn = !_showMotorOn)),
         const SizedBox(width: 8),
-        _legendChip(Colors.blue, 'Power On', Icons.bolt_rounded, _showPowerOn,
-            () => setState(() => _showPowerOn = !_showPowerOn)),
-        const SizedBox(width: 8),
-        _legendChip(Colors.red, 'Off', Icons.stop_circle_outlined, _showOff,
-            () => setState(() => _showOff = !_showOff)),
+        _legendChip(Colors.blue, 'Power On', Icons.bolt_rounded, false,
+            _showPowerOn, () => setState(() => _showPowerOn = !_showPowerOn)),
       ],
     );
   }
 
-  Widget _legendChip(Color color, String label, IconData icon, bool isActive,
-      VoidCallback onTap) {
+  Widget _legendChip(Color color, String label, IconData icon, bool isDashed,
+      bool isActive, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedOpacity(
@@ -500,271 +467,124 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
   }
 }
 
-List<LineSeries<TimePoint, DateTime>> _buildMotorSeries(
-    List<TimeSegment> data) {
-  final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-  final DateTime now = DateTime.now();
+// ---------------------------------------------------------------------------
+// Series builders
+// ---------------------------------------------------------------------------
 
-  for (final segment in data) {
-    // Check if this motor segment is still running
-    // A segment is "still running" if end time is very close to now (within 5 seconds)
-    final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-    // Choose color based on whether it's still running
-    final lineColor = isStillRunning ? Colors.green : Colors.green;
-    final endPointColor = isStillRunning ? Colors.green : Colors.red;
-
-    final points = [
-      TimePoint(
-        segment.start,
-        3, // Y-position for motor line (top)
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        true,
+/// Motor ON → solid green line (start→end) with a dot only at the ON start.
+/// Two series per segment: the full line (no markers) + a 1ms stub at start
+/// (start marker only, no visible line).
+List<LineSeries<_Pt, DateTime>> _motorOnSeries(List<TimeSegment> data) {
+  final result = <LineSeries<_Pt, DateTime>>[];
+  for (final seg in data) {
+    result.add(LineSeries<_Pt, DateTime>(
+      dataSource: [_Pt(seg.start, 3.0, seg), _Pt(seg.end, 3.0, seg)],
+      xValueMapper: (p, _) => p.time,
+      yValueMapper: (p, _) => p.value,
+      color: Colors.green,
+      width: 3,
+      markerSettings: const MarkerSettings(isVisible: false),
+      isVisibleInLegend: false,
+    ));
+    result.add(LineSeries<_Pt, DateTime>(
+      dataSource: [
+        _Pt(seg.start, 3.0, seg),
+        _Pt(seg.start.add(const Duration(milliseconds: 1)), 3.0, seg),
+      ],
+      xValueMapper: (p, _) => p.time,
+      yValueMapper: (p, _) => p.value,
+      color: Colors.transparent,
+      width: 0,
+      markerSettings: const MarkerSettings(
+        isVisible: true,
+        height: 8,
+        width: 8,
+        shape: DataMarkerType.circle,
+        color: Colors.green,
+        borderColor: Colors.green,
       ),
-      TimePoint(
-        segment.end,
-        3, // Y-position for motor line (top)
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        false,
-      ),
-    ];
-
-    seriesList.add(
-      LineSeries(
-        dataSource: points,
-        xValueMapper: (p, _) => p.time,
-        yValueMapper: (p, _) => p.value,
-        color: lineColor, // Orange if still running, green if completed
-        width: 3,
-        name: isStillRunning ? 'Still Running' : null,
-        legendIconType:
-            isStillRunning ? LegendIconType.circle : LegendIconType.circle,
-        isVisibleInLegend: isStillRunning,
-        markerSettings: const MarkerSettings(
-          isVisible: true,
-          height: 6,
-          width: 6,
-          shape: DataMarkerType.circle,
-        ),
-        pointColorMapper: (TimePoint point, _) {
-          if (isStillRunning) {
-            // Both points orange if still running
-            return Colors.green;
-          } else {
-            // Green start, red end if completed
-            return point.isStartPoint ? Colors.green : Colors.red;
-          }
-        },
-      ),
-    );
+      isVisibleInLegend: false,
+    ));
   }
-
-  return seriesList;
+  return result;
 }
 
-List<LineSeries<TimePoint, DateTime>> _buildMotorOffSeries(
-    List<TimeSegment> data) {
-  final List<LineSeries<TimePoint, DateTime>> seriesList = [];
-
-  for (final segment in data) {
-    final points = [
-      TimePoint(
-        segment.start,
-        3, // same Y-position as motor ON line
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        true,
+/// Power ON → solid blue line (start→end) with a dot only at the ON start.
+List<LineSeries<_Pt, DateTime>> _powerOnSeries(List<TimeSegment> data) {
+  final result = <LineSeries<_Pt, DateTime>>[];
+  for (final seg in data) {
+    result.add(LineSeries<_Pt, DateTime>(
+      dataSource: [_Pt(seg.start, 1.0, seg), _Pt(seg.end, 1.0, seg)],
+      xValueMapper: (p, _) => p.time,
+      yValueMapper: (p, _) => p.value,
+      color: Colors.blue,
+      width: 3,
+      markerSettings: const MarkerSettings(isVisible: false),
+      isVisibleInLegend: false,
+    ));
+    result.add(LineSeries<_Pt, DateTime>(
+      dataSource: [
+        _Pt(seg.start, 1.0, seg),
+        _Pt(seg.start.add(const Duration(milliseconds: 1)), 1.0, seg),
+      ],
+      xValueMapper: (p, _) => p.time,
+      yValueMapper: (p, _) => p.value,
+      color: Colors.transparent,
+      width: 0,
+      markerSettings: const MarkerSettings(
+        isVisible: true,
+        height: 8,
+        width: 8,
+        shape: DataMarkerType.circle,
+        color: Colors.blue,
+        borderColor: Colors.blue,
       ),
-      TimePoint(
-        segment.end,
-        3,
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        false,
-      ),
-    ];
-
-    seriesList.add(
-      LineSeries(
-        dataSource: points,
-        xValueMapper: (p, _) => p.time,
-        yValueMapper: (p, _) => p.value,
-        color: Colors.red,
-        width: 3,
-        markerSettings: const MarkerSettings(
-          isVisible: true,
-          height: 6,
-          width: 6,
-          shape: DataMarkerType.circle,
-        ),
-        pointColorMapper: (TimePoint point, _) => Colors.red,
-        isVisibleInLegend: false,
-      ),
-    );
+      isVisibleInLegend: false,
+    ));
   }
-
-  return seriesList;
+  return result;
 }
 
-List<LineSeries<PowerTimePoint, DateTime>> _buildPowerSeries(
-    List<TimeSegment> data) {
-  final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
-  final DateTime now = DateTime.now();
-
-  for (final segment in data) {
-    // Check if this segment is still running
-    // A segment is "still running" if end time is very close to now (within 5 seconds)
-    final isStillRunning = segment.end.difference(now).abs().inSeconds < 5;
-
-    // Choose color based on whether it's still running
-    final lineColor = isStillRunning ? Colors.blue : Colors.blue;
-    final endPointColor = isStillRunning ? Colors.blue : Colors.red;
-
-    final points = [
-      PowerTimePoint(
-        segment.start,
-        1, // Y-position for power line (bottom)
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        true,
-      ),
-      PowerTimePoint(
-        segment.end,
-        1, // Y-position for power line (bottom)
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        false,
-      ),
+/// Device offline → two-pass rendering per segment so coloured lines below
+/// cannot bleed through the gaps in the dashes:
+///   1. Wide white masking line (covers the coloured series beneath).
+///   2. Grey dashed line on top.
+List<LineSeries<_Pt, DateTime>> _offlineSeries(
+    List<TimeSegment> data, double yValue) {
+  final result = <LineSeries<_Pt, DateTime>>[];
+  for (final seg in data) {
+    final pts = [
+      _Pt(seg.start, yValue, seg),
+      _Pt(seg.end, yValue, seg),
     ];
-
-    seriesList.add(
-      LineSeries(
-        dataSource: points,
-        xValueMapper: (p, _) => p.time,
-        yValueMapper: (p, _) => p.value,
-        color: lineColor, // Orange if still running, blue if completed
-        width: 3,
-        markerSettings: const MarkerSettings(
-          isVisible: true,
-          height: 6,
-          width: 6,
-          shape: DataMarkerType.circle,
-        ),
-        pointColorMapper: (PowerTimePoint point, _) {
-          if (isStillRunning) {
-            // Both points orange if still running
-            return Colors.blue;
-          } else {
-            // Blue start, orange end if completed
-            return point.isStartPoint ? Colors.blue : Colors.red;
-          }
-        },
-        isVisibleInLegend: false,
-      ),
-    );
+    // Pass 1 — white mask to erase the coloured line underneath
+    result.add(LineSeries<_Pt, DateTime>(
+      dataSource: pts,
+      xValueMapper: (p, _) => p.time,
+      yValueMapper: (p, _) => p.value,
+      color: Colors.white,
+      width: 6,
+      markerSettings: const MarkerSettings(isVisible: false),
+      isVisibleInLegend: false,
+    ));
+    // Pass 2 — grey dashes
+    result.add(LineSeries<_Pt, DateTime>(
+      dataSource: pts,
+      xValueMapper: (p, _) => p.time,
+      yValueMapper: (p, _) => p.value,
+      color: Colors.grey.shade400,
+      width: 3,
+      dashArray: const [6, 4],
+      markerSettings: const MarkerSettings(isVisible: false),
+      isVisibleInLegend: false,
+    ));
   }
-
-  return seriesList;
+  return result;
 }
 
-List<LineSeries<PowerTimePoint, DateTime>> _buildPowerOffSeries(
-    List<TimeSegment> data) {
-  final List<LineSeries<PowerTimePoint, DateTime>> seriesList = [];
-
-  for (final segment in data) {
-    final points = [
-      PowerTimePoint(
-        segment.start,
-        1, // same Y-position as power line
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        true,
-      ),
-      PowerTimePoint(
-        segment.end,
-        1,
-        segment.duration.toString(),
-        segment.type,
-        segment.start,
-        segment.end,
-        false,
-      ),
-    ];
-
-    seriesList.add(
-      LineSeries(
-        dataSource: points,
-        xValueMapper: (p, _) => p.time,
-        yValueMapper: (p, _) => p.value,
-        color: Colors.red,
-        width: 3,
-        markerSettings: const MarkerSettings(
-          isVisible: true,
-          height: 6,
-          width: 6,
-          shape: DataMarkerType.circle,
-        ),
-        pointColorMapper: (PowerTimePoint point, _) => Colors.red,
-        isVisibleInLegend: false,
-      ),
-    );
-  }
-
-  return seriesList;
-}
-
-class TimePoint {
+class _Pt {
   final DateTime time;
   final double value;
-  final String duration;
-  final String motorDescription;
-  DateTime start;
-  DateTime end;
-  final bool isStartPoint;
-
-  TimePoint(
-    this.time,
-    this.value,
-    this.duration,
-    this.motorDescription,
-    this.start,
-    this.end,
-    this.isStartPoint,
-  );
-}
-
-class PowerTimePoint {
-  final DateTime time;
-  final double value;
-  final String duration;
-  final String powerDescription;
-  DateTime start;
-  DateTime end;
-  final bool isStartPoint;
-
-  PowerTimePoint(
-    this.time,
-    this.value,
-    this.duration,
-    this.powerDescription,
-    this.start,
-    this.end,
-    this.isStartPoint,
-  );
+  final TimeSegment segment;
+  _Pt(this.time, this.value, this.segment);
 }

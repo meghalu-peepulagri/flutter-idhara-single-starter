@@ -16,6 +16,8 @@ import 'package:i_dhara/app/presentation/modules/schedules/schedule_page.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_devices_page.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_page.dart';
 import 'package:i_dhara/app/presentation/modules/splash_screen/splash_page.dart';
+import 'package:i_dhara/app/presentation/modules/devices/device_info/device_info_controller.dart';
+import 'package:i_dhara/app/presentation/modules/devices/device_info/device_info_page.dart';
 import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
@@ -112,6 +114,16 @@ class AppPages {
       transition: Transition.fade,
       transitionDuration: const Duration(milliseconds: 300),
       binding: DevicesBinding(),
+    ),
+    GetPage(
+      name: Routes.deviceInfo,
+      page: () => DeviceInfoPage.fromArgs(
+          (Get.arguments as Map<String, dynamic>?) ?? {}),
+      binding: BindingsBuilder(() {
+        Get.put(DeviceInfoController());
+      }),
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
     ),
   ];
 }
