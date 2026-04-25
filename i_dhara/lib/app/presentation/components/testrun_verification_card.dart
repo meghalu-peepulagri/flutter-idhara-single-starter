@@ -97,6 +97,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   bool _savingIsSendingSettings = false;
   int _d0Countdown = _waitingTimerSeconds;
   Timer? _d0CountdownTimer;
+  bool _motorOffFailed = false;
+  String _motorOffFailureMsg = '';
   final ValueNotifier<int> _settingsCountdown = ValueNotifier(15);
   Timer? _settingsCountdownTimer;
 
@@ -364,6 +366,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       _remainingSeconds = _totalSeconds;
       _avgCurrent.value = 0;
       _overalCurrent.value = 0;
+      _motorOffFailed = false;
+      _motorOffFailureMsg = '';
     });
   }
 
@@ -510,13 +514,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       if (_mqttMotorId.isNotEmpty) widget.mqttService.removeTestRunMotor(_mqttMotorId);
       if (!_savingIsSendingSettings) {
         // D:0 retries exhausted — motor didn't confirm OFF.
-        if (mounted) {
-          setState(() {
-            _hasPendingSave = false;
-            _phase = _TestRunPhase.failure;
-            failureMessage = message;
-          });
-        }
+        _handleMotorOffFailure(message);
       } else {
         // Calibration retries exhausted.
         geterrorSnackBar(message);
@@ -572,6 +570,20 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     }
   }
 
+  void _handleMotorOffFailure(String message) {
+    _d0CountdownTimer?.cancel();
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOffAck);
+    widget.mqttService.commandStatusNotifier.removeListener(_onCommandStatus);
+    if (_mqttMotorId.isNotEmpty) widget.mqttService.removeTestRunMotor(_mqttMotorId);
+    if (mounted) {
+      setState(() {
+        _hasPendingSave = false;
+        _motorOffFailed = true;
+        _motorOffFailureMsg = message;
+      });
+    }
+  }
+
   void _completeTestRun() {
     widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
     final sum = _flcData.isNotEmpty ? _flcData.reduce((a, b) => a + b) : 0.0;
@@ -600,6 +612,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
           setState(() => _d0Countdown--);
         } else {
           timer.cancel();
+          _handleMotorOffFailure('No acknowledgment received from device');
         }
       });
       widget.mqttService
@@ -1898,71 +1911,137 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
               // Body
               Padding(
                 padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: Color(0xFF0F6B8A),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _savingIsSendingSettings
-                          ? 'Saving Calibration...'
-                          : 'Stopping Motor...',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF004E7E),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (!_savingIsSendingSettings) ...[
-                      Text(
-                        '$_d0Countdown s',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF0F6B8A),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Waiting for device acknowledgment',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ] else ...[
-                      ValueListenableBuilder<int>(
-                        valueListenable: _settingsCountdown,
-                        builder: (context, countdown, _) {
-                          return Text(
-                            '$countdown s',
+                child: _motorOffFailed
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 36,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Motor Failed to Stop',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _motorOffFailureMsg,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (widget.route == Routes.dashboard) {
+                                  Get.offAllNamed(Routes.dashboard,
+                                      arguments: {'refresh': true});
+                                } else {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0F6B8A),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'Dismiss',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
                               color: Color(0xFF0F6B8A),
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            _savingIsSendingSettings
+                                ? 'Saving Calibration...'
+                                : 'Stopping Motor...',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF004E7E),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (!_savingIsSendingSettings) ...[
+                            Text(
+                              '$_d0Countdown s',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF0F6B8A),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Waiting for device acknowledgment',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ] else ...[
+                            ValueListenableBuilder<int>(
+                              valueListenable: _settingsCountdown,
+                              builder: (context, countdown, _) {
+                                return Text(
+                                  '$countdown s',
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF0F6B8A),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Sending calibration to device',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Sending calibration to device',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
               ),
             ],
           ),
