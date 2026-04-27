@@ -5,8 +5,12 @@ part of 'motor_details_controller.dart';
 // ---------------------------------------------------------------------------
 
 /// Builds Motor ON segments from status-history records.
-/// Each record's [timeStamp] marks when the status changed to [status].
-/// The segment ends at the next record's timestamp (or now for the last ON).
+/// Uses a state machine: only a transition from non-ON → ON opens a new
+/// segment. Consecutive ON records (motor still running across dates) extend
+/// the same segment without adding a new start dot.
+/// If the very first record is already ON, the segment is flagged as a
+/// continuation — no start dot is drawn because the motor was running before
+/// this date range.
 List<TimeSegment> _buildMotorOnSegments(List<Motorstatus> records) {
   if (records.isEmpty) return [];
   final sorted = List<Motorstatus>.from(records)
@@ -18,28 +22,40 @@ List<TimeSegment> _buildMotorOnSegments(List<Motorstatus> records) {
 
   final now = DateTime.now();
   final segments = <TimeSegment>[];
+  String? lastStatus;
+  DateTime? segStart;
 
-  for (int i = 0; i < sorted.length; i++) {
-    final r = sorted[i];
+  for (final r in sorted) {
     if (r.timeStamp == null) continue;
     final status = (r.status ?? '').toUpperCase().trim();
-    if (status != 'ON') continue;
 
-    final start = r.timeStamp!;
-    final hasNext = i + 1 < sorted.length && sorted[i + 1].timeStamp != null;
-    final end = hasNext ? sorted[i + 1].timeStamp! : now;
-    final ongoing = !hasNext;
+    if (status == 'ON' && lastStatus != 'ON') {
+      // Fresh ON transition: open a new segment with a start dot.
+      segStart = r.timeStamp;
+    } else if (status != 'ON' && lastStatus == 'ON' && segStart != null) {
+      final end = r.timeStamp!;
+      final dur = end.difference(segStart);
+      if (dur.inSeconds > 0) {
+        segments.add(TimeSegment(segStart, end, 'MOTOR_ON', dur));
+      }
+      segStart = null;
+    }
+    // ON → ON across dates: same segment continues, no new dot.
+    lastStatus = status;
+  }
 
-    final duration = end.difference(start);
-    if (duration.inSeconds <= 0) continue;
-
-    segments.add(TimeSegment(start, end, 'MOTOR_ON', duration, isOngoing: ongoing));
+  if (lastStatus == 'ON' && segStart != null) {
+    final dur = now.difference(segStart);
+    if (dur.inSeconds > 0) {
+      segments.add(TimeSegment(segStart, now, 'MOTOR_ON', dur, isOngoing: true));
+    }
   }
 
   return segments;
 }
 
 /// Builds Power ON segments from status-history records.
+/// Same state-machine logic as motor: consecutive ON records are merged.
 List<TimeSegment> _buildPowerOnSegments(List<Powerstatus> records) {
   if (records.isEmpty) return [];
   final sorted = List<Powerstatus>.from(records)
@@ -51,22 +67,31 @@ List<TimeSegment> _buildPowerOnSegments(List<Powerstatus> records) {
 
   final now = DateTime.now();
   final segments = <TimeSegment>[];
+  String? lastStatus;
+  DateTime? segStart;
 
-  for (int i = 0; i < sorted.length; i++) {
-    final r = sorted[i];
+  for (final r in sorted) {
     if (r.timeStamp == null) continue;
     final status = (r.status ?? '').toUpperCase().trim();
-    if (status != 'ON') continue;
 
-    final start = r.timeStamp!;
-    final hasNext = i + 1 < sorted.length && sorted[i + 1].timeStamp != null;
-    final end = hasNext ? sorted[i + 1].timeStamp! : now;
-    final ongoing = !hasNext;
+    if (status == 'ON' && lastStatus != 'ON') {
+      segStart = r.timeStamp;
+    } else if (status != 'ON' && lastStatus == 'ON' && segStart != null) {
+      final end = r.timeStamp!;
+      final dur = end.difference(segStart);
+      if (dur.inSeconds > 0) {
+        segments.add(TimeSegment(segStart, end, 'POWER_ON', dur));
+      }
+      segStart = null;
+    }
+    lastStatus = status;
+  }
 
-    final duration = end.difference(start);
-    if (duration.inSeconds <= 0) continue;
-
-    segments.add(TimeSegment(start, end, 'POWER_ON', duration, isOngoing: ongoing));
+  if (lastStatus == 'ON' && segStart != null) {
+    final dur = now.difference(segStart);
+    if (dur.inSeconds > 0) {
+      segments.add(TimeSegment(segStart, now, 'POWER_ON', dur, isOngoing: true));
+    }
   }
 
   return segments;
@@ -599,6 +624,9 @@ class TimeSegment {
   /// True when there was no real end in the API response — the segment is
   /// still active (motor still ON, power still ON, device still offline).
   final bool isOngoing;
+  /// True when the first record in the date range was already ON, meaning the
+  /// motor was running before this date range — no start dot should be drawn.
+  final bool isContinuation;
 
   TimeSegment(
     this.start,
@@ -606,6 +634,7 @@ class TimeSegment {
     this.type,
     this.duration, {
     this.isOngoing = false,
+    this.isContinuation = false,
   });
 
   @override

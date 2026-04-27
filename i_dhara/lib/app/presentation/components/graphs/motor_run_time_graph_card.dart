@@ -376,19 +376,29 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
     );
   }
 
-  // Parses "HH:MM:SS" (or "H:MM:SS") from the API and returns "Xh Ym".
-  // Falls back to the raw string if the format is unrecognised.
+  // Parses runtime strings from the API and returns "Xh Ym" (no seconds).
+  // Handles both "HH:MM:SS" / "HH:MM" and pre-formatted "Xh Ym Zs" / "Xh Ym".
   String _fmtHhMm(String raw) {
-    final parts = raw.split(':');
+    final s = raw.trim();
+
+    // Format: "Xh Ym Zs" or "Xh Ym" — strip seconds portion if present.
+    if (s.contains('h') || s.contains('m')) {
+      final noSec = s.replaceAll(RegExp(r'\s*\d+\s*s\b'), '').trim();
+      return noSec.isEmpty ? '0m' : noSec;
+    }
+
+    // Format: "HH:MM:SS" or "HH:MM" — take only hours and minutes.
+    final parts = s.split(':');
     if (parts.length >= 2) {
-      final h = int.tryParse(parts[0]) ?? 0;
-      final m = int.tryParse(parts[1]) ?? 0;
+      final h = int.tryParse(parts[0].trim()) ?? 0;
+      final m = int.tryParse(parts[1].trim()) ?? 0;
       if (h > 0 && m > 0) return '${h}h ${m}m';
       if (h > 0) return '${h}h';
       if (m > 0) return '${m}m';
       return '0m';
     }
-    return raw;
+
+    return s;
   }
 
   Widget _runtimeBadge(String label, Color color, IconData icon) {
@@ -472,8 +482,8 @@ class _MotorRuntimeGraphWidgetState extends State<MotorRuntimeGraphWidget> {
 // ---------------------------------------------------------------------------
 
 /// Motor ON → solid green line (start→end) with a dot only at the ON start.
-/// Two series per segment: the full line (no markers) + a 1ms stub at start
-/// (start marker only, no visible line).
+/// Skips the start dot for continuation segments (motor was already running
+/// before this date range — no fresh start occurred).
 List<LineSeries<_Pt, DateTime>> _motorOnSeries(List<TimeSegment> data) {
   final result = <LineSeries<_Pt, DateTime>>[];
   for (final seg in data) {
@@ -510,6 +520,7 @@ List<LineSeries<_Pt, DateTime>> _motorOnSeries(List<TimeSegment> data) {
 }
 
 /// Power ON → solid blue line (start→end) with a dot only at the ON start.
+/// Skips the start dot for continuation segments.
 List<LineSeries<_Pt, DateTime>> _powerOnSeries(List<TimeSegment> data) {
   final result = <LineSeries<_Pt, DateTime>>[];
   for (final seg in data) {
