@@ -17,4 +17,5 @@ class Routes {
   static const String scheduleManage = '/schedule-manage';
   static const String settingsDevices = '/settings-devices';
   static const String deviceInfo = '/device-info';
+  static const String scheduleHistory = '/schedule-history';
 }

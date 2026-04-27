@@ -3,6 +3,7 @@ import 'package:i_dhara/app/data/dto/create_schedule_dto.dart';
 import 'package:i_dhara/app/data/models/schedules/create_schedule_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_acknowledment_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_delete_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_history_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_stop_restart_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_update_model.dart';
@@ -35,6 +36,29 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     if (response.statusCode == 200) {
       final res = ScheduleListResponse.fromJson(response.data);
       return res;
+    }
+    return null;
+  }
+
+  @override
+  Future<ScheduleHistoryLogsResponse?> getScheduleHistory({
+    required String fromDate,
+    required String toDate,
+    int? page,
+    int? limit,
+  }) async {
+    final params = {
+      'motor_id': SharedPreference.getMotorId(),
+      'starter_id': SharedPreference.getStarterId(),
+      'from_date': fromDate,
+      'to_date': toDate,
+      if (page != null) 'page': page,
+      if (limit != null) 'limit': limit,
+    };
+    final response = await NetworkManager()
+        .get('/motor-schedules/history', queryParameters: params);
+    if (response.statusCode == 200) {
+      return ScheduleHistoryLogsResponse.fromJson(response.data);
     }
     return null;
   }

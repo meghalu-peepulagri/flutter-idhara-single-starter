@@ -9,6 +9,7 @@ import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_manage_controller.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -173,6 +174,40 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                   Icons.arrow_back_rounded,
                   color: Color(0xFF004E7E),
                   size: 20,
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => Get.toNamed(Routes.scheduleHistory),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF004E7E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: const Color(0xFF004E7E).withValues(alpha: 0.3),
+                      width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.history_rounded,
+                        size: 14, color: Color(0xFF004E7E)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Logs',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF004E7E),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
