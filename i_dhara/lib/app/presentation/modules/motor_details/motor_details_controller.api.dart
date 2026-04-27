@@ -322,11 +322,13 @@ extension AnalyticsControllerApi on AnalyticsController {
         repo.getMotorStatusHistory(fromDate, toDate),
         repo.getPowerStatusHistory(fromDate, toDate),
         repo.getDeviceStatusHistory(fromDate, toDate),
+        repo.getMotorTotalRuntime(fromDate, toDate),
       ]);
 
       final motorResp = responses[0] as MotorStatusHistoryResponse?;
       final powerResp = responses[1] as PowerStatusHistoryResponse?;
       final deviceResp = responses[2] as DeviceStatusHistoryResponse?;
+      final runtimeResp = responses[3] as MotortTotalRuntimeResponse?;
 
       final motorRecords = motorResp?.data ?? [];
       final powerRecords = powerResp?.data ?? [];
@@ -349,15 +351,9 @@ extension AnalyticsControllerApi on AnalyticsController {
       motorOffChartData.value = [];
       powerOffChartData.value = [];
 
-      // Total motor runtime from clipped ON segments
-      Duration totalMotor = Duration.zero;
-      for (final s in clippedMotorSegs) {
-        totalMotor += s.duration;
-      }
-      final mh = totalMotor.inHours;
-      final mm = (totalMotor.inMinutes % 60).toString().padLeft(2, '0');
+      // Total motor runtime from API response
       motortotalRuntime.value =
-          clippedMotorSegs.isEmpty ? '' : '${mh.toString().padLeft(2, '0')}:$mm';
+          runtimeResp?.data?.totalOnDurationFormatted ?? '';
 
       // Total power runtime from clipped ON segments
       Duration totalPower = Duration.zero;
