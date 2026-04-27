@@ -263,11 +263,18 @@ extension AnalyticsControllerApi on AnalyticsController {
 
       futures.add(fetchMotorDetails());
 
-      if (selectedTabIndex.value == 1) {
+      if (selectedTabIndex.value == AnalyticsController.scheduleTabIndex) {
+        if (Get.isRegistered<MotorScheduleController>()) {
+          futures.add(
+              Get.find<MotorScheduleController>().fetchSchedules(isRefresh: true));
+        }
+      }
+
+      if (selectedTabIndex.value == AnalyticsController.analyticsTabIndex) {
         futures.add(fetchRuntime(daterange));
       }
 
-      if (selectedTabIndex.value == 2) {
+      if (selectedTabIndex.value == AnalyticsController.logsTabIndex) {
         final logsController = Get.find<MotorLogsController>();
         futures.add(logsController.refreshCurrentTab());
       }

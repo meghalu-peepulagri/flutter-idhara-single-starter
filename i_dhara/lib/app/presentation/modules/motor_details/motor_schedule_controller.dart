@@ -19,6 +19,7 @@ class MotorScheduleController extends GetxController {
   final MqttService _mqttService = MqttService();
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
   StreamSubscription<Map<String, dynamic>>? _scheduleActionAckSubscription;
+  StreamSubscription<Map<String, dynamic>>? _scheduleLiveDataSubscription;
 
   var schedules = <Record>[].obs;
   var isLoading = true.obs;
@@ -71,6 +72,7 @@ class MotorScheduleController extends GetxController {
     fetchSchedules();
     _listenScheduleAck();
     _listenScheduleActionAck();
+    _listenScheduleLiveData();
     ever(Get.find<AnalyticsController>().selectedTabIndex, (int index) {
       if (index == 1) fetchSchedules();
     });
@@ -89,6 +91,7 @@ class MotorScheduleController extends GetxController {
     scrollController.dispose();
     _scheduleAckSubscription?.cancel();
     _scheduleActionAckSubscription?.cancel();
+    _scheduleLiveDataSubscription?.cancel();
     super.onClose();
   }
 
@@ -257,7 +260,8 @@ class MotorScheduleController extends GetxController {
         records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
     if (scheduleIds.isEmpty) return false;
     // Guard: skip if any of these schedules already has an in-flight action.
-    if (scheduleIds.any((sid) => _pendingActions.containsKey(sid))) return false;
+    if (scheduleIds.any((sid) => _pendingActions.containsKey(sid)))
+      return false;
 
     final key = _bulkKey(scheduleIds);
     final completer = Completer<bool>();
@@ -298,7 +302,8 @@ class MotorScheduleController extends GetxController {
         records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
     if (scheduleIds.isEmpty) return false;
     // Guard: skip if any of these schedules already has an in-flight action.
-    if (scheduleIds.any((sid) => _pendingActions.containsKey(sid))) return false;
+    if (scheduleIds.any((sid) => _pendingActions.containsKey(sid)))
+      return false;
 
     final cmd = enabled ? 2 : 1;
     final key = _bulkKey(scheduleIds);
@@ -546,6 +551,39 @@ class MotorScheduleController extends GetxController {
     final pcb = starter?.pcbNumber?.trim() ?? '';
     final mac = starter?.macAddress?.trim() ?? '';
     return getMotorIdentifier(deviceAlloc, pcb, mac);
+  }
+
+  // --- MQTT live schedule updates (sch field from T:35 / T:41) ---
+
+  /// Convert integer time (e.g. 700 or 1430) to "HH:MM" string.
+  static String _intToTimeStr(int t) {
+    final h = t ~/ 100;
+    final m = t % 100;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  void _listenScheduleLiveData() {
+    _scheduleLiveDataSubscription?.cancel();
+    _scheduleLiveDataSubscription =
+        _mqttService.scheduleLiveDataStream.listen((data) {
+      final scheduleId = data['scheduleId'] as int?;
+      if (scheduleId == null) return;
+
+      final idx = schedules.indexWhere((r) => r.scheduleId == scheduleId);
+      if (idx == -1) return;
+
+      final stRaw = data['startTime'] as int?;
+      final etRaw = data['endTime'] as int?;
+      final runtime = data['runtime'] as int?;
+
+      // copyWith creates a NEW Record instance so Flutter's widget diff detects
+      // a real object change and guarantees ScheduleCard.build() is called.
+      schedules[idx] = schedules[idx].copyWith(
+        runtimeMinutes: runtime,
+        startTime: stRaw != null ? _intToTimeStr(stRaw) : null,
+        endTime: etRaw != null ? _intToTimeStr(etRaw) : null,
+      );
+    });
   }
 
   // --- Schedule Create ACK (T:33) ---

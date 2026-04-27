@@ -57,6 +57,9 @@ class MotorData {
 
   bool hasReceivedData = false;
 
+  // Active schedule info keyed by schedule ID, updated from live data sch field
+  final Map<int, ScheduleInfo> schedules = {};
+
   String? macAddress;
   String? pcbNumber;
   String? groupId;
@@ -109,6 +112,26 @@ class MotorData {
   }
 }
 
+class ScheduleInfo {
+  final int id;
+  final int startTime;
+  final int runtime;
+  final int endTime;
+  final int missedTimes;
+  final int failureEpoch;
+  final int failureReason; // 1=Power Loss, 2=Fault, 3=Mode Change
+
+  ScheduleInfo({
+    required this.id,
+    required this.startTime,
+    required this.runtime,
+    required this.endTime,
+    required this.missedTimes,
+    required this.failureEpoch,
+    required this.failureReason,
+  });
+}
+
 /// Tracks pending commands for retry mechanism
 class PendingCommand {
   final String motorId;
@@ -152,6 +175,13 @@ class MqttService {
       StreamController.broadcast();
   Stream<Map<String, dynamic>> get scheduleActionAckStream =>
       scheduleActionAckController.stream;
+
+  // Emits {scheduleId, runtime, missedTimes, failureEpoch, failureReason}
+  // whenever a live sch field arrives for G01 or G02.
+  final StreamController<Map<String, dynamic>> _scheduleLiveDataController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get scheduleLiveDataStream =>
+      _scheduleLiveDataController.stream;
 
   factory MqttService({Map<String, Motor>? initialMotors}) {
     if (initialMotors != null) {
@@ -766,17 +796,17 @@ class MqttService {
         identifier,
         sequenceNumber: seq,
       );
+      _registerPendingCommand(
+        commandKey,
+        24,
+        payload,
+        seq,
+        pcbnumber: identifier,
+      );
     } else {
       debugPrint(
           '⚠️ Schedule action already in-flight for $identifier — skipping duplicate publish');
     }
-    _registerPendingCommand(
-      commandKey,
-      24,
-      payload,
-      seq,
-      pcbnumber: identifier,
-    );
     statusMessage = 'Schedule action command sent successfully';
     _dataUpdateNotifier.value++;
   }
@@ -1140,7 +1170,8 @@ class MqttService {
     // When in test run, T:31 ACK stops the retry loop but must NOT update motor
     // state — the test run manages the motor lifecycle independently.
     if (isIdentifierInTestRun(identifier)) {
-      debugPrint('   ✅ T:31 for test run motor — clearing retry, skipping state update');
+      debugPrint(
+          '   ✅ T:31 for test run motor — clearing retry, skipping state update');
       final testRunMotorId = _findMotorWithPendingCommand(identifier, 1) ??
           _findAnyMotorWithIdentifier(identifier);
       if (testRunMotorId != null) {
@@ -1443,9 +1474,13 @@ class MqttService {
         _motorDataMap[fullMotorId] = motorData;
       }
 
-      // Update motor data from payload
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
-      motorData.hasReceivedData = true;
+
+      // Parse sch only for G01 and G02
+      if (groupId == 'G01' || groupId == 'G02') {
+        _parseSchedule(motorData, groupData);
+      }
+
       motorData.hasReceivedData = true;
       motorData.hasReceivedLiveData = true;
       _lastAckTimes[fullMotorId] = DateTime.now();
@@ -1511,8 +1546,13 @@ class MqttService {
             power: pwr);
         _motorDataMap[fullMotorId] = motorData;
       }
-      // Update motor data from payload
       _updateMotorDataFromPayload(motorData, groupData, groupId == 'G04');
+
+      // Parse sch only for G01 and G02
+      if (groupId == 'G01' || groupId == 'G02') {
+        _parseSchedule(motorData, groupData);
+      }
+
       motorData.testRunSignal = true;
       // T:35 live data only verifies power supply and voltage range.
       // Network connectivity (testRunSignal) is verified ONLY by T:40 heartbeat.
@@ -1819,6 +1859,40 @@ class MqttService {
     } else if (!isG04) {
       motorData.alert = 0;
     }
+  }
+
+  /// Parse sch field from a G01/G02 group payload and store in motorData.schedules.
+  void _parseSchedule(MotorData motorData, Map<String, dynamic> groupData) {
+    final schRaw = groupData['sch'];
+    if (schRaw is! Map<String, dynamic>) return;
+
+    final idRaw = schRaw['id'];
+    final scheduleId = idRaw is int ? idRaw : int.tryParse('$idRaw');
+    if (scheduleId == null) return;
+
+    final info = ScheduleInfo(
+      id: scheduleId,
+      startTime: (schRaw['st'] as num?)?.toInt() ?? 0,
+      runtime: (schRaw['rt'] as num?)?.toInt() ?? 0,
+      endTime: (schRaw['et'] as num?)?.toInt() ?? 0,
+      missedTimes: (schRaw['mm'] as num?)?.toInt() ?? 0,
+      failureEpoch: (schRaw['fe'] as num?)?.toInt() ?? 0,
+      failureReason: (schRaw['fr'] as num?)?.toInt() ?? 0,
+    );
+    motorData.schedules[scheduleId] = info;
+
+    // Notify MotorScheduleController so the list updates without a refresh
+    _scheduleLiveDataController.add({
+      'scheduleId': scheduleId,
+      'runtime': info.runtime,
+      'startTime': info.startTime,
+      'endTime': info.endTime,
+      'missedTimes': info.missedTimes,
+      'failureEpoch': info.failureEpoch,
+      'failureReason': info.failureReason,
+    });
+    debugPrint(
+        '   ✓ Schedule[$scheduleId] updated: rt=${schRaw['rt']}, fr=${schRaw['fr']}');
   }
 
   /// Find motor with pending command of given type for the identifier

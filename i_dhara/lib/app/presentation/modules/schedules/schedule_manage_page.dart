@@ -26,6 +26,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   late final ScheduleManageController _controller;
   late final MotorScheduleController _motorScheduleController;
   _BulkScheduleAction _selectedAction = _BulkScheduleAction.delete;
+  bool _isRunningBulkAction = false;
 
   static const _filters = [
     {'label': 'All', 'value': ''},
@@ -223,7 +224,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                   child: InkWell(
                     onTap: () => _openDateDialog(
                       initialDate: fromDate,
-                      firstDate: DateTime.now(),
+                      firstDate: DateTime(2020),
                       lastDate: DateTime(DateTime.now().year + 2),
                       onPicked: (date) =>
                           _controller.updateDateRange(from: date),
@@ -400,13 +401,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
             children: [
               Expanded(
                 child: _buildActionRadioTile(
-                  label: 'Delete',
-                  value: _BulkScheduleAction.delete,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildActionRadioTile(
                   label: 'Stop',
                   value: _BulkScheduleAction.stop,
                 ),
@@ -416,6 +410,13 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 child: _buildActionRadioTile(
                   label: 'Resume',
                   value: _BulkScheduleAction.restart,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionRadioTile(
+                  label: 'Delete',
+                  value: _BulkScheduleAction.delete,
                 ),
               ),
             ],
@@ -731,14 +732,14 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     required DateTime lastDate,
     required ValueChanged<DateTime> onPicked,
   }) async {
-    final today = DateTime.now();
-    final todayNorm = DateTime(today.year, today.month, today.day);
+    // final today = DateTime.now();
+    // final todayNorm = DateTime(today.year, today.month, today.day);
 
     final results = await showCalendarDatePicker2Dialog(
       context: context,
       config: CalendarDatePicker2WithActionButtonsConfig(
         calendarType: CalendarDatePicker2Type.single,
-        firstDate: firstDate.isBefore(todayNorm) ? todayNorm : firstDate,
+        firstDate: firstDate,
         lastDate: lastDate,
         selectedDayHighlightColor: const Color(0xFF004E7E),
         selectedDayTextStyle: const TextStyle(
@@ -877,6 +878,11 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   }
 
   void _showBulkActionConfirm(_BulkScheduleAction action) {
+    if (_isRunningBulkAction) return;
+    // Lock immediately so double-tapping the Confirm button never opens
+    // a second dialog before the first one is dismissed.
+    setState(() => _isRunningBulkAction = true);
+
     final selectedCount = _controller.selectedRecordIds.length;
     final title = switch (action) {
       _BulkScheduleAction.delete => 'Delete Schedules',
@@ -907,14 +913,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         iconAssetPath: 'assets/images/schedule.svg',
         isactive: action == _BulkScheduleAction.restart,
         onDelete: () async {
-          // Keep the dialog open so FFButtonWidget's loading indicator
-          // stays active and blocks double-taps (prevents duplicate MQTT sends).
+          // FFButtonWidget(showLoadingIndicator: true) already blocks re-taps
+          // within the dialog. This just runs the action and closes.
           await _runBulkAction(action);
           if (dialogCtx.mounted) Navigator.pop(dialogCtx);
         },
         onCancel: () => Navigator.pop(dialogCtx),
       ),
-    );
+    ).whenComplete(() {
+      // Unlock after dialog is fully dismissed (confirm or cancel).
+      if (mounted) setState(() => _isRunningBulkAction = false);
+    });
   }
 
   Future<bool> _runBulkAction(_BulkScheduleAction action) {
