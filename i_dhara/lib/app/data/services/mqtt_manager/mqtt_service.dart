@@ -782,20 +782,16 @@ class MqttService {
     };
 
     final commandKey = 'schedule_action_$identifier';
-    // Guard: only send the initial publish if no command is already in-flight
-    // for this identifier. The existing retry loop will deliver the command.
-    // _registerPendingCommand below resets the retry timer regardless.
     final alreadyInFlight = _pendingCommands.containsKey('${commandKey}_24');
     _lastAckTimes.remove(commandKey);
     // Clear expired status so a fresh command's ACK is accepted
     _expiredActionKeys.remove(commandKey);
 
     if (!alreadyInFlight) {
-      await _publishScheduleCommandInternal(
-        payload,
-        identifier,
-        sequenceNumber: seq,
-      );
+      // Register BEFORE the async publish. await yields control to the event
+      // loop, so a concurrent call could pass the alreadyInFlight check above
+      // if we only set the key after the await. Registering first (synchronous)
+      // ensures any racing call sees the key immediately and skips.
       _registerPendingCommand(
         commandKey,
         24,
@@ -803,6 +799,18 @@ class MqttService {
         seq,
         pcbnumber: identifier,
       );
+      try {
+        await _publishScheduleCommandInternal(
+          payload,
+          identifier,
+          sequenceNumber: seq,
+        );
+      } catch (e) {
+        // If the initial publish fails, cancel the retry loop so it doesn't
+        // keep retrying a command that was never sent.
+        _clearPendingCommand(commandKey, 24);
+        rethrow;
+      }
     } else {
       debugPrint(
           '⚠️ Schedule action already in-flight for $identifier — skipping duplicate publish');
