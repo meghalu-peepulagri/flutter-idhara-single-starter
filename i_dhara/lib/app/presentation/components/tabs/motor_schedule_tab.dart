@@ -27,6 +27,16 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     final todayNorm = DateTime(today.year, today.month, today.day);
     _dateRange = List.generate(30, (i) => todayNorm.add(Duration(days: i - 7)));
 
+    // Always reset to today + clear filter when this tab mounts so that
+    // tab-switch and page-refresh always show today's unfiltered schedules.
+    final needsReset = _controller.selectedDate.value != todayNorm ||
+        _controller.selectedFilter.value.isNotEmpty;
+    if (needsReset) {
+      _controller.selectedDate.value = todayNorm;
+      _controller.selectedFilter.value = '';
+      _controller.fetchSchedules();
+    }
+
     // Scroll to selected date + rebuild dots on every fetch (loading path)
     ever(_controller.isLoading, (bool loading) {
       if (!loading) {
@@ -57,6 +67,8 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
   void _updateDateBars() {
     if (!mounted) return;
     setState(() {
+      // Clear stale dots so deleted/updated schedules don't leave ghost colors.
+      _controller.dateBars.clear();
       for (final record in _controller.schedules) {
         final startV = record.scheduleStartDate;
         final endV = record.scheduleEndDate;
@@ -129,9 +141,20 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Obx(() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFEAF2FB),
+            Color(0xFFF5F7FA),
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Obx(() {
           final isLoading = _controller.isLoading.value;
           final isRefreshing = _controller.isRefreshing.value;
           final isLoadingMore = _controller.isHasMoreLoading.value;
@@ -319,6 +342,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
           ),
         ),
       ],
+      ),
     );
   }
 

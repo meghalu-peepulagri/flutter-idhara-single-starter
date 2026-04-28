@@ -776,8 +776,10 @@ class MqttService {
       'T': 24,
       'S': seq,
       'D': {
-        'ids': ids,
-        'cmd': cmd,
+        'm1': {
+          'cmd': cmd,
+          'ids': ids,
+        },
       },
     };
 

@@ -359,6 +359,14 @@ class _HistoryRecordCard extends StatelessWidget {
   Color _statusColor(String? status) =>
       _statusColors[(status ?? '').toUpperCase()] ?? const Color(0xFF6B7280);
 
+  static String _formatTime(String? time) {
+    if (time == null || time.isEmpty) return '--';
+    final t = time.replaceAll(':', '');
+    if (t.length == 4) return '${t.substring(0, 2)}:${t.substring(2)}';
+    if (t.length == 3) return '${t.substring(0, 1)}:${t.substring(1)}';
+    return time;
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = (record.scheduleStatus ?? '').toUpperCase();
@@ -417,7 +425,7 @@ class _HistoryRecordCard extends StatelessWidget {
                               size: 11, color: Color(0xFF64748B)),
                           const SizedBox(width: 3),
                           Text(
-                            '${record.startTime ?? '--'} → ${record.endTime ?? '--'}',
+                            '${_formatTime(record.startTime)} → ${_formatTime(record.endTime)}',
                             style: GoogleFonts.dmSans(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,

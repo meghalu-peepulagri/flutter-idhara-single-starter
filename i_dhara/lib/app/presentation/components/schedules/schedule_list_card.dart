@@ -319,9 +319,9 @@ class ScheduleCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.local_fire_department_rounded,
-                          size: 14, color: Color(0xFFFF9800)),
-                      const SizedBox(width: 4),
+                      // const Icon(Icons.local_fire_department_rounded,
+                      //     size: 14, color: Color(0xFFFF9800)),
+                      // const SizedBox(width: 4),
                       Text('ON',
                           style: GoogleFonts.dmSans(
                               fontSize: 12,
