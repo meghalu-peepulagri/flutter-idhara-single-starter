@@ -13,6 +13,7 @@ import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/device_status_history_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_status_history_model.dart';
+import 'package:i_dhara/app/data/models/graphs/motor_total_runtime_model.dart';
 import 'package:i_dhara/app/data/models/graphs/power_status_history_model.dart';
 import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
