@@ -137,25 +137,49 @@ class _SchedulePageState extends State<SchedulePage> {
     return 1;
   }
 
-  /// Returns the next scheduleId to use for MQTT.
-  /// Prefers the server-returned scheduleId if valid (> 0).
-  /// Falls back to maxExistingScheduleId + 1 so new schedules never reuse IDs.
-  int _resolveBaseScheduleId(int? serverScheduleId) {
-    if (serverScheduleId != null && serverScheduleId > 0) {
-      return serverScheduleId;
-    }
-    int maxId = 0;
+  /// Returns [count] scheduleIds for new schedules.
+  /// Gaps in the existing ID sequence are filled first (ascending), then
+  /// continues from maxExistingId + 1.
+  /// Example: existing=[1,3], count=2 → [2, 4]
+  /// Example: existing=[1,2,3], count=2 → [4, 5]
+  /// Example: existing=[], count=3 → [1, 2, 3]
+  List<int> _computeScheduleIds(int count) {
+    final existing = <int>{};
     if (Get.isRegistered<MotorScheduleController>()) {
-      final existing = Get.find<MotorScheduleController>().schedules;
-      for (final s in existing) {
-        final sid = s.scheduleId ?? 0;
-        if (sid > maxId) maxId = sid;
+      for (final s in Get.find<MotorScheduleController>().schedules) {
+        if (s.scheduleId != null && s.scheduleId! > 0) {
+          existing.add(s.scheduleId!);
+        }
       }
     }
-    return maxId + 1;
+
+    if (existing.isEmpty) {
+      return List.generate(count, (i) => i + 1);
+    }
+
+    final maxId = existing.reduce((a, b) => a > b ? a : b);
+
+    // Collect gaps: IDs from 1..maxId that are missing
+    final gaps = [
+      for (int i = 1; i <= maxId; i++)
+        if (!existing.contains(i)) i,
+    ];
+
+    final result = <int>[];
+    // Fill gaps first
+    for (final gap in gaps) {
+      if (result.length == count) break;
+      result.add(gap);
+    }
+    // Then increment from maxId + 1
+    var next = maxId + 1;
+    while (result.length < count) {
+      result.add(next++);
+    }
+    return result;
   }
 
-  CreateScheduleDto _buildDto(ScheduleFormState form) {
+  CreateScheduleDto _buildDto(ScheduleFormState form, {required int scheduleId}) {
     final isCyclic = form.cyclicMode;
     return CreateScheduleDto(
       motorId: SharedPreference.getMotorId(),
@@ -163,7 +187,6 @@ class _SchedulePageState extends State<SchedulePage> {
       scheduleType: isCyclic ? 'CYCLIC' : 'TIME_BASED',
       startTime: _formatTimeHHMM(form.startHour, form.startMinute),
       endTime: isCyclic ? null : _formatTimeHHMM(form.endHour, form.endMinute),
-      // scheduleDate: _formatDateStr(form.startDate),
       scheduleStartDate: _dateToYYMMDD(form.startDate),
       scheduleEndDate: _dateToYYMMDD(form.endDate),
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
@@ -174,12 +197,16 @@ class _SchedulePageState extends State<SchedulePage> {
       powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
       repeat: 0,
       enabled: true,
+      scheduleId: scheduleId,
     );
   }
 
   Future<bool> _createSchedule() async {
     final form = _formKey.currentState!;
-    final dto = _buildDto(form);
+    // Compute the scheduleId once — used in both the API payload and MQTT.
+    // Fills the lowest gap first; if no gaps, uses maxExistingId + 1.
+    final scheduleId = _computeScheduleIds(1).first;
+    final dto = _buildDto(form, scheduleId: scheduleId);
 
     final response = await _scheduleController.createSchedule(dtos: [dto]);
     if (response == null) {
@@ -196,18 +223,14 @@ class _SchedulePageState extends State<SchedulePage> {
       final startNorm = DateTime(
           form.startDate.year, form.startDate.month, form.startDate.day);
       final daysDiff = startNorm.difference(todayNorm).inDays;
-      // Inclusive count: today→startDate. Publish only if within 3 days (diff ≤ 2).
       final shouldPublishMqtt = daysDiff <= 2;
-
-      print(
-          '[MQTT CHECK] today=$todayNorm | startDate=$startNorm | daysDiff=$daysDiff | inclusiveCount=${daysDiff + 1} | shouldPublishMqtt=$shouldPublishMqtt');
 
       if (shouldPublishMqtt) {
         final isCyclic = form.cyclicMode;
         try {
           await _mqttService.publishScheduleCommand(
             identifier: id,
-            scheduleId: _resolveBaseScheduleId(response.data?.scheduleId),
+            scheduleId: scheduleId,
             startTimeHHMM: form.startHour * 100 + form.startMinute,
             endTimeHHMM: form.endHour * 100 + form.endMinute,
             startDateYYMMDD: _dateToYYMMDD(form.startDate),
@@ -280,7 +303,7 @@ class _SchedulePageState extends State<SchedulePage> {
     // ACK (~2s) pops the page before PATCH commits and the GET returns
     // stale data.
     SharedPreference.setscheduleid(_editRecord?.id ?? 0);
-    final dto = _buildDto(form);
+    final dto = _buildDto(form, scheduleId: _editRecord?.scheduleId ?? 1);
     getsuccessSnackBar('Schedule updated successfully');
     _scheduleSaved = true;
     _scheduleController.updateSchedule(dto: dto).then((_) {
@@ -346,6 +369,7 @@ class _SchedulePageState extends State<SchedulePage> {
     required DateTime startDate,
     required DateTime endDate,
     required Set<int> selectedDays,
+    required int scheduleId,
   }) {
     final isCyclic = form.cyclicMode;
     final durationMinutes = () {
@@ -374,6 +398,7 @@ class _SchedulePageState extends State<SchedulePage> {
       powerLossRecovery: isCyclic ? false : form.powerLossRecovery,
       repeat: 0,
       enabled: true,
+      scheduleId: scheduleId,
     );
   }
 
@@ -398,15 +423,22 @@ class _SchedulePageState extends State<SchedulePage> {
     final sharedEnd = multi.endDate;
     final sharedDays = multi.selectedDays;
 
+    // Compute scheduleIds upfront before the API call.
+    // Gaps in existing IDs are filled first, then continues from maxId+1.
+    // e.g. existing=[1,3], creating 2 → [2, 4]
+    final scheduleIds = _computeScheduleIds(forms.length);
+
     // 1) API: single bulk call — array of all DTOs sent in one request
-    final dtos = forms
-        .map((form) => _buildDtoForMulti(
-              form: form,
-              startDate: sharedStart,
-              endDate: sharedEnd,
-              selectedDays: sharedDays,
-            ))
-        .toList();
+    final dtos = List.generate(
+      forms.length,
+      (i) => _buildDtoForMulti(
+        form: forms[i],
+        startDate: sharedStart,
+        endDate: sharedEnd,
+        selectedDays: sharedDays,
+        scheduleId: scheduleIds[i],
+      ),
+    );
 
     final response = await _scheduleController.createSchedule(dtos: dtos);
     if (response == null) {
@@ -418,12 +450,6 @@ class _SchedulePageState extends State<SchedulePage> {
       SharedPreference.setscheduleid(response.data!.id!);
     }
     getsuccessSnackBar(response.message ?? 'Schedules created successfully');
-
-    // Derive scheduleIds for MQTT.
-    // Prefer server-returned scheduleId; fall back to maxExistingScheduleId+1
-    // so that adding more schedules to a motor never reuses IDs 1, 2, …
-    final baseId = _resolveBaseScheduleId(response.data?.scheduleId);
-    final scheduleIds = List.generate(forms.length, (i) => baseId + i);
 
     // 2) MQTT: publish combined T:3 payload only if startDate is within 3 days
     final id = _resolveIdentifier();

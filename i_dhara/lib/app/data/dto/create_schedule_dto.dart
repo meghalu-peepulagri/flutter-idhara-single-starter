@@ -15,6 +15,7 @@ class CreateScheduleDto {
   final bool powerLossRecovery;
   final int repeat;
   final bool enabled;
+  final int scheduleId;
 
   const CreateScheduleDto({
     required this.motorId,
@@ -33,6 +34,7 @@ class CreateScheduleDto {
     required this.powerLossRecovery,
     required this.repeat,
     required this.enabled,
+    required this.scheduleId,
   });
 
   Map<String, dynamic> toJson() {
@@ -53,6 +55,7 @@ class CreateScheduleDto {
       'power_loss_recovery': powerLossRecovery,
       'repeat': repeat,
       'enabled': enabled,
+      'schedule_id': scheduleId,
     };
   }
 }

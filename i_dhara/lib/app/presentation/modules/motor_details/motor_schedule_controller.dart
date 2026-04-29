@@ -111,7 +111,9 @@ class MotorScheduleController extends GetxController {
             selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
         scheduleStartDate: dateToYYMMDD(selectedDate.value),
       );
-      schedules.value = response?.data?.records ?? [];
+      final records = response?.data?.records ?? [];
+      records.sort((a, b) => (a.scheduleId ?? 0).compareTo(b.scheduleId ?? 0));
+      schedules.value = records;
 
       final pagination = response?.data?.paginationInfo;
       currentPage.value = pagination?.currentPage ?? page.value;
@@ -143,6 +145,7 @@ class MotorScheduleController extends GetxController {
       );
       final newRecords = response?.data?.records ?? [];
       schedules.addAll(newRecords);
+      schedules.sort((a, b) => (a.scheduleId ?? 0).compareTo(b.scheduleId ?? 0));
 
       final pagination = response?.data?.paginationInfo;
       currentPage.value = pagination?.currentPage ?? page.value;
