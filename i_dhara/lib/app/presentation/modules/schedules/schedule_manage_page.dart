@@ -20,7 +20,7 @@ class ScheduleManagePage extends StatefulWidget {
   State<ScheduleManagePage> createState() => _ScheduleManagePageState();
 }
 
-enum _BulkScheduleAction { delete, stop, restart }
+enum _BulkScheduleAction { delete, stop, restart, republish }
 
 class _ScheduleManagePageState extends State<ScheduleManagePage> {
   late final String _controllerTag;
@@ -48,6 +48,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       permanent: false,
     );
     _motorScheduleController = Get.find<MotorScheduleController>();
+    // Auto-refresh this page's list when a schedule-create ACK is received
+    _motorScheduleController.onScheduleAckRefreshed = () {
+      _controller.fetchSchedules();
+    };
   }
 
   List<Record> _getActionFilteredSchedules(List<Record> schedules) {
@@ -63,12 +67,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
           return s == 'STOPPED';
         }).toList();
       case _BulkScheduleAction.delete:
-        return schedules; // all schedules
+        return schedules;
+      case _BulkScheduleAction.republish:
+        return schedules
+            .where((r) => (r.scheduleStatus ?? '').toUpperCase() == 'PENDING')
+            .toList();
     }
   }
 
   @override
   void dispose() {
+    _motorScheduleController.onScheduleAckRefreshed = null;
     if (Get.isRegistered<ScheduleManageController>(tag: _controllerTag)) {
       Get.delete<ScheduleManageController>(tag: _controllerTag);
     }
@@ -89,12 +98,12 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               child: Column(
                 children: [
                   _buildDateSelector(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _buildActionSelector(),
-                  const SizedBox(height: 8),
                 ],
               ),
             ),
+            _buildSelectionBar(),
             // Only the schedule list scrolls
             Expanded(
               child: ClipRect(
@@ -357,7 +366,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
 
   Widget _buildActionSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -368,47 +377,42 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
           Row(
             children: [
               Text(
-                'Action',
+                'Bulk Action',
                 style: GoogleFonts.dmSans(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF1A1A2E),
                 ),
               ),
               const Spacer(),
-              // Filter icon button in top-right corner
               Obx(() {
                 final current = _controller.selectedFilter.value;
                 final isFiltered = current.isNotEmpty;
-                return InkWell(
+                return GestureDetector(
                   onTap: () => _showFilterSheet(context),
-                  borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: isFiltered
-                          ? const Color(0xFF004E7E).withValues(alpha: 0.08)
+                          ? const Color(0xFFEBF3FE)
                           : const Color(0xFFF4F8FC),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isFiltered
                             ? const Color(0xFF004E7E)
                             : const Color(0xFFD7E3F0),
-                        width: 1.2,
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.tune_rounded,
-                          size: 16,
-                          color: isFiltered
-                              ? const Color(0xFF004E7E)
-                              : const Color(0xFF7C8DA1),
-                        ),
-                        const SizedBox(width: 5),
+                        Icon(Icons.tune_rounded,
+                            size: 14,
+                            color: isFiltered
+                                ? const Color(0xFF004E7E)
+                                : const Color(0xFF94A3B8)),
+                        const SizedBox(width: 4),
                         Text(
                           isFiltered
                               ? _filters.firstWhere(
@@ -417,11 +421,11 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                                 )['label']!
                               : 'Filter',
                           style: GoogleFonts.dmSans(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: isFiltered
                                 ? const Color(0xFF004E7E)
-                                : const Color(0xFF7C8DA1),
+                                : const Color(0xFF94A3B8),
                           ),
                         ),
                       ],
@@ -431,43 +435,47 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               }),
             ],
           ),
-          // const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionRadioTile(
-                  label: 'Stop',
-                  value: _BulkScheduleAction.stop,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildActionRadioTile(
-                  label: 'Resume',
-                  value: _BulkScheduleAction.restart,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildActionRadioTile(
-                  label: 'Delete',
-                  value: _BulkScheduleAction.delete,
-                ),
-              ),
-            ],
-          ),
-          // const SizedBox(height: 10),
+          const SizedBox(height: 10),
+          // Action chips — Republish added to the same row when PENDING exist
           Obx(() {
-            final selectedCount = _controller.selectedRecordIds.length;
-            return Text(
-              selectedCount > 0
-                  ? '$selectedCount schedules selected'
-                  : 'Select schedules, then confirm the chosen action.',
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF6B7280),
-              ),
+            final hasPending = _controller.schedules.any(
+                (r) => (r.scheduleStatus ?? '').toUpperCase() == 'PENDING');
+            return Row(
+              children: [
+                _buildChip(
+                  label: 'Stop',
+                  icon: Icons.pause_circle_outline_rounded,
+                  value: _BulkScheduleAction.stop,
+                  activeColor: const Color(0xFFF59E0B),
+                  activeBg: const Color(0xFFFFFBEB),
+                  rightPad: true,
+                ),
+                _buildChip(
+                  label: 'Resume',
+                  icon: Icons.play_circle_outline_rounded,
+                  value: _BulkScheduleAction.restart,
+                  activeColor: const Color(0xFF10B981),
+                  activeBg: const Color(0xFFECFDF5),
+                  rightPad: true,
+                ),
+                _buildChip(
+                  label: 'Delete',
+                  icon: Icons.delete_outline_rounded,
+                  value: _BulkScheduleAction.delete,
+                  activeColor: const Color(0xFFEF4444),
+                  activeBg: const Color(0xFFFFF1F2),
+                  rightPad: hasPending,
+                ),
+                if (hasPending)
+                  _buildChip(
+                    label: 'Republish',
+                    icon: Icons.refresh_rounded,
+                    value: _BulkScheduleAction.republish,
+                    activeColor: const Color(0xFF6366F1),
+                    activeBg: const Color(0xFFEEF2FF),
+                    rightPad: false,
+                  ),
+              ],
             );
           }),
         ],
@@ -475,117 +483,122 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     );
   }
 
-  Widget _buildFilterRow() {
+  /// Thin sticky bar between the action selector and the schedule list.
+  /// Shows the selection count and a Select-All / Deselect-All toggle.
+  /// Hidden entirely when there are no selectable schedules visible.
+  Widget _buildSelectionBar() {
     return Obx(() {
-      final current = _controller.selectedFilter.value;
-      final currentLabel = _filters.firstWhere(
-        (filter) => filter['value'] == current,
-        orElse: () => _filters.first,
-      )['label']!;
+      final count = _controller.selectedRecordIds.length;
+      final visible = _getActionFilteredSchedules(_controller.schedules);
+      final selectableIds = visible.map((r) => r.id).whereType<int>().toSet();
+      if (selectableIds.isEmpty) return const SizedBox.shrink();
 
-      return InkWell(
-        onTap: () => _showFilterSheet(context),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.tune_rounded,
-                size: 18,
-                color: Color(0xFF004E7E),
+      final allSelected =
+          selectableIds.every(_controller.selectedRecordIds.contains);
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: Row(
+          children: [
+            Text(
+              count > 0
+                  ? '$count of ${selectableIds.length} selected'
+                  : '${selectableIds.length} schedule${selectableIds.length > 1 ? 's' : ''}',
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: count > 0
+                    ? const Color(0xFF004E7E)
+                    : const Color(0xFF64748B),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Filter: $currentLabel',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1A1A2E),
-                  ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                if (allSelected) {
+                  _controller.clearSelection();
+                } else {
+                  _controller.selectAll(visible);
+                }
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      allSelected
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      size: 18,
+                      color: const Color(0xFF004E7E),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      allSelected ? 'Deselect All' : 'Select All',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF004E7E),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF7C8DA1),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     });
   }
 
-  Widget _buildActionRadioTile({
+  Widget _buildChip({
     required String label,
+    required IconData icon,
     required _BulkScheduleAction value,
+    required Color activeColor,
+    required Color activeBg,
+    required bool rightPad,
   }) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedAction = value;
-          _controller.clearSelection();
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: _selectedAction == value
-              ? const Color(0xFFF4F9FF)
-              : const Color(0xFFFBFCFE),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _selectedAction == value
-                ? const Color(0xFF004E7E)
-                : const Color(0xFFD7E3F0),
+    final isSelected = _selectedAction == value;
+    return Expanded(
+      child: Padding(
+        padding: EdgeInsets.only(right: rightPad ? 8 : 0),
+        child: GestureDetector(
+          onTap: () => setState(() {
+            _selectedAction = value;
+            _controller.clearSelection();
+          }),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? activeBg : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+                width: isSelected ? 1.5 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon,
+                    size: 22,
+                    color: isSelected ? activeColor : const Color(0xFF94A3B8)),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? activeColor : const Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _selectedAction == value
-                      ? const Color(0xFF004E7E)
-                      : const Color(0xFFB8C7D6),
-                  width: 1.6,
-                ),
-              ),
-              child: _selectedAction == value
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF004E7E),
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1A1A2E),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -734,7 +747,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     });
   }
 
-  Widget _buildEmptyState({String? message}) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -923,11 +936,13 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       _BulkScheduleAction.delete => 'Delete Schedules',
       _BulkScheduleAction.stop => 'Stop Schedules',
       _BulkScheduleAction.restart => 'Restart Schedules',
+      _BulkScheduleAction.republish => 'Republish Schedules',
     };
     final buttonLabel = switch (action) {
       _BulkScheduleAction.delete => 'Delete',
       _BulkScheduleAction.stop => 'Stop',
       _BulkScheduleAction.restart => 'Restart',
+      _BulkScheduleAction.republish => 'Republish',
     };
     final description = switch (action) {
       _BulkScheduleAction.delete =>
@@ -936,6 +951,8 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         'Are you sure you want to stop $selectedCount selected schedules?',
       _BulkScheduleAction.restart =>
         'Are you sure you want to restart $selectedCount selected schedules?',
+      _BulkScheduleAction.republish =>
+        'Republish MQTT payload for $selectedCount selected pending schedule${selectedCount > 1 ? 's' : ''}?',
     };
 
     showDialog(
@@ -946,7 +963,8 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         buttonlable: buttonLabel,
         description: description,
         iconAssetPath: 'assets/images/schedule.svg',
-        isactive: action == _BulkScheduleAction.restart,
+        isactive: action == _BulkScheduleAction.restart ||
+            action == _BulkScheduleAction.republish,
         onDelete: () async {
           // FFButtonWidget(showLoadingIndicator: true) already blocks re-taps
           // within the dialog. This just runs the action and closes.
@@ -973,6 +991,8 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
           _motorScheduleController,
           enabled: true,
         ),
+      _BulkScheduleAction.republish =>
+        _controller.republishSelectedSchedules(_motorScheduleController),
     };
   }
 

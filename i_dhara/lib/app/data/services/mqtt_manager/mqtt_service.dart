@@ -120,6 +120,8 @@ class ScheduleInfo {
   final int missedTimes;
   final int failureEpoch;
   final int failureReason; // 1=Power Loss, 2=Fault, 3=Mode Change
+  final int startEpoch; // st_ep — unix epoch (seconds) for the schedule start
+  final int endEpoch; // ed_ep — unix epoch (seconds) for the schedule end
 
   ScheduleInfo({
     required this.id,
@@ -129,6 +131,8 @@ class ScheduleInfo {
     required this.missedTimes,
     required this.failureEpoch,
     required this.failureReason,
+    required this.startEpoch,
+    required this.endEpoch,
   });
 }
 
@@ -175,6 +179,14 @@ class MqttService {
       StreamController.broadcast();
   Stream<Map<String, dynamic>> get scheduleActionAckStream =>
       scheduleActionAckController.stream;
+
+  // Emits the device identifier when a schedule-create publish (T:23/T:33)
+  // exhausts its retries with no ACK. Listeners (controllers) use this to
+  // show the "Device is not responding" snackbar.
+  final StreamController<String> scheduleAckTimeoutController =
+      StreamController<String>.broadcast();
+  Stream<String> get scheduleAckTimeoutStream =>
+      scheduleAckTimeoutController.stream;
 
   // Emits {scheduleId, runtime, missedTimes, failureEpoch, failureReason}
   // whenever a live sch field arrives for G01 or G02.
@@ -1888,6 +1900,8 @@ class MqttService {
       missedTimes: (schRaw['mm'] as num?)?.toInt() ?? 0,
       failureEpoch: (schRaw['fe'] as num?)?.toInt() ?? 0,
       failureReason: (schRaw['fr'] as num?)?.toInt() ?? 0,
+      startEpoch: (schRaw['st_ep'] as num?)?.toInt() ?? 0,
+      endEpoch: (schRaw['et_ep'] as num?)?.toInt() ?? 0,
     );
     motorData.schedules[scheduleId] = info;
 
@@ -1900,9 +1914,11 @@ class MqttService {
       'missedTimes': info.missedTimes,
       'failureEpoch': info.failureEpoch,
       'failureReason': info.failureReason,
+      'startEpoch': info.startEpoch,
+      'endEpoch': info.endEpoch,
     });
     debugPrint(
-        '   ✓ Schedule[$scheduleId] updated: rt=${schRaw['rt']}, fr=${schRaw['fr']}');
+        '   ✓ Schedule[$scheduleId] updated: rt=${schRaw['rt']}, fr=${schRaw['fr']}, st_ep=${schRaw['st_ep']}, et_ep=${schRaw['et_ep']}');
   }
 
   /// Find motor with pending command of given type for the identifier
@@ -2056,6 +2072,11 @@ class MqttService {
           // Mark schedule create command as expired so late ACKs are ignored
           _expiredScheduleKeys.add(command.motorId);
           command.onMaxRetriesReached('Schedule: No response from device');
+          // Notify listeners (controllers) so they can show a snackbar.
+          // Identifier (pcb) is what the controller correlates to a motor;
+          // fall back to motorId if pcb wasn't supplied.
+          scheduleAckTimeoutController
+              .add(command.pcbnumber ?? command.motorId);
         } else if (command.commandType == 24) {
           // Mark schedule action command as expired so late ACKs are ignored
           _expiredActionKeys.add(command.motorId);

@@ -36,9 +36,11 @@ class ScheduleCard extends StatelessWidget {
     final dH = durationMin ~/ 60;
     final dM = durationMin % 60;
     final status = record.scheduleStatus ?? 'unknown';
-    final isActive = status.toLowerCase() == 'active' ||
-        status.toLowerCase() == 'pending' ||
-        status.toLowerCase() == 'scheduled';
+    // Toggle switch state mirrors the backend's `enabled` field directly.
+    // The backend flips `enabled` on stop/restart, so after a refresh the
+    // switch position always matches what the server believes — no fragile
+    // string-matching against the multi-valued schedule_status enum.
+    final isActive = record.enabled ?? false;
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =

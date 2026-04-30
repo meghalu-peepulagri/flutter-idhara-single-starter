@@ -20,6 +20,7 @@ class MotorScheduleController extends GetxController {
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
   StreamSubscription<Map<String, dynamic>>? _scheduleActionAckSubscription;
   StreamSubscription<Map<String, dynamic>>? _scheduleLiveDataSubscription;
+  StreamSubscription<String>? _scheduleAckTimeoutSubscription;
 
   var schedules = <Record>[].obs;
   var isLoading = true.obs;
@@ -52,6 +53,13 @@ class MotorScheduleController extends GetxController {
   final _bulkDeleteCompleters = <String, Completer<bool>>{};
   final _bulkToggleCompleters = <String, Completer<bool>>{};
 
+  // Completer for republish — resolved when create-ACK arrives after republish.
+  Completer<bool>? _republishCompleter;
+
+  // Called after a non-republish schedule-create ACK refresh completes.
+  // ScheduleManagePageState sets this to refresh its own list without waiting.
+  VoidCallback? onScheduleAckRefreshed;
+
   // Bulk metadata: bulkKey → {scheduleId: objectId}, bulkKey → cmd
   final _bulkObjectIds = <String, Map<int, int>>{};
   final _bulkCmds = <String, int>{};
@@ -73,6 +81,7 @@ class MotorScheduleController extends GetxController {
     _listenScheduleAck();
     _listenScheduleActionAck();
     _listenScheduleLiveData();
+    _listenScheduleAckTimeout();
     ever(Get.find<AnalyticsController>().selectedTabIndex, (int index) {
       if (index == 1) fetchSchedules();
     });
@@ -92,6 +101,7 @@ class MotorScheduleController extends GetxController {
     _scheduleAckSubscription?.cancel();
     _scheduleActionAckSubscription?.cancel();
     _scheduleLiveDataSubscription?.cancel();
+    _scheduleAckTimeoutSubscription?.cancel();
     super.onClose();
   }
 
@@ -111,9 +121,7 @@ class MotorScheduleController extends GetxController {
             selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
         scheduleStartDate: dateToYYMMDD(selectedDate.value),
       );
-      final records = response?.data?.records ?? [];
-      records.sort((a, b) => (a.scheduleId ?? 0).compareTo(b.scheduleId ?? 0));
-      schedules.value = records;
+      schedules.value = response?.data?.records ?? [];
 
       final pagination = response?.data?.paginationInfo;
       currentPage.value = pagination?.currentPage ?? page.value;
@@ -143,9 +151,7 @@ class MotorScheduleController extends GetxController {
             selectedFilter.value.isNotEmpty ? selectedFilter.value : null,
         scheduleStartDate: dateToYYMMDD(selectedDate.value),
       );
-      final newRecords = response?.data?.records ?? [];
-      schedules.addAll(newRecords);
-      schedules.sort((a, b) => (a.scheduleId ?? 0).compareTo(b.scheduleId ?? 0));
+      schedules.addAll(response?.data?.records ?? []);
 
       final pagination = response?.data?.paginationInfo;
       currentPage.value = pagination?.currentPage ?? page.value;
@@ -548,6 +554,93 @@ class MotorScheduleController extends GetxController {
     fetchSchedules();
   }
 
+  /// Republish a T:3 MQTT command for the given schedule records.
+  /// Used by Schedule Manage page to re-send PENDING schedules to the device.
+  /// Always uses idx=2 (motor already has schedules).
+  Future<bool> republishSchedules(List<Record> records) async {
+    if (records.isEmpty) return false;
+    final id = _resolveIdentifier();
+    if (id.isEmpty) {
+      geterrorSnackBar('Device identifier not found');
+      return false;
+    }
+    try {
+      final items = records.map((r) {
+        final sid = r.scheduleId ?? 0;
+        final startHHMM = _timeStrToHHMM(r.startTime);
+        final endHHMM = _timeStrToHHMM(r.endTime);
+        final sd = r.scheduleStartDate ?? 0;
+        final ed = r.scheduleEndDate ?? sd;
+        final isCyclic = r.scheduleType == ScheduleType.CYCLIC;
+        return <String, dynamic>{
+          'id': sid,
+          'sd': sd,
+          'ed': ed,
+          'st': startHHMM,
+          'et': endHHMM,
+          'st_ep': _yymmddHhmmToEpoch(sd, startHHMM),
+          'ed_ep': _yymmddHhmmToEpoch(ed, endHHMM),
+          'en': 1,
+          if (isCyclic) ...{
+            'cy': 1,
+            'on': (r.cycleOnMinutes as num?)?.toInt() ?? 20,
+            'off': (r.cycleOffMinutes as num?)?.toInt() ?? 15,
+            'pwr_rec': 0,
+          } else ...{
+            'pwr_rec': (r.powerLossRecovery == true) ? 1 : 0,
+          },
+        };
+      }).toList()
+        ..sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
+
+      final completer = Completer<bool>();
+      _republishCompleter = completer;
+
+      await _mqttService.publishMultipleSchedulesCommand(
+        identifier: id,
+        items: items,
+        idx: 2,
+      );
+
+      // Wait for device ACK (T:33) — resolved in _listenScheduleAck
+      return await completer.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          _republishCompleter = null;
+          geterrorSnackBar('No response from device');
+          return false;
+        },
+      );
+    } catch (e) {
+      _republishCompleter = null;
+      geterrorSnackBar('Failed to republish: $e');
+      return false;
+    }
+  }
+
+  static int _timeStrToHHMM(String? time) {
+    if (time == null || time.isEmpty) return 0;
+    if (time.contains(':')) {
+      final parts = time.split(':');
+      if (parts.length < 2) return 0;
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m =
+          int.tryParse(parts[1].substring(0, parts[1].length.clamp(0, 2))) ?? 0;
+      return h * 100 + m;
+    }
+    return int.tryParse(time) ?? 0;
+  }
+
+  static int _yymmddHhmmToEpoch(int yymmdd, int hhmm) {
+    if (yymmdd == 0) return 0;
+    final yy = yymmdd ~/ 10000;
+    final mm = (yymmdd % 10000) ~/ 100;
+    final dd = yymmdd % 100;
+    final h = hhmm ~/ 100;
+    final m = hhmm % 100;
+    return DateTime(2000 + yy, mm, dd, h, m).millisecondsSinceEpoch ~/ 1000;
+  }
+
   String _resolveIdentifier() {
     final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
     final deviceAlloc = starter?.deviceAllocation ?? 'false';
@@ -563,6 +656,30 @@ class MotorScheduleController extends GetxController {
     final h = t ~/ 100;
     final m = t % 100;
     return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  /// Fired by MqttService when a schedule-create publish (T:23) exhausts
+  /// retries with no device ACK. Show the user a clear snackbar so they
+  /// know the create didn't reach the device, and unblock any in-flight
+  /// republish dialog awaiting completion.
+  void _listenScheduleAckTimeout() {
+    _scheduleAckTimeoutSubscription?.cancel();
+    _scheduleAckTimeoutSubscription =
+        _mqttService.scheduleAckTimeoutStream.listen((timedOutIdentifier) {
+      // Filter to this controller's motor — the stream is broadcast across
+      // motors and we don't want a snackbar for an unrelated device.
+      final currentId = _resolveIdentifier();
+      if (currentId.isNotEmpty && timedOutIdentifier != currentId) return;
+
+      geterrorSnackBar('No response from device');
+
+      // If a republish flow was awaiting an ACK, resolve it with false so
+      // the loading dialog closes cleanly.
+      if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+        _republishCompleter!.complete(false);
+        _republishCompleter = null;
+      }
+    });
   }
 
   void _listenScheduleLiveData() {
@@ -641,6 +758,17 @@ class MotorScheduleController extends GetxController {
         debugPrint('✅ fetchSchedules completed after schedule ACK');
       } catch (e) {
         debugPrint('⚠️ fetchSchedules failed after ACK: $e');
+      }
+
+      // Republish path: resolve the completer so the dialog closes and
+      // republishSelectedSchedules can refresh the manage page list.
+      if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+        getsuccessSnackBar('Schedules acknowledged by device');
+        _republishCompleter!.complete(true);
+        _republishCompleter = null;
+      } else {
+        // Normal create ACK: notify manage page (if open) to refresh its list.
+        onScheduleAckRefreshed?.call();
       }
     });
   }

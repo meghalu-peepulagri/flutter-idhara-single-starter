@@ -97,6 +97,18 @@ class ScheduleManageController extends GetxController {
     selectedRecordIds.clear();
   }
 
+  /// Replaces the current selection with every record id in [records] that
+  /// has a non-null id. Page passes the action-filtered list so "Select All"
+  /// under e.g. the Stop action only picks stoppable schedules.
+  void selectAll(List<Record> records) {
+    selectedRecordIds.assignAll(
+      records
+          .map((r) => r.id)
+          .whereType<int>()
+          .toSet(),
+    );
+  }
+
   List<Record> get selectedRecords => schedules
       .where((record) =>
           record.id != null && selectedRecordIds.contains(record.id))
@@ -193,6 +205,19 @@ class ScheduleManageController extends GetxController {
 
     final success =
         await motorScheduleController.toggleBulkSchedules(records, enabled);
+    isLoading.value = true;
+    await fetchSchedules();
+    clearSelection();
+    return success;
+  }
+
+  Future<bool> republishSelectedSchedules(
+      MotorScheduleController motorScheduleController) async {
+    final records = selectedRecords;
+    if (records.isEmpty) return false;
+
+    // Blocks until device ACK received (or timeout) — dialog stays open with loading
+    final success = await motorScheduleController.republishSchedules(records);
     isLoading.value = true;
     await fetchSchedules();
     clearSelection();

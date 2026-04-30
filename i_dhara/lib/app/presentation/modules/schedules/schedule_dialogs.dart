@@ -250,7 +250,7 @@ Future<void> showMultiScheduleConfirmDialog({
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Publish Schedules',
+                      'Create Schedules',
                       style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -259,7 +259,7 @@ Future<void> showMultiScheduleConfirmDialog({
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Are you sure you want to publish these ${schedules.length} schedule(s)?',
+                      'Are you sure you want to create these ${schedules.length} schedule(s)?',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
