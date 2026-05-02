@@ -1718,6 +1718,50 @@ class MqttService {
     }
   }
 
+  /// Maps a T:33 schedule ACK code to a user-facing error message.
+  /// Returns null for ack=1 (SUCCESS) — the caller should not show a snackbar
+  /// in that case.
+  static String? scheduleAckErrorMessage(int ackCode) {
+    switch (ackCode) {
+      case 1:
+        return null; // SUCCESS
+      case 0:
+        return 'Schedule failed';
+      case 2:
+        return 'Waiting for next schedule';
+      case 4:
+        return 'Device flash issue';
+      case 5:
+        return 'Index mismatch error';
+      case 6:
+        return 'JSON parsing error';
+      case 7:
+        return 'Count mismatch error';
+      default:
+        return 'Schedule failed (code $ackCode)';
+    }
+  }
+
+  /// Maps a T:54 schedule action ACK code to a user-facing error message.
+  /// Action ACK semantics: success is `ack == cmd` (1=stop, 2=resume,
+  /// 3=delete) — the controller checks that match itself. This helper only
+  /// covers the device-side error codes; returns null otherwise so the
+  /// caller knows it was either a success or an unexpected mismatch.
+  static String? scheduleActionAckErrorMessage(int ackCode) {
+    switch (ackCode) {
+      case 0:
+        return 'Schedule action failed';
+      case 4:
+        return 'Device flash issue';
+      case 5:
+        return 'Index mismatch error';
+      case 6:
+        return 'JSON parsing error';
+      default:
+        return null;
+    }
+  }
+
   void _handleScheduleAck(String identifier, Map<String, dynamic> message) {
     final scheduleCommandKey = 'schedule_$identifier';
 
@@ -1737,19 +1781,40 @@ class MqttService {
     // The firmware does NOT report which scheduleIds were stored — it just
     // confirms the last publish. So the source of truth for "which ids to
     // acknowledge" is our own _publishedScheduleIds, recorded at publish time.
+    // Firmware D may be either:
+    //   - the new shape: { "ids": <bitmask>, "ack": <code> } — ackCode and
+    //     scheduleIds come straight off the device payload, or
+    //   - a legacy plain int (1=success / 0=failure), in which case the
+    //     scheduleIds we trust are whatever we last published on this key.
     final dRaw = message['D'];
-    final successFlag = dRaw is int ? dRaw : int.tryParse('$dRaw') ?? 0;
+    int ackCode;
+    int successFlag;
+    List<int> ackedScheduleIds;
 
-    // remove() (not lookup): a duplicate/retransmit ACK arrives with no
-    // published context → empty list → controller skips, which is correct.
-    final publishedIds =
-        _publishedScheduleIds.remove(scheduleCommandKey) ?? const <int>[];
-
-    final List<int> ackedScheduleIds =
-        successFlag == 1 ? List<int>.from(publishedIds) : const <int>[];
-
-    debugPrint('✓ Schedule ACK from $identifier: D=$successFlag '
-        'published=$publishedIds → emit=$ackedScheduleIds');
+    if (dRaw is Map<String, dynamic>) {
+      final idsRaw = dRaw['ids'];
+      final bitmask = idsRaw is int ? idsRaw : int.tryParse('$idsRaw') ?? 0;
+      final ackRaw = dRaw['ack'];
+      ackCode = ackRaw is int ? ackRaw : int.tryParse('$ackRaw') ?? 0;
+      successFlag = ackCode == 1 ? 1 : 0;
+      final decoded = <int>[];
+      for (int bit = 0; bit < 32; bit++) {
+        if ((bitmask >> bit) & 1 == 1) decoded.add(bit + 1);
+      }
+      ackedScheduleIds = ackCode == 1 ? decoded : const <int>[];
+      _publishedScheduleIds.remove(scheduleCommandKey);
+    } else {
+      successFlag = dRaw is int ? dRaw : int.tryParse('$dRaw') ?? 0;
+      ackCode = successFlag == 1 ? 1 : 0;
+      // remove() (not lookup): a duplicate/retransmit ACK arrives with no
+      // published context → empty list → controller skips, which is correct.
+      final publishedIds =
+          _publishedScheduleIds.remove(scheduleCommandKey) ?? const <int>[];
+      ackedScheduleIds =
+          successFlag == 1 ? List<int>.from(publishedIds) : const <int>[];
+      debugPrint('✓ Schedule ACK from $identifier (legacy): D=$successFlag '
+          'published=$publishedIds → emit=$ackedScheduleIds');
+    }
 
     commandStatusNotifier.value = null;
 
@@ -1801,6 +1866,7 @@ class MqttService {
       'topic': identifier,
       'schedule_ids': ackedScheduleIds,
       'D': successFlag,
+      'ack_code': ackCode,
       'type': 33,
     };
     scheduleAckController.add(ackMap);
