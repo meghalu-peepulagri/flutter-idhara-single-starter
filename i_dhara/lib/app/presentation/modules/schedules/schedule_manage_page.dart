@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
@@ -26,7 +27,9 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   late final String _controllerTag;
   late final ScheduleManageController _controller;
   late final MotorScheduleController _motorScheduleController;
-  _BulkScheduleAction _selectedAction = _BulkScheduleAction.delete;
+  // Picked from the inline chip row; null means no action chosen yet,
+  // so the bottom Confirm button stays hidden.
+  _BulkScheduleAction? _selectedAction;
   bool _isRunningBulkAction = false;
 
   static const _filters = [
@@ -54,27 +57,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     };
   }
 
-  List<Record> _getActionFilteredSchedules(List<Record> schedules) {
-    switch (_selectedAction) {
-      case _BulkScheduleAction.stop:
-        return schedules.where((r) {
-          final s = (r.scheduleStatus ?? '').toUpperCase();
-          return s == 'RUNNING' || s == 'PENDING' || s == 'SCHEDULED';
-        }).toList();
-      case _BulkScheduleAction.restart:
-        return schedules.where((r) {
-          final s = (r.scheduleStatus ?? '').toUpperCase();
-          return s == 'STOPPED';
-        }).toList();
-      case _BulkScheduleAction.delete:
-        return schedules;
-      case _BulkScheduleAction.republish:
-        return schedules
-            .where((r) => (r.scheduleStatus ?? '').toUpperCase() == 'PENDING')
-            .toList();
-    }
-  }
-
   @override
   void dispose() {
     _motorScheduleController.onScheduleAckRefreshed = null;
@@ -83,6 +65,31 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     }
     super.dispose();
   }
+
+  /// True if [record] is eligible for the currently-picked action.
+  /// Stop applies to RUNNING/PENDING/SCHEDULED, Resume only to STOPPED,
+  /// Republish only to PENDING. Delete and the no-action state are
+  /// always eligible.
+  bool _isEligibleForAction(Record record, _BulkScheduleAction? action) {
+    if (action == null) return true;
+    final s = (record.scheduleStatus ?? '').toUpperCase();
+    switch (action) {
+      case _BulkScheduleAction.stop:
+        return s == 'RUNNING' || s == 'PENDING' || s == 'SCHEDULED';
+      case _BulkScheduleAction.restart:
+        return s == 'STOPPED';
+      case _BulkScheduleAction.republish:
+        return s == 'PENDING';
+      case _BulkScheduleAction.delete:
+        return true;
+    }
+  }
+
+  /// Returns only the schedules eligible for the current action — used by
+  /// "Select All", the selection-bar counter, and the bottom action bar
+  /// (which hides itself when there's nothing eligible to act on).
+  List<Record> _filterByAction(List<Record> schedules) =>
+      schedules.where((r) => _isEligibleForAction(r, _selectedAction)).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -95,13 +102,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
             // Fixed sticky section — never scrolls
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Column(
-                children: [
-                  _buildDateSelector(),
-                  const SizedBox(height: 10),
-                  _buildActionSelector(),
-                ],
-              ),
+              child: _buildDateSelector(),
             ),
             _buildSelectionBar(),
             // Only the schedule list scrolls
@@ -110,9 +111,8 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 child: Obx(() {
                   final isLoading = _controller.isLoading.value;
                   final isRefreshing = _controller.isRefreshing.value;
-                  final allSchedules = _controller.schedules;
-                  final schedules = _getActionFilteredSchedules(allSchedules);
-                  // final schedules = _controller.schedules;
+                  final schedules =
+                      _filterByAction(_controller.schedules.toList());
                   final isLoadingMore = _controller.isLoadingMore.value;
 
                   if (isLoading) {
@@ -127,8 +127,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                     child: RefreshIndicator(
                       color: const Color(0xFF004E7E),
                       backgroundColor: Colors.white,
-                      onRefresh: () =>
-                          _controller.fetchSchedules(isRefresh: true),
+                      onRefresh: () async {
+                        // Pull-to-refresh always lands on the full unfiltered
+                        // list with no selection — drop the action chip, the
+                        // status filter, and the selection before fetching.
+                        if (_selectedAction != null) {
+                          setState(() => _selectedAction = null);
+                        }
+                        _controller.clearSelection();
+                        _controller.selectedFilter.value = '';
+                        await _controller.fetchSchedules(isRefresh: true);
+                      },
                       child: ListView(
                         controller: _controller.scrollController,
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -252,12 +261,12 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                     color: const Color(0xFF005A96),
                   ),
                 ),
-                const Spacer(),
-                const Icon(
-                  Icons.calendar_month_outlined,
-                  size: 18,
-                  color: Color(0xFF004E7E),
-                ),
+                // const Spacer(),
+                // const Icon(
+                //   Icons.calendar_month_outlined,
+                //   size: 18,
+                //   color: Color(0xFF004E7E),
+                // ),
               ],
             ),
             const SizedBox(height: 10),
@@ -364,239 +373,268 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     });
   }
 
-  Widget _buildActionSelector() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Bulk Action',
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1A1A2E),
-                ),
-              ),
-              const Spacer(),
-              Obx(() {
-                final current = _controller.selectedFilter.value;
-                final isFiltered = current.isNotEmpty;
-                return GestureDetector(
-                  onTap: () => _showFilterSheet(context),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isFiltered
-                          ? const Color(0xFFEBF3FE)
-                          : const Color(0xFFF4F8FC),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isFiltered
-                            ? const Color(0xFF004E7E)
-                            : const Color(0xFFD7E3F0),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.tune_rounded,
-                            size: 14,
-                            color: isFiltered
-                                ? const Color(0xFF004E7E)
-                                : const Color(0xFF94A3B8)),
-                        const SizedBox(width: 4),
-                        Text(
-                          isFiltered
-                              ? _filters.firstWhere(
-                                  (f) => f['value'] == current,
-                                  orElse: () => _filters.first,
-                                )['label']!
-                              : 'Filter',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isFiltered
-                                ? const Color(0xFF004E7E)
-                                : const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Action chips — Republish added to the same row when PENDING exist
-          Obx(() {
-            final hasPending = _controller.schedules.any(
-                (r) => (r.scheduleStatus ?? '').toUpperCase() == 'PENDING');
-            return Row(
-              children: [
-                _buildChip(
-                  label: 'Stop',
-                  icon: Icons.pause_circle_outline_rounded,
-                  value: _BulkScheduleAction.stop,
-                  activeColor: const Color(0xFFF59E0B),
-                  activeBg: const Color(0xFFFFFBEB),
-                  rightPad: true,
-                ),
-                _buildChip(
-                  label: 'Resume',
-                  icon: Icons.play_circle_outline_rounded,
-                  value: _BulkScheduleAction.restart,
-                  activeColor: const Color(0xFF10B981),
-                  activeBg: const Color(0xFFECFDF5),
-                  rightPad: true,
-                ),
-                _buildChip(
-                  label: 'Delete',
-                  icon: Icons.delete_outline_rounded,
-                  value: _BulkScheduleAction.delete,
-                  activeColor: const Color(0xFFEF4444),
-                  activeBg: const Color(0xFFFFF1F2),
-                  rightPad: hasPending,
-                ),
-                if (hasPending)
-                  _buildChip(
-                    label: 'Republish',
-                    icon: Icons.refresh_rounded,
-                    value: _BulkScheduleAction.republish,
-                    activeColor: const Color(0xFF6366F1),
-                    activeBg: const Color(0xFFEEF2FF),
-                    rightPad: false,
-                  ),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
   /// Thin sticky bar between the action selector and the schedule list.
   /// Shows the selection count and a Select-All / Deselect-All toggle.
   /// Hidden entirely when there are no selectable schedules visible.
   Widget _buildSelectionBar() {
     return Obx(() {
       final count = _controller.selectedRecordIds.length;
-      final visible = _getActionFilteredSchedules(_controller.schedules);
-      final selectableIds = visible.map((r) => r.id).whereType<int>().toSet();
-      if (selectableIds.isEmpty) return const SizedBox.shrink();
+      final allSchedules = _controller.schedules.toList();
+      // Always render the bar so the filter icon and Select-All row stay
+      // reachable — even when the list is empty (no schedules at all, or
+      // a filter that returns nothing). Hiding it would trap the user.
 
-      final allSelected =
+      final visible = _filterByAction(allSchedules);
+      final selectableIds = visible.map((r) => r.id).whereType<int>().toSet();
+      final visibleEmpty = selectableIds.isEmpty;
+
+      final allSelected = !visibleEmpty &&
           selectableIds.every(_controller.selectedRecordIds.contains);
+
+      // Per-chip eligibility — disable a chip when there are zero schedules
+      // its action could touch (e.g. Resume is grey when nothing is STOPPED).
+      // Computed against the unfiltered list so the chips stay informative
+      // regardless of which action is currently picked.
+      final hasStoppable = allSchedules.any((r) => _isEligibleForAction(
+            r,
+            _BulkScheduleAction.stop,
+          ));
+      final hasResumable = allSchedules.any((r) => _isEligibleForAction(
+            r,
+            _BulkScheduleAction.restart,
+          ));
+      final hasPending = allSchedules.any((r) => _isEligibleForAction(
+            r,
+            _BulkScheduleAction.republish,
+          ));
 
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              count > 0
-                  ? '$count of ${selectableIds.length} selected'
-                  : '${selectableIds.length} schedule${selectableIds.length > 1 ? 's' : ''}',
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: count > 0
-                    ? const Color(0xFF004E7E)
-                    : const Color(0xFF64748B),
-              ),
-            ),
-            const Spacer(),
-            GestureDetector(
-              onTap: () {
-                if (allSelected) {
-                  _controller.clearSelection();
-                } else {
-                  _controller.selectAll(visible);
-                }
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      allSelected
-                          ? Icons.check_box_rounded
-                          : Icons.check_box_outline_blank_rounded,
-                      size: 18,
-                      color: const Color(0xFF004E7E),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      allSelected ? 'Deselect All' : 'Select All',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E),
+            // Row 1: count + Select All / Deselect All
+            Row(
+              children: [
+                Text(
+                  visibleEmpty
+                      ? (_selectedAction != null
+                          ? 'No schedules for this action'
+                          : 'No schedules')
+                      : (count > 0
+                          ? '$count of ${selectableIds.length} selected'
+                          : '${selectableIds.length} schedule${selectableIds.length > 1 ? 's' : ''}'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: count > 0
+                        ? const Color(0xFF004E7E)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: visibleEmpty
+                      ? null
+                      : () {
+                          if (allSelected) {
+                            // Deselect All also drops the action filter so
+                            // the user lands back on the full schedule list.
+                            _controller.clearSelection();
+                            if (_selectedAction != null) {
+                              setState(() => _selectedAction = null);
+                            }
+                          } else {
+                            _controller.selectAll(visible);
+                          }
+                        },
+                  behavior: HitTestBehavior.opaque,
+                  child: Opacity(
+                    opacity: visibleEmpty ? 0.4 : 1.0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            allSelected
+                                ? Icons.check_box_rounded
+                                : Icons.check_box_outline_blank_rounded,
+                            size: 18,
+                            color: const Color(0xFF004E7E),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            allSelected ? 'Deselect All' : 'Select All',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF004E7E),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 6),
+                // Status filter — solid background + count badge when active
+                // so the user can see at a glance that a filter is applied.
+                Obx(() {
+                  final isFiltered =
+                      _controller.selectedFilter.value.isNotEmpty;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showFilterSheet(context),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: isFiltered
+                                ? const Color(0xFF004E7E)
+                                : const Color(0xFFEBF3FE),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            size: 18,
+                            color: isFiltered
+                                ? Colors.white
+                                : const Color(0xFF004E7E),
+                          ),
+                        ),
+                        if (isFiltered)
+                          Positioned(
+                            top: -4,
+                            right: -4,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Text(
+                                '1',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
             ),
+            // Row 2: text-only action chips — only after at least one
+            // schedule has been selected. A chip is greyed out when no
+            // schedule in the list is eligible for its action.
+            if (count > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildTextChip(
+                    label: 'Stop',
+                    action: _BulkScheduleAction.stop,
+                    color: const Color(0xFFF59E0B),
+                    enabled: hasStoppable,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTextChip(
+                    label: 'Restart',
+                    action: _BulkScheduleAction.restart,
+                    color: const Color(0xFF10B981),
+                    enabled: hasResumable,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTextChip(
+                    label: 'Delete',
+                    action: _BulkScheduleAction.delete,
+                    color: const Color(0xFFEF4444),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTextChip(
+                    label: 'Republish',
+                    action: _BulkScheduleAction.republish,
+                    color: const Color(0xFF6366F1),
+                    enabled: hasPending,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       );
     });
   }
 
-  Widget _buildChip({
+  Widget _buildTextChip({
     required String label,
-    required IconData icon,
-    required _BulkScheduleAction value,
-    required Color activeColor,
-    required Color activeBg,
-    required bool rightPad,
+    required _BulkScheduleAction action,
+    required Color color,
+    bool enabled = true,
   }) {
-    final isSelected = _selectedAction == value;
+    final isSelected = _selectedAction == action;
     return Expanded(
-      child: Padding(
-        padding: EdgeInsets.only(right: rightPad ? 8 : 0),
-        child: GestureDetector(
-          onTap: () => setState(() {
-            _selectedAction = value;
-            _controller.clearSelection();
-          }),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 10),
+      child: GestureDetector(
+        onTap: !enabled
+            ? null
+            : () {
+                setState(() {
+                  _selectedAction = isSelected ? null : action;
+                });
+                // When picking a new action, prune the selection down to
+                // schedules that are actually eligible for it. The visible
+                // list already filters to eligible — the in-memory selection
+                // must match, otherwise the confirm dialog and result toast
+                // count records the user can no longer see.
+                if (!isSelected) {
+                  final eligibleIds = _controller.schedules
+                      .where((r) =>
+                          r.id != null &&
+                          _controller.selectedRecordIds.contains(r.id) &&
+                          _isEligibleForAction(r, action))
+                      .map((r) => r.id!)
+                      .toSet();
+                  if (eligibleIds.length !=
+                      _controller.selectedRecordIds.length) {
+                    _controller.selectedRecordIds.assignAll(eligibleIds);
+                  }
+                }
+              },
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.4,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isSelected ? activeBg : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
+              color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+                color: isSelected ? color : const Color(0xFFE2E8F0),
                 width: isSelected ? 1.5 : 1,
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon,
-                    size: 22,
-                    color: isSelected ? activeColor : const Color(0xFF94A3B8)),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? activeColor : const Color(0xFF94A3B8),
-                  ),
-                ),
-              ],
+            child: Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? color : const Color(0xFF64748B),
+              ),
             ),
           ),
         ),
@@ -672,9 +710,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   Widget _buildBulkActionBar() {
     return Obx(() {
       final selectedCount = _controller.selectedRecordIds.length;
-      if (selectedCount == 0) {
+      // Bottom bar appears only when a chip and at least one schedule are
+      // picked. Also hidden when the action filter has no matching schedules
+      // — there is nothing to act on.
+      if (selectedCount == 0 || _selectedAction == null) {
         return const SizedBox.shrink();
       }
+      final visibleForAction = _filterByAction(_controller.schedules.toList());
+      if (visibleForAction.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final action = _selectedAction!;
 
       return SafeArea(
         top: false,
@@ -700,7 +746,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _controller.clearSelection,
+                  onPressed: () {
+                    setState(() => _selectedAction = null);
+                    _controller.clearSelection();
+                  },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF004E7E),
                     side: const BorderSide(color: Color(0xFF004E7E)),
@@ -721,7 +770,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => _showBulkActionConfirm(_selectedAction),
+                  onPressed: () => _showBulkActionConfirm(action),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF004E7E),
                     minimumSize: const Size.fromHeight(46),
@@ -967,9 +1016,29 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
             action == _BulkScheduleAction.republish,
         onDelete: () async {
           // FFButtonWidget(showLoadingIndicator: true) already blocks re-taps
-          // within the dialog. This just runs the action and closes.
-          await _runBulkAction(action);
+          // within the dialog. Run the action, close the dialog, and drop
+          // the action filter so the user lands back on the full schedule
+          // list once the ACK round-trip finishes.
+          // Capture the count BEFORE running — the controller clears the
+          // selection as part of the bulk method, so reading after returns 0.
+          final wasSingle = selectedCount == 1;
+          final success = await _runBulkAction(action);
           if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+          // Single-schedule bulk actions don't get a bottom result toast
+          // (that's reserved for >1). Surface a top success snackbar instead
+          // when the device acked successfully.
+          if (mounted && success && wasSingle) {
+            getsuccessSnackBar(switch (action) {
+              _BulkScheduleAction.delete => 'Schedule deleted successfully',
+              _BulkScheduleAction.stop => 'Schedule stopped',
+              _BulkScheduleAction.restart => 'Schedule restarted',
+              _BulkScheduleAction.republish =>
+                'Schedule acknowledged by device',
+            });
+          }
+          if (mounted && _selectedAction != null) {
+            setState(() => _selectedAction = null);
+          }
         },
         onCancel: () => Navigator.pop(dialogCtx),
       ),

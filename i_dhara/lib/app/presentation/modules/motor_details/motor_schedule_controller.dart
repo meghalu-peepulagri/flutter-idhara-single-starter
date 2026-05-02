@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/schedule_result_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart'
     as motor_model;
@@ -15,12 +16,20 @@ import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_con
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class MotorScheduleController extends GetxController {
+  /// Hard cap of schedules a single date can hold across the whole app.
+  /// Used by the schedule list FAB and the multi-create form's "Add" button
+  /// to keep the UI in sync with the device-side limit.
+  static const int kMaxSchedulesPerDate = 4;
+
   final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
   final MqttService _mqttService = MqttService();
   StreamSubscription<Map<String, dynamic>>? _scheduleAckSubscription;
   StreamSubscription<Map<String, dynamic>>? _scheduleActionAckSubscription;
   StreamSubscription<Map<String, dynamic>>? _scheduleLiveDataSubscription;
   StreamSubscription<String>? _scheduleAckTimeoutSubscription;
+  StreamSubscription<Map<String, dynamic>>? _scheduleFinalResultSubscription;
+  StreamSubscription<Map<String, dynamic>>?
+      _scheduleActionFinalResultSubscription;
 
   var schedules = <Record>[].obs;
   var isLoading = true.obs;
@@ -56,6 +65,11 @@ class MotorScheduleController extends GetxController {
   // Completer for republish — resolved when create-ACK arrives after republish.
   Completer<bool>? _republishCompleter;
 
+  // ScheduleIds we expect ACKs for from the in-flight publish. Compared
+  // against the device's ACK bitmask to compute partial / full success for
+  // the bottom result snackbar. Cleared after the toast fires.
+  List<int> _expectedScheduleIds = [];
+
   // Called after a non-republish schedule-create ACK refresh completes.
   // ScheduleManagePageState sets this to refresh its own list without waiting.
   VoidCallback? onScheduleAckRefreshed;
@@ -82,6 +96,8 @@ class MotorScheduleController extends GetxController {
     _listenScheduleActionAck();
     _listenScheduleLiveData();
     _listenScheduleAckTimeout();
+    _listenScheduleFinalResult();
+    _listenScheduleActionFinalResult();
     ever(Get.find<AnalyticsController>().selectedTabIndex, (int index) {
       if (index == 1) fetchSchedules();
     });
@@ -102,17 +118,27 @@ class MotorScheduleController extends GetxController {
     _scheduleActionAckSubscription?.cancel();
     _scheduleLiveDataSubscription?.cancel();
     _scheduleAckTimeoutSubscription?.cancel();
+    _scheduleFinalResultSubscription?.cancel();
+    _scheduleActionFinalResultSubscription?.cancel();
     super.onClose();
   }
 
-  Future<void> fetchSchedules({bool isRefresh = false}) async {
-    if (isRefresh) {
-      isRefreshing.value = true;
-      page.value = 1;
-    } else {
-      isLoading.value = true;
-      page.value = 1;
+  Future<void> fetchSchedules({
+    bool isRefresh = false,
+    bool silent = false,
+  }) async {
+    // `silent` = pull data in the background without flipping isLoading /
+    // isRefreshing — used right after a T:33 ACK so the schedule tab does
+    // NOT swap the list out for AppLottieLoading. The Obx on `schedules`
+    // already redraws the cards when the new data lands.
+    if (!silent) {
+      if (isRefresh) {
+        isRefreshing.value = true;
+      } else {
+        isLoading.value = true;
+      }
     }
+    page.value = 1;
     try {
       final response = await _scheduleRepo.getScheduleList(
         page.value,
@@ -130,9 +156,11 @@ class MotorScheduleController extends GetxController {
     } catch (_) {
       // silently fail
     } finally {
-      isLoading.value = false;
-      isRefreshing.value = false;
-      isInitialLoading.value = false;
+      if (!silent) {
+        isLoading.value = false;
+        isRefreshing.value = false;
+        isInitialLoading.value = false;
+      }
       isHasMoreLoading.value = false;
     }
   }
@@ -239,6 +267,10 @@ class MotorScheduleController extends GetxController {
   }
 
   /// Publish a single MQTT T:24 for multiple schedules (combined bitmask).
+  /// Always opts into expected-id tracking so partial T:54 ACKs trigger
+  /// the 5/5/3 retry cycle and the final-result toast. The bulk completer
+  /// is resolved by [_listenScheduleActionFinalResult], not by individual
+  /// ACK arrivals.
   Future<void> _publishBulkScheduleAction(List<Record> records, int cmd) async {
     final id = _resolveIdentifier();
     if (id.isEmpty) return;
@@ -253,6 +285,7 @@ class MotorScheduleController extends GetxController {
         identifier: id,
         scheduleIds: scheduleIds,
         cmd: cmd,
+        trackExpectedAcks: true,
       );
     } catch (e) {
       for (final sid in scheduleIds) {
@@ -292,7 +325,7 @@ class MotorScheduleController extends GetxController {
     }
 
     return completer.future.timeout(
-      const Duration(seconds: 12),
+      const Duration(seconds: 16),
       onTimeout: () {
         _bulkDeleteCompleters.remove(key);
         _bulkObjectIds.remove(key);
@@ -335,7 +368,7 @@ class MotorScheduleController extends GetxController {
     }
 
     return completer.future.timeout(
-      const Duration(seconds: 12),
+      const Duration(seconds: 16),
       onTimeout: () {
         _bulkToggleCompleters.remove(key);
         _bulkObjectIds.remove(key);
@@ -380,73 +413,45 @@ class MotorScheduleController extends GetxController {
         final ackId = (ack['topic'] ?? '').toString();
         if (currentId.isNotEmpty && ackId != currentId) return;
 
-        final status = ack['status'] as int? ?? 0;
         scheduleId = ack['id'] as int? ?? 0;
         final ackedIds =
             (ack['ids'] as List?)?.whereType<int>().toList() ?? <int>[];
         final receivedAckCmd = ack['ack'] as int?;
 
-        // ── BULK PATH ──────────────────────────────────────────────────────
-        if (ackedIds.isNotEmpty) {
-          final key = _bulkKey(ackedIds);
-          final hasBulkDelete = _bulkDeleteCompleters.containsKey(key);
-          final hasBulkToggle = _bulkToggleCompleters.containsKey(key);
+        // Bulk actions are now driven by [_listenScheduleActionFinalResult]
+        // — that handler waits for the MQTT layer to emit a single result
+        // (full coverage or retry exhaustion) and runs the API + completer
+        // + partial toast there. Skip bulk traffic here so we don't fire
+        // a single-action top snackbar on partial bulk ACKs (e.g. 1 of 2
+        // acked) — those previously slipped through because their bulk
+        // key didn't match the partial ackedIds set.
+        final isPartOfBulk = ackedIds.length > 1 ||
+            _bulkObjectIds.values
+                .any((objMap) => ackedIds.any(objMap.containsKey));
+        if (isPartOfBulk) return;
 
-          if (hasBulkDelete || hasBulkToggle) {
-            for (final sid in ackedIds) {
-              _pendingActions.remove(sid);
-            }
-            final objectIdMap = _bulkObjectIds.remove(key) ?? {};
-            final cmd = _bulkCmds.remove(key) ?? receivedAckCmd ?? 0;
-            final objectIds = objectIdMap.values.toList();
-
-            if (status == 1) {
-              if (cmd == 3) {
-                try {
-                  await _scheduleRepo.bulkDeleteSchedules(objectIds);
-                  getsuccessSnackBar('Schedules deleted successfully');
-                  _bulkDeleteCompleters.remove(key)?.complete(true);
-                } catch (_) {
-                  geterrorSnackBar('Failed to delete schedules');
-                  _bulkDeleteCompleters.remove(key)?.complete(false);
-                }
-              } else if (cmd == 1 || cmd == 2) {
-                try {
-                  if (cmd == 1) {
-                    await _scheduleRepo.bulkStopSchedules(objectIds);
-                  } else {
-                    await _scheduleRepo.bulkRestartSchedules(objectIds);
-                  }
-                  getsuccessSnackBar(
-                      cmd == 1 ? 'Schedules stopped' : 'Schedules restarted');
-                  _bulkToggleCompleters.remove(key)?.complete(true);
-                } catch (_) {
-                  geterrorSnackBar('Failed to update schedules');
-                  _bulkToggleCompleters.remove(key)?.complete(false);
-                }
-              }
-            } else {
-              geterrorSnackBar('Schedule action failed');
-              _bulkDeleteCompleters.remove(key)?.complete(false);
-              _bulkToggleCompleters.remove(key)?.complete(false);
-            }
-            fetchSchedules();
-            return;
-          }
-        }
-
-        // ── SINGLE PATH (existing) ─────────────────────────────────────────
+        // ── SINGLE PATH ────────────────────────────────────────────────────
         final cmd = _pendingActions[scheduleId];
         if (cmd == null) return;
 
-        if (receivedAckCmd != null && receivedAckCmd != cmd) {
-          debugPrint('⚠️ Ignored ACK: expected $cmd but got $receivedAckCmd');
+        // Success when ack code matches the cmd we sent (1/2/3).
+        final isSuccess = receivedAckCmd != null && receivedAckCmd == cmd;
+        final errorMsg = receivedAckCmd != null
+            ? MqttService.scheduleActionAckErrorMessage(receivedAckCmd)
+            : null;
+
+        // Unexpected mismatch — receivedAckCmd is neither the expected cmd
+        // nor a known error code. Likely a stale ACK from a different
+        // command; ignore so we don't fail the in-flight operation.
+        if (!isSuccess && errorMsg == null) {
+          debugPrint(
+              '⚠️ Ignored unexpected schedule action ACK: ack=$receivedAckCmd cmd=$cmd');
           return;
         }
 
         _pendingActions.remove(scheduleId);
 
-        if (status == 1) {
+        if (isSuccess) {
           if (cmd == 3) {
             // ── DELETE: call delete API, complete completer ──
             await _deleteScheduleAfterAck(scheduleId);
@@ -477,8 +482,8 @@ class MotorScheduleController extends GetxController {
             fetchSchedules();
           }
         } else {
-          // ── ACK FAILURE ──
-          geterrorSnackBar('Schedule action failed');
+          // ── ACK FAILURE — show device-specific message ──
+          geterrorSnackBar(errorMsg!);
           _deleteCompleters.remove(scheduleId)?.complete(false);
           _toggleCompleters.remove(scheduleId)?.complete(false);
           fetchSchedules();
@@ -531,9 +536,15 @@ class MotorScheduleController extends GetxController {
   }
 
   Future<void> navigateToCreateSchedule() async {
+    // Pass how many schedules already cover the selected date so the create
+    // page can cap "+ Add Schedule" at the remaining slot count.
+    final existingCount = totalRecords.value;
     await Get.toNamed(
       Routes.schedule,
-      arguments: {'motor': _buildMotorFromDetails()},
+      arguments: {
+        'motor': _buildMotorFromDetails(),
+        'existingScheduleCount': existingCount,
+      },
     );
     fetchSchedules();
   }
@@ -595,11 +606,20 @@ class MotorScheduleController extends GetxController {
 
       final completer = Completer<bool>();
       _republishCompleter = completer;
+      // Republish only needs expected ids for the immediate result toast —
+      // it deliberately does NOT populate the multi-create retry slots, so
+      // partial republish ACKs won't auto re-publish.
+      _expectedScheduleIds =
+          items.map((m) => (m['id'] as int?) ?? 0).where((s) => s > 0).toList();
 
       await _mqttService.publishMultipleSchedulesCommand(
         identifier: id,
         items: items,
         idx: 2,
+        // Republish gets the same retry-until-all-acked + partial toast
+        // behaviour as multi-create. The toast is rendered by
+        // [_listenScheduleFinalResult] when items.length > 1.
+        trackExpectedAcks: true,
       );
 
       // Wait for device ACK (T:33) — resolved in _listenScheduleAck
@@ -616,6 +636,41 @@ class MotorScheduleController extends GetxController {
       geterrorSnackBar('Failed to republish: $e');
       return false;
     }
+  }
+
+  /// Called by the multi-schedule create flow (schedule_page) right before it
+  /// publishes the T:3 payload. Stores the expected scheduleIds so the
+  /// controller can compute partial / full success when the ACK or timeout
+  /// arrives. Single-create deliberately does NOT call this, so single-create
+  /// never surfaces a result toast.
+  void trackPendingSchedulePublish({
+    required List<Map<String, dynamic>> items,
+    required String identifier,
+    int idx = 2,
+  }) {
+    _expectedScheduleIds =
+        items.map((m) => (m['id'] as int?) ?? 0).where((s) => s > 0).toList();
+  }
+
+  /// Compares the in-flight expected scheduleIds against the device's acked
+  /// list and, 3s after retries finish, surfaces a bottom snackbar summarising
+  /// success / partial / failure counts. Empty `ackedScheduleIds` means the
+  /// retry loop exhausted with no ACK at all.
+  void _showScheduleResultAfterDelay(List<int> ackedScheduleIds) {
+    if (_expectedScheduleIds.isEmpty) return;
+    final expected = List<int>.from(_expectedScheduleIds);
+    _expectedScheduleIds = [];
+    final ackedSet = ackedScheduleIds.toSet();
+
+    Future.delayed(const Duration(seconds: 3), () {
+      final successCount = expected.where(ackedSet.contains).length;
+      final failedCount = expected.length - successCount;
+      showScheduleResultSnackBar(
+        total: expected.length,
+        successCount: successCount,
+        failedCount: failedCount,
+      );
+    });
   }
 
   static int _timeStrToHHMM(String? time) {
@@ -678,7 +733,11 @@ class MotorScheduleController extends GetxController {
       if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
         _republishCompleter!.complete(false);
         _republishCompleter = null;
+        _showScheduleResultAfterDelay(<int>[]);
       }
+      // Multi-create timeout is handled by _listenScheduleFinalResult — the
+      // MQTT service routes tracked publishes through the final-result
+      // stream instead of this timeout stream.
     });
   }
 
@@ -720,56 +779,190 @@ class MotorScheduleController extends GetxController {
         return;
       }
 
-      final d = ack['D'] as int? ?? 0;
-      if (d != 1) {
-        debugPrint('↪️ Schedule ACK failed — D=$d');
+      final ackCode = ack['ack_code'] as int? ?? (ack['D'] as int? ?? 0);
+      if (ackCode != 1) {
+        // Device-side error — surface the specific message and stop here.
+        // For tracked multi-create, _listenScheduleFinalResult will still
+        // render the bottom counts toast; for republish, resolve the
+        // completer so the loading dialog closes.
+        final msg = MqttService.scheduleAckErrorMessage(ackCode);
+        if (msg != null) geterrorSnackBar(msg);
+        debugPrint('↪️ Schedule ACK failed — ack=$ackCode');
+        if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+          _republishCompleter!.complete(false);
+          _republishCompleter = null;
+          _showScheduleResultAfterDelay(<int>[]);
+        }
         return;
       }
 
-      // Decode which scheduleIds were ACK'd from the bitmask.
-      // Each entry in schedule_ids is a scheduleId (record.scheduleId).
-      // We map them to their database object IDs (record.id) for the API call.
       final ackedScheduleIds =
           (ack['schedule_ids'] as List?)?.whereType<int>().toList() ?? <int>[];
 
       debugPrint('ACK scheduleIds: $ackedScheduleIds');
 
-      // Collect object IDs of matching records; fall back to all if list is empty
-      final objectIds = ackedScheduleIds.isNotEmpty
-          ? schedules
-              .where((r) =>
-                  r.scheduleId != null &&
-                  ackedScheduleIds.contains(r.scheduleId))
-              .map((r) => r.id)
-              .whereType<int>()
-              .toList()
-          : schedules.map((r) => r.id).whereType<int>().toList();
+      // Strict: only acknowledge the exact scheduleIds the device named.
+      // Never fall back to "all schedules" — that wrongly flips earlier
+      // PENDING schedules to scheduled when the user later creates a new one
+      // and the device only ACKs that single new id.
+      if (ackedScheduleIds.isEmpty) {
+        debugPrint('⚠️ ACK has no schedule_ids — skipping acknowledgement');
+        if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+          _republishCompleter!.complete(false);
+          _republishCompleter = null;
+        }
+        return;
+      }
 
-      debugPrint('📤 Sending acknowledgement for objectIds: $objectIds');
+      final objectIds = schedules
+          .where((r) =>
+              r.scheduleId != null && ackedScheduleIds.contains(r.scheduleId))
+          .map((r) => r.id)
+          .whereType<int>()
+          .toList();
 
-      // Sequential: ack endpoint first, then list refresh.
+      if (objectIds.isEmpty) {
+        debugPrint(
+            '⚠️ No matching object IDs for ackedScheduleIds: $ackedScheduleIds');
+        if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+          _republishCompleter!.complete(false);
+          _republishCompleter = null;
+        }
+        return;
+      }
+
       try {
         await fetchacknowledgement(objectIds);
-      } catch (e) {
-        debugPrint('⚠️ fetchacknowledgement failed: $e');
-      }
+      } catch (_) {}
+      // silent: true → no isLoading flip → list stays put, no lottie reload.
       try {
-        await fetchSchedules();
-        debugPrint('✅ fetchSchedules completed after schedule ACK');
-      } catch (e) {
-        debugPrint('⚠️ fetchSchedules failed after ACK: $e');
-      }
+        await fetchSchedules(silent: true);
+      } catch (_) {}
 
-      // Republish path: resolve the completer so the dialog closes and
-      // republishSelectedSchedules can refresh the manage page list.
       if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
         getsuccessSnackBar('Schedules acknowledged by device');
         _republishCompleter!.complete(true);
         _republishCompleter = null;
+        _showScheduleResultAfterDelay(ackedScheduleIds);
       } else {
-        // Normal create ACK: notify manage page (if open) to refresh its list.
         onScheduleAckRefreshed?.call();
       }
+    });
+  }
+
+  /// Listens for the per-session final-result event the MQTT service emits
+  /// for tracked multi-schedule publishes. Fires once at full coverage or
+  /// when retries exhaust. Skips single-create (expected.length <= 1) per
+  /// product requirement: only multi-schedule create surfaces the toast.
+  void _listenScheduleFinalResult() {
+    _scheduleFinalResultSubscription?.cancel();
+    _scheduleFinalResultSubscription =
+        _mqttService.scheduleFinalResultStream.listen((result) {
+      final currentId = _resolveIdentifier();
+      final ackId = (result['topic'] ?? '').toString();
+      if (currentId.isNotEmpty && ackId != currentId) return;
+
+      final expected =
+          (result['expected'] as List?)?.whereType<int>().toList() ?? <int>[];
+      final acked =
+          (result['acked'] as List?)?.whereType<int>().toList() ?? <int>[];
+
+      // Clear any stale tracking from the create-flow priming so a later
+      // ACK can't re-fire the toast helper.
+      _expectedScheduleIds = [];
+
+      // Single-schedule create: device-level ACK already drives the inline
+      // success/error UI. No bottom toast.
+      if (expected.length <= 1) return;
+
+      final ackedSet = acked.toSet();
+      final successCount = expected.where(ackedSet.contains).length;
+      final failedCount = expected.length - successCount;
+      showScheduleResultSnackBar(
+        total: expected.length,
+        successCount: successCount,
+        failedCount: failedCount,
+      );
+    });
+  }
+
+  /// Final-result handler for bulk T:24 actions (delete / stop / resume).
+  /// Fires once per bulk publish at full coverage or retry exhaustion.
+  /// Drives the API call (only for the actually-acked records), resolves the
+  /// awaiting bulk completer, and surfaces the partial / full result toast
+  /// when more than one schedule was involved. Single-schedule actions
+  /// don't track expected ids, so they never reach this listener and never
+  /// show the toast.
+  void _listenScheduleActionFinalResult() {
+    _scheduleActionFinalResultSubscription?.cancel();
+    _scheduleActionFinalResultSubscription =
+        _mqttService.scheduleActionFinalResultStream.listen((result) async {
+      final currentId = _resolveIdentifier();
+      final ackId = (result['topic'] ?? '').toString();
+      if (currentId.isNotEmpty && ackId != currentId) return;
+
+      final expected =
+          (result['expected'] as List?)?.whereType<int>().toList() ?? <int>[];
+      final acked =
+          (result['acked'] as List?)?.whereType<int>().toList() ?? <int>[];
+      final cmd = result['cmd'] as int?;
+      final ackCode = result['ack_code'] as int?;
+      if (expected.isEmpty || cmd == null) return;
+
+      // Cleanup pendingActions for every expected id, regardless of ack.
+      for (final sid in expected) {
+        _pendingActions.remove(sid);
+      }
+
+      final key = _bulkKey(expected);
+      final ackedSet = acked.toSet();
+      final isFullSuccess = expected.every(ackedSet.contains);
+
+      // Map only the acked scheduleIds to their object ids for the API call.
+      final objectIdMap = _bulkObjectIds.remove(key) ?? {};
+      _bulkCmds.remove(key);
+      final ackedObjectIds = <int>[
+        for (final entry in objectIdMap.entries)
+          if (ackedSet.contains(entry.key)) entry.value,
+      ];
+
+      // Run the API for whatever the device confirmed, even on partial.
+      if (ackedObjectIds.isNotEmpty) {
+        try {
+          if (cmd == 3) {
+            await _scheduleRepo.bulkDeleteSchedules(ackedObjectIds);
+          } else if (cmd == 1) {
+            await _scheduleRepo.bulkStopSchedules(ackedObjectIds);
+          } else if (cmd == 2) {
+            await _scheduleRepo.bulkRestartSchedules(ackedObjectIds);
+          }
+        } catch (_) {
+          // silently fail — the toast / completer below still reflect device truth
+        }
+      }
+
+      // Toast only for genuine bulk operations (>1 schedule). Singles fall
+      // through their own ACK listener and never reach this handler.
+      if (expected.length > 1) {
+        final successCount = expected.where(ackedSet.contains).length;
+        final failedCount = expected.length - successCount;
+        showScheduleResultSnackBar(
+          total: expected.length,
+          successCount: successCount,
+          failedCount: failedCount,
+        );
+      } else if (!isFullSuccess && ackCode != null) {
+        // expected.length == 1 (bulk wrapper around a single schedule) and
+        // device returned an error — surface its specific message.
+        final msg = MqttService.scheduleActionAckErrorMessage(ackCode);
+        if (msg != null) geterrorSnackBar(msg);
+      }
+
+      // Resolve whichever bulk completer was awaiting this key.
+      _bulkDeleteCompleters.remove(key)?.complete(isFullSuccess);
+      _bulkToggleCompleters.remove(key)?.complete(isFullSuccess);
+
+      fetchSchedules();
     });
   }
 }

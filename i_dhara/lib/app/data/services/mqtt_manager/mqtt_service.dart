@@ -148,6 +148,15 @@ class PendingCommand {
   Timer? retryTimer;
   final Function(String) onMaxRetriesReached;
 
+  /// For multi-schedule create (T:23). When set, the retry loop keeps firing
+  /// even after a partial ACK — we only stop once every expected scheduleId
+  /// has been acknowledged across one or more device ACKs.
+  final List<int>? expectedScheduleIds;
+
+  /// Accumulated acked scheduleIds across all publish attempts. Union of
+  /// every T:33 ACK bitmask received for this command.
+  final Set<int> ackedScheduleIds = <int>{};
+
   PendingCommand({
     required this.motorId,
     required this.commandType,
@@ -156,6 +165,7 @@ class PendingCommand {
     this.retryCount = 0,
     required this.onMaxRetriesReached,
     this.pcbnumber,
+    this.expectedScheduleIds,
   });
 
   void cancelTimer() {
@@ -187,6 +197,27 @@ class MqttService {
       StreamController<String>.broadcast();
   Stream<String> get scheduleAckTimeoutStream =>
       scheduleAckTimeoutController.stream;
+
+  // Emits ONCE per tracked multi-schedule publish session — fired either when
+  // every expected scheduleId has been acked, or when the retry loop exhausts.
+  // Payload: {topic: identifier, expected: List<int>, acked: List<int>}.
+  // Only publishes that pass [expectedScheduleIds] into [_registerPendingCommand]
+  // produce events on this stream — the controller uses it to drive the
+  // bottom result snackbar for the multi-create flow.
+  final StreamController<Map<String, dynamic>> scheduleFinalResultController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get scheduleFinalResultStream =>
+      scheduleFinalResultController.stream;
+
+  // Same idea as [scheduleFinalResultStream] but for bulk action commands
+  // (T:24 stop / resume / delete). Fires once per tracked bulk action when
+  // every expected scheduleId is acked or the retry loop exhausts.
+  // Payload: {topic, expected, acked, cmd, success}.
+  final StreamController<Map<String, dynamic>>
+      scheduleActionFinalResultController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get scheduleActionFinalResultStream =>
+      scheduleActionFinalResultController.stream;
 
   // Emits {scheduleId, runtime, missedTimes, failureEpoch, failureReason}
   // whenever a live sch field arrives for G01 or G02.
@@ -243,13 +274,20 @@ class MqttService {
   // Any T:33 ACK arriving after this is a late ACK and must be ignored
   final Set<String> _expiredScheduleKeys = {};
 
+  // ScheduleIds the app just published per command key. Used in
+  // _handleScheduleAck to filter the device's bitmask, which echoes ALL
+  // scheduleIds the device currently stores — not just the freshly
+  // published ones. Without this filter, ACK'ing a single new schedule
+  // would also mark older PENDING schedules as acknowledged.
+  final Map<String, List<int>> _publishedScheduleIds = {};
+
   // Test run tracking - motors in test run mode should ignore type 31 and 32
   final Set<String> _testRunMotors = {};
 
   // Retry settings
   static const int _maxRetries = 2;
-  static const Duration _firstRetryDelay = Duration(seconds: 5);
-  static const Duration _secondRetryDelay = Duration(seconds: 5);
+  static const Duration _firstRetryDelay = Duration(seconds: 10);
+  static const Duration _secondRetryDelay = Duration(seconds: 10);
   static const Duration _finalWaitDelay = Duration(seconds: 3);
 
   final Random _random = Random();
@@ -656,6 +694,7 @@ class MqttService {
     _lastAckTimes.remove(commandKey);
     // Clear expired status so a fresh command's ACK is accepted
     _expiredScheduleKeys.remove(commandKey);
+    _publishedScheduleIds[commandKey] = [scheduleId];
 
     await _publishScheduleCommandInternal(
       payload,
@@ -685,6 +724,13 @@ class MqttService {
 
     /// 1 = first schedule on this motor, 2 = motor already has schedules
     int idx = 1,
+
+    /// When true, the retry loop keeps firing on partial ACKs until every
+    /// scheduleId in [items] is acked or the retries exhaust. Used by the
+    /// multi-schedule create flow to drive the partial / full result toast.
+    /// Republish flows leave this false and keep the legacy "any ACK clears
+    /// the retry" behaviour.
+    bool trackExpectedAcks = false,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -722,6 +768,10 @@ class MqttService {
     final commandKey = 'schedule_$identifier';
     _lastAckTimes.remove(commandKey);
     _expiredScheduleKeys.remove(commandKey);
+    _publishedScheduleIds[commandKey] = sorted
+        .map((m) => (m['id'] as int?) ?? 0)
+        .where((id) => id > 0)
+        .toList();
 
     await _publishScheduleCommandInternal(
       payload,
@@ -734,6 +784,12 @@ class MqttService {
       payload,
       seq,
       pcbnumber: identifier,
+      expectedScheduleIds: trackExpectedAcks
+          ? sorted
+              .map((m) => (m['id'] as int?) ?? 0)
+              .where((i) => i > 0)
+              .toList()
+          : null,
     );
     statusMessage = 'Multi schedule command sent successfully';
     _dataUpdateNotifier.value++;
@@ -764,6 +820,12 @@ class MqttService {
     required List<int> scheduleIds,
     required int cmd,
     int? sequenceNumber,
+
+    /// When true, the retry loop keeps firing on partial T:54 ACKs until
+    /// every scheduleId is acked or the retries exhaust — same pattern as
+    /// [publishMultipleSchedulesCommand]. The bulk-action controller path
+    /// uses this to drive the partial / full result snackbar.
+    bool trackExpectedAcks = false,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -812,6 +874,7 @@ class MqttService {
         payload,
         seq,
         pcbnumber: identifier,
+        expectedScheduleIds: trackExpectedAcks ? scheduleIds : null,
       );
       try {
         await _publishScheduleCommandInternal(
@@ -1164,7 +1227,9 @@ class MqttService {
             _handleHeartbeat(identifier, payloadData);
             break;
           case 33:
-            _handleScheduleAck(identifier, payloadData);
+            // Pass the full message — _handleScheduleAck needs the top-level
+            // `S` field (bitmask of acked scheduleIds), not just `D`.
+            _handleScheduleAck(identifier, data as Map<String, dynamic>);
             break;
           case 54:
             _handleScheduleActionAck(identifier, payloadData);
@@ -1653,58 +1718,102 @@ class MqttService {
     }
   }
 
-  void _handleScheduleAck(String identifier, dynamic payloadData) {
+  void _handleScheduleAck(String identifier, Map<String, dynamic> message) {
     final scheduleCommandKey = 'schedule_$identifier';
 
-    // Ignore late ACKs that arrive after retries were exhausted
-    if (_expiredScheduleKeys.contains(scheduleCommandKey)) {
-      debugPrint('⚠️ Late T:33 ACK ignored (retries exhausted): $identifier');
-      return;
+    // Late ACKs (after retries exhausted) are still processed — the device
+    // confirmation is the source of truth, and dropping it would leave fresh
+    // schedules stuck in PENDING forever even though the device accepted them.
+    final isLate = _expiredScheduleKeys.contains(scheduleCommandKey);
+    if (isLate) {
+      debugPrint('ℹ️ Late T:33 ACK for $identifier — processing anyway');
+      _expiredScheduleKeys.remove(scheduleCommandKey);
     }
 
-    // ACK payload D is a Map with a bitmask field "ids".
-    // The bitmask encodes which scheduleIds are acknowledged:
-    //   bit position N (0-indexed from LSB) set → scheduleId = N+1
-    //   e.g. ids=5  (binary 0101) → scheduleIds [1, 3]
-    //        ids=10 (binary 1010) → scheduleIds [2, 4]
-    // Also supports legacy plain-int D (1=success / 0=failure) for old firmware.
-    final List<int> ackedScheduleIds = [];
-    int successFlag = 0;
+    // Firmware payload shape: {"T":33, "S":<seq>, "D":<success_int>}
+    //   D = success flag (1 = success, 0 = failure).
+    //   S = sequence number — not read here; correlation isn't needed because
+    //       any T:33 on this identifier confirms the last publish on this key.
+    // The firmware does NOT report which scheduleIds were stored — it just
+    // confirms the last publish. So the source of truth for "which ids to
+    // acknowledge" is our own _publishedScheduleIds, recorded at publish time.
+    final dRaw = message['D'];
+    final successFlag = dRaw is int ? dRaw : int.tryParse('$dRaw') ?? 0;
 
-    if (payloadData is Map<String, dynamic>) {
-      final idsRaw = payloadData['ids'];
-      final bitmask = idsRaw is int ? idsRaw : int.tryParse('$idsRaw') ?? 0;
+    // remove() (not lookup): a duplicate/retransmit ACK arrives with no
+    // published context → empty list → controller skips, which is correct.
+    final publishedIds =
+        _publishedScheduleIds.remove(scheduleCommandKey) ?? const <int>[];
 
-      for (int bit = 0; bit < 32; bit++) {
-        if ((bitmask >> bit) & 1 == 1) {
-          ackedScheduleIds.add(bit + 1); // scheduleId = bit position + 1
-        }
-      }
-      successFlag = ackedScheduleIds.isNotEmpty ? 1 : 0;
+    final List<int> ackedScheduleIds =
+        successFlag == 1 ? List<int>.from(publishedIds) : const <int>[];
 
-      debugPrint(
-          '✓ Schedule ACK (bitmask) from $identifier: bitmask=$bitmask → scheduleIds=$ackedScheduleIds');
-    } else {
-      // Legacy: D is a plain int (1 = success, 0 = failure)
-      successFlag =
-          payloadData is int ? payloadData : int.tryParse('$payloadData') ?? 0;
-      debugPrint('✓ Schedule ACK (legacy) from $identifier: D=$successFlag');
-    }
+    debugPrint('✓ Schedule ACK from $identifier: D=$successFlag '
+        'published=$publishedIds → emit=$ackedScheduleIds');
 
-    // Clear retry/error status and pending command
     commandStatusNotifier.value = null;
-    _clearPendingCommand(scheduleCommandKey, 23);
 
-    // Emit ONE event with all decoded scheduleIds as a list.
-    // The controller uses this list to look up matching object IDs and sends
-    // only those to the acknowledgement API.
+    final isSuccess = ackCode == 1;
+
+    // For tracked multi-schedule publishes, the retry loop must keep firing
+    // until EVERY expected scheduleId has been acked. We accumulate across
+    // ACKs and only clear the pending command when the union covers the
+    // expected set; otherwise we leave the retry timer alone. Any non-1
+    // ack code is a device-side error — we stop retries immediately and
+    // emit a final result with whatever has accumulated so far.
+    final pendingKey = '${scheduleCommandKey}_23';
+    final pending = _pendingCommands[pendingKey];
+    final expected = pending?.expectedScheduleIds;
+    bool emitFinal = false;
+    bool finalSuccess = false;
+
+    if (expected != null && expected.isNotEmpty) {
+      if (isSuccess) {
+        pending!.ackedScheduleIds.addAll(ackedScheduleIds);
+        final allCovered = expected.every(pending.ackedScheduleIds.contains);
+        if (allCovered) {
+          _clearPendingCommand(scheduleCommandKey, 23);
+          emitFinal = true;
+          finalSuccess = true;
+        } else {
+          debugPrint(
+              '⏳ Partial schedule ACK: ${pending.ackedScheduleIds.toList()} of $expected — keeping retry alive');
+        }
+      } else {
+        // Device returned an error code — retrying the same payload won't
+        // help, so stop the retry loop and surface a final failure carrying
+        // whatever earlier publishes managed to ack.
+        _clearPendingCommand(scheduleCommandKey, 23);
+        _expiredScheduleKeys.add(scheduleCommandKey);
+        emitFinal = true;
+        finalSuccess = false;
+      }
+    } else {
+      // Untracked publish (single create / republish / edit): clear once
+      // the device responds, regardless of success or error.
+      _clearPendingCommand(scheduleCommandKey, 23);
+      if (!isSuccess) {
+        _expiredScheduleKeys.add(scheduleCommandKey);
+      }
+    }
+
     final ackMap = <String, dynamic>{
       'topic': identifier,
-      'schedule_ids': ackedScheduleIds, // List<int> decoded from bitmask
+      'schedule_ids': ackedScheduleIds,
       'D': successFlag,
       'type': 33,
     };
     scheduleAckController.add(ackMap);
+
+    if (emitFinal) {
+      scheduleFinalResultController.add(<String, dynamic>{
+        'topic': identifier,
+        'expected': List<int>.from(expected!),
+        'acked': pending!.ackedScheduleIds.toList()..sort(),
+        'success': finalSuccess,
+        'ack_code': ackCode,
+      });
+    }
   }
 
   /// Handle schedule action ACK (type 54) — stop/resume/delete
@@ -1743,16 +1852,70 @@ class MqttService {
     }
 
     commandStatusNotifier.value = null;
-    _clearPendingCommand(commandKey, 24);
 
+    // Pull the in-flight pending action so we can: (a) accumulate partial
+    // acks across retries, (b) compare ack code against the cmd we sent.
+    final pendingKey = '${commandKey}_24';
+    final pending = _pendingCommands[pendingKey];
+    final expected = pending?.expectedScheduleIds;
+    int? sentCmd;
+    if (pending != null && pending.commandData is Map) {
+      final d = (pending.commandData as Map)['D'];
+      if (d is Map) {
+        final m1 = d['m1'];
+        if (m1 is Map) sentCmd = m1['cmd'] as int?;
+      }
+    }
+    final isSuccess = sentCmd != null && ack == sentCmd;
+
+    bool emitFinal = false;
+    bool finalSuccess = false;
+
+    if (expected != null && expected.isNotEmpty) {
+      if (isSuccess) {
+        pending!.ackedScheduleIds.addAll(ackedScheduleIds);
+        final allCovered = expected.every(pending.ackedScheduleIds.contains);
+        if (allCovered) {
+          _clearPendingCommand(commandKey, 24);
+          _expiredActionKeys.add(commandKey);
+          emitFinal = true;
+          finalSuccess = true;
+        } else {
+          debugPrint(
+              '⏳ Partial T:54 ACK: ${pending.ackedScheduleIds.toList()} of $expected — keeping retry alive');
+        }
+      } else {
+        // Device-side error code — retrying won't help, stop now.
+        _clearPendingCommand(commandKey, 24);
+        _expiredActionKeys.add(commandKey);
+        emitFinal = true;
+        finalSuccess = false;
+      }
+    } else {
+      // Untracked (single-action path): legacy behaviour.
+      _clearPendingCommand(commandKey, 24);
+    }
+
+    // Note: success is `ack == cmd` (the controller knows the cmd it sent).
+    // Codes {0, 4, 5, 6} are device-side errors — see scheduleActionAckErrorMessage.
     final ackMap = <String, dynamic>{
       'topic': identifier,
       'id': scheduleId,
       'ids': ackedScheduleIds,
       'ack': ack,
-      'status': 1, // ACK received = success
     };
     scheduleActionAckController.add(ackMap);
+
+    if (emitFinal) {
+      scheduleActionFinalResultController.add(<String, dynamic>{
+        'topic': identifier,
+        'expected': List<int>.from(expected!),
+        'acked': pending!.ackedScheduleIds.toList()..sort(),
+        'cmd': sentCmd,
+        'success': finalSuccess,
+        'ack_code': ack,
+      });
+    }
 
     debugPrint(
         '✓ Schedule Action ACK received from $identifier: ids=$ids, ack=$ack, scheduleIds=$ackedScheduleIds');
@@ -1987,7 +2150,7 @@ class MqttService {
   }
 
   void _registerPendingCommand(String motorId, int type, dynamic data, int seq,
-      {String? pcbnumber}) {
+      {String? pcbnumber, List<int>? expectedScheduleIds}) {
     final key = '${motorId}_$type';
 
     // Cancel any existing timer for this key to prevent duplicate retries.
@@ -2003,6 +2166,7 @@ class MqttService {
         _dataUpdateNotifier.value++;
       },
       pcbnumber: pcbnumber,
+      expectedScheduleIds: expectedScheduleIds,
     );
 
     _scheduleRetry(command);
@@ -2071,17 +2235,51 @@ class MqttService {
         if (command.commandType == 23) {
           // Mark schedule create command as expired so late ACKs are ignored
           _expiredScheduleKeys.add(command.motorId);
+          // Drop tracked publish-ids — there's no surviving ACK to consume them
+          _publishedScheduleIds.remove(command.motorId);
           command.onMaxRetriesReached('Schedule: No response from device');
-          // Notify listeners (controllers) so they can show a snackbar.
-          // Identifier (pcb) is what the controller correlates to a motor;
-          // fall back to motorId if pcb wasn't supplied.
-          scheduleAckTimeoutController
-              .add(command.pcbnumber ?? command.motorId);
+          final expected = command.expectedScheduleIds;
+          if (expected != null && expected.isNotEmpty) {
+            // Tracked multi-publish: surface a final result with whatever
+            // accumulated, so the controller can render the partial / fail
+            // toast. Skip the timeout stream — the result stream carries
+            // richer info and the toast logic owns the messaging.
+            scheduleFinalResultController.add(<String, dynamic>{
+              'topic': command.pcbnumber ?? command.motorId,
+              'expected': List<int>.from(expected),
+              'acked': command.ackedScheduleIds.toList()..sort(),
+              'success': false,
+            });
+          } else {
+            // Notify listeners (controllers) so they can show a snackbar.
+            // Identifier (pcb) is what the controller correlates to a motor;
+            // fall back to motorId if pcb wasn't supplied.
+            scheduleAckTimeoutController
+                .add(command.pcbnumber ?? command.motorId);
+          }
         } else if (command.commandType == 24) {
           // Mark schedule action command as expired so late ACKs are ignored
           _expiredActionKeys.add(command.motorId);
           command
               .onMaxRetriesReached('Schedule Action: No response from device');
+          final expected = command.expectedScheduleIds;
+          if (expected != null && expected.isNotEmpty) {
+            int? sentCmd;
+            if (command.commandData is Map) {
+              final d = (command.commandData as Map)['D'];
+              if (d is Map) {
+                final m1 = d['m1'];
+                if (m1 is Map) sentCmd = m1['cmd'] as int?;
+              }
+            }
+            scheduleActionFinalResultController.add(<String, dynamic>{
+              'topic': command.pcbnumber ?? command.motorId,
+              'expected': List<int>.from(expected),
+              'acked': command.ackedScheduleIds.toList()..sort(),
+              'cmd': sentCmd,
+              'success': false,
+            });
+          }
         } else if (command.commandType == 4) {
           command
               .onMaxRetriesReached('Device Settings: No response from device');

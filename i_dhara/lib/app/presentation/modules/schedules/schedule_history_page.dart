@@ -26,7 +26,8 @@ class _ScheduleHistoryPageState extends State<ScheduleHistoryPage> {
   void initState() {
     super.initState();
     _tag = 'schedule_history_${DateTime.now().microsecondsSinceEpoch}';
-    _controller = Get.put(ScheduleHistoryController(), tag: _tag, permanent: false);
+    _controller =
+        Get.put(ScheduleHistoryController(), tag: _tag, permanent: false);
   }
 
   @override
@@ -133,7 +134,8 @@ class _ScheduleHistoryPageState extends State<ScheduleHistoryPage> {
               onTap: () => Get.back(),
               child: const Padding(
                 padding: EdgeInsets.all(6),
-                child: Icon(Icons.arrow_back_rounded, color: _kPrimary, size: 20),
+                child:
+                    Icon(Icons.arrow_back_rounded, color: _kPrimary, size: 20),
               ),
             ),
           ),
@@ -166,9 +168,9 @@ class _ScheduleHistoryPageState extends State<ScheduleHistoryPage> {
                     color: const Color(0xFF005A96),
                   ),
                 ),
-                const Spacer(),
-                const Icon(Icons.calendar_month_outlined,
-                    size: 18, color: _kPrimary),
+                // const Spacer(),
+                // const Icon(Icons.calendar_month_outlined,
+                //     size: 18, color: _kPrimary),
               ],
             ),
             const SizedBox(height: 10),
@@ -217,7 +219,8 @@ class _ScheduleHistoryPageState extends State<ScheduleHistoryPage> {
               color: Color(0xFFE3EEF9),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.history_rounded, size: 40, color: _kPrimary),
+            child:
+                const Icon(Icons.history_rounded, size: 40, color: _kPrimary),
           ),
           const SizedBox(height: 12),
           Text(
@@ -309,8 +312,8 @@ class _DatePickerTile extends StatelessWidget {
         selectedDayHighlightColor: _kPrimary,
         selectedDayTextStyle:
             const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        todayTextStyle: const TextStyle(
-            color: _kPrimary, fontWeight: FontWeight.w600),
+        todayTextStyle:
+            const TextStyle(color: _kPrimary, fontWeight: FontWeight.w600),
         dayTextStyle: const TextStyle(
             color: Color(0xFF0F172A), fontWeight: FontWeight.w400),
         disabledDayTextStyle: const TextStyle(color: Color(0xFFB0B8C4)),
@@ -322,8 +325,7 @@ class _DatePickerTile extends StatelessWidget {
             color: Color(0xFF0F172A),
             fontWeight: FontWeight.w600,
             fontSize: 14),
-        lastMonthIcon:
-            const Icon(Icons.chevron_left_rounded, color: _kPrimary),
+        lastMonthIcon: const Icon(Icons.chevron_left_rounded, color: _kPrimary),
         nextMonthIcon:
             const Icon(Icons.chevron_right_rounded, color: _kPrimary),
         okButtonTextStyle: const TextStyle(
@@ -376,8 +378,7 @@ class _HistoryRecordCard extends StatelessWidget {
         : '—';
 
     // Sort events chronologically
-    final events = [...(record.events ?? [])]
-      ..sort((a, b) {
+    final events = [...(record.events ?? [])]..sort((a, b) {
         if (a.timestamp == null && b.timestamp == null) return 0;
         if (a.timestamp == null) return -1;
         if (b.timestamp == null) return 1;

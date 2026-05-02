@@ -23,7 +23,7 @@ Widget buildScheduleToggle({
   return Opacity(
     opacity: enabled ? 1.0 : 0.4,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -39,10 +39,10 @@ Widget buildScheduleToggle({
               children: [
                 Text(title,
                     style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: const Color(0xFF0F172A))),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(subtitle,
                     style: GoogleFonts.dmSans(
                         fontSize: 11,
@@ -104,7 +104,7 @@ class ScheduleCyclicCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -123,10 +123,10 @@ class ScheduleCyclicCard extends StatelessWidget {
                   children: [
                     Text('Cyclic Mode',
                         style: GoogleFonts.dmSans(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: const Color(0xFF0F172A))),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text('Motor alternates ON / OFF',
                         style: GoogleFonts.dmSans(
                             fontSize: 11,
@@ -154,9 +154,9 @@ class ScheduleCyclicCard extends StatelessWidget {
             child: cyclicMode
                 ? Column(
                     children: [
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(

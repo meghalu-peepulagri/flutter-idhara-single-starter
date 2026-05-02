@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -17,6 +20,11 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
   late final MotorScheduleController _controller;
   late final List<DateTime> _dateRange;
   final ScrollController _dateScrollController = ScrollController();
+
+  // Inline cap-reached label visibility. Only flips to true on FAB tap when
+  // the per-date schedule cap is hit, then auto-hides after ~1.5s.
+  bool _showCapMessage = false;
+  Timer? _capMessageTimer;
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   @override
@@ -61,6 +69,25 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSelectedDate();
       _updateDateBars();
+    });
+
+    // Every time the user lands on the schedule tab from another tab,
+    // reset to today's date with no filter so the list shows everything.
+    // The controller has its own ever() that fires fetchSchedules() on
+    // tab switch — and it's registered before this one, so it would run
+    // with the stale filter. Clearing first AND firing our own fetch
+    // ensures the very next fetch sees the cleared state and the list
+    // refreshes to "all" on the first switch back, not the second.
+    ever(Get.find<AnalyticsController>().selectedTabIndex, (int index) {
+      if (!mounted || index != 1) return;
+      final now = DateTime.now();
+      final nowNorm = DateTime(now.year, now.month, now.day);
+      if (_controller.selectedDate.value != nowNorm ||
+          _controller.selectedFilter.value.isNotEmpty) {
+        _controller.selectedDate.value = nowNorm;
+        _controller.selectedFilter.value = '';
+        _controller.fetchSchedules();
+      }
     });
   }
 
@@ -136,7 +163,20 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
   @override
   void dispose() {
     _dateScrollController.dispose();
+    _capMessageTimer?.cancel();
     super.dispose();
+  }
+
+  /// Briefly surface the "Max 4 reached" label next to the FAB. Each tap
+  /// resets the timer so consecutive taps keep the label visible without
+  /// stacking it. Auto-hides after 1.5s.
+  void _flashCapMessage() {
+    _capMessageTimer?.cancel();
+    setState(() => _showCapMessage = true);
+    _capMessageTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+      setState(() => _showCapMessage = false);
+    });
   }
 
   @override
@@ -155,193 +195,284 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
       child: Stack(
         children: [
           Obx(() {
-          final isLoading = _controller.isLoading.value;
-          final isRefreshing = _controller.isRefreshing.value;
-          final isLoadingMore = _controller.isHasMoreLoading.value;
-          final schedules = _controller.schedules;
-          final totalRecords = _controller.totalRecords.value;
-          final selectedDate = _controller.selectedDate.value;
+            final isLoading = _controller.isLoading.value;
+            final isRefreshing = _controller.isRefreshing.value;
+            final isLoadingMore = _controller.isHasMoreLoading.value;
+            final schedules = _controller.schedules;
+            final totalRecords = _controller.totalRecords.value;
+            final selectedDate = _controller.selectedDate.value;
 
-          if (isLoading) {
-            return const Padding(
-              padding: EdgeInsets.only(bottom: 50, right: 50),
-              child: Center(child: AppLottieLoading()),
-            );
-          }
+            if (isLoading) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 50, right: 50),
+                child: Center(child: AppLottieLoading()),
+              );
+            }
 
-          return Skeletonizer(
-            enabled: isRefreshing,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${schedules.length} / $totalRecords schedules',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF57636C),
-                        ),
-                      ),
-                      const Spacer(),
-                      InkWell(
-                        onTap: _controller.navigateToScheduleManage,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFF004E7E)
-                                  .withValues(alpha: 0.12),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_month_rounded,
-                                size: 16,
-                                color: Color(0xFF004E7E),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Manage',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF004E7E),
-                                ),
-                              ),
-                            ],
+            return Skeletonizer(
+              enabled: isRefreshing,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                    child: Row(
+                      children: [
+                        Text(
+                          '$totalRecords schedules',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF57636C),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Obx(() {
-                        final hasFilter =
-                            _controller.selectedFilter.value.isNotEmpty;
-                        return GestureDetector(
-                          onTap: () => _showFilterSheet(context),
+                        const Spacer(),
+                        InkWell(
+                          onTap: _controller.navigateToScheduleManage,
+                          borderRadius: BorderRadius.circular(10),
                           child: Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: hasFilter
-                                  ? const Color(0xFF004E7E)
-                                  : const Color(0xFFEBF3FE),
-                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFF004E7E)
+                                    .withValues(alpha: 0.12),
+                              ),
                             ),
-                            child: Icon(
-                              Icons.tune_rounded,
-                              size: 20,
-                              color: hasFilter
-                                  ? Colors.white
-                                  : const Color(0xFF004E7E),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                _buildDateStrip(selectedDate),
-                Expanded(
-                  child: schedules.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.45,
-                              child: _buildEmptyState(),
-                            ),
-                          ],
-                        )
-                      : ListView.separated(
-                          controller: _controller.scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
-                          itemCount: schedules.length + (isLoadingMore ? 1 : 0),
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            if (i == schedules.length) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(
-                                  child: SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                    ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_rounded,
+                                  size: 16,
+                                  color: Color(0xFF004E7E),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Manage',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF004E7E),
                                   ),
                                 ),
-                              );
-                            }
-                            return ScheduleCard(
-                              key: ValueKey(schedules[i].scheduleId ??
-                                  schedules[i].id ??
-                                  i),
-                              record: schedules[i],
-                              onDelete: _controller.deleteSchedule,
-                              onToggle: _controller.toggleSchedule,
-                              onEdit: _controller.navigateToEditSchedule,
-                              onCancelAction: (record) =>
-                                  _controller.cancelPendingScheduleAction(
-                                      record.scheduleId ?? 0),
-                            );
-                          },
+                              ],
+                            ),
+                          ),
                         ),
-                ),
-              ],
-            ),
-          );
-        }),
-        Positioned(
-          right: 4,
-          bottom: 16,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 8, bottom: 4),
-            child: Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF004E7E),
-                    Color(0xFF3686AF),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                        const SizedBox(width: 8),
+                        Obx(() {
+                          final hasFilter =
+                              _controller.selectedFilter.value.isNotEmpty;
+                          return GestureDetector(
+                            onTap: () => _showFilterSheet(context),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: hasFilter
+                                        ? const Color(0xFF004E7E)
+                                        : const Color(0xFFEBF3FE),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                    color: hasFilter
+                                        ? Colors.white
+                                        : const Color(0xFF004E7E),
+                                  ),
+                                ),
+                                if (hasFilter)
+                                  Positioned(
+                                    top: -4,
+                                    right: -4,
+                                    child: Container(
+                                      width: 14,
+                                      height: 14,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '1',
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          height: 1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  _buildDateStrip(selectedDate),
+                  Expanded(
+                    child: schedules.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.45,
+                                child: _buildEmptyState(),
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            controller: _controller.scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
+                            itemCount:
+                                schedules.length + (isLoadingMore ? 1 : 0),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (_, i) {
+                              if (i == schedules.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return ScheduleCard(
+                                key: ValueKey(schedules[i].scheduleId ??
+                                    schedules[i].id ??
+                                    i),
+                                record: schedules[i],
+                                onDelete: _controller.deleteSchedule,
+                                onToggle: _controller.toggleSchedule,
+                                onEdit: _controller.navigateToEditSchedule,
+                                onCancelAction: (record) =>
+                                    _controller.cancelPendingScheduleAction(
+                                        record.scheduleId ?? 0),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
-              child: FloatingActionButton(
-                heroTag: 'schedule_fab',
-                onPressed: _controller.navigateToCreateSchedule,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                child: const Icon(
-                  Icons.add_rounded,
-                  color: Colors.white,
-                  size: 26,
-                ),
-              ),
+            );
+          }),
+          Positioned(
+            right: 4,
+            bottom: 16,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 4),
+              child: Obx(() {
+                final isCapReached = _controller.totalRecords.value >=
+                    MotorScheduleController.kMaxSchedulesPerDate;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Inline cap label — only visible for ~1.5s after the
+                    // user taps the FAB while the cap is reached.
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) =>
+                          FadeTransition(opacity: anim, child: child),
+                      child: (isCapReached && _showCapMessage)
+                          ? Padding(
+                              key: const ValueKey('cap-msg'),
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: const Color(0xFFE5E7EB)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  'Max ${MotorScheduleController.kMaxSchedulesPerDate} schedules per date reached',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFFDB3B2A),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('cap-msg-empty')),
+                    ),
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isCapReached
+                              ? const [
+                                  Color(0xFFB0B8C4),
+                                  Color(0xFF94A3B8),
+                                ]
+                              : const [
+                                  Color(0xFF004E7E),
+                                  Color(0xFF3686AF),
+                                ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                                alpha: isCapReached ? 0.12 : 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: FloatingActionButton(
+                        heroTag: 'schedule_fab',
+                        onPressed: isCapReached
+                            ? _flashCapMessage
+                            : _controller.navigateToCreateSchedule,
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }),
             ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
