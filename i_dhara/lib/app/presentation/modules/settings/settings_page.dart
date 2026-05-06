@@ -57,6 +57,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   StreamSubscription? _mqttStreamSubscription;
   Timer? _settingsAckTimer;
+  Completer<void>? _saveAckCompleter;
 
   double? _currentVoltageLow;
   double? _currentVoltageHigh;
@@ -87,6 +88,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
+        _completeSaveAck();
         isSnackbarShown = true;
         getsuccessSnackBar("Settings updated successfully");
         controller.isLoading.value = true;
@@ -107,6 +109,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
+        _completeSaveAck();
         isSnackbarShown = true;
         geterrorSnackBar("Settings update failed");
         controller.isLoading.value = true;
@@ -137,6 +140,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   void dispose() {
     _settingsAckTimer?.cancel();
     _mqttStreamSubscription?.cancel();
+    _completeSaveAck();
     super.dispose();
   }
 
@@ -153,6 +157,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     if (!isSnackbarShown) {
       isSnackbarShown = true;
       geterrorSnackBar('No acknowledgment received from device');
+    }
+    _completeSaveAck();
+  }
+
+  void _completeSaveAck() {
+    if (_saveAckCompleter != null && !_saveAckCompleter!.isCompleted) {
+      _saveAckCompleter!.complete();
     }
   }
 
@@ -433,9 +444,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       onConfirm: () async {
         isSnackbarShown = false;
         _hasPendingSave = true;
+        _saveAckCompleter = Completer<void>();
         await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
         await controller.fetchupdateSettings();
         _startAckTimer();
+        await _saveAckCompleter!.future;
       },
     );
   }

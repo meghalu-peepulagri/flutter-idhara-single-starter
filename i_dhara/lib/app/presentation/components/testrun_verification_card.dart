@@ -89,7 +89,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   DateTime? _motorOnCmdSentAt;
   bool _motorOnFailed = false;
   String _motorOnFailureMsg = '';
-  static const int _waitingTimerSeconds = 15;
+  static const int _waitingTimerSeconds = 23;
   int _motorOnCountdown = _waitingTimerSeconds;
   Timer? _motorOnCountdownTimer;
 
@@ -531,6 +531,70 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     }
   }
 
+  /// Resolves the latest ACK time for this motor across both PCB and MAC
+  /// keyed entries. Commands may be sent under either identifier, but the
+  /// device's T:31 ACK can land on a topic keyed by the other one — so a
+  /// direct lookup by [_mqttMotorId] alone misses it. PCB is preferred per
+  /// device convention; MAC is the fallback. When a candidate matches, the
+  /// resolved key is written back to [_mqttMotorId] so future lookups and
+  /// cleanup (removeTestRunMotor) use the right entry.
+  DateTime? _resolveAckTime() {
+    DateTime? ackTime = _mqttMotorId.isNotEmpty
+        ? widget.mqttService.getLastAckTime(_mqttMotorId)
+        : null;
+    if (ackTime != null) return ackTime;
+
+    final pcb = widget.motor.starter?.pcbNumber;
+    final mac = widget.motor.starter?.macAddress;
+    const groupIds = ['G01', 'G02'];
+
+    // PCB-keyed candidates take priority.
+    if (pcb != null && pcb.isNotEmpty) {
+      for (final g in groupIds) {
+        final key = '$pcb-$g';
+        final t = widget.mqttService.getLastAckTime(key);
+        if (t != null) {
+          _mqttMotorId = key;
+          return t;
+        }
+      }
+    }
+    // MAC-keyed candidates fall back next.
+    if (mac != null && mac.isNotEmpty) {
+      for (final g in groupIds) {
+        final key = '$mac-$g';
+        final t = widget.mqttService.getLastAckTime(key);
+        if (t != null) {
+          _mqttMotorId = key;
+          return t;
+        }
+      }
+    }
+
+    // Last resort: scan motorDataMap by data fields in case the device
+    // publishes on a key that doesn't combine identifier+group as expected.
+    DateTime? best;
+    String? bestKey;
+    for (final entry in widget.mqttService.motorDataMap.entries) {
+      final data = entry.value;
+      final matchesPcb = pcb != null &&
+          pcb.isNotEmpty &&
+          (data.pcbNumber == pcb || data.macAddress == pcb);
+      final matchesMac = mac != null &&
+          mac.isNotEmpty &&
+          (data.macAddress == mac || data.pcbNumber == mac);
+      if (matchesPcb || matchesMac) {
+        final t = widget.mqttService.getLastAckTime(entry.key);
+        if (t != null && (best == null || t.isAfter(best))) {
+          best = t;
+          bestKey = entry.key;
+        }
+      }
+    }
+    if (bestKey != null) _mqttMotorId = bestKey;
+    return best;
+  }
+
   /// Listens to [dataUpdateNotifier] during [saving] (D:0 wait sub-state).
   /// When T:31 ACK for D:0 arrives, transitions to [completed] so the user
   /// can review the FLC and tap "Save Settings".
@@ -539,7 +603,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     if (_phase != _TestRunPhase.saving) return;
     if (_savingIsSendingSettings) return; // Already in calibration sub-state
     if (!_hasPendingSave) return;
-    final ackTime = widget.mqttService.getLastAckTime(_mqttMotorId);
+    final ackTime = _resolveAckTime();
     if (ackTime != null &&
         _motorCmdSentAt != null &&
         ackTime.isAfter(_motorCmdSentAt!)) {
@@ -559,7 +623,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   /// When T:31 ACK for D:2 arrives, cancels the countdown and starts measuring.
   void _checkMotorOnAck() {
     if (!mounted || _phase != _TestRunPhase.motorOnWaiting) return;
-    final ackTime = widget.mqttService.getLastAckTime(_mqttMotorId);
+    final ackTime = _resolveAckTime();
     if (ackTime != null &&
         _motorOnCmdSentAt != null &&
         ackTime.isAfter(_motorOnCmdSentAt!)) {
@@ -567,6 +631,22 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOnAck);
       widget.mqttService.commandStatusNotifier.removeListener(_onCommandStatus);
       _startActualMeasuring();
+    }
+  }
+
+  void _handleMotorOnFailure(String message) {
+    _motorOnCountdownTimer?.cancel();
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOnAck);
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+    widget.mqttService.commandStatusNotifier.removeListener(_onCommandStatus);
+    if (_mqttMotorId.isNotEmpty) {
+      widget.mqttService.removeTestRunMotor(_mqttMotorId);
+    }
+    if (mounted) {
+      setState(() {
+        _motorOnFailed = true;
+        _motorOnFailureMsg = message;
+      });
     }
   }
 
@@ -612,7 +692,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
           setState(() => _d0Countdown--);
         } else {
           timer.cancel();
-          _handleMotorOffFailure('No acknowledgment received from device');
+          _handleMotorOffFailure('No response from device');
         }
       });
       widget.mqttService
@@ -674,7 +754,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
           .publishTestRunCommand(mqttMotorId, 1, data: 2, type: 1);
     }
 
-    // 15-second countdown shown in the waiting dialog.
+    // 15-second countdown shown in the waiting dialog. When it hits 0 without
+    // a T:31 ACK, surface the failure so the spinner stops and the user
+    // sees the error state instead of an indefinite loading icon.
     _motorOnCountdownTimer?.cancel();
     _motorOnCountdownTimer =
         Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -686,6 +768,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         setState(() => _motorOnCountdown--);
       } else {
         timer.cancel();
+        _handleMotorOnFailure('No response from device');
       }
     });
   }
