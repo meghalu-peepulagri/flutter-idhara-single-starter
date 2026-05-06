@@ -9,6 +9,7 @@ import 'package:i_dhara/app/presentation/components/motor_details_card.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_mode_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_runtime_tab.dart';
+import 'package:i_dhara/app/presentation/components/tabs/motor_schedule_tab.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/motor_details_tab_bar.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
@@ -211,8 +212,9 @@ class MotorControlWidget extends StatelessWidget {
   Widget _buildTabContent(BuildContext context) {
     return switch (controller.selectedTabIndex.value) {
       0 => MotorModeTab(controller: controller),
-      1 => MotorRuntimeTab(controller: controller),
-      2 => _buildLogsTab(),
+      1 => const MotorScheduleTab(),
+      2 => MotorRuntimeTab(controller: controller),
+      3 => _buildLogsTab(),
       _ => MotorRuntimeTab(controller: controller),
     };
   }

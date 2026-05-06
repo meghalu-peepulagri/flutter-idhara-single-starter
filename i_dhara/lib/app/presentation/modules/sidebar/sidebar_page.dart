@@ -4,22 +4,44 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 export 'sidebar_controller.dart';
 
 // Sidebar Controller
 class SidebarController extends GetxController {
   var selectedRoute = '/dashboard'.obs;
+  final userName = ''.obs;
+  final appVersion = ''.obs;
 
   void setSelectedRoute(String route) {
     selectedRoute.value = route;
   }
 
   @override
-  onInit() {
+  void onInit() {
     super.onInit();
     setSelectedRoute(Get.currentRoute);
+    _fetchUserName();
+    _fetchAppVersion();
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final response = await UserProfileRepoImpl().getUserProfile();
+      if (response?.data?.fullName != null) {
+        userName.value = response!.data!.fullName!;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      appVersion.value = info.version;
+    } catch (_) {}
   }
 }
 
@@ -235,6 +257,57 @@ class SidebarWidget extends StatelessWidget {
                 ),
               ),
             ),
+            const Divider(color: Color(0xFFCCDEF5), thickness: 1, height: 1),
+            Obx(() => Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                          ),
+                        ),
+                        child: const Icon(Icons.person,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _controller.userName.value.isNotEmpty
+                                  ? _controller.userName.value
+                                  : '—',
+                              style: GoogleFonts.lato(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F0F0F),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_controller.appVersion.value.isNotEmpty)
+                              Text(
+                                'v${_controller.appVersion.value}',
+                                style: GoogleFonts.lato(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: const Color(0xFF6B7280),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
         ),
       ),

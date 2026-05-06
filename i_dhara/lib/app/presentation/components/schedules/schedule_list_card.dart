@@ -9,6 +9,10 @@ class ScheduleCard extends StatelessWidget {
   final Future<bool> Function(Record record)? onDelete;
   final Future<bool> Function(Record record, bool enabled)? onToggle;
   final void Function(Record record)? onEdit;
+  final Widget? leading;
+  final bool showEditAction;
+  final bool showDeleteAction;
+  final bool disableToggle;
   // Called when the user taps Cancel in the confirm dialog. Used to abort
   // any in-flight MQTT retry loop for this schedule's stop/restart/delete.
   final void Function(Record record)? onCancelAction;
@@ -18,6 +22,10 @@ class ScheduleCard extends StatelessWidget {
       this.onDelete,
       this.onToggle,
       this.onEdit,
+      this.leading,
+      this.showEditAction = true,
+      this.showDeleteAction = true,
+      this.disableToggle = false,
       this.onCancelAction});
 
   @override
@@ -28,9 +36,11 @@ class ScheduleCard extends StatelessWidget {
     final dH = durationMin ~/ 60;
     final dM = durationMin % 60;
     final status = record.scheduleStatus ?? 'unknown';
-    final isActive = status.toLowerCase() == 'active' ||
-        status.toLowerCase() == 'pending' ||
-        status.toLowerCase() == 'scheduled';
+    // Toggle switch state mirrors the backend's `enabled` field directly.
+    // The backend flips `enabled` on stop/restart, so after a refresh the
+    // switch position always matches what the server believes — no fragile
+    // string-matching against the multi-valued schedule_status enum.
+    final isActive = record.enabled ?? false;
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
@@ -59,6 +69,10 @@ class ScheduleCard extends StatelessWidget {
           // Row 1: Time range + status
           Row(
             children: [
+              if (leading != null) ...[
+                leading!,
+                const SizedBox(width: 2),
+              ],
               Icon(Icons.schedule_rounded,
                   size: 16,
                   color: isActive
@@ -101,49 +115,57 @@ class ScheduleCard extends StatelessWidget {
               SizedBox(
                 height: 25,
                 child: GestureDetector(
-                  onTap: () {
-                    final newValue = !switchController.value;
-                    // Single-pop guard: cancel-tap and confirm-completion both
-                    // try to pop the dialog. Without this flag the second pop
-                    // fires after the dialog is already gone and tears down
-                    // the underlying schedules screen → black screen.
-                    bool dismissed = false;
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (dialogCtx) => PopupDialog(
-                        title: newValue ? 'Restart Schedule' : 'Stop Schedule',
-                        description: newValue
-                            ? 'Are you sure you want to restart this schedule?'
-                            : 'Are you sure you want to stop this schedule?',
-                        iconAssetPath: 'assets/images/schedule.svg',
-                        buttonlable: newValue ? 'Restart' : 'Stop',
-                        isactive: newValue,
-                        onDelete: () async {
-                          final success =
-                              await onToggle?.call(record, newValue) ?? false;
-                          if (dismissed) return;
-                          dismissed = true;
-                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                          if (success) switchController.value = newValue;
+                  onTap: disableToggle
+                      ? null
+                      : () {
+                          final newValue = !switchController.value;
+                          // Single-pop guard: cancel-tap and confirm-completion both
+                          // try to pop the dialog. Without this flag the second pop
+                          // fires after the dialog is already gone and tears down
+                          // the underlying schedules screen → black screen.
+                          bool dismissed = false;
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (dialogCtx) => PopupDialog(
+                              title: newValue
+                                  ? 'Restart Schedule'
+                                  : 'Stop Schedule',
+                              description: newValue
+                                  ? 'Are you sure you want to restart this schedule?'
+                                  : 'Are you sure you want to stop this schedule?',
+                              iconAssetPath: 'assets/images/schedule.svg',
+                              buttonlable: newValue ? 'Restart' : 'Stop',
+                              isactive: newValue,
+                              onDelete: () async {
+                                final success =
+                                    await onToggle?.call(record, newValue) ??
+                                        false;
+                                if (dismissed) return;
+                                dismissed = true;
+                                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                if (success) switchController.value = newValue;
+                              },
+                              onCancel: () {
+                                if (dismissed) return;
+                                dismissed = true;
+                                // Abort the in-flight MQTT retry loop before
+                                // dismissing — otherwise stop/restart payloads keep
+                                // being republished after the user backs out.
+                                onCancelAction?.call(record);
+                                Navigator.pop(dialogCtx);
+                              },
+                            ),
+                          );
                         },
-                        onCancel: () {
-                          if (dismissed) return;
-                          dismissed = true;
-                          // Abort the in-flight MQTT retry loop before
-                          // dismissing — otherwise stop/restart payloads keep
-                          // being republished after the user backs out.
-                          onCancelAction?.call(record);
-                          Navigator.pop(dialogCtx);
-                        },
-                      ),
-                    );
-                  },
                   child: AbsorbPointer(
                     child: AdvancedSwitch(
                       controller: switchController,
                       initialValue: isActive,
-                      activeColor: const Color(0xFF34C759),
+                      activeColor:
+                          disableToggle // ← dim the switch when disabled
+                              ? const Color(0xFFB0B0B0)
+                              : const Color(0xFF34C759),
                       inactiveColor: const Color(0xFFE0E0E0),
                       borderRadius: const BorderRadius.all(Radius.circular(15)),
                       width: 46,
@@ -154,67 +176,70 @@ class ScheduleCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: () => onEdit?.call(record),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(Icons.edit_outlined,
-                      size: 16, color: Color(0xFF004E7E)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: () {
-                  // Single-pop guard: cancel-tap and confirm-completion both
-                  // try to pop the dialog. Without this flag the second pop
-                  // fires after the dialog is already gone and tears down
-                  // the underlying schedules screen → black screen.
-                  bool dismissed = false;
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (dialogCtx) => PopupDialog(
-                      title: 'Delete Schedule',
-                      description:
-                          'This schedule will be deleted permanently. Do you wish to go ahead?',
-                      iconAssetPath: 'assets/images/schedule.svg',
-                      buttonlable: 'Delete',
-                      onDelete: () async {
-                        await onDelete?.call(record);
-                        if (dismissed) return;
-                        dismissed = true;
-                        if (dialogCtx.mounted) {
-                          Navigator.pop(dialogCtx);
-                        }
-                      },
-                      onCancel: () {
-                        if (dismissed) return;
-                        dismissed = true;
-                        // Abort the in-flight MQTT retry loop before
-                        // dismissing — otherwise the delete payload keeps
-                        // being republished after the user backs out.
-                        onCancelAction?.call(record);
-                        Navigator.pop(dialogCtx);
-                      },
+              if (showEditAction) ...[
+                InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => onEdit?.call(record),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(6),
+                    child: const Icon(Icons.edit_outlined,
+                        size: 16, color: Color(0xFF004E7E)),
                   ),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      size: 16, color: Color(0xFFE53935)),
                 ),
-              ),
+              ],
+              if (showEditAction && showDeleteAction) const SizedBox(width: 8),
+              if (showDeleteAction)
+                InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () {
+                    // Single-pop guard: cancel-tap and confirm-completion both
+                    // try to pop the dialog. Without this flag the second pop
+                    // fires after the dialog is already gone and tears down
+                    // the underlying schedules screen → black screen.
+                    bool dismissed = false;
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (dialogCtx) => PopupDialog(
+                        title: 'Delete Schedule',
+                        description:
+                            'This schedule will be deleted permanently. Do you wish to go ahead?',
+                        iconAssetPath: 'assets/images/schedule.svg',
+                        buttonlable: 'Delete',
+                        onDelete: () async {
+                          await onDelete?.call(record);
+                          if (dismissed) return;
+                          dismissed = true;
+                          if (dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx);
+                          }
+                        },
+                        onCancel: () {
+                          if (dismissed) return;
+                          dismissed = true;
+                          // Abort the in-flight MQTT retry loop before
+                          // dismissing — otherwise the delete payload keeps
+                          // being republished after the user backs out.
+                          onCancelAction?.call(record);
+                          Navigator.pop(dialogCtx);
+                        },
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded,
+                        size: 16, color: Color(0xFFE53935)),
+                  ),
+                ),
             ],
           ),
         ],
@@ -296,9 +321,9 @@ class ScheduleCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.local_fire_department_rounded,
-                          size: 14, color: Color(0xFFFF9800)),
-                      const SizedBox(width: 4),
+                      // const Icon(Icons.local_fire_department_rounded,
+                      //     size: 14, color: Color(0xFFFF9800)),
+                      // const SizedBox(width: 4),
                       Text('ON',
                           style: GoogleFonts.dmSans(
                               fontSize: 12,

@@ -23,11 +23,17 @@ class MultiScheduleForm extends StatefulWidget {
   final VoidCallback? onBack;
   final bool showBottomBar;
 
+  /// Number of schedules that already cover the selected date. The form caps
+  /// new entries at `4 - existingScheduleCount` so the per-date total never
+  /// exceeds 4. Defaults to 0 → full 4-slot allowance.
+  final int existingScheduleCount;
+
   const MultiScheduleForm({
     super.key,
     this.onSave,
     this.onBack,
     this.showBottomBar = true,
+    this.existingScheduleCount = 0,
   });
 
   @override
@@ -77,9 +83,21 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
   // ── Schedule list ──────────────────────────────────────────────────────────
+  /// Hard cap for schedules per date across the whole app.
+  static const int _absoluteMaxSchedules = 4;
+  static const int _maxRangeDays = 15;
   final List<_ScheduleEntry> _schedules = [];
   int _nextId = 1;
   final _scrollController = ScrollController();
+
+  /// Slots remaining for new schedules after subtracting whatever already
+  /// covers the selected date. Always >= 1 so the form is never unusable —
+  /// the FAB on the schedule list is responsible for blocking entry when
+  /// the date is genuinely full.
+  int get _maxSchedules {
+    final remaining = _absoluteMaxSchedules - widget.existingScheduleCount;
+    return remaining < 1 ? 1 : remaining;
+  }
 
   @override
   void dispose() {
@@ -90,9 +108,14 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    startDate = today;
-    endDate = today;
+    final now = DateTime.now();
+    // Normalize to midnight so endDate.difference(startDate).inDays is a
+    // clean day count and `_validDays` covers every weekday in the range.
+    // DateTime.now() carries the current time-of-day, which would otherwise
+    // round inDays down (e.g. Fri 14:00 → Sat 00:00 → 0 days).
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    startDate = todayNorm;
+    endDate = todayNorm;
     selectedDays = {};
     // Add first schedule directly (no setState) so it renders expanded on first build
     _schedules.add(_ScheduleEntry(
@@ -103,6 +126,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   void _addSchedule() {
+    if (_schedules.length >= _maxSchedules) return;
     setState(() {
       _schedules.add(_ScheduleEntry(
         id: _nextId++,
@@ -205,8 +229,8 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       if (picked == null) return;
       setState(() {
         startDate = picked;
-        // clamp endDate: must be >= startDate and within 7 days
-        final maxEnd = picked.add(const Duration(days: 6));
+        // clamp endDate: must be >= startDate and within the allowed range
+        final maxEnd = picked.add(const Duration(days: _maxRangeDays - 1));
         if (endDate.isBefore(picked)) {
           endDate = picked;
         } else if (endDate.isAfter(maxEnd)) {
@@ -218,7 +242,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   Future<void> _openEndDatePicker() async {
-    final maxEnd = startDate.add(const Duration(days: 6));
+    final maxEnd = startDate.add(const Duration(days: _maxRangeDays - 1));
     final results = await showCalendarDatePicker2Dialog(
       context: context,
       config: _calendarConfig(
@@ -245,19 +269,20 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   Widget build(BuildContext context) {
     final scroll = SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
       physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Shared date card — shown once for all schedules
           _buildSharedDateCard(),
+          const SizedBox(height: 8),
           // Add schedule row — right below the date card
           _buildAddScheduleRow(),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           // Schedule cards
           for (int i = 0; i < _schedules.length; i++) ...[
-            if (i > 0) const SizedBox(height: 14),
+            if (i > 0) const SizedBox(height: 10),
             _buildScheduleCard(_schedules[i], i),
           ],
         ],
@@ -279,35 +304,41 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   Widget _buildAddScheduleRow() {
+    final canAdd = _schedules.length < _maxSchedules;
     return GestureDetector(
-      onTap: _addSchedule,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Text(
-              'Add Schedule',
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF004E7E),
+      onTap: canAdd ? _addSchedule : null,
+      child: Opacity(
+        opacity: canAdd ? 1.0 : 0.4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Text(
+                canAdd
+                    ? 'Add Schedule'
+                    : 'Maximum $_absoluteMaxSchedules schedules per date reached',
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF004E7E),
+                ),
               ),
-            ),
-            const Spacer(),
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: const Color(0xFF004E7E),
-                borderRadius: BorderRadius.circular(8),
+              const Spacer(),
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF004E7E),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
-              child: const Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -319,10 +350,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
@@ -336,28 +367,15 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              Text(
-                'Date Range',
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF004E7E),
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _openStartDatePicker,
-                child: const Icon(
-                  Icons.calendar_month_outlined,
-                  size: 20,
-                  color: Color(0xFF004E7E),
-                ),
-              ),
-            ],
+          Text(
+            'Date Range',
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF004E7E),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Start → End date boxes
           Row(
             children: [
@@ -368,9 +386,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
+                padding: EdgeInsets.symmetric(horizontal: 6),
                 child: Icon(Icons.arrow_forward_rounded,
-                    size: 16, color: Color(0xFF94A3B8)),
+                    size: 14, color: Color(0xFF94A3B8)),
               ),
               Expanded(
                 child: GestureDetector(
@@ -380,7 +398,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           // Range row
           Row(
             children: [
@@ -394,7 +412,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEBF3FE),
                   borderRadius: BorderRadius.circular(12),
@@ -410,7 +428,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           // Day chips
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -422,8 +440,8 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                 child: Opacity(
                   opacity: valid ? 1.0 : 0.35,
                   child: Container(
-                    width: 36,
-                    height: 32,
+                    width: 34,
+                    height: 26,
                     decoration: BoxDecoration(
                       color: isActive
                           ? const Color(0xFFEBF3FE)
@@ -461,7 +479,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
 
   Widget _buildDateBox(String label, DateTime date) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         border: Border.all(color: const Color(0xFF94A3B8), width: 1.2),
@@ -478,11 +496,11 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
               color: const Color(0xFF94A3B8),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             _fmtDate(date),
             style: GoogleFonts.dmSans(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF0F172A),
             ),
@@ -543,7 +561,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     return GestureDetector(
       onTap: () => setState(() => entry.isExpanded = !entry.isExpanded),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Row(
           children: [
             Expanded(
@@ -553,14 +571,14 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                   Text(
                     'Schedule ${index + 1}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF0F172A),
                     ),
                   ),
                   // Show selected values summary when collapsed
                   if (!entry.isExpanded && state != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     _buildCollapsedSummary(state),
                   ],
                 ],
@@ -570,15 +588,15 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
               GestureDetector(
                 onTap: () => _removeSchedule(index),
                 child: Container(
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: const Color(0xFFFEF2F2),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
                     Icons.delete_outline_rounded,
-                    size: 16,
+                    size: 20,
                     color: Color(0xFFEF4444),
                   ),
                 ),
@@ -590,7 +608,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                   ? Icons.keyboard_arrow_up_rounded
                   : Icons.keyboard_arrow_down_rounded,
               color: const Color(0xFF94A3B8),
-              size: 20,
+              size: 26,
             ),
           ],
         ),
@@ -729,9 +747,12 @@ class ScheduleFormState extends State<ScheduleForm> {
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    startDate = widget.initialStartDate ?? today;
-    endDate = widget.initialEndDate ?? today;
+    final now = DateTime.now();
+    // Normalize today to midnight — see MultiScheduleFormState.initState
+    // for why this matters for the day-chip valid-day calculation.
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    startDate = widget.initialStartDate ?? todayNorm;
+    endDate = widget.initialEndDate ?? todayNorm;
 
     if (widget.initialStartHour == null && widget.initialStartMinute == null) {
       final now = DateTime.now();
@@ -849,8 +870,8 @@ class ScheduleFormState extends State<ScheduleForm> {
   Future<void> _openCalendarDialog() async {
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
-    // Max end = start + 6 days → 7 days total; dates beyond are disabled
-    final maxEnd = startDate.add(const Duration(days: 6));
+    // Max end = start + 14 days → 15 days total; dates beyond are disabled
+    final maxEnd = startDate.add(const Duration(days: 14));
     final results = await showCalendarDatePicker2Dialog(
       context: context,
       config: CalendarDatePicker2WithActionButtonsConfig(
@@ -896,7 +917,7 @@ class ScheduleFormState extends State<ScheduleForm> {
         startDate = results[0] ?? startDate;
         final rawEnd =
             results.length > 1 ? (results[1] ?? startDate) : startDate;
-        final endLimit = startDate.add(const Duration(days: 6));
+        final endLimit = startDate.add(const Duration(days: 14));
         endDate = rawEnd.isAfter(endLimit) ? endLimit : rawEnd;
         selectedDays.retainWhere((d) => _validDays.contains(d));
         if (_isStartDateToday) {
@@ -932,12 +953,12 @@ class ScheduleFormState extends State<ScheduleForm> {
         // Date card — only shown in standalone (single) mode
         if (widget.showDateCard) ...[
           _buildDateCard(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
         ],
         scheduleSectionLabel('Schedule Timing'),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _buildTimingCard(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         ScheduleCyclicCard(
           cyclicMode: cyclicMode,
           cyclicOnMinutes: cyclicOnMinutes,
@@ -986,7 +1007,7 @@ class ScheduleFormState extends State<ScheduleForm> {
           onDecrementEnabled: cyclicOnMinutes > 5,
           offDecrementEnabled: cyclicOffMinutes > 5,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         buildScheduleToggle(
           icon: Icons.power_rounded,
           title: 'Power Loss Recovery',
@@ -998,7 +1019,7 @@ class ScheduleFormState extends State<ScheduleForm> {
             _powerLossController.value = v;
           }),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -1008,7 +1029,7 @@ class ScheduleFormState extends State<ScheduleForm> {
     // Embedded inside MultiScheduleForm — no Expanded, no bottom bar
     if (!widget.showBottomBar) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         child: _buildFormContent(),
       );
     }
@@ -1018,7 +1039,7 @@ class ScheduleFormState extends State<ScheduleForm> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             physics: const AlwaysScrollableScrollPhysics(),
             child: _buildFormContent(),
           ),
@@ -1038,10 +1059,10 @@ class ScheduleFormState extends State<ScheduleForm> {
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
@@ -1054,28 +1075,15 @@ class ScheduleFormState extends State<ScheduleForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Date Range',
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF004E7E),
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _openCalendarDialog,
-                child: const Icon(
-                  Icons.calendar_month_outlined,
-                  size: 20,
-                  color: Color(0xFF004E7E),
-                ),
-              ),
-            ],
+          Text(
+            'Date Range',
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF004E7E),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -1085,9 +1093,9 @@ class ScheduleFormState extends State<ScheduleForm> {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
+                padding: EdgeInsets.symmetric(horizontal: 6),
                 child: Icon(Icons.arrow_forward_rounded,
-                    size: 16, color: Color(0xFF94A3B8)),
+                    size: 14, color: Color(0xFF94A3B8)),
               ),
               Expanded(
                 child: GestureDetector(
@@ -1097,7 +1105,7 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
               Text(
@@ -1110,7 +1118,7 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEBF3FE),
                   borderRadius: BorderRadius.circular(12),
@@ -1126,6 +1134,7 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
             ],
           ),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (i) {
@@ -1136,8 +1145,8 @@ class ScheduleFormState extends State<ScheduleForm> {
                 child: Opacity(
                   opacity: valid ? 1.0 : 0.35,
                   child: Container(
-                    width: 36,
-                    height: 32,
+                    width: 34,
+                    height: 26,
                     decoration: BoxDecoration(
                       color: isActive
                           ? const Color(0xFFEBF3FE)
@@ -1210,7 +1219,7 @@ class ScheduleFormState extends State<ScheduleForm> {
 
   Widget _buildTimingCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1225,16 +1234,16 @@ class ScheduleFormState extends State<ScheduleForm> {
                       _buildTimePicker('START', startHour, startMinute, true)),
               Container(
                   width: 1,
-                  height: 60,
+                  height: 50,
                   color: const Color(0xFFE5E7EB),
-                  margin: const EdgeInsets.symmetric(horizontal: 12)),
+                  margin: const EdgeInsets.symmetric(horizontal: 10)),
               Expanded(
                   child: _buildTimePicker('END', endHour, endMinute, false)),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),

@@ -117,6 +117,24 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
           Expanded(
             child: _buildStatusInfo(),
           ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: widget.onScheduleTap ?? widget.onNavigateToDetails,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2F80ED).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: const Icon(
+                Icons.schedule,
+                size: 18,
+                color: Color(0xFF2F80ED),
+              ),
+            ),
+          ),
           const SizedBox(width: 12),
           ValueListenableBuilder(
             valueListenable: widget.modeController,

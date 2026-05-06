@@ -210,6 +210,46 @@ class Record {
             : DateTime.parse(json["updated_at"]),
       );
 
+  Record copyWith({
+    int? runtimeMinutes,
+    String? startTime,
+    String? endTime,
+    int? accumulatedOnSeconds,
+    String? scheduleStatus,
+  }) =>
+      Record(
+        id: id,
+        motorId: motorId,
+        starterId: starterId,
+        scheduleType: scheduleType,
+        scheduleId: scheduleId,
+        bitWiseDays: bitWiseDays,
+        scheduleStartDate: scheduleStartDate,
+        scheduleEndDate: scheduleEndDate,
+        daysOfWeek: daysOfWeek,
+        startTime: startTime ?? this.startTime,
+        endTime: endTime ?? this.endTime,
+        runtimeMinutes: runtimeMinutes ?? this.runtimeMinutes,
+        cycleOnMinutes: cycleOnMinutes,
+        cycleOffMinutes: cycleOffMinutes,
+        powerLossRecovery: powerLossRecovery,
+        accumulatedOnSeconds: accumulatedOnSeconds ?? this.accumulatedOnSeconds,
+        manuallyStopped: manuallyStopped,
+        repeat: repeat,
+        enabled: enabled,
+        scheduleStatus: scheduleStatus ?? this.scheduleStatus,
+        acknowledgement: acknowledgement,
+        acknowledgedAt: acknowledgedAt,
+        lastStartedAt: lastStartedAt,
+        lastStoppedAt: lastStoppedAt,
+        createdBy: createdBy,
+        deletedBy: deletedBy,
+        status: status,
+        priority: priority,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
   Map<String, dynamic> toJson() => {
         "id": id,
         "motor_id": motorId,

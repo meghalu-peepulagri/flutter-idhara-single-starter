@@ -215,7 +215,23 @@ Future<void> showMultiScheduleConfirmDialog({
   required String endDate,
   required List<MultiScheduleDialogItem> schedules,
   required Future<bool> Function() onConfirm,
+  // Optional weekdays the user picked. Indexes use 0=Sun .. 6=Sat to match
+  // the create page. When non-empty, they show on the right of the date row.
+  List<int>? selectedDays,
+  // Number of times each weekday occurs in the picked date range
+  // (e.g. 14-day range → each day appears twice). Key = day index 0..6.
+  // Counts > 1 are rendered as a small badge on top of the chip.
+  Map<int, int>? dayCounts,
 }) {
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  final hasDays = selectedDays != null && selectedDays.isNotEmpty;
+  final selectedDayEntries = hasDays
+      ? [
+          for (final i in (List<int>.from(selectedDays)..sort()))
+            if (i >= 0 && i < 7)
+              (label: dayLabels[i], count: dayCounts?[i] ?? 1),
+        ]
+      : const <({String label, int count})>[];
   return showDialog(
     context: context,
     barrierDismissible: false,
@@ -250,7 +266,7 @@ Future<void> showMultiScheduleConfirmDialog({
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Publish Schedules',
+                      'Create Schedules',
                       style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -259,7 +275,7 @@ Future<void> showMultiScheduleConfirmDialog({
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Are you sure you want to publish these ${schedules.length} schedule(s)?',
+                      'Are you sure you want to create these ${schedules.length} schedule(s)?',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
@@ -305,7 +321,11 @@ Future<void> showMultiScheduleConfirmDialog({
                           children: [
                             for (int i = 0; i < schedules.length; i++) ...[
                               if (i > 0) const SizedBox(height: 8),
-                              _multiScheduleCard(i + 1, schedules[i]),
+                              _multiScheduleCard(
+                                i + 1,
+                                schedules[i],
+                                dayEntries: selectedDayEntries,
+                              ),
                             ],
                           ],
                         ),
@@ -401,7 +421,11 @@ Future<void> showMultiScheduleConfirmDialog({
   );
 }
 
-Widget _multiScheduleCard(int idx, MultiScheduleDialogItem s) {
+Widget _multiScheduleCard(
+  int idx,
+  MultiScheduleDialogItem s, {
+  List<({String label, int count})> dayEntries = const [],
+}) {
   final String detail = s.isCyclic
       ? 'Cyclic  ·  ON ${s.cyclicOnMinutes}m / OFF ${s.cyclicOffMinutes}m'
       : '${s.duration}${s.powerRecovery == 'ON' ? '  ·  Pwr Recovery' : ''}';
@@ -417,6 +441,7 @@ Widget _multiScheduleCard(int idx, MultiScheduleDialogItem s) {
       ),
     ),
     child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Index badge
         Container(
@@ -462,6 +487,78 @@ Widget _multiScheduleCard(int idx, MultiScheduleDialogItem s) {
             ],
           ),
         ),
+        if (dayEntries.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          // Day chips on the right side of each schedule card.
+          // Each chip carries a small count badge on top-right when the
+          // weekday occurs more than once in the selected date range.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
+            child: Padding(
+              // Reserve space above for the count badge so it isn't clipped.
+              padding: const EdgeInsets.only(top: 6, right: 4),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  for (final entry in dayEntries)
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF3FE),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFF3686AF),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            entry.label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF004E7E),
+                            ),
+                          ),
+                        ),
+                        if (entry.count > 1)
+                          Positioned(
+                            top: -7,
+                            right: -6,
+                            child: Container(
+                              constraints: const BoxConstraints(minWidth: 14),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 3, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF004E7E),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.white, width: 1),
+                              ),
+                              child: Text(
+                                '${entry.count}',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  height: 1.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     ),
   );

@@ -21,6 +21,7 @@ import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
@@ -28,6 +29,10 @@ part 'motor_details_controller.api.dart';
 part 'motor_details_controller.mqtt.dart';
 
 class AnalyticsController extends GetxController with ConnectivityMixin {
+  static const int modeTabIndex = 0;
+  static const int scheduleTabIndex = 1;
+  static const int analyticsTabIndex = 2;
+  static const int logsTabIndex = 3;
   // --- Data Variables ---
   var motorDetails = Rxn<MotorDetails>();
   var daterange = <DateTime?>[DateTime.now(), DateTime.now()].obs;
@@ -133,15 +138,15 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
 
   void onTabChanged(int newIndex) async {
     final previousIndex = selectedTabIndex.value;
-    if (newIndex == 0) {
+    if (newIndex == modeTabIndex) {
       await fetchMotorDetails(enableRetry: false);
     }
 
-    if (previousIndex == 1 && newIndex != 1) {
+    if (previousIndex == analyticsTabIndex && newIndex != analyticsTabIndex) {
       _clearAnalyticsData();
     }
 
-    if (newIndex == 1 && previousIndex != 1) {
+    if (newIndex == analyticsTabIndex && previousIndex != analyticsTabIndex) {
       resetDateToToday();
       clearAllData();
       fetchRuntime(daterange);

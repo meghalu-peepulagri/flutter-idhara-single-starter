@@ -490,8 +490,7 @@ class MotorCardDialogs {
                                   alias != null && alias.isNotEmpty;
                               final displayName = hasAlias
                                   ? _formatMotorName(alias.capitalizeFirst)
-                                  : _formatMotorName(motor
-                                      .starter?.starterNumber
+                                  : _formatMotorName(motor.starter?.name
                                       ?.trim()
                                       .capitalizeFirst);
                               return Text(

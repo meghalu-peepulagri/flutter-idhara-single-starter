@@ -72,9 +72,12 @@ class NetworkManager {
   }
 
   Future<Response<T>> delete<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
+      {Map<String, dynamic>? queryParameters,
+      dynamic data,
+      int timeoutSeconds = 20}) async {
     try {
       final response = await _dio.delete<T>(path,
+          data: data,
           queryParameters: queryParameters,
           options: _getRequestOptions(timeoutSeconds));
       return response;

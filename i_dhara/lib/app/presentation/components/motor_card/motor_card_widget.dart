@@ -11,8 +11,8 @@ import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_ro
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
 import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
@@ -454,7 +454,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     Get.offAllNamed(Routes.motorDetails, arguments: {
       'motorId': widget.motor.id,
-      'tabIndex': 2,
+      'tabIndex': 3,
       'logFilter': 'Faults'
     });
   }
