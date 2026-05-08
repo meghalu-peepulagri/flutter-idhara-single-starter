@@ -41,6 +41,20 @@ class ScheduleCard extends StatelessWidget {
     // switch position always matches what the server believes — no fragile
     // string-matching against the multi-valued schedule_status enum.
     final isActive = record.enabled ?? false;
+    // Pending schedules haven't been acked by the device yet — toggling them
+    // would queue a stop/restart on top of an unconfirmed create. Force the
+    // switch off until the status moves out of PENDING.
+    final normalizedStatus = status.toLowerCase();
+    final isPending = normalizedStatus == 'pending';
+    // Remaining / Run Time only make sense once the schedule is actually
+    // ticking. For every other state (pending, scheduled, stopped, completed)
+    // the value is either zero or stale, so hide the secondary info item.
+    final isRunning = normalizedStatus == 'running';
+    // COMPLETED is terminal — toggling or editing it can't change anything.
+    // Keep delete enabled so the user can clear finished rows.
+    final isCompleted = normalizedStatus == 'completed';
+    final toggleDisabled = disableToggle || isPending || isCompleted;
+    final editDisabled = isRunning || isCompleted;
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
@@ -98,24 +112,28 @@ class ScheduleCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: isCyclic
-                ? _buildCyclicInfo(dH, dM, durationMin, onMin, offMin)
-                : _buildTimeBasedInfo(dH, dM, durationMin),
+                ? _buildCyclicInfo(dH, dM, durationMin, onMin, offMin, isRunning)
+                : _buildTimeBasedInfo(dH, dM),
           ),
+          if (!disableToggle || showEditAction || showDeleteAction) ...[
           const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
           const SizedBox(height: 8),
 
           Row(
             children: [
+              if (!disableToggle) ...[
               Text('Enable',
                   style: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF57636C))),
+                      color: toggleDisabled
+                          ? const Color(0xFFB0B0B0)
+                          : const Color(0xFF57636C))),
               const SizedBox(width: 8),
               SizedBox(
                 height: 25,
                 child: GestureDetector(
-                  onTap: disableToggle
+                  onTap: toggleDisabled
                       ? null
                       : () {
                           final newValue = !switchController.value;
@@ -163,7 +181,7 @@ class ScheduleCard extends StatelessWidget {
                       controller: switchController,
                       initialValue: isActive,
                       activeColor:
-                          disableToggle // ← dim the switch when disabled
+                          toggleDisabled // ← dim the switch when disabled
                               ? const Color(0xFFB0B0B0)
                               : const Color(0xFF34C759),
                       inactiveColor: const Color(0xFFE0E0E0),
@@ -175,27 +193,38 @@ class ScheduleCard extends StatelessWidget {
                   ),
                 ),
               ),
+              ],
               const Spacer(),
               if (showEditAction) ...[
-                InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => onEdit?.call(record),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF3FE),
-                      borderRadius: BorderRadius.circular(6),
+                Opacity(
+                  opacity: editDisabled ? 0.4 : 1.0,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: editDisabled ? null : () => onEdit?.call(record),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: editDisabled
+                            ? const Color(0xFFF1F5F9)
+                            : const Color(0xFFEBF3FE),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(Icons.edit_outlined,
+                          size: 16,
+                          color: editDisabled
+                              ? const Color(0xFFB0B0B0)
+                              : const Color(0xFF004E7E)),
                     ),
-                    child: const Icon(Icons.edit_outlined,
-                        size: 16, color: Color(0xFF004E7E)),
                   ),
                 ),
               ],
               if (showEditAction && showDeleteAction) const SizedBox(width: 8),
               if (showDeleteAction)
-                InkWell(
+                Opacity(
+                  opacity: isRunning ? 0.4 : 1.0,
+                  child: InkWell(
                   borderRadius: BorderRadius.circular(6),
-                  onTap: () {
+                  onTap: isRunning ? null : () {
                     // Single-pop guard: cancel-tap and confirm-completion both
                     // try to pop the dialog. Without this flag the second pop
                     // fires after the dialog is already gone and tears down
@@ -233,25 +262,28 @@ class ScheduleCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFEBEE),
+                      color: isRunning
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFFFFEBEE),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        size: 16, color: Color(0xFFE53935)),
+                    child: Icon(Icons.delete_outline_rounded,
+                        size: 16,
+                        color: isRunning
+                            ? const Color(0xFFB0B0B0)
+                            : const Color(0xFFE53935)),
                   ),
+                ),
                 ),
             ],
           ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildTimeBasedInfo(int dH, int dM, int durationMin) {
-    final accSec = record.accumulatedOnSeconds ?? 0;
-    final remainingMin = (durationMin - (accSec ~/ 60)).clamp(0, durationMin);
-    final rH = remainingMin ~/ 60;
-    final rM = remainingMin % 60;
+  Widget _buildTimeBasedInfo(int dH, int dM) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -264,9 +296,6 @@ class ScheduleCard extends StatelessWidget {
           child: Row(
             children: [
               _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
-              const SizedBox(width: 12),
-              _infoItem(
-                  'Remaining', '${rH}h ${rM.toString().padLeft(2, '0')}m'),
             ],
           ),
         ),
@@ -278,8 +307,8 @@ class ScheduleCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCyclicInfo(
-      int dH, int dM, int durationMin, int onMin, int offMin) {
+  Widget _buildCyclicInfo(int dH, int dM, int durationMin, int onMin,
+      int offMin, bool isRunning) {
     final accSec = record.accumulatedOnSeconds ?? 0;
     final runMin = accSec ~/ 60;
     final runH = runMin ~/ 60;
@@ -298,9 +327,11 @@ class ScheduleCard extends StatelessWidget {
           child: Row(
             children: [
               _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
-              const SizedBox(width: 12),
-              _infoItem(
-                  'Run Time', '${runH}h ${runM.toString().padLeft(2, '0')}m'),
+              if (isRunning) ...[
+                const SizedBox(width: 12),
+                _infoItem(
+                    'Run Time', '${runH}h ${runM.toString().padLeft(2, '0')}m'),
+              ],
             ],
           ),
         ),

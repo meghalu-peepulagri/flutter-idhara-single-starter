@@ -67,15 +67,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   }
 
   /// True if [record] is eligible for the currently-picked action.
-  /// Stop applies to RUNNING/PENDING/SCHEDULED, Resume only to STOPPED,
-  /// Republish only to PENDING. Delete and the no-action state are
+  /// Stop applies to RUNNING/SCHEDULED, Resume only to STOPPED,
+  /// Republish only to PENDING. PENDING schedules can't be stopped or
+  /// restarted — they haven't been acked yet, so the only valid actions
+  /// are Republish and Delete. Delete and the no-action state are
   /// always eligible.
   bool _isEligibleForAction(Record record, _BulkScheduleAction? action) {
     if (action == null) return true;
     final s = (record.scheduleStatus ?? '').toUpperCase();
     switch (action) {
       case _BulkScheduleAction.stop:
-        return s == 'RUNNING' || s == 'PENDING' || s == 'SCHEDULED';
+        return s == 'RUNNING' || s == 'SCHEDULED';
       case _BulkScheduleAction.restart:
         return s == 'STOPPED';
       case _BulkScheduleAction.republish:
@@ -391,19 +393,24 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       final allSelected = !visibleEmpty &&
           selectableIds.every(_controller.selectedRecordIds.contains);
 
-      // Per-chip eligibility — disable a chip when there are zero schedules
-      // its action could touch (e.g. Resume is grey when nothing is STOPPED).
-      // Computed against the unfiltered list so the chips stay informative
-      // regardless of which action is currently picked.
-      final hasStoppable = allSchedules.any((r) => _isEligibleForAction(
+      // Per-chip eligibility — disable a chip when none of the *selected*
+      // schedules can take its action. e.g. selecting only COMPLETED rows
+      // disables Stop/Restart/Republish so the user can't pick an action
+      // that would no-op on every row. Delete stays available for any
+      // selection.
+      final selectedRecords = allSchedules
+          .where((r) =>
+              r.id != null && _controller.selectedRecordIds.contains(r.id))
+          .toList();
+      final hasStoppable = selectedRecords.any((r) => _isEligibleForAction(
             r,
             _BulkScheduleAction.stop,
           ));
-      final hasResumable = allSchedules.any((r) => _isEligibleForAction(
+      final hasResumable = selectedRecords.any((r) => _isEligibleForAction(
             r,
             _BulkScheduleAction.restart,
           ));
-      final hasPending = allSchedules.any((r) => _isEligibleForAction(
+      final hasPending = selectedRecords.any((r) => _isEligibleForAction(
             r,
             _BulkScheduleAction.republish,
           ));

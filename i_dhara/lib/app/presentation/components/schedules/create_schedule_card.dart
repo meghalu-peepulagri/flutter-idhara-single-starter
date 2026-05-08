@@ -546,6 +546,8 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                     onBack: () {},
                     showBottomBar: false,
                     showDateCard: false,
+                    initialStartDate: startDate,
+                    initialEndDate: endDate,
                   ),
                 ],
               ),
@@ -783,6 +785,39 @@ class ScheduleFormState extends State<ScheduleForm> {
   }
 
   @override
+  void didUpdateWidget(covariant ScheduleForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When embedded inside MultiScheduleForm, the parent owns the date and
+    // pushes it down via initialStartDate/initialEndDate. Sync local state
+    // here so _isStartDateToday and the time picker's minTime react to the
+    // new date — and reset times to 00:00 when the new date isn't today.
+    final newStart = widget.initialStartDate;
+    final newEnd = widget.initialEndDate;
+    final startChanged =
+        newStart != null && newStart != oldWidget.initialStartDate;
+    final endChanged = newEnd != null && newEnd != oldWidget.initialEndDate;
+    if (!startChanged && !endChanged) return;
+    setState(() {
+      if (startChanged) startDate = newStart;
+      if (endChanged) endDate = newEnd;
+      final now = DateTime.now();
+      final isToday = startDate.year == now.year &&
+          startDate.month == now.month &&
+          startDate.day == now.day;
+      if (isToday) {
+        startHour = now.hour;
+        startMinute = now.minute;
+      } else {
+        startHour = 0;
+        startMinute = 0;
+      }
+      endHour = 0;
+      endMinute = 0;
+      selectedDays.retainWhere((d) => _validDays.contains(d));
+    });
+  }
+
+  @override
   void dispose() {
     _cyclicController.dispose();
     _powerLossController.dispose();
@@ -839,8 +874,17 @@ class ScheduleFormState extends State<ScheduleForm> {
         if (isStart) {
           startHour = t.hour;
           startMinute = t.minute;
-          endHour = 0;
-          endMinute = 0;
+          // Only reset end time when the new start is >= current end (which
+          // would otherwise produce a zero/negative duration). If the end is
+          // still later than the new start, keep what the user already picked.
+          final newStart = DateTime(startDate.year, startDate.month,
+              startDate.day, startHour, startMinute);
+          final currentEnd = DateTime(endDate.year, endDate.month, endDate.day,
+              endHour, endMinute);
+          if (!currentEnd.isAfter(newStart)) {
+            endHour = 0;
+            endMinute = 0;
+          }
         } else {
           endHour = t.hour;
           endMinute = t.minute;

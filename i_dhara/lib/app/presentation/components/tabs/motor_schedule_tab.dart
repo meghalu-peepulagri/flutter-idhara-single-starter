@@ -209,9 +209,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
               );
             }
 
-            return Skeletonizer(
-              enabled: isRefreshing,
-              child: Column(
+            return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
@@ -322,7 +320,9 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                   ),
                   _buildDateStrip(selectedDate),
                   Expanded(
-                    child: schedules.isEmpty
+                    child: Skeletonizer(
+                      enabled: isRefreshing,
+                      child: schedules.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
@@ -370,10 +370,10 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                               );
                             },
                           ),
+                    ),
                   ),
                 ],
-              ),
-            );
+              );
           }),
           Positioned(
             right: 4,
