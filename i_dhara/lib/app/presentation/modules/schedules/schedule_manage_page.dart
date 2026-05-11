@@ -4,11 +4,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
+import 'package:i_dhara/app/presentation/modules/schedules/schedule_dialogs.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_manage_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:intl/intl.dart';
@@ -51,7 +51,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       permanent: false,
     );
     _motorScheduleController = Get.find<MotorScheduleController>();
-    // Auto-refresh this page's list when a schedule-create ACK is received
     _motorScheduleController.onScheduleAckRefreshed = () {
       _controller.fetchSchedules();
     };
@@ -66,12 +65,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     super.dispose();
   }
 
-  /// True if [record] is eligible for the currently-picked action.
-  /// Stop applies to RUNNING/SCHEDULED, Resume only to STOPPED,
-  /// Republish only to PENDING. PENDING schedules can't be stopped or
-  /// restarted — they haven't been acked yet, so the only valid actions
-  /// are Republish and Delete. Delete and the no-action state are
-  /// always eligible.
   bool _isEligibleForAction(Record record, _BulkScheduleAction? action) {
     if (action == null) return true;
     final s = (record.scheduleStatus ?? '').toUpperCase();
@@ -83,13 +76,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       case _BulkScheduleAction.republish:
         return s == 'PENDING';
       case _BulkScheduleAction.delete:
-        return true;
+        return s != 'PENDING';
     }
   }
 
-  /// Returns only the schedules eligible for the current action — used by
-  /// "Select All", the selection-bar counter, and the bottom action bar
-  /// (which hides itself when there's nothing eligible to act on).
   List<Record> _filterByAction(List<Record> schedules) =>
       schedules.where((r) => _isEligibleForAction(r, _selectedAction)).toList();
 
@@ -130,9 +120,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                       color: const Color(0xFF004E7E),
                       backgroundColor: Colors.white,
                       onRefresh: () async {
-                        // Pull-to-refresh always lands on the full unfiltered
-                        // list with no selection — drop the action chip, the
-                        // status filter, and the selection before fetching.
                         if (_selectedAction != null) {
                           setState(() => _selectedAction = null);
                         }
@@ -375,16 +362,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     });
   }
 
-  /// Thin sticky bar between the action selector and the schedule list.
-  /// Shows the selection count and a Select-All / Deselect-All toggle.
-  /// Hidden entirely when there are no selectable schedules visible.
   Widget _buildSelectionBar() {
     return Obx(() {
       final count = _controller.selectedRecordIds.length;
       final allSchedules = _controller.schedules.toList();
-      // Always render the bar so the filter icon and Select-All row stay
-      // reachable — even when the list is empty (no schedules at all, or
-      // a filter that returns nothing). Hiding it would trap the user.
 
       final visible = _filterByAction(allSchedules);
       final selectableIds = visible.map((r) => r.id).whereType<int>().toSet();
@@ -393,11 +374,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       final allSelected = !visibleEmpty &&
           selectableIds.every(_controller.selectedRecordIds.contains);
 
-      // Per-chip eligibility — disable a chip when none of the *selected*
-      // schedules can take its action. e.g. selecting only COMPLETED rows
-      // disables Stop/Restart/Republish so the user can't pick an action
-      // that would no-op on every row. Delete stays available for any
-      // selection.
       final selectedRecords = allSchedules
           .where((r) =>
               r.id != null && _controller.selectedRecordIds.contains(r.id))
@@ -415,12 +391,16 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
             _BulkScheduleAction.republish,
           ));
 
+      final hasDeletable = selectedRecords.any((r) => _isEligibleForAction(
+            r,
+            _BulkScheduleAction.delete,
+          ));
+
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Row 1: count + Select All / Deselect All
             Row(
               children: [
                 Text(
@@ -445,8 +425,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                       ? null
                       : () {
                           if (allSelected) {
-                            // Deselect All also drops the action filter so
-                            // the user lands back on the full schedule list.
                             _controller.clearSelection();
                             if (_selectedAction != null) {
                               setState(() => _selectedAction = null);
@@ -486,8 +464,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Status filter — solid background + count badge when active
-                // so the user can see at a glance that a filter is applied.
                 Obx(() {
                   final isFiltered =
                       _controller.selectedFilter.value.isNotEmpty;
@@ -546,9 +522,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 }),
               ],
             ),
-            // Row 2: text-only action chips — only after at least one
-            // schedule has been selected. A chip is greyed out when no
-            // schedule in the list is eligible for its action.
             if (count > 0) ...[
               const SizedBox(height: 8),
               Row(
@@ -571,6 +544,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                     label: 'Delete',
                     action: _BulkScheduleAction.delete,
                     color: const Color(0xFFEF4444),
+                    enabled: hasDeletable,
                   ),
                   const SizedBox(width: 8),
                   _buildTextChip(
@@ -603,11 +577,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 setState(() {
                   _selectedAction = isSelected ? null : action;
                 });
-                // When picking a new action, prune the selection down to
-                // schedules that are actually eligible for it. The visible
-                // list already filters to eligible — the in-memory selection
-                // must match, otherwise the confirm dialog and result toast
-                // count records the user can no longer see.
+
                 if (!isSelected) {
                   final eligibleIds = _controller.schedules
                       .where((r) =>
@@ -717,9 +687,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   Widget _buildBulkActionBar() {
     return Obx(() {
       final selectedCount = _controller.selectedRecordIds.length;
-      // Bottom bar appears only when a chip and at least one schedule are
-      // picked. Also hidden when the action filter has no matching schedules
-      // — there is nothing to act on.
+
       if (selectedCount == 0 || _selectedAction == null) {
         return const SizedBox.shrink();
       }
@@ -836,9 +804,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     required DateTime lastDate,
     required ValueChanged<DateTime> onPicked,
   }) async {
-    // final today = DateTime.now();
-    // final todayNorm = DateTime(today.year, today.month, today.day);
-
     final results = await showCalendarDatePicker2Dialog(
       context: context,
       config: CalendarDatePicker2WithActionButtonsConfig(
@@ -924,13 +889,42 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Filter by Status',
-                style: GoogleFonts.dmSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1A1A2E),
-                ),
+              // Title + close button row. Close icon mirrors the
+              // motor_mode_info_sheet header so the dismiss control feels
+              // consistent across the app's bottom sheets.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Filter by Status',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A1A2E),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F0),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFFE0E0E0),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               ..._filters.map((filter) {
@@ -983,8 +977,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
 
   void _showBulkActionConfirm(_BulkScheduleAction action) {
     if (_isRunningBulkAction) return;
-    // Lock immediately so double-tapping the Confirm button never opens
-    // a second dialog before the first one is dismissed.
+
     setState(() => _isRunningBulkAction = true);
 
     final selectedCount = _controller.selectedRecordIds.length;
@@ -1011,46 +1004,35 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
         'Republish MQTT payload for $selectedCount selected pending schedule${selectedCount > 1 ? 's' : ''}?',
     };
 
-    showDialog(
+    final wasSingle = selectedCount == 1;
+    showScheduleActionConfirmDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => PopupDialog(
-        title: title,
-        buttonlable: buttonLabel,
-        description: description,
-        iconAssetPath: 'assets/images/schedule.svg',
-        isactive: action == _BulkScheduleAction.restart ||
-            action == _BulkScheduleAction.republish,
-        onDelete: () async {
-          // FFButtonWidget(showLoadingIndicator: true) already blocks re-taps
-          // within the dialog. Run the action, close the dialog, and drop
-          // the action filter so the user lands back on the full schedule
-          // list once the ACK round-trip finishes.
-          // Capture the count BEFORE running — the controller clears the
-          // selection as part of the bulk method, so reading after returns 0.
-          final wasSingle = selectedCount == 1;
-          final success = await _runBulkAction(action);
-          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-          // Single-schedule bulk actions don't get a bottom result toast
-          // (that's reserved for >1). Surface a top success snackbar instead
-          // when the device acked successfully.
-          if (mounted && success && wasSingle) {
-            getsuccessSnackBar(switch (action) {
-              _BulkScheduleAction.delete => 'Schedule deleted successfully',
-              _BulkScheduleAction.stop => 'Schedule stopped',
-              _BulkScheduleAction.restart => 'Schedule restarted',
-              _BulkScheduleAction.republish =>
-                'Schedule acknowledged by device',
-            });
-          }
-          if (mounted && _selectedAction != null) {
-            setState(() => _selectedAction = null);
-          }
-        },
-        onCancel: () => Navigator.pop(dialogCtx),
-      ),
-    ).whenComplete(() {
-      // Unlock after dialog is fully dismissed (confirm or cancel).
+      title: title,
+      buttonLabel: buttonLabel,
+      description: description,
+      iconAssetPath: 'assets/images/schedule.svg',
+      isActive: action == _BulkScheduleAction.restart ||
+          action == _BulkScheduleAction.republish,
+      onConfirm: () => _runBulkAction(action),
+      // Aborts MQTT retries + resolves the bulk/republish completer with
+      // false so the controller's 23s `.timeout()` doesn't fire a stale
+      // "No response from device" snackbar after the user dismisses.
+      onCancelWhileWaiting: _motorScheduleController
+          .cancelInFlightScheduleOperation,
+    ).then((success) {
+      if (mounted && success && wasSingle) {
+        getsuccessSnackBar(switch (action) {
+          _BulkScheduleAction.delete => 'Schedule deleted successfully',
+          _BulkScheduleAction.stop => 'Schedule stopped',
+          _BulkScheduleAction.restart => 'Schedule restarted',
+          _BulkScheduleAction.republish => 'Schedule acknowledged by device',
+        });
+      }
+
+      _controller.clearSelection();
+      if (mounted && _selectedAction != null) {
+        setState(() => _selectedAction = null);
+      }
       if (mounted) setState(() => _isRunningBulkAction = false);
     });
   }

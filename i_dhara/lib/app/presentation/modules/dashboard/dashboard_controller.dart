@@ -773,7 +773,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
     final motorId = '$identifier-$groupId';
 
     try {
-      await mqttService.publishModeCommand(motorId, modeIndex);
+      // Schedule UI index (2) → device code 6; Auto/Manual pass through.
+      final deviceCode = modeIndex == 2 ? 6 : modeIndex;
+      await mqttService.publishModeCommand(motorId, deviceCode);
       // Instantly refresh API data after mode change so description
       // updates immediately without waiting for the background timer.
       // fetchMotorsSilently();

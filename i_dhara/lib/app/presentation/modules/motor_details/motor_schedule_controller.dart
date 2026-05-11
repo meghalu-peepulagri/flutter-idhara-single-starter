@@ -16,9 +16,6 @@ import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_con
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class MotorScheduleController extends GetxController {
-  /// Hard cap of schedules a single date can hold across the whole app.
-  /// Used by the schedule list FAB and the multi-create form's "Add" button
-  /// to keep the UI in sync with the device-side limit.
   static const int kMaxSchedulesPerDate = 4;
 
   final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
@@ -233,7 +230,9 @@ class MotorScheduleController extends GetxController {
     _deleteCompleters[scheduleId] = completer;
     await publishScheduleAction(record, 3);
     return completer.future.timeout(
-      const Duration(seconds: 12),
+      // Matches MQTT retry cycle (10s + 10s + 3s) so the dialog only closes
+      // once the retry loop has fully exhausted.
+      const Duration(seconds: 23),
       onTimeout: () {
         _deleteCompleters.remove(scheduleId);
         _pendingActions.remove(scheduleId);
@@ -255,7 +254,8 @@ class MotorScheduleController extends GetxController {
     _toggleCompleters[scheduleId] = completer;
     await publishScheduleAction(record, enabled ? 2 : 1);
     return completer.future.timeout(
-      const Duration(seconds: 12),
+      // Matches MQTT retry cycle (10s + 10s + 3s).
+      const Duration(seconds: 23),
       onTimeout: () {
         _toggleCompleters.remove(scheduleId);
         _pendingActions.remove(scheduleId);
@@ -325,7 +325,8 @@ class MotorScheduleController extends GetxController {
     }
 
     return completer.future.timeout(
-      const Duration(seconds: 16),
+      // Matches MQTT retry cycle (10s + 10s + 3s).
+      const Duration(seconds: 23),
       onTimeout: () {
         _bulkDeleteCompleters.remove(key);
         _bulkObjectIds.remove(key);
@@ -368,7 +369,8 @@ class MotorScheduleController extends GetxController {
     }
 
     return completer.future.timeout(
-      const Duration(seconds: 16),
+      // Matches MQTT retry cycle (10s + 10s + 3s).
+      const Duration(seconds: 23),
       onTimeout: () {
         _bulkToggleCompleters.remove(key);
         _bulkObjectIds.remove(key);
@@ -378,6 +380,59 @@ class MotorScheduleController extends GetxController {
         return false;
       },
     );
+  }
+
+  /// Cancel ALL in-flight schedule operations on this motor (bulk
+  /// stop/restart/delete + republish + any pending single action).
+  ///
+  /// Called when the user taps Cancel on the bulk confirmation dialog while
+  /// the MQTT retry loop is still in-flight. Without this, the controller's
+  /// `.timeout()` on the awaiting completer would fire 23s later and show
+  /// the stale "No response from device" snackbar — even though the user
+  /// already dismissed the dialog. Steps:
+  ///   1. Cancel both T:23 (create / republish) and T:24 (action) retries
+  ///      in MqttService so `scheduleAckTimeoutController` never emits.
+  ///   2. Resolve every awaiting completer with `false` so the controller's
+  ///      `.timeout()` short-circuits and no snackbar is rendered.
+  ///   3. Drop tracked state (`_pendingActions`, bulk maps,
+  ///      `_expectedScheduleIds`) so any late ACK that does arrive can't
+  ///      re-trigger a toast or API call.
+  void cancelInFlightScheduleOperation() {
+    final id = _resolveIdentifier();
+    if (id.isNotEmpty) {
+      _mqttService.cancelScheduleActionRetries(id);
+      _mqttService.cancelScheduleCreateRetries(id);
+    }
+
+    if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+      _republishCompleter!.complete(false);
+    }
+    _republishCompleter = null;
+
+    for (final c in _bulkDeleteCompleters.values.toList()) {
+      if (!c.isCompleted) c.complete(false);
+    }
+    _bulkDeleteCompleters.clear();
+
+    for (final c in _bulkToggleCompleters.values.toList()) {
+      if (!c.isCompleted) c.complete(false);
+    }
+    _bulkToggleCompleters.clear();
+
+    for (final c in _deleteCompleters.values.toList()) {
+      if (!c.isCompleted) c.complete(false);
+    }
+    _deleteCompleters.clear();
+
+    for (final c in _toggleCompleters.values.toList()) {
+      if (!c.isCompleted) c.complete(false);
+    }
+    _toggleCompleters.clear();
+
+    _pendingActions.clear();
+    _bulkObjectIds.clear();
+    _bulkCmds.clear();
+    _expectedScheduleIds = [];
   }
 
   /// Cancel an in-flight schedule action (stop / restart / delete).
@@ -477,22 +532,25 @@ class MotorScheduleController extends GetxController {
               geterrorSnackBar('Failed to update schedule status');
               _toggleCompleters.remove(scheduleId)?.complete(false);
             }
-            fetchSchedules();
+            // Reconcile in the background — no isLoading flip, so the
+            // schedule list area doesn't flash to the lottie loader after
+            // the user already saw the action confirmation.
+            fetchSchedules(silent: true);
           } else {
-            fetchSchedules();
+            fetchSchedules(silent: true);
           }
         } else {
           // ── ACK FAILURE — show device-specific message ──
           geterrorSnackBar(errorMsg!);
           _deleteCompleters.remove(scheduleId)?.complete(false);
           _toggleCompleters.remove(scheduleId)?.complete(false);
-          fetchSchedules();
+          fetchSchedules(silent: true);
         }
       } catch (e) {
         // Safety net: always resolve completers so dialogs never get stuck
         _deleteCompleters.remove(scheduleId)?.complete(false);
         _toggleCompleters.remove(scheduleId)?.complete(false);
-        fetchSchedules();
+        fetchSchedules(silent: true);
       }
     });
   }
@@ -510,8 +568,9 @@ class MotorScheduleController extends GetxController {
     } catch (_) {
       // silently fail
     }
-    // Start fetching with loading — runs in background while dialog closes
-    unawaited(fetchSchedules());
+    // Reconcile in the background — silent so the list area doesn't
+    // flash to the lottie loader; the row is already removed locally.
+    unawaited(fetchSchedules(silent: true));
   }
 
   // --- Navigation ---
@@ -567,8 +626,12 @@ class MotorScheduleController extends GetxController {
 
   /// Republish a T:3 MQTT command for the given schedule records.
   /// Used by Schedule Manage page to re-send PENDING schedules to the device.
-  /// Always uses idx=2 (motor already has schedules).
-  Future<bool> republishSchedules(List<Record> records) async {
+  /// `idx` = 1 only when the device has NO accepted schedules yet (every
+  /// schedule for this motor is still PENDING). If even one schedule has
+  /// already been placed on the device (SCHEDULED / RUNNING / STOPPED /
+  /// COMPLETED), the caller must pass `idx: 2` so the device appends to
+  /// its existing slots instead of overwriting them.
+  Future<bool> republishSchedules(List<Record> records, {int idx = 2}) async {
     if (records.isEmpty) return false;
     final id = _resolveIdentifier();
     if (id.isEmpty) {
@@ -615,16 +678,17 @@ class MotorScheduleController extends GetxController {
       await _mqttService.publishMultipleSchedulesCommand(
         identifier: id,
         items: items,
-        idx: 2,
+        idx: idx,
         // Republish gets the same retry-until-all-acked + partial toast
         // behaviour as multi-create. The toast is rendered by
         // [_listenScheduleFinalResult] when items.length > 1.
         trackExpectedAcks: true,
       );
 
-      // Wait for device ACK (T:33) — resolved in _listenScheduleAck
+      // Wait for device ACK (T:33) — resolved in _listenScheduleAck.
+      // Matches MQTT retry cycle (10s + 10s + 3s).
       return await completer.future.timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 23),
         onTimeout: () {
           _republishCompleter = null;
           geterrorSnackBar('No response from device');
@@ -962,7 +1026,10 @@ class MotorScheduleController extends GetxController {
       _bulkDeleteCompleters.remove(key)?.complete(isFullSuccess);
       _bulkToggleCompleters.remove(key)?.complete(isFullSuccess);
 
-      fetchSchedules();
+      // Silent reconcile — the manage page drives its own list refresh
+      // via onScheduleAckRefreshed; we just need our motor-tab list to
+      // catch up without flashing the lottie loader.
+      fetchSchedules(silent: true);
     });
   }
 }

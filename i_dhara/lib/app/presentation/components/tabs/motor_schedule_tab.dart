@@ -202,12 +202,11 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
             final totalRecords = _controller.totalRecords.value;
             final selectedDate = _controller.selectedDate.value;
 
-            if (isLoading) {
-              return const Padding(
-                padding: EdgeInsets.only(bottom: 50, right: 50),
-                child: Center(child: AppLottieLoading()),
-              );
-            }
+            // Header (count + Manage + filter) and the date strip stay
+            // mounted across loads. Only the schedule-list area below
+            // swaps between the lottie loader, empty state, and list —
+            // so picking a date doesn't unmount the strip the user just
+            // tapped on.
 
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,7 +319,12 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                   ),
                   _buildDateStrip(selectedDate),
                   Expanded(
-                    child: Skeletonizer(
+                    child: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.only(bottom: 50, right: 50),
+                          child: Center(child: AppLottieLoading()),
+                        )
+                      : Skeletonizer(
                       enabled: isRefreshing,
                       child: schedules.isEmpty
                         ? ListView(
@@ -512,13 +516,42 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 ),
               ),
               const SizedBox(height: 14),
-              Text(
-                'Filter by Status',
-                style: GoogleFonts.dmSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1A1A2E),
-                ),
+              // Title + close button row. Close icon mirrors the
+              // motor_mode_info_sheet / schedule_manage_page bottom sheets
+              // so the dismiss control is consistent across the app.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Filter by Status',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A2E),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F0),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFFE0E0E0),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
               Column(
@@ -598,7 +631,17 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                       : const Color(0xFF0F172A);
 
               return GestureDetector(
+                // Without `opaque`, the GestureDetector only catches taps
+                // on the small day-name text and the 32-wide circle — the
+                // empty padding inside the 48-wide cell silently swallows
+                // taps, which is why tapping a date sometimes needs 3–4
+                // tries to register.
+                behavior: HitTestBehavior.opaque,
                 onTap: () {
+                  if (_controller.selectedDate.value == date) {
+                    _scrollToDate(i);
+                    return;
+                  }
                   _controller.selectedDate.value = date;
                   _controller.fetchSchedules();
                   _scrollToDate(i);
@@ -685,11 +728,11 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: Row(
             children: [
-              _legendItem(const Color(0xFF228B22), 'Running'),
-              const SizedBox(width: 12),
               _legendItem(const Color(0xFFEF9F27), 'Pending'),
               const SizedBox(width: 12),
               _legendItem(const Color(0xFF85B7EB), 'Scheduled'),
+              const SizedBox(width: 12),
+              _legendItem(const Color(0xFF228B22), 'Running'),
               const SizedBox(width: 12),
               _legendItem(const Color(0xFFE24B4A), 'Stopped'),
             ],

@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widget.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_bottomsheets.dart';
 
-// ── Multi-Schedule Container ─────────────────────────────────────────────────
-
 class _ScheduleEntry {
   final int id;
   final GlobalKey<ScheduleFormState> formKey;
@@ -23,9 +21,6 @@ class MultiScheduleForm extends StatefulWidget {
   final VoidCallback? onBack;
   final bool showBottomBar;
 
-  /// Number of schedules that already cover the selected date. The form caps
-  /// new entries at `4 - existingScheduleCount` so the per-date total never
-  /// exceeds 4. Defaults to 0 → full 4-slot allowance.
   final int existingScheduleCount;
 
   const MultiScheduleForm({
@@ -41,14 +36,12 @@ class MultiScheduleForm extends StatefulWidget {
 }
 
 class MultiScheduleFormState extends State<MultiScheduleForm> {
-  // ── Public accessors for parent coordination ───────────────────────────────
   List<ScheduleFormState> get scheduleStates => _schedules
       .map((e) => e.formKey.currentState)
       .whereType<ScheduleFormState>()
       .toList();
 
   int get scheduleCount => _schedules.length;
-  // ── Shared date state ──────────────────────────────────────────────────────
   late DateTime startDate;
   late DateTime endDate;
   late Set<int> selectedDays;
@@ -79,21 +72,38 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     return days;
   }
 
-  int get _activeDays => endDate.difference(startDate).inDays.abs() + 1;
+  int get _activeDays {
+    if (selectedDays.isEmpty) return 0;
+    final rangeLength = endDate.difference(startDate).inDays.abs() + 1;
+    int count = 0;
+    for (int i = 0; i < rangeLength; i++) {
+      final wd = startDate.add(Duration(days: i)).weekday;
+      // weekday: Mon=1..Sun=7 in Dart; selectedDays uses Sun=0..Sat=6.
+      final dayIndex = wd == 7 ? 0 : wd;
+      if (selectedDays.contains(dayIndex)) count++;
+    }
+    return count;
+  }
+
+  Map<int, int> get _dayCounts {
+    final counts = <int, int>{};
+    final rangeLength = endDate.difference(startDate).inDays.abs() + 1;
+    for (int i = 0; i < rangeLength; i++) {
+      final wd = startDate.add(Duration(days: i)).weekday;
+      final di = wd == 7 ? 0 : wd;
+      counts[di] = (counts[di] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   String _fmtDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
-  // ── Schedule list ──────────────────────────────────────────────────────────
-  /// Hard cap for schedules per date across the whole app.
   static const int _absoluteMaxSchedules = 4;
   static const int _maxRangeDays = 15;
   final List<_ScheduleEntry> _schedules = [];
   int _nextId = 1;
   final _scrollController = ScrollController();
 
-  /// Slots remaining for new schedules after subtracting whatever already
-  /// covers the selected date. Always >= 1 so the form is never unusable —
-  /// the FAB on the schedule list is responsible for blocking entry when
-  /// the date is genuinely full.
   int get _maxSchedules {
     final remaining = _absoluteMaxSchedules - widget.existingScheduleCount;
     return remaining < 1 ? 1 : remaining;
@@ -109,10 +119,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    // Normalize to midnight so endDate.difference(startDate).inDays is a
-    // clean day count and `_validDays` covers every weekday in the range.
-    // DateTime.now() carries the current time-of-day, which would otherwise
-    // round inDays down (e.g. Fri 14:00 → Sat 00:00 → 0 days).
+
     final todayNorm = DateTime(now.year, now.month, now.day);
     startDate = todayNorm;
     endDate = todayNorm;
@@ -123,6 +130,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       formKey: GlobalKey<ScheduleFormState>(),
       isExpanded: true,
     ));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _addSchedule() {
@@ -263,8 +273,6 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final scroll = SingleChildScrollView(
@@ -274,13 +282,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Shared date card — shown once for all schedules
           _buildSharedDateCard(),
           const SizedBox(height: 8),
-          // Add schedule row — right below the date card
           _buildAddScheduleRow(),
           const SizedBox(height: 8),
-          // Schedule cards
           for (int i = 0; i < _schedules.length; i++) ...[
             if (i > 0) const SizedBox(height: 10),
             _buildScheduleCard(_schedules[i], i),
@@ -291,6 +296,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
 
     if (!widget.showBottomBar) return scroll;
 
+    final states = scheduleStates;
+    final allReady = states.length == _schedules.length &&
+        states.every((s) => s.durationMinutes > 0);
+
     return Column(
       children: [
         Expanded(child: scroll),
@@ -298,6 +307,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
           onBack: widget.onBack ?? () {},
           onSave: widget.onSave ?? () {},
           isEditMode: false,
+          saveEnabled: allReady,
         ),
       ],
     );
@@ -343,8 +353,6 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       ),
     );
   }
-
-  // ── Shared date card ───────────────────────────────────────────────────────
 
   Widget _buildSharedDateCard() {
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -398,77 +406,118 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Range row
-          Row(
-            children: [
-              Text(
-                'Range',
-                style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF94A3B8),
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$_activeDays ${_activeDays == 1 ? 'day' : 'days'} active',
+
+          if (selectedDays.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'Range',
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF004E7E),
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF94A3B8),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Day chips
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final valid = _validDays.contains(i);
-              final isActive = selectedDays.contains(i);
-              return GestureDetector(
-                onTap: valid ? () => _toggleDay(i) : null,
-                child: Opacity(
-                  opacity: valid ? 1.0 : 0.35,
-                  child: Container(
-                    width: 34,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFEBF3FE)
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: isActive
-                            ? const Color(0xFF3686AF)
-                            : const Color(0xFFCBD5E1),
-                        width: 1.2,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        dayLabels[i],
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive
-                              ? const Color(0xFF004E7E)
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEBF3FE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$_activeDays ${_activeDays == 1 ? 'day' : 'days'} active',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
                     ),
                   ),
                 ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, right: 4),
+            child: Builder(builder: (_) {
+              final counts = _dayCounts;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(7, (i) {
+                  final valid = _validDays.contains(i);
+                  final isActive = selectedDays.contains(i);
+                  final count = counts[i] ?? 0;
+                  return GestureDetector(
+                    onTap: valid ? () => _toggleDay(i) : null,
+                    child: Opacity(
+                      opacity: valid ? 1.0 : 0.35,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? const Color(0xFFEBF3FE)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: isActive
+                                    ? const Color(0xFF3686AF)
+                                    : const Color(0xFFCBD5E1),
+                                width: 1.2,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Center(
+                              child: Text(
+                                dayLabels[i],
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 10,
+                                  fontWeight: isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isActive
+                                      ? const Color(0xFF004E7E)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isActive && count > 1)
+                            Positioned(
+                              top: -7,
+                              right: -6,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 14),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 3, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF004E7E),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.white, width: 1),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
               );
             }),
           ),
@@ -510,8 +559,6 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     );
   }
 
-  // ── Schedule card ──────────────────────────────────────────────────────────
-
   Widget _buildScheduleCard(_ScheduleEntry entry, int index) {
     return Container(
       decoration: BoxDecoration(
@@ -529,8 +576,6 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       child: Column(
         children: [
           _buildCardHeader(entry, index),
-          // maintainState: true keeps ScheduleFormState alive when collapsed
-          // so time / cyclic / power-recovery values are never lost.
           AnimatedSize(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
@@ -548,6 +593,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                     showDateCard: false,
                     initialStartDate: startDate,
                     initialEndDate: endDate,
+                    onChanged: () {
+                      if (mounted) setState(() {});
+                    },
                   ),
                 ],
               ),
@@ -562,6 +610,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     final state = entry.formKey.currentState;
     return GestureDetector(
       onTap: () => setState(() => entry.isExpanded = !entry.isExpanded),
+      behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Row(
@@ -578,7 +627,6 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                       color: const Color(0xFF0F172A),
                     ),
                   ),
-                  // Show selected values summary when collapsed
                   if (!entry.isExpanded && state != null) ...[
                     const SizedBox(height: 2),
                     _buildCollapsedSummary(state),
@@ -660,14 +708,14 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 }
 
-// ── Single Schedule Form ─────────────────────────────────────────────────────
-
 class ScheduleForm extends StatefulWidget {
   final VoidCallback onSave;
   final VoidCallback onBack;
   final bool isEditMode;
   final bool showBottomBar;
   final bool showDateCard;
+
+  final VoidCallback? onChanged;
 
   // Optional initial values for edit mode
   final int? initialStartHour;
@@ -689,6 +737,7 @@ class ScheduleForm extends StatefulWidget {
     this.isEditMode = false,
     this.showBottomBar = true,
     this.showDateCard = true,
+    this.onChanged,
     this.initialStartHour,
     this.initialStartMinute,
     this.initialEndHour,
@@ -750,8 +799,6 @@ class ScheduleFormState extends State<ScheduleForm> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    // Normalize today to midnight — see MultiScheduleFormState.initState
-    // for why this matters for the day-chip valid-day calculation.
     final todayNorm = DateTime(now.year, now.month, now.day);
     startDate = widget.initialStartDate ?? todayNorm;
     endDate = widget.initialEndDate ?? todayNorm;
@@ -787,10 +834,6 @@ class ScheduleFormState extends State<ScheduleForm> {
   @override
   void didUpdateWidget(covariant ScheduleForm oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // When embedded inside MultiScheduleForm, the parent owns the date and
-    // pushes it down via initialStartDate/initialEndDate. Sync local state
-    // here so _isStartDateToday and the time picker's minTime react to the
-    // new date — and reset times to 00:00 when the new date isn't today.
     final newStart = widget.initialStartDate;
     final newEnd = widget.initialEndDate;
     final startChanged =
@@ -815,6 +858,10 @@ class ScheduleFormState extends State<ScheduleForm> {
       endMinute = 0;
       selectedDays.retainWhere((d) => _validDays.contains(d));
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onChanged?.call();
+    });
   }
 
   @override
@@ -824,7 +871,29 @@ class ScheduleFormState extends State<ScheduleForm> {
     super.dispose();
   }
 
-  int get _activeDays => endDate.difference(startDate).inDays.abs() + 1;
+  int get _activeDays {
+    if (selectedDays.isEmpty) return 0;
+    final rangeLength = endDate.difference(startDate).inDays.abs() + 1;
+    int count = 0;
+    for (int i = 0; i < rangeLength; i++) {
+      final wd = startDate.add(Duration(days: i)).weekday;
+      // weekday: Mon=1..Sun=7 in Dart; selectedDays uses Sun=0..Sat=6.
+      final dayIndex = wd == 7 ? 0 : wd;
+      if (selectedDays.contains(dayIndex)) count++;
+    }
+    return count;
+  }
+
+  Map<int, int> get _dayCounts {
+    final counts = <int, int>{};
+    final rangeLength = endDate.difference(startDate).inDays.abs() + 1;
+    for (int i = 0; i < rangeLength; i++) {
+      final wd = startDate.add(Duration(days: i)).weekday;
+      final di = wd == 7 ? 0 : wd;
+      counts[di] = (counts[di] ?? 0) + 1;
+    }
+    return counts;
+  }
 
   void _clampCyclicDurations() {
     final total = durationMinutes;
@@ -855,9 +924,11 @@ class ScheduleFormState extends State<ScheduleForm> {
         startDate.year, startDate.month, startDate.day, startHour, startMinute);
     final end =
         DateTime(endDate.year, endDate.month, endDate.day, endHour, endMinute);
-    final endAdjusted = end.isBefore(start) || end.isAtSameMomentAs(start)
-        ? end.add(const Duration(days: 1))
-        : end;
+
+    if (end.isAtSameMomentAs(start)) return 0;
+    // end before start → schedule wraps midnight (e.g. 23:00 → 02:00).
+    final endAdjusted =
+        end.isBefore(start) ? end.add(const Duration(days: 1)) : end;
     return endAdjusted.difference(start).inMinutes;
   }
 
@@ -870,27 +941,27 @@ class ScheduleFormState extends State<ScheduleForm> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
-  void _onTimePicked(TimeOfDay t, bool isStart) => setState(() {
-        if (isStart) {
-          startHour = t.hour;
-          startMinute = t.minute;
-          // Only reset end time when the new start is >= current end (which
-          // would otherwise produce a zero/negative duration). If the end is
-          // still later than the new start, keep what the user already picked.
-          final newStart = DateTime(startDate.year, startDate.month,
-              startDate.day, startHour, startMinute);
-          final currentEnd = DateTime(endDate.year, endDate.month, endDate.day,
-              endHour, endMinute);
-          if (!currentEnd.isAfter(newStart)) {
-            endHour = 0;
-            endMinute = 0;
-          }
-        } else {
-          endHour = t.hour;
-          endMinute = t.minute;
+  void _onTimePicked(TimeOfDay t, bool isStart) {
+    setState(() {
+      if (isStart) {
+        startHour = t.hour;
+        startMinute = t.minute;
+        final newStart = DateTime(startDate.year, startDate.month,
+            startDate.day, startHour, startMinute);
+        final currentEnd = DateTime(
+            endDate.year, endDate.month, endDate.day, endHour, endMinute);
+        if (!currentEnd.isAfter(newStart)) {
+          endHour = 0;
+          endMinute = 0;
         }
-        if (cyclicMode) _clampCyclicDurations();
-      });
+      } else {
+        endHour = t.hour;
+        endMinute = t.minute;
+      }
+      if (cyclicMode) _clampCyclicDurations();
+    });
+    widget.onChanged?.call();
+  }
 
   void _openTimePicker(bool isStart) {
     TimeOfDay? minTime;
@@ -911,71 +982,96 @@ class ScheduleFormState extends State<ScheduleForm> {
     );
   }
 
-  Future<void> _openCalendarDialog() async {
+  CalendarDatePicker2WithActionButtonsConfig _scheduleFormCalendarConfig({
+    required DateTime firstDate,
+    required DateTime lastDate,
+  }) {
+    return CalendarDatePicker2WithActionButtonsConfig(
+      calendarType: CalendarDatePicker2Type.single,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      selectedDayHighlightColor: const Color(0xFF004E7E),
+      selectedDayTextStyle:
+          const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      todayTextStyle: const TextStyle(
+          color: Color(0xFF004E7E), fontWeight: FontWeight.w600),
+      dayTextStyle: const TextStyle(
+          color: Color(0xFF0F172A), fontWeight: FontWeight.w400),
+      disabledDayTextStyle: const TextStyle(color: Color(0xFFB0B8C4)),
+      weekdayLabelTextStyle: const TextStyle(
+          color: Color(0xFF94A3B8), fontWeight: FontWeight.w500, fontSize: 12),
+      controlsTextStyle: const TextStyle(
+          color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 14),
+      lastMonthIcon:
+          const Icon(Icons.chevron_left_rounded, color: Color(0xFF004E7E)),
+      nextMonthIcon:
+          const Icon(Icons.chevron_right_rounded, color: Color(0xFF004E7E)),
+      okButtonTextStyle: const TextStyle(
+          color: Color(0xFF004E7E), fontWeight: FontWeight.w600, fontSize: 14),
+      cancelButtonTextStyle: const TextStyle(
+          color: Color(0xFF64748B), fontWeight: FontWeight.w500, fontSize: 14),
+    );
+  }
+
+  Future<void> _openStartDatePicker() async {
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
-    // Max end = start + 14 days → 15 days total; dates beyond are disabled
+    final results = await showCalendarDatePicker2Dialog(
+      context: context,
+      config: _scheduleFormCalendarConfig(
+        firstDate: todayNorm,
+        lastDate: DateTime(todayNorm.year + 2),
+      ),
+      dialogSize: const Size(340, 350),
+      value: [startDate],
+      borderRadius: BorderRadius.circular(16),
+    );
+    if (results == null || results.isEmpty || !mounted) return;
+    final picked = results[0];
+    if (picked == null) return;
+    setState(() {
+      startDate = picked;
+      final maxEnd = picked.add(const Duration(days: 14));
+      if (endDate.isBefore(picked)) {
+        endDate = picked;
+      } else if (endDate.isAfter(maxEnd)) {
+        endDate = maxEnd;
+      }
+      selectedDays.retainWhere((d) => _validDays.contains(d));
+      if (_isStartDateToday) {
+        final now = DateTime.now();
+        startHour = now.hour;
+        startMinute = now.minute;
+      } else {
+        startHour = 0;
+        startMinute = 0;
+      }
+      endHour = 0;
+      endMinute = 0;
+    });
+    widget.onChanged?.call();
+  }
+
+  Future<void> _openEndDatePicker() async {
     final maxEnd = startDate.add(const Duration(days: 14));
     final results = await showCalendarDatePicker2Dialog(
       context: context,
-      config: CalendarDatePicker2WithActionButtonsConfig(
-        calendarType: CalendarDatePicker2Type.range,
-        firstDate: todayNorm,
+      config: _scheduleFormCalendarConfig(
+        firstDate: startDate,
         lastDate: maxEnd,
-        selectedDayHighlightColor: const Color(0xFF004E7E),
-        selectedRangeHighlightColor: const Color(0xFFEBF3FE),
-        selectedDayTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        todayTextStyle: const TextStyle(
-            color: Color(0xFF004E7E), fontWeight: FontWeight.w600),
-        dayTextStyle: const TextStyle(
-            color: Color(0xFF0F172A), fontWeight: FontWeight.w400),
-        disabledDayTextStyle: const TextStyle(color: Color(0xFFB0B8C4)),
-        weekdayLabelTextStyle: const TextStyle(
-            color: Color(0xFF94A3B8),
-            fontWeight: FontWeight.w500,
-            fontSize: 12),
-        controlsTextStyle: const TextStyle(
-            color: Color(0xFF0F172A),
-            fontWeight: FontWeight.w600,
-            fontSize: 14),
-        lastMonthIcon:
-            const Icon(Icons.chevron_left_rounded, color: Color(0xFF004E7E)),
-        nextMonthIcon:
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF004E7E)),
-        okButtonTextStyle: const TextStyle(
-            color: Color(0xFF004E7E),
-            fontWeight: FontWeight.w600,
-            fontSize: 14),
-        cancelButtonTextStyle: const TextStyle(
-            color: Color(0xFF64748B),
-            fontWeight: FontWeight.w500,
-            fontSize: 14),
       ),
       dialogSize: const Size(340, 350),
-      value: [startDate, endDate],
+      value: [endDate],
       borderRadius: BorderRadius.circular(16),
     );
-    if (results != null && results.isNotEmpty && mounted) {
-      setState(() {
-        startDate = results[0] ?? startDate;
-        final rawEnd =
-            results.length > 1 ? (results[1] ?? startDate) : startDate;
-        final endLimit = startDate.add(const Duration(days: 14));
-        endDate = rawEnd.isAfter(endLimit) ? endLimit : rawEnd;
-        selectedDays.retainWhere((d) => _validDays.contains(d));
-        if (_isStartDateToday) {
-          final now = DateTime.now();
-          startHour = now.hour;
-          startMinute = now.minute;
-        } else {
-          startHour = 0;
-          startMinute = 0;
-        }
-        endHour = 0;
-        endMinute = 0;
-      });
-    }
+    if (results == null || results.isEmpty || !mounted) return;
+    final picked = results[0];
+    if (picked == null) return;
+    setState(() {
+      endDate = picked;
+      selectedDays.retainWhere((d) => _validDays.contains(d));
+    });
+    widget.onChanged?.call();
   }
 
   void _toggleDay(int dayNum) {
@@ -986,9 +1082,8 @@ class ScheduleFormState extends State<ScheduleForm> {
         selectedDays.add(dayNum);
       }
     });
+    widget.onChanged?.call();
   }
-
-  // ── Form content ─────────────────────────────────────────────────────────
 
   Widget _buildFormContent() {
     return Column(
@@ -1092,12 +1187,12 @@ class ScheduleFormState extends State<ScheduleForm> {
           onBack: widget.onBack,
           onSave: widget.onSave,
           isEditMode: widget.isEditMode,
+          // Block save until the user has set a real start/end time pair.
+          saveEnabled: durationMinutes > 0,
         ),
       ],
     );
   }
-
-  // ── Date Card ───────────────────────────────────────────────────────────────
 
   Widget _buildDateCard() {
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1132,7 +1227,7 @@ class ScheduleFormState extends State<ScheduleForm> {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: _openCalendarDialog,
+                  onTap: _openStartDatePicker,
                   child: _buildDateBox('Start', startDate),
                 ),
               ),
@@ -1143,81 +1238,123 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
               Expanded(
                 child: GestureDetector(
-                  onTap: _openCalendarDialog,
+                  onTap: _openEndDatePicker,
                   child: _buildDateBox('End', endDate),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                'Range',
-                style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF94A3B8),
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$_activeDays ${_activeDays == 1 ? 'day' : 'days'} active',
+          if (selectedDays.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'Range',
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF004E7E),
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF94A3B8),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final valid = _validDays.contains(i);
-              final isActive = selectedDays.contains(i);
-              return GestureDetector(
-                onTap: valid ? () => _toggleDay(i) : null,
-                child: Opacity(
-                  opacity: valid ? 1.0 : 0.35,
-                  child: Container(
-                    width: 34,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFEBF3FE)
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: isActive
-                            ? const Color(0xFF3686AF)
-                            : const Color(0xFFCBD5E1),
-                        width: 1.2,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        dayLabels[i],
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive
-                              ? const Color(0xFF004E7E)
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEBF3FE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$_activeDays ${_activeDays == 1 ? 'day' : 'days'} active',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
                     ),
                   ),
                 ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, right: 4),
+            child: Builder(builder: (_) {
+              final counts = _dayCounts;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(7, (i) {
+                  final valid = _validDays.contains(i);
+                  final isActive = selectedDays.contains(i);
+                  final count = counts[i] ?? 0;
+                  return GestureDetector(
+                    onTap: valid ? () => _toggleDay(i) : null,
+                    child: Opacity(
+                      opacity: valid ? 1.0 : 0.35,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? const Color(0xFFEBF3FE)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: isActive
+                                    ? const Color(0xFF3686AF)
+                                    : const Color(0xFFCBD5E1),
+                                width: 1.2,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Center(
+                              child: Text(
+                                dayLabels[i],
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 10,
+                                  fontWeight: isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isActive
+                                      ? const Color(0xFF004E7E)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isActive && count > 1)
+                            Positioned(
+                              top: -7,
+                              right: -6,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 14),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 3, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF004E7E),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.white, width: 1),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
               );
             }),
           ),
@@ -1258,8 +1395,6 @@ class ScheduleFormState extends State<ScheduleForm> {
       ),
     );
   }
-
-  // ── Timing Card ─────────────────────────────────────────────────────────────
 
   Widget _buildTimingCard() {
     return Container(

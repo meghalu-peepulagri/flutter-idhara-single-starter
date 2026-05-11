@@ -165,7 +165,19 @@ class MotorCardDialogs {
     int newModeIndex,
     Function(int) onConfirm,
   ) {
-    final modeName = newModeIndex == 1 ? 'Auto' : 'Manual';
+    // Mode index: 0 = Manual, 1 = Auto, 2 = Schedule.
+    final modeName = newModeIndex == 1
+        ? 'Auto'
+        : newModeIndex == 2
+            ? 'Schedule'
+            : 'Manual';
+    // Match the toggle's per-mode accent: orange (Auto), deep-blue
+    // (Schedule), light-blue (Manual).
+    final modeColor = newModeIndex == 1
+        ? const Color(0xFFFFA500)
+        : newModeIndex == 2
+            ? const Color(0xFF004E7E)
+            : const Color(0xFF2F80ED);
     return showDialog(
       context: context,
       barrierDismissible: false,
@@ -231,9 +243,7 @@ class MotorCardDialogs {
                           style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: newModeIndex == 1
-                                ? const Color(0xFFFFA500)
-                                : const Color(0xFF2F80ED),
+                            color: modeColor,
                           ),
                         ),
                       ],

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:i_dhara/app/core/utils/dialogs/popup_dialog.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/presentation/modules/schedules/schedule_dialogs.dart';
 
 class ScheduleCard extends StatelessWidget {
   final Record record;
@@ -13,8 +14,6 @@ class ScheduleCard extends StatelessWidget {
   final bool showEditAction;
   final bool showDeleteAction;
   final bool disableToggle;
-  // Called when the user taps Cancel in the confirm dialog. Used to abort
-  // any in-flight MQTT retry loop for this schedule's stop/restart/delete.
   final void Function(Record record)? onCancelAction;
   const ScheduleCard(
       {super.key,
@@ -36,29 +35,30 @@ class ScheduleCard extends StatelessWidget {
     final dH = durationMin ~/ 60;
     final dM = durationMin % 60;
     final status = record.scheduleStatus ?? 'unknown';
-    // Toggle switch state mirrors the backend's `enabled` field directly.
-    // The backend flips `enabled` on stop/restart, so after a refresh the
-    // switch position always matches what the server believes — no fragile
-    // string-matching against the multi-valued schedule_status enum.
+
     final isActive = record.enabled ?? false;
-    // Pending schedules haven't been acked by the device yet — toggling them
-    // would queue a stop/restart on top of an unconfirmed create. Force the
-    // switch off until the status moves out of PENDING.
+
     final normalizedStatus = status.toLowerCase();
     final isPending = normalizedStatus == 'pending';
-    // Remaining / Run Time only make sense once the schedule is actually
-    // ticking. For every other state (pending, scheduled, stopped, completed)
-    // the value is either zero or stale, so hide the secondary info item.
+
     final isRunning = normalizedStatus == 'running';
-    // COMPLETED is terminal — toggling or editing it can't change anything.
-    // Keep delete enabled so the user can clear finished rows.
+    final isPartial = normalizedStatus == 'partial';
+
     final isCompleted = normalizedStatus == 'completed';
     final toggleDisabled = disableToggle || isPending || isCompleted;
-    final editDisabled = isRunning || isCompleted;
+
+    final editDisabled = isRunning || isCompleted || isPending;
+    final deleteDisabled = isRunning || isPending;
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
         isCyclic ? (record.cycleOffMinutes as num?)?.toInt() ?? 0 : 0;
+    // Backend returns actual_run_time as minutes once the device starts
+    // running this schedule. Surface it for any status that has elapsed
+    // run time on the device — running / partial / completed.
+    final actualRunMin = record.actualRunTime ?? 0;
+    final showRunTime =
+        (isRunning || isPartial || isCompleted) && actualRunMin > 0;
     final switchController = ValueNotifier<bool>(isActive);
 
     return Container(
@@ -103,216 +103,205 @@ class ScheduleCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (record.powerLossRecovery == true) ...[
+                const _BlinkingPowerIcon(),
+                const SizedBox(width: 6),
+              ],
               _statusDot(status, isActive),
             ],
           ),
-          // const SizedBox(height: 8),
-          // const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
-          // ── Info section ──
+
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: isCyclic
-                ? _buildCyclicInfo(dH, dM, durationMin, onMin, offMin, isRunning)
-                : _buildTimeBasedInfo(dH, dM),
+                ? _buildCyclicInfo(dH, dM, durationMin, onMin, offMin,
+                    showRunTime, actualRunMin)
+                : _buildTimeBasedInfo(dH, dM, showRunTime, actualRunMin),
           ),
           if (!disableToggle || showEditAction || showDeleteAction) ...[
-          const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
-          const SizedBox(height: 8),
+            const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (!disableToggle) ...[
+                  Text(isActive ? 'Stop' : 'Restart',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: toggleDisabled
+                              ? const Color(0xFFB0B0B0)
+                              : const Color(0xFF57636C))),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 25,
+                    child: Tooltip(
+                      message: toggleDisabled
+                          ? (isPending
+                              ? 'Pending — wait for device acknowledgement or republish from Manage'
+                              : 'Schedule is completed')
+                          : '',
+                      triggerMode: toggleDisabled
+                          ? TooltipTriggerMode.tap
+                          : TooltipTriggerMode.manual,
+                      showDuration: const Duration(seconds: 3),
+                      preferBelow: false,
+                      textStyle: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF004E7E),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      child: GestureDetector(
+                        onTap: toggleDisabled
+                            ? null
+                            : () async {
+                                final newValue = !switchController.value;
 
-          Row(
-            children: [
-              if (!disableToggle) ...[
-              Text('Enable',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: toggleDisabled
-                          ? const Color(0xFFB0B0B0)
-                          : const Color(0xFF57636C))),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 25,
-                child: GestureDetector(
-                  onTap: toggleDisabled
-                      ? null
-                      : () {
-                          final newValue = !switchController.value;
-                          // Single-pop guard: cancel-tap and confirm-completion both
-                          // try to pop the dialog. Without this flag the second pop
-                          // fires after the dialog is already gone and tears down
-                          // the underlying schedules screen → black screen.
-                          bool dismissed = false;
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (dialogCtx) => PopupDialog(
-                              title: newValue
-                                  ? 'Restart Schedule'
-                                  : 'Stop Schedule',
-                              description: newValue
-                                  ? 'Are you sure you want to restart this schedule?'
-                                  : 'Are you sure you want to stop this schedule?',
-                              iconAssetPath: 'assets/images/schedule.svg',
-                              buttonlable: newValue ? 'Restart' : 'Stop',
-                              isactive: newValue,
-                              onDelete: () async {
                                 final success =
-                                    await onToggle?.call(record, newValue) ??
-                                        false;
-                                if (dismissed) return;
-                                dismissed = true;
-                                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                    await showScheduleActionConfirmDialog(
+                                  context: context,
+                                  title: newValue
+                                      ? 'Restart Schedule'
+                                      : 'Stop Schedule',
+                                  description: newValue
+                                      ? 'Are you sure you want to restart this schedule?'
+                                      : 'Are you sure you want to stop this schedule?',
+                                  iconAssetPath: 'assets/images/schedule.svg',
+                                  buttonLabel: newValue ? 'Restart' : 'Stop',
+                                  isActive: newValue,
+                                  onConfirm: () async =>
+                                      await onToggle?.call(record, newValue) ??
+                                      false,
+                                  onCancelWhileWaiting: () =>
+                                      onCancelAction?.call(record),
+                                );
                                 if (success) switchController.value = newValue;
                               },
-                              onCancel: () {
-                                if (dismissed) return;
-                                dismissed = true;
-                                // Abort the in-flight MQTT retry loop before
-                                // dismissing — otherwise stop/restart payloads keep
-                                // being republished after the user backs out.
-                                onCancelAction?.call(record);
-                                Navigator.pop(dialogCtx);
-                              },
-                            ),
-                          );
-                        },
-                  child: AbsorbPointer(
-                    child: AdvancedSwitch(
-                      controller: switchController,
-                      initialValue: isActive,
-                      activeColor:
-                          toggleDisabled // ← dim the switch when disabled
-                              ? const Color(0xFFB0B0B0)
-                              : const Color(0xFF34C759),
-                      inactiveColor: const Color(0xFFE0E0E0),
-                      borderRadius: const BorderRadius.all(Radius.circular(15)),
-                      width: 46,
-                      height: 24,
-                      enabled: true,
+                        child: AbsorbPointer(
+                          child: AdvancedSwitch(
+                            controller: switchController,
+                            initialValue: isActive,
+                            activeColor: toggleDisabled
+                                ? const Color(0xFFB0B0B0)
+                                : const Color(0xFF34C759),
+                            inactiveColor: const Color(0xFFE0E0E0),
+                            borderRadius:
+                                const BorderRadius.all(Radius.circular(15)),
+                            width: 46,
+                            height: 24,
+                            enabled: true,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              ],
-              const Spacer(),
-              if (showEditAction) ...[
-                Opacity(
-                  opacity: editDisabled ? 0.4 : 1.0,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    onTap: editDisabled ? null : () => onEdit?.call(record),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: editDisabled
-                            ? const Color(0xFFF1F5F9)
-                            : const Color(0xFFEBF3FE),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(Icons.edit_outlined,
-                          size: 16,
-                          color: editDisabled
-                              ? const Color(0xFFB0B0B0)
-                              : const Color(0xFF004E7E)),
-                    ),
-                  ),
-                ),
-              ],
-              if (showEditAction && showDeleteAction) const SizedBox(width: 8),
-              if (showDeleteAction)
-                Opacity(
-                  opacity: isRunning ? 0.4 : 1.0,
-                  child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: isRunning ? null : () {
-                    // Single-pop guard: cancel-tap and confirm-completion both
-                    // try to pop the dialog. Without this flag the second pop
-                    // fires after the dialog is already gone and tears down
-                    // the underlying schedules screen → black screen.
-                    bool dismissed = false;
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (dialogCtx) => PopupDialog(
-                        title: 'Delete Schedule',
-                        description:
-                            'This schedule will be deleted permanently. Do you wish to go ahead?',
-                        iconAssetPath: 'assets/images/schedule.svg',
-                        buttonlable: 'Delete',
-                        onDelete: () async {
-                          await onDelete?.call(record);
-                          if (dismissed) return;
-                          dismissed = true;
-                          if (dialogCtx.mounted) {
-                            Navigator.pop(dialogCtx);
-                          }
-                        },
-                        onCancel: () {
-                          if (dismissed) return;
-                          dismissed = true;
-                          // Abort the in-flight MQTT retry loop before
-                          // dismissing — otherwise the delete payload keeps
-                          // being republished after the user backs out.
-                          onCancelAction?.call(record);
-                          Navigator.pop(dialogCtx);
-                        },
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: isRunning
-                          ? const Color(0xFFF1F5F9)
-                          : const Color(0xFFFFEBEE),
+                ],
+                const Spacer(),
+                if (showEditAction) ...[
+                  Opacity(
+                    opacity: editDisabled ? 0.4 : 1.0,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(6),
+                      onTap: editDisabled ? null : () => onEdit?.call(record),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: editDisabled
+                              ? const Color(0xFFF1F5F9)
+                              : const Color(0xFFEBF3FE),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.edit_outlined,
+                            size: 16,
+                            color: editDisabled
+                                ? const Color(0xFFB0B0B0)
+                                : const Color(0xFF004E7E)),
+                      ),
                     ),
-                    child: Icon(Icons.delete_outline_rounded,
-                        size: 16,
-                        color: isRunning
-                            ? const Color(0xFFB0B0B0)
-                            : const Color(0xFFE53935)),
                   ),
-                ),
-                ),
-            ],
-          ),
+                ],
+                if (showEditAction && showDeleteAction)
+                  const SizedBox(width: 8),
+                if (showDeleteAction)
+                  Opacity(
+                    opacity: deleteDisabled ? 0.4 : 1.0,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: deleteDisabled
+                          ? null
+                          : () async {
+                              await showScheduleActionConfirmDialog(
+                                context: context,
+                                title: 'Delete Schedule',
+                                description:
+                                    'This schedule will be deleted permanently. Do you wish to go ahead?',
+                                iconAssetPath: 'assets/images/schedule.svg',
+                                buttonLabel: 'Delete',
+                                onConfirm: () async =>
+                                    await onDelete?.call(record) ?? false,
+                                onCancelWhileWaiting: () =>
+                                    onCancelAction?.call(record),
+                              );
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: deleteDisabled
+                              ? const Color(0xFFF1F5F9)
+                              : const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.delete_outline_rounded,
+                            size: 16,
+                            color: deleteDisabled
+                                ? const Color(0xFFB0B0B0)
+                                : const Color(0xFFE53935)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildTimeBasedInfo(int dH, int dM) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.all(Radius.circular(8)),
-          ),
-          child: Row(
-            children: [
-              _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
-            ],
-          ),
-        ),
-        if (record.powerLossRecovery == true) ...[
-          const SizedBox(height: 6),
-          _powerRecoveryBadge(),
+  Widget _buildTimeBasedInfo(
+      int dH, int dM, bool showRunTime, int actualRunMin) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+      ),
+      child: Row(
+        children: [
+          _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
+          if (showRunTime) ...[
+            const SizedBox(width: 12),
+            _infoItem('Run Time', _formatRunTime(actualRunMin)),
+          ],
         ],
-      ],
+      ),
     );
   }
 
   Widget _buildCyclicInfo(int dH, int dM, int durationMin, int onMin,
-      int offMin, bool isRunning) {
-    final accSec = record.accumulatedOnSeconds ?? 0;
-    final runMin = accSec ~/ 60;
-    final runH = runMin ~/ 60;
-    final runM = runMin % 60;
+      int offMin, bool showRunTime, int actualRunMin) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -327,10 +316,9 @@ class ScheduleCard extends StatelessWidget {
           child: Row(
             children: [
               _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
-              if (isRunning) ...[
+              if (showRunTime) ...[
                 const SizedBox(width: 12),
-                _infoItem(
-                    'Run Time', '${runH}h ${runM.toString().padLeft(2, '0')}m'),
+                _infoItem('Run Time', _formatRunTime(actualRunMin)),
               ],
             ],
           ),
@@ -352,9 +340,6 @@ class ScheduleCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // const Icon(Icons.local_fire_department_rounded,
-                      //     size: 14, color: Color(0xFFFF9800)),
-                      // const SizedBox(width: 4),
                       Text('ON',
                           style: GoogleFonts.dmSans(
                               fontSize: 12,
@@ -423,22 +408,6 @@ class ScheduleCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _powerRecoveryBadge() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.power_rounded, size: 11, color: Color(0xFFFF9800)),
-            const SizedBox(width: 2),
-            Text('Power Recovery',
-                style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFFF9800))),
-          ],
-        ),
-      );
 
   Widget _statusDot(String status, bool isActive) {
     final normalizedStatus = status.toLowerCase();
@@ -520,4 +489,61 @@ class ScheduleCard extends StatelessWidget {
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  /// Renders [actual_run_time] (in minutes) as either `13m` (under an hour)
+  /// or `1h 13m` (one hour or more) so short runs read naturally without a
+  /// noisy `0h` prefix.
+  String _formatRunTime(int totalMinutes) {
+    if (totalMinutes < 60) return '${totalMinutes}m';
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    return '${h}h ${m.toString().padLeft(2, '0')}m';
+  }
+}
+
+class _BlinkingPowerIcon extends StatefulWidget {
+  const _BlinkingPowerIcon();
+
+  @override
+  State<_BlinkingPowerIcon> createState() => _BlinkingPowerIconState();
+}
+
+class _BlinkingPowerIconState extends State<_BlinkingPowerIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SvgPicture.asset(
+        'assets/images/power.svg',
+        width: 16,
+        height: 16,
+        colorFilter: const ColorFilter.mode(
+          Color(0xFFFF9800),
+          BlendMode.srcIn,
+        ),
+      ),
+    );
+  }
 }

@@ -91,8 +91,23 @@ class _MotorModeTabState extends State<MotorModeTab> {
                     ValueListenableBuilder<int>(
                       valueListenable: _modeNotifier,
                       builder: (context, currentModeIndex, child) {
-                        final isAuto = currentModeIndex == 1;
-                        final int uiIndex = isAuto ? 0 : 1;
+                        // Controller mode index: 0 = Manual, 1 = Auto,
+                        // 2 = Schedule. Toggle UI order: Auto, Manual,
+                        // Schedule (Auto first because it's the most-used
+                        // mode and matches the prior 2-segment layout).
+                        int uiForMode(int m) {
+                          if (m == 1) return 0; // Auto
+                          if (m == 0) return 1; // Manual
+                          return 2; // Schedule
+                        }
+
+                        int modeForUi(int u) {
+                          if (u == 0) return 1; // Auto
+                          if (u == 1) return 0; // Manual
+                          return 2; // Schedule
+                        }
+
+                        final int uiIndex = uiForMode(currentModeIndex);
 
                         return Obx(() {
                           final isDisabled =
@@ -104,7 +119,9 @@ class _MotorModeTabState extends State<MotorModeTab> {
                               ToggleSwitch(
                                 key: ValueKey('mode_toggle_$currentModeIndex'),
                                 changeOnTap: false,
-                                customWidths: const [90, 90],
+                                // Schedule's label is wider than Auto/Manual,
+                                // so give it a touch more room.
+                                customWidths: const [85, 85, 100],
                                 radiusStyle: true,
                                 minWidth: 80.0,
                                 minHeight: 30.0,
@@ -113,7 +130,8 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                 activeBgColors: !isDisabled
                                     ? [
                                         [const Color(0xFFFFA500)],
-                                        [const Color(0xFF2F80ED)]
+                                        [const Color(0xFF2F80ED)],
+                                        [const Color(0xFF8B5CF6)],
                                       ]
                                     : [
                                         [
@@ -124,21 +142,25 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                           const Color(0xFF2F80ED)
                                               .withValues(alpha: 0.3)
                                         ],
+                                        [
+                                          const Color(0xFF8B5CF6)
+                                              .withValues(alpha: 0.3)
+                                        ],
                                       ],
                                 activeFgColor:
                                     !isDisabled ? Colors.white : Colors.black54,
                                 inactiveBgColor: Colors.white,
                                 inactiveFgColor: Colors.black,
                                 fontSize: 12,
-                                totalSwitches: 2,
-                                labels: const ['Auto', 'Manual'],
+                                totalSwitches: 3,
+                                labels: const ['Auto', 'Manual', 'Schedule'],
                                 borderWidth: 1,
                                 borderColor: [Colors.grey.shade300],
                                 onToggle: !isDisabled
                                     ? (index) {
                                         if (index == null || _isDialogOpen)
                                           return;
-                                        final newModeIndex = index == 0 ? 1 : 0;
+                                        final newModeIndex = modeForUi(index);
                                         if (newModeIndex != currentModeIndex) {
                                           setState(() => _isDialogOpen = true);
                                           MotorCardDialogs.showModeChangeDialog(

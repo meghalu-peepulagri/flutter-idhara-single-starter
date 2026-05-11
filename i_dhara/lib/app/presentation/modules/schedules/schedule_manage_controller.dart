@@ -35,7 +35,7 @@ class ScheduleManageController extends GetxController {
     super.onInit();
     final today = _normalize(DateTime.now());
     fromDate = today.obs;
-    toDate = today.obs;
+    toDate = today.add(const Duration(days: 14)).obs;
     scrollController.addListener(_onScroll);
     fetchSchedules();
   }
@@ -184,6 +184,13 @@ class ScheduleManageController extends GetxController {
     }
   }
 
+  // The bulk methods below intentionally do NOT clear selection on completion.
+  // The dialog allows a one-shot Retry on ACK timeout, and Retry re-runs the
+  // same bulk method — if the selection were cleared after the first attempt,
+  // the second call would see an empty `selectedRecords` and return `false`
+  // immediately. The caller (schedule_manage_page) clears the selection in
+  // its `.then()` after the dialog finally closes.
+
   Future<bool> deleteSelectedSchedules(
       MotorScheduleController motorScheduleController) async {
     final records = selectedRecords;
@@ -192,7 +199,6 @@ class ScheduleManageController extends GetxController {
     final success = await motorScheduleController.deleteBulkSchedules(records);
     isLoading.value = true;
     await fetchSchedules();
-    clearSelection();
     return success;
   }
 
@@ -207,7 +213,6 @@ class ScheduleManageController extends GetxController {
         await motorScheduleController.toggleBulkSchedules(records, enabled);
     isLoading.value = true;
     await fetchSchedules();
-    clearSelection();
     return success;
   }
 
@@ -216,11 +221,23 @@ class ScheduleManageController extends GetxController {
     final records = selectedRecords;
     if (records.isEmpty) return false;
 
+    // idx=1 means "first publish — device has nothing yet", idx=2 means
+    // "device already holds at least one accepted schedule, append to it".
+    // We're republishing PENDING schedules, but the decision depends on the
+    // OTHER schedules in the list: if any non-PENDING schedule exists for
+    // this motor (SCHEDULED / RUNNING / STOPPED / COMPLETED), the device has
+    // active slots and idx must be 2. Only when every loaded schedule is
+    // PENDING do we treat this as a fresh-create and send idx=1.
+    final allPending = schedules.every(
+      (r) => (r.scheduleStatus ?? '').toUpperCase() == 'PENDING',
+    );
+    final idx = allPending ? 1 : 2;
+
     // Blocks until device ACK received (or timeout) — dialog stays open with loading
-    final success = await motorScheduleController.republishSchedules(records);
+    final success =
+        await motorScheduleController.republishSchedules(records, idx: idx);
     isLoading.value = true;
     await fetchSchedules();
-    clearSelection();
     return success;
   }
 

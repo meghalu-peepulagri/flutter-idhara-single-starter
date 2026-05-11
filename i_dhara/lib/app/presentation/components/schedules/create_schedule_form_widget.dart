@@ -265,12 +265,18 @@ class ScheduleFormBottomBar extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onSave;
   final bool isEditMode;
+  // When false, the Save/Update button greys out and ignores taps. Driven
+  // by the form's durationMinutes — disables until the user picks valid
+  // start/end times.
+  final bool saveEnabled;
 
-  const ScheduleFormBottomBar(
-      {super.key,
-      required this.onBack,
-      required this.onSave,
-      this.isEditMode = false});
+  const ScheduleFormBottomBar({
+    super.key,
+    required this.onBack,
+    required this.onSave,
+    this.isEditMode = false,
+    this.saveEnabled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -310,23 +316,29 @@ class ScheduleFormBottomBar extends StatelessWidget {
             child: Container(
               height: 48,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight),
+                gradient: saveEnabled
+                    ? const LinearGradient(
+                        colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight)
+                    : null,
+                color: saveEnabled ? null : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                      color: const Color(0xFF004E7E).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4))
-                ],
+                boxShadow: saveEnabled
+                    ? [
+                        BoxShadow(
+                            color:
+                                const Color(0xFF004E7E).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4))
+                      ]
+                    : null,
               ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
-                  onTap: onSave,
+                  onTap: saveEnabled ? onSave : null,
                   child: Center(
                     child: Text(
                         isEditMode ? 'Update Schedule' : 'Save Schedule',

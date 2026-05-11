@@ -72,14 +72,15 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     final response =
         await NetworkManager().post('/motor-schedules', data: body, {});
 
-    if (response.statusCode == 200 ||
-        response.statusCode == 422 ||
-        response.statusCode == 201) {
-      final res = CreateScheduleResponse.fromJson(response.data);
-      return res;
-    } else {
-      return null;
+    // Parse whenever the server returned a JSON body (success or failure
+    // both follow the same `{ success, message, errors }` shape). The dio
+    // interceptor passes the response through for 4xx/5xx, so parsing here
+    // is what lets the controller surface the backend's specific message
+    // (e.g. 409 overlap) instead of silently returning null.
+    if (response.data is Map) {
+      return CreateScheduleResponse.fromJson(response.data);
     }
+    return null;
   }
 
   @override

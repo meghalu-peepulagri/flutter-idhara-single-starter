@@ -47,6 +47,14 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     mqttService.dataUpdateNotifier.addListener(_onMqttDataUpdate);
 
+    _modeAckErrorSubscription?.cancel();
+    _modeAckErrorSubscription =
+        mqttService.modeAckErrorStream.listen((event) {
+      if (!_hasPendingModeCommand) return;
+      final code = event['code'];
+      if (code is int) handleModeAckError(code);
+    });
+
     // Check if we have data
     if (kDebugMode) {
       final motorData = getMotorData();
@@ -114,7 +122,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
           // Force UI update
           localModeIndex.value = mqttMode!;
-          motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
+          motorMode.value = _labelForMode(mqttMode);
         } else {
           if (kDebugMode) {}
         }
@@ -123,7 +131,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         if (mqttMode != null && localModeIndex.value != mqttMode) {
           if (kDebugMode) {}
           localModeIndex.value = mqttMode;
-          motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
+          motorMode.value = _labelForMode(mqttMode);
         }
       }
 
@@ -247,7 +255,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
           mqttService.clearPendingModeCommand(mId);
         }
         localModeIndex.value = previousValue;
-        motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
+        motorMode.value = _labelForMode(previousValue);
         _hasPendingModeCommand = false;
         _pendingModeValue = null;
         isWaitingForModeAck.value = false;
@@ -267,6 +275,20 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     }
   }
 
+  // UI uses index 2 for Schedule, but the device protocol expects D:6 on
+  // T:2 / T:32. Translate at the publish boundary; ACK side is mirrored in
+  // MqttService._handleModeChangeAck.
+  int _deviceCodeForUiMode(int uiIndex) =>
+      uiIndex == MqttService.scheduleModeUiIndex
+          ? MqttService.scheduleModeDeviceCode
+          : uiIndex;
+
+  String _labelForMode(int index) {
+    if (index == 1) return 'Auto';
+    if (index == MqttService.scheduleModeUiIndex) return 'Schedule';
+    return 'Manual';
+  }
+
   Future<void> handleModeChange(int newModeIndex) async {
     if (!mqttInitialized || isWaitingForModeAck.value) return;
 
@@ -283,22 +305,48 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     // Optimistically update UI
     isWaitingForModeAck.value = true;
     localModeIndex.value = newModeIndex;
-    motorMode.value = newModeIndex == 1 ? 'Auto' : 'Manual';
+    motorMode.value = _labelForMode(newModeIndex);
     _hasPendingModeCommand = true;
     _pendingModeValue = newModeIndex;
 
     _startModeAckTimer(previousValue);
 
     try {
-      await mqttService.publishModeCommand(mId, newModeIndex);
+      await mqttService.publishModeCommand(
+          mId, _deviceCodeForUiMode(newModeIndex));
     } catch (e) {
       _modeAckTimer?.cancel();
       mqttService.clearPendingModeCommand(mId);
       localModeIndex.value = previousValue;
-      motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
+      motorMode.value = _labelForMode(previousValue);
       _hasPendingModeCommand = false;
       _pendingModeValue = null;
       isWaitingForModeAck.value = false;
     }
+  }
+
+  void handleModeAckError(int code) {
+    final mId = _getMotorId();
+    if (mId.isNotEmpty) {
+      mqttService.clearPendingModeCommand(mId);
+    }
+    _modeAckTimer?.cancel();
+
+    // Revert the optimistic toggle. _pendingModeValue is the index we
+    // optimistically switched to; we don't track the previous value here,
+    // so fall back to whatever modeIndex the device last reported.
+    final motorData = getMotorData();
+    final deviceMode = motorData?.modeIndex;
+    if (deviceMode != null && deviceMode != localModeIndex.value) {
+      localModeIndex.value = deviceMode;
+      motorMode.value = _labelForMode(deviceMode);
+    }
+
+    _hasPendingModeCommand = false;
+    _pendingModeValue = null;
+    isWaitingForModeAck.value = false;
+
+    final msg = MqttService.modeAckErrorMessage(code) ?? 'Mode change failed';
+    geterrorSnackBar(msg);
   }
 }

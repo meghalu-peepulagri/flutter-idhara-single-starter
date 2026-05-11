@@ -8,6 +8,7 @@ import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/device_status_history_model.dart';
@@ -90,10 +91,11 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   // --- MQTT Protocol Variables ---
   late MqttService mqttService;
   bool mqttInitialized = false;
-  var localModeIndex = 1.obs; // 0 = Manual, 1 = Auto
+  var localModeIndex = 1.obs; // 0 = Manual, 1 = Auto, 2 = Schedule
   bool _hasPendingModeCommand = false;
   int? _pendingModeValue;
   Timer? _modeAckTimer;
+  StreamSubscription? _modeAckErrorSubscription;
   static const Duration _ackTimeout = Duration(seconds: 13);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = false.obs;
@@ -170,6 +172,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   @override
   void onClose() {
     _modeAckTimer?.cancel();
+    _modeAckErrorSubscription?.cancel();
     _mqttUpdateSubscription?.cancel();
     if (mqttInitialized) {
       mqttService.dataUpdateNotifier.removeListener(_onMqttDataUpdate);

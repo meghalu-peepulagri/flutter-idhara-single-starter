@@ -431,9 +431,34 @@ extension AnalyticsControllerApi on AnalyticsController {
         deviceId.value = data.starter?.starterNumber ?? 'N/A';
         motorState.value = data.state ?? 0;
 
-        final apiMode = data.mode ?? 'AUTO';
-        localModeIndex.value = apiMode.toUpperCase().contains('MANUAL') ? 0 : 1;
-        motorMode.value = localModeIndex.value == 1 ? 'Auto' : 'Manual';
+        // Backend is the source of truth for current mode. If a Schedule
+        // request was made optimistically but never persisted (no schedule
+        // associated on the server), the API will report Auto/Manual — we
+        // must accept that and clear the locally cached Schedule state,
+        // otherwise the next MQTT data tick reads the stale optimistic
+        // modeIndex and snaps the toggle back to Schedule.
+        if (!_hasPendingModeCommand) {
+          final upperMode = (data.mode ?? 'AUTO').toUpperCase();
+          final apiIndex = upperMode.contains('SCHEDULE')
+              ? 2
+              : (upperMode.contains('MANUAL') ? 0 : 1);
+          localModeIndex.value = apiIndex;
+          motorMode.value =
+              apiIndex == 1 ? 'Auto' : (apiIndex == 2 ? 'Schedule' : 'Manual');
+
+          // Sync the MQTT-side cache so _updateFromMqttData() can't
+          // re-apply a stale optimistic value on the next tick.
+          if (mqttInitialized) {
+            final motorData = getMotorData();
+            if (motorData != null) {
+              motorData.modeIndex = apiIndex;
+              motorData.modeswitchcontroller.value = apiIndex;
+              motorData.motorMode = apiIndex == 1
+                  ? 'AUTO'
+                  : (apiIndex == 2 ? 'SCHEDULE' : 'MANUAL');
+            }
+          }
+        }
 
         locationName.value = data.location?.name?.trim().isNotEmpty == true
             ? data.location!.name!

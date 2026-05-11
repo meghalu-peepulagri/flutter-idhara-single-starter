@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
+import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -51,6 +52,22 @@ class SidebarWidget extends StatelessWidget {
   final ValueNotifier<bool> _isLoading = ValueNotifier<bool>(false);
   // Initialize the controller
   final SidebarController _controller = Get.put(SidebarController());
+
+  /// Reuses the profile-page logout flow: hits the logout API, disconnects
+  /// MQTT, clears SharedPreference, refreshes the FCM token, deletes all
+  /// GetX controllers, and navigates to the login screen.
+  Future<void> _onLogout() async {
+    if (_isLoading.value) return;
+    _isLoading.value = true;
+    try {
+      final ctrl = Get.isRegistered<UserProfileController>()
+          ? Get.find<UserProfileController>()
+          : Get.put(UserProfileController());
+      await ctrl.fetchFcmToken();
+    } finally {
+      _isLoading.value = false;
+    }
+  }
 
   // Helper method to build menu item
   Widget _buildMenuItem(
@@ -303,6 +320,43 @@ class SidebarWidget extends StatelessWidget {
                                 ),
                               ),
                           ],
+                        ),
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isLoading,
+                        builder: (_, busy, __) => Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: busy ? null : _onLogout,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFEBEE),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFFE53935)
+                                      .withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: busy
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFFE53935),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.logout_rounded,
+                                      size: 18,
+                                      color: Color(0xFFE53935),
+                                    ),
+                            ),
+                          ),
                         ),
                       ),
                     ],

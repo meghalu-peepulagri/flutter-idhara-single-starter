@@ -29,13 +29,11 @@ void geterrorSnackBar(String message) {
   Get.snackbar(
     '', // no title
     message,
-
     snackPosition: SnackPosition.TOP,
     backgroundColor: const Color(0XFFDB3B2A),
     colorText: Colors.white,
     margin: const EdgeInsets.all(10),
     borderRadius: 8,
-    duration: const Duration(seconds: 2),
     icon: null,
     titleText: const SizedBox.shrink(), // removes default title spacing
     messageText: Text(
