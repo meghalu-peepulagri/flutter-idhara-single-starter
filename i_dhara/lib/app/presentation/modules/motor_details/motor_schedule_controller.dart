@@ -39,6 +39,14 @@ class MotorScheduleController extends GetxController {
   var isInitialLoading = true.obs;
   var totalRecords = 0.obs;
   var selectedFilter = ''.obs; // '' means All
+
+  // Failed schedules are terminal device-side and don't occupy a slot,
+  // so they're excluded from the per-date cap. Use this everywhere the
+  // "schedules currently using a slot" count is needed (FAB cap, create
+  // page initial count).
+  int get activeScheduleCount => schedules
+      .where((r) => (r.scheduleStatus ?? '').toLowerCase() != 'failed')
+      .length;
   late final Rx<DateTime> selectedDate;
 
   final scrollController = ScrollController();
@@ -325,12 +333,20 @@ class MotorScheduleController extends GetxController {
     }
 
     return completer.future.timeout(
-      // Matches MQTT retry cycle (10s + 10s + 3s).
-      const Duration(seconds: 23),
+      // 5s buffer over the MQTT retry cycle (10 + 10 + 3 = 23s). MQTT
+      // emits its final result at exactly T=23s; matching the timeout to
+      // that boundary races with the listener — Dart runs the
+      // synchronous onTimeout before the streamed listener microtask, so
+      // _bulkObjectIds gets cleared and the bulkDeleteSchedules call for
+      // the partially-acked subset is skipped. The buffer keeps the
+      // listener in front of the timeout in the partial case.
+      const Duration(seconds: 28),
       onTimeout: () {
         _bulkDeleteCompleters.remove(key);
-        _bulkObjectIds.remove(key);
-        _bulkCmds.remove(key);
+        // Intentionally do NOT remove _bulkObjectIds[key] or _bulkCmds[key].
+        // _listenScheduleActionFinalResult is the source of truth for the
+        // bulk delete API call and needs the scheduleId→objectId map +
+        // cmd to drive it; it cleans them up itself when its event lands.
         for (final sid in scheduleIds) _pendingActions.remove(sid);
         geterrorSnackBar('No response from device');
         return false;
@@ -369,12 +385,18 @@ class MotorScheduleController extends GetxController {
     }
 
     return completer.future.timeout(
-      // Matches MQTT retry cycle (10s + 10s + 3s).
-      const Duration(seconds: 23),
+      // 5s buffer over the MQTT retry cycle (10 + 10 + 3 = 23s). See
+      // deleteBulkSchedules above for the full reasoning — short version:
+      // at exactly 23s the controller's onTimeout cleared _bulkObjectIds
+      // before _listenScheduleActionFinalResult could read it, so the
+      // bulkStopSchedules / bulkRestartSchedules call for the partially
+      // acked subset was skipped.
+      const Duration(seconds: 28),
       onTimeout: () {
         _bulkToggleCompleters.remove(key);
-        _bulkObjectIds.remove(key);
-        _bulkCmds.remove(key);
+        // Keep _bulkObjectIds[key] and _bulkCmds[key] — the listener owns
+        // their cleanup once the MQTT final-result event arrives. See
+        // deleteBulkSchedules for the rationale.
         for (final sid in scheduleIds) _pendingActions.remove(sid);
         geterrorSnackBar('No response from device');
         return false;
@@ -597,7 +619,9 @@ class MotorScheduleController extends GetxController {
   Future<void> navigateToCreateSchedule() async {
     // Pass how many schedules already cover the selected date so the create
     // page can cap "+ Add Schedule" at the remaining slot count.
-    final existingCount = totalRecords.value;
+    // Failed schedules don't occupy a device slot, so exclude them — the
+    // user gets that many extra chances to add a fresh schedule.
+    final existingCount = activeScheduleCount;
     await Get.toNamed(
       Routes.schedule,
       arguments: {
@@ -815,16 +839,30 @@ class MotorScheduleController extends GetxController {
       final idx = schedules.indexWhere((r) => r.scheduleId == scheduleId);
       if (idx == -1) return;
 
+      // Device-side schedule live block (`sch` in T:35 / T:41):
+      //   rt = actual run time so far, in MINUTES → Record.actualRunTime.
+      //   st = ACTUAL start (HHMM) — when the device actually began this
+      //        run. Routed to actualStartTime; the planned `startTime`
+      //        from the API is left untouched.
+      //   et = ACTUAL end (HHMM); null/0 while still running. Routed to
+      //        actualEndTime, planned `endTime` is left untouched.
+      // Duration (runtimeMinutes) is static — never updated from live data,
+      // otherwise the schedule's planned duration would get overwritten by
+      // the elapsed-run value and the "Duration" tile would tick.
       final stRaw = data['startTime'] as int?;
       final etRaw = data['endTime'] as int?;
       final runtime = data['runtime'] as int?;
 
       // copyWith creates a NEW Record instance so Flutter's widget diff detects
       // a real object change and guarantees ScheduleCard.build() is called.
+      // Only update actual start/end when the device reported a real value
+      // (> 0). 0 / null means "not provided this tick" — keep existing.
       schedules[idx] = schedules[idx].copyWith(
-        runtimeMinutes: runtime,
-        startTime: stRaw != null ? _intToTimeStr(stRaw) : null,
-        endTime: etRaw != null ? _intToTimeStr(etRaw) : null,
+        actualRunTime: runtime,
+        actualStartTime:
+            (stRaw != null && stRaw > 0) ? _intToTimeStr(stRaw) : null,
+        actualEndTime:
+            (etRaw != null && etRaw > 0) ? _intToTimeStr(etRaw) : null,
       );
     });
   }

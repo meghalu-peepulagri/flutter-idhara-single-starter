@@ -104,9 +104,60 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   int _nextId = 1;
   final _scrollController = ScrollController();
 
+  // Banner stays hidden until the user taps Save with an invalid or
+  // overlapping schedule. The message is captured at that moment so the banner
+  // reads the failure the user just triggered, not whatever state the form is
+  // in afterwards. Any edit or the close icon clears it.
+  bool _showConflict = false;
+  String? _conflictBannerMessage;
+
   int get _maxSchedules {
     final remaining = _absoluteMaxSchedules - widget.existingScheduleCount;
     return remaining < 1 ? 1 : remaining;
+  }
+
+  /// Returns a human-readable message describing the first pair of schedules
+  /// whose time ranges overlap (including midnight-wrap cases) so the user
+  /// knows which entries to fix. Returns null when every schedule occupies a
+  /// distinct slot.
+  String? _scheduleConflictMessage() {
+    final all = scheduleStates;
+    if (all.length < 2) return null;
+
+    List<List<int>> intervals(ScheduleFormState s) {
+      final start = s.startHour * 60 + s.startMinute;
+      final end = s.endHour * 60 + s.endMinute;
+      // end <= start ⇒ wraps midnight, split into two day-bounded segments.
+      if (end <= start) {
+        return [
+          [start, 1440],
+          [0, end],
+        ];
+      }
+      return [
+        [start, end],
+      ];
+    }
+
+    bool overlaps(ScheduleFormState a, ScheduleFormState b) {
+      for (final ai in intervals(a)) {
+        for (final bi in intervals(b)) {
+          if (ai[1] > bi[0] && bi[1] > ai[0]) return true;
+        }
+      }
+      return false;
+    }
+
+    for (int i = 0; i < all.length; i++) {
+      if (all[i].durationMinutes <= 0) continue;
+      for (int j = i + 1; j < all.length; j++) {
+        if (all[j].durationMinutes <= 0) continue;
+        if (overlaps(all[i], all[j])) {
+          return 'Schedule ${i + 1} and Schedule ${j + 1} have overlapping times. Adjust the start or end time.';
+        }
+      }
+    }
+    return null;
   }
 
   @override
@@ -296,20 +347,89 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
 
     if (!widget.showBottomBar) return scroll;
 
-    final states = scheduleStates;
-    final allReady = states.length == _schedules.length &&
-        states.every((s) => s.durationMinutes > 0);
+    final showBanner = _showConflict && _conflictBannerMessage != null;
 
     return Column(
       children: [
         Expanded(child: scroll),
+        if (showBanner) _buildConflictBanner(_conflictBannerMessage!),
         ScheduleFormBottomBar(
           onBack: widget.onBack ?? () {},
-          onSave: widget.onSave ?? () {},
+          onSave: _handleSavePressed,
           isEditMode: false,
-          saveEnabled: allReady,
+          saveEnabled: true,
         ),
       ],
+    );
+  }
+
+  void _handleSavePressed() {
+    final states = scheduleStates;
+    final hasInvalidDuration = states.length != _schedules.length ||
+        states.any((s) => s.durationMinutes <= 0);
+    if (hasInvalidDuration) {
+      setState(() {
+        _conflictBannerMessage =
+            'Set a valid start and end time for every schedule before saving.';
+        _showConflict = true;
+      });
+      return;
+    }
+    final conflict = _scheduleConflictMessage();
+    if (conflict != null) {
+      setState(() {
+        _conflictBannerMessage = conflict;
+        _showConflict = true;
+      });
+      return;
+    }
+    widget.onSave?.call();
+  }
+
+  Widget _buildConflictBanner(String message) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFE53935).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              size: 18, color: Color(0xFFE53935)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFFB71C1C),
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () => setState(() => _showConflict = false),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                Icons.close_rounded,
+                size: 16,
+                color: const Color(0xFFE53935).withValues(alpha: 0.8),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -594,7 +714,13 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                     initialStartDate: startDate,
                     initialEndDate: endDate,
                     onChanged: () {
-                      if (mounted) setState(() {});
+                      if (!mounted) return;
+                      setState(() {
+                        if (_showConflict) {
+                          _showConflict = false;
+                          _conflictBannerMessage = null;
+                        }
+                      });
                     },
                   ),
                 ],

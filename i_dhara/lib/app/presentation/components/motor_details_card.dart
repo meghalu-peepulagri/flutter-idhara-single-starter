@@ -275,15 +275,28 @@ class MotorDetailsCard extends StatelessWidget {
 
   Widget _buildMotorMode(BuildContext context) {
     return Obx(() {
-      final mode = controller.motorMode.value;
-      final isAuto = mode == 'A' || mode.toLowerCase().contains('auto');
+      // controller.motorMode.value is one of 'Auto' / 'Manual' / 'Schedule'
+      // — set from the motors/:id `mode` field (see motor_details_controller
+      // .api.dart) or from an MQTT mode tick via _labelForMode. The card used
+      // to branch only on Auto vs. everything-else, so 'Schedule' fell
+      // through and rendered as "Manual".
+      final mode = controller.motorMode.value.toLowerCase();
 
-      String modeText = 'Manual';
-      Color modeColor = const Color(0xFFFFEDD4);
-
-      if (isAuto) {
+      final String modeText;
+      final Color bgColor;
+      final Color textColor;
+      if (mode == 'a' || mode.contains('auto')) {
         modeText = 'Auto';
-        modeColor = const Color(0xFFFFEDD4);
+        bgColor = const Color(0xFFFFEDD4);
+        textColor = const Color(0xFFCA3500);
+      } else if (mode.contains('schedule')) {
+        modeText = 'Schedule';
+        bgColor = const Color(0xFFEDE9FE);
+        textColor = const Color(0xFF6D28D9);
+      } else {
+        modeText = 'Manual';
+        bgColor = const Color(0xFFFFEDD4);
+        textColor = const Color(0xFFCA3500);
       }
 
       return Row(
@@ -300,7 +313,7 @@ class MotorDetailsCard extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: modeColor,
+              color: bgColor,
               borderRadius: BorderRadius.circular(4.0),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
@@ -310,7 +323,7 @@ class MotorDetailsCard extends StatelessWidget {
                     font: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w400,
                     ),
-                    color: const Color(0XFFCA3500),
+                    color: textColor,
                     fontSize: 14.0,
                     letterSpacing: 0.0,
                   ),

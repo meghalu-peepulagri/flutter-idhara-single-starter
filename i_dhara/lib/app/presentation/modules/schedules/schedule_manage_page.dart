@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
@@ -39,6 +38,9 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     {'label': 'Stopped', 'value': 'STOPPED'},
     {'label': 'Scheduled', 'value': 'SCHEDULED'},
     {'label': 'Completed', 'value': 'COMPLETED'},
+    {'label': 'Missed', 'value': 'MISSED'},
+    {'label': 'Partial', 'value': 'PARTIAL'},
+    {'label': 'Failed', 'value': 'FAILED'},
   ];
 
   @override
@@ -68,6 +70,15 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   bool _isEligibleForAction(Record record, _BulkScheduleAction? action) {
     if (action == null) return true;
     final s = (record.scheduleStatus ?? '').toUpperCase();
+    // Failed schedules are read-only from the manage page — no bulk action
+    // (including republish) should target them.
+    if (s == 'FAILED') return false;
+    // Partial / missed are terminal — the window already ended on the
+    // device, so Stop / Restart / Republish make no sense. Only Delete
+    // is allowed so the user can clear them out.
+    if (s == 'PARTIAL' || s == 'MISSED') {
+      return action == _BulkScheduleAction.delete;
+    }
     switch (action) {
       case _BulkScheduleAction.stop:
         return s == 'RUNNING' || s == 'SCHEDULED';
@@ -927,47 +938,56 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 ],
               ),
               const SizedBox(height: 12),
-              ..._filters.map((filter) {
-                final isSelected = current == filter['value'];
-                return InkWell(
-                  onTap: () async {
-                    _controller.selectedFilter.value = filter['value']!;
-                    Navigator.pop(ctx);
-                    await _controller.fetchSchedules();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            filter['label']!,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? const Color(0xFF004E7E)
-                                  : const Color(0xFF0F172A),
-                            ),
+              // Flexible + scroll so the now-9 filter rows scroll inside the
+              // sheet's existing height instead of overflowing it.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _filters.map((filter) {
+                      final isSelected = current == filter['value'];
+                      return InkWell(
+                        onTap: () async {
+                          _controller.selectedFilter.value = filter['value']!;
+                          Navigator.pop(ctx);
+                          await _controller.fetchSchedules();
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  filter['label']!,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFF004E7E)
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check_rounded,
+                                  size: 18,
+                                  color: Color(0xFF004E7E),
+                                ),
+                            ],
                           ),
                         ),
-                        if (isSelected)
-                          const Icon(
-                            Icons.check_rounded,
-                            size: 18,
-                            color: Color(0xFF004E7E),
-                          ),
-                      ],
-                    ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }),
+                ),
+              ),
             ],
           ),
         );
@@ -1001,10 +1021,9 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       _BulkScheduleAction.restart =>
         'Are you sure you want to restart $selectedCount selected schedules?',
       _BulkScheduleAction.republish =>
-        'Republish MQTT payload for $selectedCount selected pending schedule${selectedCount > 1 ? 's' : ''}?',
+        'Republish $selectedCount pending schedule${selectedCount > 1 ? 's' : ''} to the device?',
     };
 
-    final wasSingle = selectedCount == 1;
     showScheduleActionConfirmDialog(
       context: context,
       title: title,
@@ -1017,18 +1036,20 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       // Aborts MQTT retries + resolves the bulk/republish completer with
       // false so the controller's 23s `.timeout()` doesn't fire a stale
       // "No response from device" snackbar after the user dismisses.
-      onCancelWhileWaiting: _motorScheduleController
-          .cancelInFlightScheduleOperation,
+      onCancelWhileWaiting:
+          _motorScheduleController.cancelInFlightScheduleOperation,
     ).then((success) {
-      if (mounted && success && wasSingle) {
-        getsuccessSnackBar(switch (action) {
-          _BulkScheduleAction.delete => 'Schedule deleted successfully',
-          _BulkScheduleAction.stop => 'Schedule stopped',
-          _BulkScheduleAction.restart => 'Schedule restarted',
-          _BulkScheduleAction.republish => 'Schedule acknowledged by device',
-        });
-      }
-
+      // No success snackbar fired from here — MotorScheduleController owns
+      // every one of these messages:
+      //   • single-record stop/restart → _listenScheduleActionAck →
+      //     "Schedule stopped" / "Schedule restarted" after the post API.
+      //   • single-record delete → _deleteScheduleAfterAck →
+      //     "Schedule deleted successfully" after the delete API.
+      //   • single-record republish → _listenScheduleAck →
+      //     "Schedules acknowledged by device" once T:33 lands.
+      //   • multi-record (>1) → showScheduleResultSnackBar with the
+      //     "X succeeded, Y failed" partial / full toast.
+      // Firing anything extra from the page double-toasts the user.
       _controller.clearSelection();
       if (mounted && _selectedAction != null) {
         setState(() => _selectedAction = null);

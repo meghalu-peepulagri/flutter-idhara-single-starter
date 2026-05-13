@@ -43,11 +43,28 @@ class ScheduleCard extends StatelessWidget {
 
     final isRunning = normalizedStatus == 'running';
     final isPartial = normalizedStatus == 'partial';
+    final isMissed = normalizedStatus == 'missed';
 
     final isCompleted = normalizedStatus == 'completed';
-    final toggleDisabled = disableToggle || isPending || isCompleted;
+    final isFailed = normalizedStatus == 'failed';
+    // Partial / missed are terminal device-side outcomes — the schedule
+    // window is over, so Stop/Restart and Edit are meaningless. Delete is
+    // still allowed so the user can clean them up.
+    final toggleDisabled = disableToggle ||
+        isPending ||
+        isCompleted ||
+        isFailed ||
+        isPartial ||
+        isMissed;
 
-    final editDisabled = isRunning || isCompleted || isPending;
+    final editDisabled = isRunning ||
+        isCompleted ||
+        isPending ||
+        isFailed ||
+        isPartial ||
+        isMissed;
+    // Failed is terminal device-side (same as completed/partial/missed),
+    // so allow delete so the user can clean it up and reclaim the slot.
     final deleteDisabled = isRunning || isPending;
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
@@ -59,6 +76,12 @@ class ScheduleCard extends StatelessWidget {
     final actualRunMin = record.actualRunTime ?? 0;
     final showRunTime =
         (isRunning || isPartial || isCompleted) && actualRunMin > 0;
+    // Surface the device-reported actual start / end window once the
+    // backend has captured at least the start time. End may still be
+    // null while the schedule is running — render an em dash for it.
+    final actualStartRaw = record.actualStartTime?.trim() ?? '';
+    final actualEndRaw = record.actualEndTime?.trim() ?? '';
+    final showActualWindow = actualStartRaw.isNotEmpty;
     final switchController = ValueNotifier<bool>(isActive);
 
     return Container(
@@ -111,6 +134,45 @@ class ScheduleCard extends StatelessWidget {
             ],
           ),
 
+          if (showActualWindow) ...[
+            const SizedBox(height: 4),
+            Padding(
+              // Indent under the schedule icon so the "Act" row reads as a
+              // sub-detail of the planned time range above it.
+              padding: const EdgeInsets.only(left: 22),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Act',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF004E7E),
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_formatTo12h(actualStartRaw)} → ${actualEndRaw.isEmpty ? '—' : _formatTo12h(actualEndRaw)}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF475569),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: isCyclic
@@ -138,7 +200,13 @@ class ScheduleCard extends StatelessWidget {
                       message: toggleDisabled
                           ? (isPending
                               ? 'Pending — wait for device acknowledgement or republish from Manage'
-                              : 'Schedule is completed')
+                              : isFailed
+                                  ? 'Schedule failed on device'
+                                  : isPartial
+                                      ? 'Schedule completed partially — cannot restart'
+                                      : isMissed
+                                          ? 'Schedule was missed — cannot restart'
+                                          : 'Schedule is completed')
                           : '',
                       triggerMode: toggleDisabled
                           ? TooltipTriggerMode.tap
@@ -410,40 +478,68 @@ class ScheduleCard extends StatelessWidget {
   }
 
   Widget _statusDot(String status, bool isActive) {
-    final normalizedStatus = status.toLowerCase();
-    final isRunning = normalizedStatus == 'running';
-    final isScheduled = normalizedStatus == 'scheduled';
-    final isStopped = normalizedStatus == 'stopped';
-    final isPending = normalizedStatus == 'pending';
-
-    final badgeBgColor = isRunning // ← add this block
-        ? const Color(0xFFE8F5E9)
-        : isScheduled
-            ? const Color(0xFFEBF3FE)
-            : isPending
-                ? const Color(0xFFFFF3E0)
-                : isStopped
-                    ? const Color(0xFFFFEBEE)
-                    : isActive
-                        ? const Color(0xFFE8F5E9)
-                        : const Color(0xFFF5F5F5);
-
-    final badgeFgColor = isRunning // ← add this block
-        ? const Color(0xFF34C759)
-        : isScheduled
-            ? const Color(0xFF004E7E)
-            : isPending
-                ? const Color(0xFFFF9800)
-                : isStopped
-                    ? const Color(0xFFE53935)
-                    : isActive
-                        ? const Color(0xFF34C759)
-                        : const Color(0xFF9E9E9E);
+    // Tailwind-aligned palette: (badge bg, text, dot). Each status uses
+    // a distinct hue with three shades — light bg, dark-700 text, mid
+    // dot — for legibility against the white card.
+    final (Color bg, Color fg, Color dot) = switch (status.toLowerCase()) {
+      'running' => (
+          const Color(0xFFDCFCE7), // green-100
+          const Color(0xFF15803D), // green-700
+          const Color(0xFF22C55E), // green-500
+        ),
+      'scheduled' => (
+          const Color(0xFFDBEAFE), // blue-100
+          const Color(0xFF1D4ED8), // blue-700
+          const Color(0xFF3B82F6), // blue-500
+        ),
+      'pending' => (
+          const Color(0xFFFFEDD5), // orange-100
+          const Color(0xFFC2410C), // orange-700
+          const Color(0xFFF97316), // orange-500
+        ),
+      'stopped' => (
+          const Color(0xFFFEE2E2), // red-100
+          const Color(0xFFB91C1C), // red-700
+          const Color(0xFFEF4444), // red-500
+        ),
+      'completed' => (
+          const Color(0xFFF3F4F6), // gray-100
+          const Color(0xFF374151), // gray-700
+          const Color(0xFF9CA3AF), // gray-400
+        ),
+      'missed' => (
+          const Color(0xFFFEF3C7), // amber-100
+          const Color(0xFFB45309), // amber-700
+          const Color(0xFFF59E0B), // amber-500
+        ),
+      'partial' => (
+          const Color(0xFFFEF9C3), // yellow-100
+          const Color(0xFFA16207), // yellow-700
+          const Color(0xFFFACC15), // yellow-400
+        ),
+      'failed' => (
+          const Color(0xFFFFE4E6), // rose-100
+          const Color(0xFFBE123C), // rose-700
+          const Color(0xFFE11D48), // rose-600
+        ),
+      // Unknown status → fall back to neutral / active-aware grey-green.
+      _ => isActive
+          ? (
+              const Color(0xFFDCFCE7),
+              const Color(0xFF15803D),
+              const Color(0xFF22C55E),
+            )
+          : (
+              const Color(0xFFF3F4F6),
+              const Color(0xFF6B7280),
+              const Color(0xFF9CA3AF),
+            ),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: badgeBgColor,
+        color: bg,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -452,8 +548,7 @@ class ScheduleCard extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration:
-                BoxDecoration(shape: BoxShape.circle, color: badgeFgColor),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
           ),
           const SizedBox(width: 4),
           Text(
@@ -461,7 +556,7 @@ class ScheduleCard extends StatelessWidget {
             style: GoogleFonts.dmSans(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: badgeFgColor,
+              color: fg,
             ),
           ),
         ],

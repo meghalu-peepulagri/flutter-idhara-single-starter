@@ -59,10 +59,10 @@ Widget _scheduleAckWaitingView({required int elapsedSeconds}) {
   );
 }
 
-Widget _scheduleInlineErrorBanner(String message) {
+Widget _scheduleInlineErrorBanner(String message, {VoidCallback? onClose}) {
   return Container(
     width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    padding: EdgeInsets.fromLTRB(12, 10, onClose != null ? 6 : 12, 10),
     decoration: BoxDecoration(
       color: const Color(0xFFFFEBEE),
       borderRadius: BorderRadius.circular(8),
@@ -87,6 +87,21 @@ Widget _scheduleInlineErrorBanner(String message) {
             ),
           ),
         ),
+        if (onClose != null) ...[
+          const SizedBox(width: 4),
+          InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: onClose,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                Icons.close_rounded,
+                size: 16,
+                color: const Color(0xFFE53935).withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ],
       ],
     ),
   );
@@ -254,8 +269,11 @@ class _ScheduleConfirmDialog extends StatefulWidget {
 
 class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
   bool _isWaiting = false;
+  // `_isFailed` is retained only so the existing `_scheduleAckFailedView`
+  // branch in build() doesn't get reached — ACK failure now closes the
+  // dialog immediately via `_onResult`, so this stays `false` for the
+  // lifetime of the dialog.
   bool _isFailed = false;
-  bool _hasRetried = false;
   int _elapsed = 0;
   Timer? _ticker;
   String? _errorMessage;
@@ -292,15 +310,12 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
       return;
     }
     if (error.isEmpty) {
-      if (_hasRetried) {
-        _close();
-        return;
-      }
-      setState(() {
-        _isWaiting = false;
-        _isFailed = true;
-        _elapsed = 0;
-      });
+      // MQTT ACK failed / retry cycle exhausted. The controller has
+      // already surfaced the device error via snackbar, so close the
+      // dialog immediately and let the user land back on the schedule
+      // page instead of staring at a Failed/Retry view with a stuck
+      // confirm button.
+      _close();
       return;
     }
     // Backend validation error — show inline banner, return to idle.
@@ -312,11 +327,6 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
   }
 
   void _onConfirmTap() => _runConfirm();
-
-  void _onRetryTap() {
-    _hasRetried = true;
-    _runConfirm();
-  }
 
   void _onCancelTap() {
     if (_isWaiting) widget.onCancelWhileWaiting?.call();
@@ -370,7 +380,10 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 12),
-                _scheduleInlineErrorBanner(_errorMessage!),
+                _scheduleInlineErrorBanner(
+                  _errorMessage!,
+                  onClose: () => setState(() => _errorMessage = null),
+                ),
               ],
               const SizedBox(height: 16),
               Container(
@@ -451,9 +464,7 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
                   child: SizedBox(
                     height: 44,
                     child: ElevatedButton(
-                      onPressed: _isWaiting
-                          ? null
-                          : (_isFailed ? _onRetryTap : _onConfirmTap),
+                      onPressed: _isWaiting ? null : _onConfirmTap,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF004E7E),
                         disabledBackgroundColor: const Color(0xFF004E7E),
@@ -472,7 +483,7 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
                               ),
                             )
                           : Text(
-                              _isFailed ? 'Retry' : 'Confirm',
+                              'Confirm',
                               style: GoogleFonts.dmSans(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -579,10 +590,11 @@ class _MultiScheduleConfirmDialog extends StatefulWidget {
 
 class _MultiScheduleConfirmDialogState
     extends State<_MultiScheduleConfirmDialog> {
-  // Same waiting / failed / retry state machine as _ScheduleConfirmDialog.
+  // Mirrors _ScheduleConfirmDialog. ACK failure closes the dialog
+  // immediately (see _onResult), so `_isFailed` stays `false` for the
+  // lifetime of the dialog and the Failed/Retry view is never reached.
   bool _isWaiting = false;
   bool _isFailed = false;
-  bool _hasRetried = false;
   int _elapsed = 0;
   Timer? _ticker;
   String? _errorMessage;
@@ -619,15 +631,10 @@ class _MultiScheduleConfirmDialogState
       return;
     }
     if (error.isEmpty) {
-      if (_hasRetried) {
-        _close();
-        return;
-      }
-      setState(() {
-        _isWaiting = false;
-        _isFailed = true;
-        _elapsed = 0;
-      });
+      // MQTT ACK failed / retry cycle exhausted — close immediately.
+      // Controller already showed the device-error snackbar; no point
+      // holding the user on the Failed/Retry view.
+      _close();
       return;
     }
     setState(() {
@@ -638,11 +645,6 @@ class _MultiScheduleConfirmDialogState
   }
 
   void _onConfirmTap() => _runConfirm();
-
-  void _onRetryTap() {
-    _hasRetried = true;
-    _runConfirm();
-  }
 
   void _onCancelTap() {
     if (_isWaiting) widget.onCancelWhileWaiting?.call();
@@ -704,7 +706,10 @@ class _MultiScheduleConfirmDialogState
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 10),
-                  _scheduleInlineErrorBanner(_errorMessage!),
+                  _scheduleInlineErrorBanner(
+                    _errorMessage!,
+                    onClose: () => setState(() => _errorMessage = null),
+                  ),
                 ],
                 const SizedBox(height: 12),
                 Container(
@@ -791,9 +796,7 @@ class _MultiScheduleConfirmDialogState
                     child: SizedBox(
                       height: 44,
                       child: ElevatedButton(
-                        onPressed: _isWaiting
-                            ? null
-                            : (_isFailed ? _onRetryTap : _onConfirmTap),
+                        onPressed: _isWaiting ? null : _onConfirmTap,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF004E7E),
                           disabledBackgroundColor: const Color(0xFF004E7E),
@@ -812,7 +815,7 @@ class _MultiScheduleConfirmDialogState
                                 ),
                               )
                             : Text(
-                                _isFailed ? 'Retry' : 'Confirm',
+                                'Confirm',
                                 style: GoogleFonts.dmSans(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -1040,10 +1043,6 @@ class _ScheduleActionConfirmDialog extends StatefulWidget {
 class _ScheduleActionConfirmDialogState
     extends State<_ScheduleActionConfirmDialog> {
   bool _isWaiting = false;
-
-  bool _isFailed = false;
-
-  bool _hasRetried = false;
   int _elapsed = 0;
   Timer? _ticker;
   bool _closed = false;
@@ -1058,8 +1057,6 @@ class _ScheduleActionConfirmDialogState
     _ticker?.cancel();
     setState(() {
       _isWaiting = true;
-      _isFailed = false;
-
       _elapsed = 1;
     });
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -1076,28 +1073,19 @@ class _ScheduleActionConfirmDialogState
   }
 
   void _onPublishResult(bool success) {
+    // Always close the dialog on result. Partial bulk ACKs return
+    // success=false, but the device acked at least some schedules and the
+    // backend was already updated for that subset — the "Partial
+    // acknowledgment" toast surfaces the outcome and the manage page's
+    // fetchSchedules() refreshes the list with the updated statuses.
+    // Holding the user on a Failed/Retry view here would mask the partial
+    // success and force a second publish that we don't want.
     if (!mounted || _closed) return;
     _ticker?.cancel();
-    if (success) {
-      _close(true);
-    } else if (_hasRetried) {
-      // Retry already burned — auto-close on second failure.
-      _close(false);
-    } else {
-      setState(() {
-        _isWaiting = false;
-        _isFailed = true;
-        _elapsed = 0;
-      });
-    }
+    _close(success);
   }
 
   void _onConfirmTap() => _runPublish();
-
-  void _onRetryTap() {
-    _hasRetried = true;
-    _runPublish();
-  }
 
   void _onCancelTap() {
     if (_isWaiting) widget.onCancelWhileWaiting?.call();
@@ -1140,7 +1128,7 @@ class _ScheduleActionConfirmDialogState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const SizedBox(height: 4),
-              if (!_isWaiting && !_isFailed) ...[
+              if (!_isWaiting) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: SvgPicture.asset(
@@ -1173,18 +1161,6 @@ class _ScheduleActionConfirmDialogState
                     ),
                   ),
                 ),
-              ] else if (_isFailed) ...[
-                Text(
-                  widget.title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _scheduleAckFailedView(),
               ] else ...[
                 Text(
                   widget.title,
@@ -1225,9 +1201,8 @@ class _ScheduleActionConfirmDialogState
                       child: SizedBox(
                         height: 45,
                         child: TextButton(
-                          onPressed: _isWaiting || _closed
-                              ? null
-                              : (_isFailed ? _onRetryTap : _onConfirmTap),
+                          onPressed:
+                              _isWaiting || _closed ? null : _onConfirmTap,
                           style: TextButton.styleFrom(
                             backgroundColor: Colors.white,
                             disabledBackgroundColor: Colors.white,
@@ -1245,7 +1220,7 @@ class _ScheduleActionConfirmDialogState
                                   ),
                                 )
                               : Text(
-                                  _isFailed ? 'Retry' : widget.buttonLabel,
+                                  widget.buttonLabel,
                                   style: GoogleFonts.inter(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,

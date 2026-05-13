@@ -385,7 +385,10 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
             child: Padding(
               padding: const EdgeInsets.only(right: 8, bottom: 4),
               child: Obx(() {
-                final isCapReached = _controller.totalRecords.value >=
+                // Touch the schedules list so Obx rebuilds when status
+                // changes flip rows in/out of the "active" count.
+                final _ = _controller.schedules.length;
+                final isCapReached = _controller.activeScheduleCount >=
                     MotorScheduleController.kMaxSchedulesPerDate;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
@@ -489,6 +492,9 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
       {'label': 'Stopped', 'value': 'STOPPED'},
       {'label': 'Scheduled', 'value': 'SCHEDULED'},
       {'label': 'Completed', 'value': 'COMPLETED'},
+      {'label': 'Missed', 'value': 'MISSED'},
+      {'label': 'Partial', 'value': 'PARTIAL'},
+      {'label': 'Failed', 'value': 'FAILED'},
     ];
 
     showModalBottomSheet(
@@ -554,43 +560,49 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 ],
               ),
               const SizedBox(height: 14),
-              Column(
-                children: filters.map((f) {
-                  final isSelected = current == f['value'];
-                  return InkWell(
-                    onTap: () {
-                      _controller.selectedFilter.value = f['value']!;
-                      _controller.fetchSchedules();
-                      Navigator.pop(ctx);
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              f['label']!,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color: isSelected
-                                    ? const Color(0xFF004E7E)
-                                    : const Color(0xFF0F172A),
+              // Flexible + scroll so the now-9 filter rows scroll inside the
+              // sheet's existing height instead of overflowing it.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: filters.map((f) {
+                      final isSelected = current == f['value'];
+                      return InkWell(
+                        onTap: () {
+                          _controller.selectedFilter.value = f['value']!;
+                          _controller.fetchSchedules();
+                          Navigator.pop(ctx);
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  f['label']!,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFF004E7E)
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
                               ),
-                            ),
+                              if (isSelected)
+                                const Icon(Icons.check_rounded,
+                                    size: 18, color: Color(0xFF004E7E)),
+                            ],
                           ),
-                          if (isSelected)
-                            const Icon(Icons.check_rounded,
-                                size: 18, color: Color(0xFF004E7E)),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ],
           ),

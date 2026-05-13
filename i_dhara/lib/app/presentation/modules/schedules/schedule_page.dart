@@ -178,14 +178,25 @@ class _SchedulePageState extends State<SchedulePage> {
   int _computeBitwiseDays(List<int> daysOfWeek) =>
       daysOfWeek.fold(0, (acc, d) => acc | (_bitwiseMap[d] ?? 0));
 
-  /// Returns 1 if the motor has no schedules yet (first-time create),
-  /// or 2 if it already has at least one schedule.
+  /// Returns the `idx` value sent in the T:3 publish:
+  ///   • `1` ⇒ first-time create — the device has nothing to append to.
+  ///   • `2` ⇒ append — the device already has at least one accepted slot.
+  ///
+  /// PENDING and FAILED rows live only in the app database; the device never
+  /// acknowledged them. Sending `idx: 2` in that case makes the device think
+  /// it should append to existing slots that don't exist, and it rejects the
+  /// payload with a mismatch ACK. So `idx: 2` is gated on at least one schedule
+  /// being in a status the device has accepted (SCHEDULED / RUNNING / STOPPED /
+  /// COMPLETED / PARTIAL).
   int _mqttIdx() {
-    if (Get.isRegistered<MotorScheduleController>()) {
-      final existing = Get.find<MotorScheduleController>().schedules;
-      if (existing.isNotEmpty) return 2;
-    }
-    return 1;
+    if (!Get.isRegistered<MotorScheduleController>()) return 1;
+    final existing = Get.find<MotorScheduleController>().schedules;
+    final hasDeviceAccepted = existing.any((r) {
+      final s = (r.scheduleStatus ?? '').toLowerCase();
+      if (s.isEmpty) return false;
+      return s != 'pending' && s != 'failed';
+    });
+    return hasDeviceAccepted ? 2 : 1;
   }
 
   /// Returns [count] scheduleIds for new schedules.
@@ -253,24 +264,33 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   /// Returns:
-  ///   `null`           → success (MQTT ACK + backend POST both ok) →
-  ///                      dialog pops, caller navigates to the schedule list.
-  ///   `''`             → no MQTT ACK within ~23s (or MQTT publish error)
-  ///                      → dialog switches to its retry view. Backend POST
-  ///                      is NOT called in this branch.
-  ///   `'message'`      → backend POST returned an error → dialog shows
-  ///                      inline banner.
+  ///   `null`           → backend POST committed. Dialog pops and the
+  ///                      caller navigates to the schedule list regardless
+  ///                      of whether the device ACKed. Rows without an ACK
+  ///                      stay in 'pending' status — visible in the list.
+  ///   `'message'`      → backend POST rejected → dialog shows inline
+  ///                      banner; no navigation.
   ///
-  /// Order of operations: MQTT publish → wait for T:33 ACK → only on success
-  /// hit POST /motor-schedules. This guarantees we never persist a schedule
-  /// that the device hasn't acknowledged.
+  /// Order of operations: POST /motor-schedules → MQTT T:23 publish →
+  /// wait for T:33 ACK → PATCH /motor-schedules/bulk/ack. MQTT and the
+  /// ack PATCH are best-effort; only the POST gates success.
   Future<String?> _createSchedule() async {
     final form = _formKey.currentState!;
-    final scheduleId = _computeScheduleIds(1).first;
 
-    // Decide whether the device should be told first. Schedules with a
-    // start date >2 days out skip MQTT entirely (no ACK to wait for) and
-    // go straight to backend persistence.
+    // Step 1: POST. This is the only step that can fail the operation.
+    final scheduleId = _computeScheduleIds(1).first;
+    final dto = _buildDto(form, scheduleId: scheduleId);
+    final response = await _scheduleController.createSchedule(dtos: [dto]);
+    if (response == null) {
+      return _scheduleController.message ?? '';
+    }
+    final newObjectId = response.data?.id;
+    SharedPreference.setscheduleid(newObjectId ?? 0);
+    // Row committed — guarantee the parent navigates on close.
+    _scheduleSaved = true;
+
+    // Step 2: MQTT publish + wait for T:33 ACK (best-effort). >2 day-out
+    // schedules skip MQTT — device gets told closer to run date.
     final id = _resolveIdentifier();
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
@@ -279,6 +299,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final daysDiff = startNorm.difference(todayNorm).inDays;
     final shouldPublishMqtt = id.isNotEmpty && daysDiff <= 2;
 
+    var ackOk = !shouldPublishMqtt;
     if (shouldPublishMqtt) {
       _expectedAckScheduleIds = <int>{scheduleId};
       _ackCompleter = Completer<bool>();
@@ -299,40 +320,20 @@ class _SchedulePageState extends State<SchedulePage> {
           enabled: 1,
           idx: _mqttIdx(),
         );
-      } catch (e) {
-        _ackCompleter = null;
-        _expectedAckScheduleIds = <int>{};
-        geterrorSnackBar('MQTT failed: $e');
-        return '';
+        ackOk = await _ackCompleter!.future.timeout(
+          const Duration(seconds: 23),
+          onTimeout: () => false,
+        );
+      } catch (_) {
+        ackOk = false;
       }
-
-      final ackOk = await _ackCompleter!.future.timeout(
-        const Duration(seconds: 23),
-        onTimeout: () => false,
-      );
       _ackCompleter = null;
       _expectedAckScheduleIds = <int>{};
-
-      // No ACK / device-error → DO NOT hit the backend. The dialog will
-      // show its Retry view; tapping Retry re-runs this whole flow.
-      if (!ackOk) return '';
     }
 
-    // ACK ok (or MQTT skipped) → persist on backend.
-    final dto = _buildDto(form, scheduleId: scheduleId);
-    final response = await _scheduleController.createSchedule(dtos: [dto]);
-    if (response == null) {
-      return _scheduleController.message ?? '';
-    }
-
-    SharedPreference.setscheduleid(response.data?.id ?? 0);
-
-    // PATCH /motor-schedules/bulk/ack with the freshly created object id so
-    // the backend marks this schedule as device-acknowledged. Best-effort —
-    // we already have the device's ACK, so a transient PATCH failure
-    // shouldn't block the success flow.
-    final newObjectId = response.data?.id;
-    if (newObjectId != null) {
+    // Step 3: Acknowledgement API — only when the device actually ACKed.
+    // Without an ACK the row stays 'pending' on the backend.
+    if (ackOk && newObjectId != null) {
       try {
         await _scheduleRepo.scheduleAcknowledgement([newObjectId]);
       } catch (_) {
@@ -340,18 +341,47 @@ class _SchedulePageState extends State<SchedulePage> {
       }
     }
 
-    getsuccessSnackBar(response.message ?? 'Schedule created successfully');
-    _scheduleSaved = true;
+    // Only celebrate when the device confirmed (or MQTT was skipped for a
+    // far-out schedule). On ACK failure the row is on backend in 'pending'
+    // status — the user sees that in the list, no snackbar needed.
+    if (ackOk) {
+      getsuccessSnackBar('Schedule created successfully');
+    }
     return null;
   }
 
-  Future<bool> _updateSchedule() async {
+  /// Same return contract as [_createSchedule]: `null` → success (PATCH
+  /// committed), `'message'` → backend rejected. ACK failure does not
+  /// fail the call.
+  ///
+  /// Order: PATCH /motor-schedules → MQTT T:23 publish → wait T:54 ACK.
+  Future<String?> _updateSchedule() async {
     final form = _formKey.currentState!;
     final id = _resolveIdentifier();
 
-    // Step 1: Publish MQTT T:23 — dialog stays loading while we await ACK
+    // scheduleupdate() builds the PATCH URL from SharedPreference's
+    // scheduleid, so it has to be primed BEFORE the call. Setting it
+    // after (as _createSchedule does for a freshly-POSTed row) is fine
+    // when the id is unknown until the response arrives — but here we
+    // already have _editRecord.id. Without this line the PATCH hits
+    // /motor-schedules/0 (or whatever stale id was left over from the
+    // last create / edit), so the request either updates the wrong
+    // record or is treated as an upsert, which is what looked like
+    // "edit created another schedule."
+    SharedPreference.setscheduleid(_editRecord?.id ?? 0);
+
+    // Step 1: PATCH. The only step that can fail the operation.
+    final dto = _buildDto(form, scheduleId: _editRecord?.scheduleId ?? 1);
+    final response = await _scheduleController.updateSchedule(dto: dto);
+    if (response == null) {
+      return _scheduleController.message ?? '';
+    }
+    _scheduleSaved = true;
+
+    // Step 2: Publish MQTT T:23 + wait for T:54 ACK (best-effort).
     _ackCompleter = Completer<bool>();
     final isCyclic = form.cyclicMode;
+    var ackOk = false;
     try {
       await _mqttService.publishScheduleCommand(
         identifier: id,
@@ -368,49 +398,24 @@ class _SchedulePageState extends State<SchedulePage> {
         isEdit: true,
         idx: 2, // editing means motor already has schedules
       );
-    } catch (e) {
-      _ackCompleter = null;
-      geterrorSnackBar('MQTT failed: $e');
-      return false;
+      ackOk = await _ackCompleter!.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => false,
+      );
+    } catch (_) {
+      // MQTT publish error — best-effort, swallow and continue.
     }
-
-    // Step 2: Wait for T:54 ACK — dialog still loading (30s timeout)
-    final ackSuccess = await _ackCompleter!.future.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        _ackCompleter = null;
-        return false;
-      },
-    );
     _ackCompleter = null;
 
-    if (!ackSuccess) {
-      // No page-level snackbar / navigation here. The dialog now owns its
-      // own waiting → failed → retry / cancel state machine, so popping a
-      // route from this function would also pop the schedule page off the
-      // stack (jumping the user to the schedule list) — which is what
-      // happened when the user tapped Cancel during retry. Just return
-      // false so the dialog can show its Retry view (or stay closed if
-      // the user already cancelled).
-      return false;
+    // Refresh the list so the user sees the updated row.
+    if (Get.isRegistered<MotorScheduleController>()) {
+      Get.find<MotorScheduleController>().fetchSchedules();
     }
 
-    // Step 3: ACK success → show snackbar instantly, run PATCH API in
-    // background AND refresh the schedules list once the PATCH commits.
-    // We chain `.then()` instead of `unawaited(...)` so that the list fetch
-    // fires AFTER the backend has persisted the edit — otherwise a delayed
-    // ACK (~2s) pops the page before PATCH commits and the GET returns
-    // stale data.
-    SharedPreference.setscheduleid(_editRecord?.id ?? 0);
-    final dto = _buildDto(form, scheduleId: _editRecord?.scheduleId ?? 1);
-    getsuccessSnackBar('Schedule updated successfully');
-    _scheduleSaved = true;
-    _scheduleController.updateSchedule(dto: dto).then((_) {
-      if (Get.isRegistered<MotorScheduleController>()) {
-        Get.find<MotorScheduleController>().fetchSchedules();
-      }
-    });
-    return true; // dialog closes immediately after ACK, no wait for API
+    if (ackOk) {
+      getsuccessSnackBar('Schedule updated successfully');
+    }
+    return null;
   }
 
   /// Build a single MQTT schedule item (shape matches the m1[] entries the
@@ -501,12 +506,9 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
-  /// Create all schedules sequentially via the existing single-create API,
-  /// collect their scheduleIds, then publish ONE T:3 MQTT command with all
-  /// items in ascending-id order.
-  /// Same return contract and ordering as [_createSchedule]: MQTT publish +
-  /// ACK first, then backend POST (only on success). On ACK timeout we
-  /// return `''` so the dialog shows Retry; the backend is not touched.
+  /// Same return contract as [_createSchedule]: `null` → success (rows
+  /// committed), `'message'` → backend rejected. ACK failure does not
+  /// fail the call — the dialog closes and the caller navigates.
   Future<String?> _createMultipleSchedules() async {
     final multi = _multiFormKey.currentState;
     if (multi == null) return '';
@@ -525,8 +527,53 @@ class _SchedulePageState extends State<SchedulePage> {
     final sharedEnd = multi.endDate;
     final sharedDays = multi.selectedDays;
 
+    // Step 1: POST. The only step that can fail the operation.
     final scheduleIds = _computeScheduleIds(forms.length);
+    final dtos = List.generate(
+      forms.length,
+      (i) => _buildDtoForMulti(
+        form: forms[i],
+        startDate: sharedStart,
+        endDate: sharedEnd,
+        selectedDays: sharedDays,
+        scheduleId: scheduleIds[i],
+      ),
+    );
 
+    final response = await _scheduleController.createSchedule(dtos: dtos);
+    if (response == null) {
+      return _scheduleController.message ?? '';
+    }
+
+    final ackIds = <int>{};
+    if (response.data?.id != null) {
+      SharedPreference.setscheduleid(response.data!.id!);
+      ackIds.add(response.data!.id!);
+    }
+
+    // POST response only carries a single Data, so refresh and collect
+    // every backend object id whose scheduleId is in our set.
+    if (Get.isRegistered<MotorScheduleController>()) {
+      final ctrl = Get.find<MotorScheduleController>();
+      try {
+        await ctrl.fetchSchedules(silent: true);
+        for (final r in ctrl.schedules) {
+          if (r.scheduleId != null &&
+              scheduleIds.contains(r.scheduleId) &&
+              r.id != null) {
+            ackIds.add(r.id!);
+          }
+        }
+      } catch (_) {
+        // silently fail — fall back to whatever ackIds we already have
+      }
+    }
+
+    // Rows committed — guarantee navigation on close.
+    _scheduleSaved = true;
+
+    // Step 2: MQTT publish + wait for ACK (best-effort). >2-day-out
+    // schedules skip MQTT entirely.
     final id = _resolveIdentifier();
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
@@ -535,6 +582,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final daysDiff = startNorm.difference(todayNorm).inDays;
     final shouldPublishMqtt = id.isNotEmpty && daysDiff <= 2;
 
+    var ackOk = !shouldPublishMqtt;
     if (shouldPublishMqtt) {
       final items = <Map<String, dynamic>>[];
       for (int i = 0; i < forms.length; i++) {
@@ -564,75 +612,29 @@ class _SchedulePageState extends State<SchedulePage> {
           idx: _mqttIdx(),
           trackExpectedAcks: items.length > 1,
         );
-      } catch (e) {
-        _ackCompleter = null;
-        _expectedAckScheduleIds = <int>{};
-        geterrorSnackBar('MQTT failed: $e');
-        return '';
+        ackOk = await _ackCompleter!.future.timeout(
+          const Duration(seconds: 23),
+          onTimeout: () => false,
+        );
+      } catch (_) {
+        ackOk = false;
       }
-
-      final ackOk = await _ackCompleter!.future.timeout(
-        const Duration(seconds: 23),
-        onTimeout: () => false,
-      );
       _ackCompleter = null;
       _expectedAckScheduleIds = <int>{};
-
-      // No ACK → don't persist on backend. Dialog will show Retry.
-      if (!ackOk) return '';
     }
 
-    // ACK ok (or MQTT skipped) → persist on backend.
-    final dtos = List.generate(
-      forms.length,
-      (i) => _buildDtoForMulti(
-        form: forms[i],
-        startDate: sharedStart,
-        endDate: sharedEnd,
-        selectedDays: sharedDays,
-        scheduleId: scheduleIds[i],
-      ),
-    );
-
-    final response = await _scheduleController.createSchedule(dtos: dtos);
-    if (response == null) {
-      return _scheduleController.message ?? '';
-    }
-    if (response.data?.id != null) {
-      SharedPreference.setscheduleid(response.data!.id!);
-    }
-
-    // PATCH /motor-schedules/bulk/ack for every record we just created.
-    // The POST response only carries a single Data, so for multi-create we
-    // refresh MotorScheduleController.schedules and collect every backend
-    // object id whose scheduleId is in [scheduleIds].
-    final ackIds = <int>{};
-    if (response.data?.id != null) ackIds.add(response.data!.id!);
-    if (Get.isRegistered<MotorScheduleController>()) {
-      final ctrl = Get.find<MotorScheduleController>();
-      try {
-        await ctrl.fetchSchedules(silent: true);
-        for (final r in ctrl.schedules) {
-          if (r.scheduleId != null &&
-              scheduleIds.contains(r.scheduleId) &&
-              r.id != null) {
-            ackIds.add(r.id!);
-          }
-        }
-      } catch (_) {
-        // silently fail — fall back to whatever ackIds we already have
-      }
-    }
-    if (ackIds.isNotEmpty) {
+    // Step 3: Acknowledgement API — only when the device actually ACKed.
+    if (ackOk && ackIds.isNotEmpty) {
       try {
         await _scheduleRepo.scheduleAcknowledgement(ackIds.toList());
       } catch (_) {
-        // silently fail — schedules are already created on backend
+        // silently fail — schedules are already on backend
       }
     }
 
-    getsuccessSnackBar(response.message ?? 'Schedules created successfully');
-    _scheduleSaved = true;
+    if (ackOk) {
+      getsuccessSnackBar('Schedules created successfully');
+    }
     return null;
   }
 
@@ -732,13 +734,7 @@ class _SchedulePageState extends State<SchedulePage> {
         ],
         selectedDays: form.selectedDays.toList(),
         dayCounts: dayCounts,
-        onConfirm: () async {
-          final ok = await _updateSchedule();
-          if (ok) return null;
-          // Edit currently distinguishes failures via _scheduleController.message;
-          // an empty string is the no-ack case the dialog now treats as Retry.
-          return _scheduleController.message ?? '';
-        },
+        onConfirm: _updateSchedule,
         onCancelWhileWaiting: _cancelInFlightCreate,
       );
     } else {

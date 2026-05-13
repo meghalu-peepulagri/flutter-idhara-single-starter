@@ -2053,16 +2053,27 @@ class MqttService {
     final scheduleId = idRaw is int ? idRaw : int.tryParse('$idRaw');
     if (scheduleId == null) return;
 
+    // Device can send numeric fields as either int (1155) or string
+    // ("1155"); `et` is also null while a schedule is still running.
+    // A bare `as num?` cast throws TypeError on a String and would kill
+    // this whole live tick, so coerce through a tolerant helper.
+    int asInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+
     final info = ScheduleInfo(
       id: scheduleId,
-      startTime: (schRaw['st'] as num?)?.toInt() ?? 0,
-      runtime: (schRaw['rt'] as num?)?.toInt() ?? 0,
-      endTime: (schRaw['et'] as num?)?.toInt() ?? 0,
-      missedTimes: (schRaw['mm'] as num?)?.toInt() ?? 0,
-      failureEpoch: (schRaw['fe'] as num?)?.toInt() ?? 0,
-      failureReason: (schRaw['fr'] as num?)?.toInt() ?? 0,
-      startEpoch: (schRaw['st_ep'] as num?)?.toInt() ?? 0,
-      endEpoch: (schRaw['et_ep'] as num?)?.toInt() ?? 0,
+      startTime: asInt(schRaw['st']),
+      runtime: asInt(schRaw['rt']),
+      endTime: asInt(schRaw['et']),
+      missedTimes: asInt(schRaw['mm']),
+      failureEpoch: asInt(schRaw['fe']),
+      failureReason: asInt(schRaw['fr']),
+      startEpoch: asInt(schRaw['st_ep']),
+      endEpoch: asInt(schRaw['et_ep']),
     );
     motorData.schedules[scheduleId] = info;
 

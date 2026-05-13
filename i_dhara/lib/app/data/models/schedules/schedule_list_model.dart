@@ -121,6 +121,8 @@ class Record {
   int? accumulatedOnSeconds;
   bool? manuallyStopped;
   int? actualRunTime;
+  String? actualStartTime;
+  String? actualEndTime;
   int? repeat;
   bool? enabled;
   String? scheduleStatus;
@@ -148,6 +150,8 @@ class Record {
     this.startTime,
     this.endTime,
     this.actualRunTime,
+    this.actualStartTime,
+    this.actualEndTime,
     this.runtimeMinutes,
     this.cycleOnMinutes,
     this.cycleOffMinutes,
@@ -188,6 +192,8 @@ class Record {
         cycleOffMinutes: json["cycle_off_minutes"],
         powerLossRecovery: json["power_loss_recovery"],
         actualRunTime: json["actual_run_time"],
+        actualStartTime: json["actual_start_time"],
+        actualEndTime: json["actual_end_time"],
         accumulatedOnSeconds: json["accumulated_on_seconds"],
         manuallyStopped: json["manually_stopped"],
         repeat: json["repeat"],
@@ -219,6 +225,9 @@ class Record {
     String? endTime,
     int? accumulatedOnSeconds,
     String? scheduleStatus,
+    int? actualRunTime,
+    String? actualStartTime,
+    String? actualEndTime,
   }) =>
       Record(
         id: id,
@@ -232,6 +241,9 @@ class Record {
         daysOfWeek: daysOfWeek,
         startTime: startTime ?? this.startTime,
         endTime: endTime ?? this.endTime,
+        actualRunTime: actualRunTime ?? this.actualRunTime,
+        actualStartTime: actualStartTime ?? this.actualStartTime,
+        actualEndTime: actualEndTime ?? this.actualEndTime,
         runtimeMinutes: runtimeMinutes ?? this.runtimeMinutes,
         cycleOnMinutes: cycleOnMinutes,
         cycleOffMinutes: cycleOffMinutes,
@@ -274,6 +286,8 @@ class Record {
         "accumulated_on_seconds": accumulatedOnSeconds,
         "manually_stopped": manuallyStopped,
         "actual_run_time": actualRunTime,
+        "actual_start_time": actualStartTime,
+        "actual_end_time": actualEndTime,
         "repeat": repeat,
         "enabled": enabled,
         "schedule_status": scheduleStatus,
