@@ -200,41 +200,85 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   /// Returns [count] scheduleIds for new schedules.
-  /// Gaps in the existing ID sequence are filled first (ascending), then
-  /// continues from maxExistingId + 1.
-  /// Example: existing=[1,3], count=2 → [2, 4]
-  /// Example: existing=[1,2,3], count=2 → [4, 5]
-  /// Example: existing=[], count=3 → [1, 2, 3]
-  List<int> _computeScheduleIds(int count) {
-    final existing = <int>{};
-    if (Get.isRegistered<MotorScheduleController>()) {
-      for (final s in Get.find<MotorScheduleController>().schedules) {
-        if (s.scheduleId != null && s.scheduleId! > 0) {
-          existing.add(s.scheduleId!);
+  ///
+  /// "Occupied" slots are existing schedules whose status is **not** in
+  /// the reusable set (`FAILED`, `MISSED`, `COMPLETED`). Those three
+  /// statuses free their slot up — a freshly-created schedule can take
+  /// over the same id, which is what the user expects when a missed /
+  /// failed / finished run is replaced by a new one.
+  ///
+  /// Allocation order:
+  ///   1. Fill free slots inside `[1..maxId]` ascending (gaps + reusable
+  ///      ids from the statuses above).
+  ///   2. Once those are exhausted, continue from `maxId + 1`.
+  ///
+  /// Examples (with no reusable statuses):
+  ///   existing = [1, 3],     count = 2 → [2, 4]
+  ///   existing = [1, 2, 3],  count = 2 → [4, 5]
+  ///   existing = [],         count = 3 → [1, 2, 3]
+  ///
+  /// Examples with reusable statuses (id 2 is FAILED, id 3 is MISSED):
+  ///   existing = [1, 2(failed), 3(missed), 4(scheduled)], count = 2 → [2, 3]
+  ///   existing = [1(scheduled), 2(completed)],            count = 3 → [2, 3, 4]
+  Future<List<int>> _computeScheduleIds(int count) async {
+    // Statuses whose slots are considered free for re-allocation. PENDING
+    // is intentionally not in here — it means the device hasn't acked the
+    // schedule yet, but its id is still in-flight and shouldn't be reused.
+    const reusableStatuses = {'FAILED', 'MISSED', 'COMPLETED'};
+
+    // Pull every existing schedule for this motor — no date filter — so we
+    // see ids across all dates. The in-memory MotorScheduleController list
+    // is filtered to a single selectedDate, which made the previous
+    // synchronous version miss ids from other dates (e.g. user creates on
+    // 14/15 → ids 1..4, opens create for 16 → controller list looked
+    // empty → started back at 1).
+    final occupied = <int>{};
+    var maxSeenId = 0;
+    try {
+      // High limit (1000) is enough for a motor's lifetime schedule
+      // history; if a motor ever exceeds this we'll need pagination here.
+      final response = await _scheduleRepo.getScheduleList(1, 1000);
+      final records = response?.data?.records ?? <Record>[];
+      for (final s in records) {
+        final sid = s.scheduleId;
+        if (sid == null || sid <= 0) continue;
+        if (sid > maxSeenId) maxSeenId = sid;
+        final status = (s.scheduleStatus ?? '').toUpperCase();
+        if (reusableStatuses.contains(status)) continue; // free slot
+        occupied.add(sid);
+      }
+    } catch (_) {
+      // Network failure → fall back to whatever the controller has cached
+      // so we don't block the create flow.
+      if (Get.isRegistered<MotorScheduleController>()) {
+        for (final s in Get.find<MotorScheduleController>().schedules) {
+          final sid = s.scheduleId;
+          if (sid == null || sid <= 0) continue;
+          if (sid > maxSeenId) maxSeenId = sid;
+          final status = (s.scheduleStatus ?? '').toUpperCase();
+          if (reusableStatuses.contains(status)) continue;
+          occupied.add(sid);
         }
       }
     }
 
-    if (existing.isEmpty) {
+    if (maxSeenId == 0) {
+      // No prior schedules at all — start from id 1.
       return List.generate(count, (i) => i + 1);
     }
 
-    final maxId = existing.reduce((a, b) => a > b ? a : b);
-
-    // Collect gaps: IDs from 1..maxId that are missing
-    final gaps = [
-      for (int i = 1; i <= maxId; i++)
-        if (!existing.contains(i)) i,
+    // Free slots inside [1..maxSeenId]: gap ids plus reusable-status ids.
+    final freeSlots = [
+      for (int i = 1; i <= maxSeenId; i++)
+        if (!occupied.contains(i)) i,
     ];
 
     final result = <int>[];
-    // Fill gaps first
-    for (final gap in gaps) {
+    for (final free in freeSlots) {
       if (result.length == count) break;
-      result.add(gap);
+      result.add(free);
     }
-    // Then increment from maxId + 1
-    var next = maxId + 1;
+    var next = maxSeenId + 1;
     while (result.length < count) {
       result.add(next++);
     }
@@ -278,7 +322,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final form = _formKey.currentState!;
 
     // Step 1: POST. This is the only step that can fail the operation.
-    final scheduleId = _computeScheduleIds(1).first;
+    final scheduleId = (await _computeScheduleIds(1)).first;
     final dto = _buildDto(form, scheduleId: scheduleId);
     final response = await _scheduleController.createSchedule(dtos: [dto]);
     if (response == null) {
@@ -418,40 +462,46 @@ class _SchedulePageState extends State<SchedulePage> {
     return null;
   }
 
-  /// Build a single MQTT schedule item (shape matches the m1[] entries the
-  /// device expects). Dates come from the shared multi-form state; time,
-  /// cyclic and power-recovery come from the individual child form.
+  /// Build a single MQTT schedule item for one filtered date. The device
+  /// sees `sd == ed == date` and an end-epoch that rolls into the next day
+  /// when the slot crosses midnight (so cyclic / overnight windows stay
+  /// contiguous).
   Map<String, dynamic> _buildMqttScheduleItem({
     required int scheduleId,
-    required DateTime startDate,
-    required DateTime endDate,
+    required DateTime date,
     required ScheduleFormState form,
     required int enabled,
   }) {
     final isCyclic = form.cyclicMode;
 
-    final stEpoch = DateTime(
-          startDate.year,
-          startDate.month,
-          startDate.day,
-          form.startHour,
-          form.startMinute,
-        ).millisecondsSinceEpoch ~/
-        1000;
+    final start = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      form.startHour,
+      form.startMinute,
+    );
+    var end = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      form.endHour,
+      form.endMinute,
+    );
+    // end ≤ start ⇒ the slot wraps midnight; push the end into the next day
+    // so st_ep < ed_ep and the device sees a coherent window.
+    if (!end.isAfter(start)) {
+      end = end.add(const Duration(days: 1));
+    }
 
-    final edEpoch = DateTime(
-          endDate.year,
-          endDate.month,
-          endDate.day,
-          form.endHour,
-          form.endMinute,
-        ).millisecondsSinceEpoch ~/
-        1000;
+    final stEpoch = start.millisecondsSinceEpoch ~/ 1000;
+    final edEpoch = end.millisecondsSinceEpoch ~/ 1000;
+    final dateCode = _dateToYYMMDD(date);
 
     return {
       'id': scheduleId,
-      'sd': _dateToYYMMDD(startDate),
-      'ed': _dateToYYMMDD(endDate),
+      'sd': dateCode,
+      'ed': dateCode,
       'st': form.startHour * 100 + form.startMinute,
       'et': form.endHour * 100 + form.endMinute,
       'st_ep': stEpoch,
@@ -468,32 +518,54 @@ class _SchedulePageState extends State<SchedulePage> {
     };
   }
 
-  CreateScheduleDto _buildDtoForMulti({
+  /// Expand a `startDate..endDate` range against `selectedDays` into the
+  /// concrete dates the schedule should actually run on. Empty `days` means
+  /// "every date in range"; otherwise only weekdays present in `days` are
+  /// kept (Sun=0 .. Sat=6, matching the form's day-index convention).
+  List<DateTime> _filteredDates(
+      DateTime start, DateTime end, Set<int> days) {
+    final out = <DateTime>[];
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day);
+    final span = e.difference(s).inDays.abs() + 1;
+    for (int i = 0; i < span; i++) {
+      final d = s.add(Duration(days: i));
+      final di = d.weekday == 7 ? 0 : d.weekday;
+      if (days.isEmpty || days.contains(di)) out.add(d);
+    }
+    return out;
+  }
+
+  /// Builds the backend DTO for one (slot × filtered date) record. Each
+  /// row stores `schedule_start_date == schedule_end_date == that date`,
+  /// so the range "14 → 23" with one slot produces 10 separate rows
+  /// (14/14, 15/15, …, 23/23). Lines up 1:1 with the per-date MQTT
+  /// messages.
+  CreateScheduleDto _buildDtoForFilteredDate({
     required ScheduleFormState form,
-    required DateTime startDate,
-    required DateTime endDate,
+    required DateTime date,
     required Set<int> selectedDays,
     required int scheduleId,
   }) {
     final isCyclic = form.cyclicMode;
+    // Per-date runtime (end − start with overnight wrap rolling end into
+    // the next day so the minutes stay positive).
     final durationMinutes = () {
-      final start = DateTime(startDate.year, startDate.month, startDate.day,
-          form.startHour, form.startMinute);
-      final end = DateTime(endDate.year, endDate.month, endDate.day,
-          form.endHour, form.endMinute);
-      final endAdjusted = end.isBefore(start) || end.isAtSameMomentAs(start)
-          ? end.add(const Duration(days: 1))
-          : end;
-      return endAdjusted.difference(start).inMinutes;
+      final startMin = form.startHour * 60 + form.startMinute;
+      var endMin = form.endHour * 60 + form.endMinute;
+      if (endMin == startMin) return 0;
+      if (endMin < startMin) endMin += 1440;
+      return endMin - startMin;
     }();
+    final dateCode = _dateToYYMMDD(date);
     return CreateScheduleDto(
       motorId: SharedPreference.getMotorId(),
       starterId: SharedPreference.getStarterId(),
       scheduleType: isCyclic ? 'CYCLIC' : 'TIME_BASED',
       startTime: _formatTimeHHMM(form.startHour, form.startMinute),
       endTime: isCyclic ? null : _formatTimeHHMM(form.endHour, form.endMinute),
-      scheduleStartDate: _dateToYYMMDD(startDate),
-      scheduleEndDate: _dateToYYMMDD(endDate),
+      scheduleStartDate: dateCode,
+      scheduleEndDate: dateCode,
       cycleOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
       cycleOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
       daysOfWeek: selectedDays.toList()..sort(),
@@ -527,18 +599,37 @@ class _SchedulePageState extends State<SchedulePage> {
     final sharedEnd = multi.endDate;
     final sharedDays = multi.selectedDays;
 
-    // Step 1: POST. The only step that can fail the operation.
-    final scheduleIds = _computeScheduleIds(forms.length);
-    final dtos = List.generate(
-      forms.length,
-      (i) => _buildDtoForMulti(
-        form: forms[i],
-        startDate: sharedStart,
-        endDate: sharedEnd,
-        selectedDays: sharedDays,
-        scheduleId: scheduleIds[i],
-      ),
-    );
+    // Expand the picked range × selectedDays into the concrete dates we'll
+    // act on. The backend POST and the MQTT publish both work from this
+    // same list so the two stay in sync (every backend row matches a
+    // device-side per-date run).
+    final filteredDates =
+        _filteredDates(sharedStart, sharedEnd, sharedDays);
+    if (filteredDates.isEmpty) {
+      // Nothing to create — happens only if the user picks a day-of-week
+      // filter that excludes the entire range. Surface the validation as
+      // a backend-style rejection message so the dialog handles it.
+      return 'No matching dates in the selected range';
+    }
+
+    // Step 1: POST one row per (slot × filtered date). Schedule IDs are
+    // unique across the whole batch (1..N_slots × N_dates) so each backend
+    // record gets its own identifier and the device's per-date MQTT
+    // messages can address them individually.
+    final totalRows = forms.length * filteredDates.length;
+    final scheduleIds = await _computeScheduleIds(totalRows);
+    final dtos = <CreateScheduleDto>[];
+    var idIdx = 0;
+    for (final d in filteredDates) {
+      for (int i = 0; i < forms.length; i++) {
+        dtos.add(_buildDtoForFilteredDate(
+          form: forms[i],
+          date: d,
+          selectedDays: sharedDays,
+          scheduleId: scheduleIds[idIdx++],
+        ));
+      }
+    }
 
     final response = await _scheduleController.createSchedule(dtos: dtos);
     if (response == null) {
@@ -572,54 +663,86 @@ class _SchedulePageState extends State<SchedulePage> {
     // Rows committed — guarantee navigation on close.
     _scheduleSaved = true;
 
-    // Step 2: MQTT publish + wait for ACK (best-effort). >2-day-out
-    // schedules skip MQTT entirely.
+    // Step 2: MQTT publish + wait for ACK (best-effort).
+    //
+    // Build one MQTT message per (slot × filtered date), each carrying
+    // `sd == ed == that filtered date` and the unique scheduleId that
+    // was just POSTed to the backend. publishSchedulesBatched chunks
+    // these into groups of 8 with `D.last` as the chunk index and the
+    // service's retry timer fires 10s/10s/3s if the device doesn't ACK.
+    //
+    // The 2-day cutoff is applied PER DATE — dates within 2 days of
+    // today are published over MQTT, the rest sit as 'pending' on the
+    // backend (they'll be re-published closer to their run date by the
+    // sync flow). Backend POST already covers every filtered date, so
+    // far-out rows still exist; only the device-side notification is
+    // deferred.
     final id = _resolveIdentifier();
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
-    final startNorm =
-        DateTime(sharedStart.year, sharedStart.month, sharedStart.day);
-    final daysDiff = startNorm.difference(todayNorm).inDays;
-    final shouldPublishMqtt = id.isNotEmpty && daysDiff <= 2;
 
-    var ackOk = !shouldPublishMqtt;
-    if (shouldPublishMqtt) {
-      final items = <Map<String, dynamic>>[];
+    // Per-date eligibility — keep the same `scheduleIds` allocation
+    // order as the DTOs above so each MQTT m1 entry's `id` matches its
+    // backend record's `schedule_id`. We collect a flat list of every
+    // m1 entry (across dates and slots) and then chunk it into MQTT
+    // messages of up to 8 entries each. This way the device sees a
+    // single payload for small ranges (range 14→15, 2 slots → 4
+    // entries → 1 message with m1[4]) instead of a separate publish
+    // per date.
+    final allMqttItems = <Map<String, dynamic>>[];
+    for (int dIdx = 0; dIdx < filteredDates.length; dIdx++) {
+      final d = filteredDates[dIdx];
+      final diffDays = d.difference(todayNorm).inDays;
+      if (diffDays > 2) continue; // > 2 days out → backend only, no MQTT
       for (int i = 0; i < forms.length; i++) {
-        items.add(_buildMqttScheduleItem(
-          scheduleId: scheduleIds[i],
-          startDate: sharedStart,
-          endDate: sharedEnd,
+        allMqttItems.add(_buildMqttScheduleItem(
+          scheduleId: scheduleIds[dIdx * forms.length + i],
+          date: d,
           form: forms[i],
           enabled: 1,
         ));
       }
-      if (Get.isRegistered<MotorScheduleController>()) {
+    }
+
+    // Chunk the flat list into MQTT messages of up to 8 m1 entries each.
+    // dateMessages[i] is the m1[] of the i-th MQTT message.
+    const entriesPerMessage = 8;
+    final dateMessages = <List<Map<String, dynamic>>>[];
+    for (int i = 0; i < allMqttItems.length; i += entriesPerMessage) {
+      final end = (i + entriesPerMessage < allMqttItems.length)
+          ? i + entriesPerMessage
+          : allMqttItems.length;
+      dateMessages.add(allMqttItems.sublist(i, end));
+    }
+
+    final shouldPublishMqtt = id.isNotEmpty && dateMessages.isNotEmpty;
+    var ackOk = !shouldPublishMqtt;
+    if (shouldPublishMqtt) {
+      // publishSchedulesBatched sends each MQTT message sequentially (one
+      // per batch via batchSize=1), so the per-message retry cycle
+      // (10s/10s/3s) stays intact and `D.last` reflects "is this the
+      // last payload" — 1 for the only/final message, 0 otherwise.
+      // Any successful T:33 short-circuits the retries for that message.
+      if (Get.isRegistered<MotorScheduleController>() &&
+          allMqttItems.isNotEmpty) {
         Get.find<MotorScheduleController>().trackPendingSchedulePublish(
-              items: items,
+              items: allMqttItems,
               identifier: id,
               idx: _mqttIdx(),
             );
       }
 
       _expectedAckScheduleIds = scheduleIds.toSet();
-      _ackCompleter = Completer<bool>();
 
       try {
-        await _mqttService.publishMultipleSchedulesCommand(
+        ackOk = await _mqttService.publishSchedulesBatched(
           identifier: id,
-          items: items,
+          dateMessages: dateMessages,
           idx: _mqttIdx(),
-          trackExpectedAcks: items.length > 1,
-        );
-        ackOk = await _ackCompleter!.future.timeout(
-          const Duration(seconds: 23),
-          onTimeout: () => false,
         );
       } catch (_) {
         ackOk = false;
       }
-      _ackCompleter = null;
       _expectedAckScheduleIds = <int>{};
     }
 

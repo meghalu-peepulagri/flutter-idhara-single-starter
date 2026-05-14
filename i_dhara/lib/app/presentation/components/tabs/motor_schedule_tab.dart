@@ -126,13 +126,21 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
       case 'PENDING':
         return const Color(0xFFEF9F27); // orange
       case 'SCHEDULED':
-        return const Color(0xFF85B7EB); // blue
+        return const Color(0xFF85B7EB); // light blue
       case 'STOPPED':
         return const Color(0xFFE24B4A); // red
       case 'COMPLETED':
-        return const Color(0xFFEF9F27); // yellow
+        return const Color(0xFF2563EB); // strong blue (success / done)
+      case 'PARTIAL':
+        return const Color(0xFFF59E0B); // amber (distinct from Scheduled blue)
+      case 'MISSED':
+        return const Color(0xFF94A3B8); // gray (inactive / skipped)
+      case 'FAILED':
+        return const Color(0xFFB91C1C); // dark red (distinct from Stopped's bright red)
       default:
-        return const Color(0xFF85B7EB);
+        // Unknown / not-yet-set status → neutral gray so it doesn't
+        // collide with any other legend color.
+        return const Color(0xFFCBD5E1);
     }
   }
 

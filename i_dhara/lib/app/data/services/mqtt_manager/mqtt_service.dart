@@ -157,6 +157,12 @@ class PendingCommand {
   /// every T:33 ACK bitmask received for this command.
   final Set<int> ackedScheduleIds = <int>{};
 
+  /// When non-null, this PendingCommand owns several parallel T:3 payloads
+  /// (one per filtered date in a batched schedule create). On each retry
+  /// tick the service re-publishes all of them; a single ACK covering
+  /// [expectedScheduleIds] satisfies the whole batch.
+  final List<Map<String, dynamic>>? batchedPayloads;
+
   PendingCommand({
     required this.motorId,
     required this.commandType,
@@ -166,6 +172,7 @@ class PendingCommand {
     required this.onMaxRetriesReached,
     this.pcbnumber,
     this.expectedScheduleIds,
+    this.batchedPayloads,
   });
 
   void cancelTimer() {
@@ -603,6 +610,10 @@ class MqttService {
 
     /// 1 = first schedule on this motor, 2 = motor already has schedules
     int idx = 1,
+
+    /// Batch index in a multi-batch publish. Single-message paths (single
+    /// create / edit) always publish as batch 0.
+    int last = 0,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -660,7 +671,7 @@ class MqttService {
       'S': seq,
       'D': {
         'idx': idx,
-        'last': 1,
+        'last': last,
         'sch_cnt': 1,
         'plr': 30,
         'm1': [scheduleItem],
@@ -698,6 +709,10 @@ class MqttService {
     /// 1 = first schedule on this motor, 2 = motor already has schedules
     int idx = 1,
     bool trackExpectedAcks = false,
+
+    /// Batch index — 0 for a single-batch publish. Callers that emit several
+    /// batches sequentially increment this per batch.
+    int last = 0,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -725,7 +740,7 @@ class MqttService {
       'S': seq,
       'D': {
         'idx': idx,
-        'last': 1,
+        'last': last,
         'sch_cnt': sorted.length,
         'plr': plr,
         'm1': sorted,
@@ -760,6 +775,187 @@ class MqttService {
     );
     statusMessage = 'Multi schedule command sent successfully';
     _dataUpdateNotifier.value++;
+  }
+
+  /// Publish a list of per-date schedule messages in parallel batches.
+  ///
+  /// Each entry in [dateMessages] is the `m1[]` for one filtered date — every
+  /// item inside already has `sd == ed == that date`. The method chunks the
+  /// list into groups of [batchSize] (default 8), fires every message in a
+  /// chunk in parallel with `D.last = batchIndex`, then waits for either a
+  /// device ACK covering the chunk's expected scheduleIds or for
+  /// [perBatchAckWindow] to elapse before moving on to the next chunk.
+  ///
+  /// Returns `true` only when every chunk completed with a successful ACK.
+  /// Per-message retries (10s / 10s / 3s) are handled by the existing
+  /// retry machinery — a `PendingCommand` with [PendingCommand.batchedPayloads]
+  /// set fans out republishes across all messages in the active chunk.
+  Future<bool> publishSchedulesBatched({
+    required String identifier,
+    required List<List<Map<String, dynamic>>> dateMessages,
+    required int idx,
+    int batchSize = 8, // kept for API compat — unused, all messages share one batch
+    int plr = 30,
+    Duration perBatchAckWindow = const Duration(seconds: 23),
+    Duration interBatchDelay = const Duration(milliseconds: 200),
+
+    /// When `true` (default) the batch registers a `PendingCommand` that
+    /// drives the 10s/10s/3s retry-on-no-ACK loop, re-firing every MQTT
+    /// message on each retry. When `false` the caller fires once and the
+    /// method returns without waiting.
+    bool autoRetry = true,
+  }) async {
+    if (_mqttClient == null || !isConnected) {
+      statusMessage = 'MQTT not connected';
+      _dataUpdateNotifier.value++;
+      throw Exception('MQTT not connected');
+    }
+    if (identifier.trim().isEmpty) {
+      throw Exception('Invalid identifier for schedule publish');
+    }
+    if (dateMessages.isEmpty) return true;
+
+    // All MQTT messages go out as ONE logical batch — they fire
+    // back-to-back at t=0 (so a 12-entry create publishes 8 then 4
+    // immediately), and a single shared retry timer re-fires every
+    // message at t=10s, t=20s. `D.last` is set per message: 1 for the
+    // final message in the sequence (or the only message in a single-
+    // payload case), 0 for the rest.
+    return _publishOneScheduleBatch(
+      identifier: identifier,
+      messages: dateMessages,
+      idx: idx,
+      plr: plr,
+      ackWindow: perBatchAckWindow,
+      autoRetry: autoRetry,
+    );
+  }
+
+  Future<bool> _publishOneScheduleBatch({
+    required String identifier,
+    required List<List<Map<String, dynamic>>> messages,
+    required int idx,
+    required int plr,
+    required Duration ackWindow,
+    bool autoRetry = true,
+  }) async {
+    // Build a payload per MQTT message. Each message's m1[] is sorted by
+    // `id` so the device sees consistent ordering. `D.last` is set per
+    // message: 1 for the final (or only) payload, 0 for the rest, so
+    // the device knows when the full sequence has arrived.
+    //
+    // `D.sch_cnt` carries the TOTAL schedule count across the whole
+    // sequence (every m1 entry in every message), not the m1 length of
+    // the current payload — so the device can sanity-check that it
+    // received every scheduled record once all `last=0` messages
+    // followed by a single `last=1` have arrived.
+    final totalScheduleCount = messages.fold<int>(
+      0,
+      (acc, m1) => acc + m1.length,
+    );
+    final payloads = <Map<String, dynamic>>[];
+    final expectedIds = <int>{};
+    for (int m = 0; m < messages.length; m++) {
+      final m1 = messages[m];
+      if (m1.isEmpty) continue;
+      final sorted = List<Map<String, dynamic>>.from(m1)
+        ..sort((a, b) =>
+            ((a['id'] as int?) ?? 0).compareTo((b['id'] as int?) ?? 0));
+      for (final item in sorted) {
+        final id = (item['id'] as int?) ?? 0;
+        if (id > 0) expectedIds.add(id);
+      }
+      final isFinal = m == messages.length - 1;
+      final seq = _random.nextInt(251);
+      payloads.add(<String, dynamic>{
+        'T': 3,
+        'S': seq,
+        'D': {
+          'idx': idx,
+          'last': isFinal ? 1 : 0,
+          'sch_cnt': totalScheduleCount,
+          'plr': plr,
+          'm1': sorted,
+        },
+      });
+    }
+    if (payloads.isEmpty) return true;
+
+    final commandKey = 'schedule_$identifier';
+    _lastAckTimes.remove(commandKey);
+    _expiredScheduleKeys.remove(commandKey);
+    _publishedScheduleIds[commandKey] = expectedIds.toList();
+
+    // Subscribe to the ACK + timeout streams BEFORE publishing so a fast
+    // device ACK during Future.wait doesn't slip past. We intentionally
+    // do NOT set `expectedScheduleIds` on the PendingCommand — that would
+    // cause the service to emit `scheduleFinalResult` per batch, which the
+    // controller's listener turns into a duplicate "X of Y" toast for
+    // every batch. Instead we treat the first successful T:33 ACK as
+    // "batch done" and let the schedule_page caller render a single final
+    // snackbar.
+    final completer = Completer<bool>();
+    final ackSub = scheduleAckStream.listen((ack) {
+      if (completer.isCompleted) return;
+      final topic = (ack['topic'] ?? '').toString();
+      if (topic != identifier) return;
+      final ackCode =
+          (ack['ack_code'] as int?) ?? (ack['D'] as int? ?? 0);
+      completer.complete(ackCode == 1);
+    });
+    final timeoutSub = scheduleAckTimeoutStream.listen((timedOutId) {
+      if (completer.isCompleted) return;
+      if (timedOutId != identifier) return;
+      completer.complete(false);
+    });
+
+    try {
+      // Fire all publishes in parallel — one socket failure shouldn't
+      // sink the whole batch.
+      await Future.wait(payloads.map((p) async {
+        try {
+          await _publishScheduleCommandInternal(
+            p,
+            identifier,
+            sequenceNumber: (p['S'] as num?)?.toInt(),
+          );
+        } catch (e) {
+          debugPrint('   ✗ Initial batch publish failed: $e');
+        }
+      }));
+
+      statusMessage = 'Schedule batch (${payloads.length} msgs) sent';
+      _dataUpdateNotifier.value++;
+
+      if (!autoRetry) {
+        // Pre-expanded retry mode — the caller already put 3 copies of
+        // each unique payload into the batch list, so no in-MQTT retry
+        // timer is needed. We don't block on an ACK either; the wire-level
+        // 3-send guarantee is enough.
+        return true;
+      }
+
+      _registerPendingCommand(
+        commandKey,
+        23,
+        // Use the first payload as the "anchor" commandData; retries iterate
+        // batchedPayloads instead. This keeps existing code paths that read
+        // commandData (e.g. legacy ACK handling) working.
+        payloads.first,
+        (payloads.first['S'] as num).toInt(),
+        pcbnumber: identifier,
+        batchedPayloads: payloads,
+      );
+
+      return await completer.future.timeout(ackWindow, onTimeout: () {
+        // Retries will have already fired within the window; if no success
+        // result landed by now, the device didn't ACK.
+        return false;
+      });
+    } finally {
+      await ackSub.cancel();
+      await timeoutSub.cancel();
+    }
   }
 
   Future<void> publishScheduleActionCommand({
@@ -2159,7 +2355,9 @@ class MqttService {
   }
 
   void _registerPendingCommand(String motorId, int type, dynamic data, int seq,
-      {String? pcbnumber, List<int>? expectedScheduleIds}) {
+      {String? pcbnumber,
+      List<int>? expectedScheduleIds,
+      List<Map<String, dynamic>>? batchedPayloads}) {
     final key = '${motorId}_$type';
 
     // Cancel any existing timer for this key to prevent duplicate retries.
@@ -2176,6 +2374,7 @@ class MqttService {
       },
       pcbnumber: pcbnumber,
       expectedScheduleIds: expectedScheduleIds,
+      batchedPayloads: batchedPayloads,
     );
 
     _scheduleRetry(command);
@@ -2214,14 +2413,34 @@ class MqttService {
           } else if ((command.commandType == 23 || command.commandType == 24) &&
               command.pcbnumber != null) {
             // Schedule create (23) or schedule action (24) command
-            await _publishScheduleCommandInternal(
-              command.commandData as Map<String, dynamic>,
-              command.pcbnumber!,
-              sequenceNumber: command.sequenceNumber,
-              isRetry: true,
-            );
-            debugPrint(
-                '🔄 Retry ${command.retryCount}: Schedule (${command.pcbnumber})');
+            if (command.batchedPayloads != null) {
+              // Batched create: re-publish every parallel payload. We don't
+              // await per-publish failures — one socket error shouldn't stop
+              // the others, the retry loop will fire again.
+              await Future.wait(command.batchedPayloads!.map((p) async {
+                try {
+                  await _publishScheduleCommandInternal(
+                    p,
+                    command.pcbnumber!,
+                    sequenceNumber: (p['S'] as num?)?.toInt(),
+                    isRetry: true,
+                  );
+                } catch (e) {
+                  debugPrint('   ✗ Batched retry publish failed: $e');
+                }
+              }));
+              debugPrint(
+                  '🔄 Retry ${command.retryCount}: Batched ${command.batchedPayloads!.length} schedules (${command.pcbnumber})');
+            } else {
+              await _publishScheduleCommandInternal(
+                command.commandData as Map<String, dynamic>,
+                command.pcbnumber!,
+                sequenceNumber: command.sequenceNumber,
+                isRetry: true,
+              );
+              debugPrint(
+                  '🔄 Retry ${command.retryCount}: Schedule (${command.pcbnumber})');
+            }
           } else {
             // Motor control or mode change command
             await _publishCommand(

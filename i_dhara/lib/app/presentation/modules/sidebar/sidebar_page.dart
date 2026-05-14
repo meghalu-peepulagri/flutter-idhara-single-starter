@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
 import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
@@ -67,6 +68,49 @@ class SidebarWidget extends StatelessWidget {
     } finally {
       _isLoading.value = false;
     }
+  }
+
+  /// Small environment indicator shown next to the app version in the
+  /// sidebar footer. Dev → orange, staging → amber. Live builds skip
+  /// rendering this chip entirely (handled by the caller).
+  Widget _buildEnvChip(Environment env) {
+    final (Color bg, Color fg, String label) = switch (env) {
+      Environment.dev => (
+          const Color(0xFFFFEDD5), // orange-100
+          const Color(0xFFC2410C), // orange-700
+          'DEV',
+        ),
+      Environment.staging => (
+          const Color(0xFFFEF3C7), // amber-100
+          const Color(0xFFB45309), // amber-700
+          'STAGING',
+        ),
+      Environment.live => (
+          // Unreachable in practice — caller hides the chip for live.
+          // Keep a sane fallback so the compiler is happy.
+          const Color(0xFFDCFCE7),
+          const Color(0xFF15803D),
+          'LIVE',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.lato(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: fg,
+          letterSpacing: 0.4,
+          height: 1.2,
+        ),
+      ),
+    );
   }
 
   // Helper method to build menu item
@@ -311,13 +355,27 @@ class SidebarWidget extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             if (_controller.appVersion.value.isNotEmpty)
-                              Text(
-                                'v${_controller.appVersion.value}',
-                                style: GoogleFonts.lato(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                  color: const Color(0xFF6B7280),
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'v${_controller.appVersion.value}',
+                                    style: GoogleFonts.lato(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w400,
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                  // Show an env pill only for non-live builds
+                                  // so QA / internal users can tell at a
+                                  // glance which backend the app is pointed
+                                  // at. Production builds stay unbranded.
+                                  if (AppEnvironment.environment !=
+                                      Environment.live) ...[
+                                    const SizedBox(width: 6),
+                                    _buildEnvChip(AppEnvironment.environment),
+                                  ],
+                                ],
                               ),
                           ],
                         ),

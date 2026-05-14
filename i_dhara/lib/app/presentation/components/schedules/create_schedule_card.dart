@@ -174,7 +174,12 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     final todayNorm = DateTime(now.year, now.month, now.day);
     startDate = todayNorm;
     endDate = todayNorm;
-    selectedDays = {};
+    // Pre-select today's weekday so the user immediately sees the
+    // current day chip rendered in the active state — no second tap
+    // needed for a same-day schedule. Sun=0..Sat=6 mapping (Dart's
+    // weekday returns Mon=1..Sun=7).
+    final todayWd = now.weekday == 7 ? 0 : now.weekday;
+    selectedDays = {todayWd};
     // Add first schedule directly (no setState) so it renders expanded on first build
     _schedules.add(_ScheduleEntry(
       id: _nextId++,
@@ -297,7 +302,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         } else if (endDate.isAfter(maxEnd)) {
           endDate = maxEnd;
         }
-        selectedDays.retainWhere((d) => _validDays.contains(d));
+        // Auto-select every weekday that falls inside the new range so
+        // the chip row mirrors the picked dates by default — user can
+        // still tap individual chips off to filter further.
+        selectedDays = Set<int>.from(_validDays);
       });
     }
   }
@@ -319,7 +327,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       if (picked == null) return;
       setState(() {
         endDate = picked;
-        selectedDays.retainWhere((d) => _validDays.contains(d));
+        // Same auto-select rule as `_openStartDatePicker`: extend the
+        // chip selection to every weekday now in the range.
+        selectedDays = Set<int>.from(_validDays);
       });
     }
   }
@@ -527,19 +537,22 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
             ],
           ),
 
-          if (selectedDays.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  'Range',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF94A3B8),
-                  ),
+          const SizedBox(height: 10),
+          // "Select Days" label sits between the date row and the weekday
+          // chips. Pairs with the right-side "N days active" pill so the
+          // user sees both the instruction and the live count.
+          Row(
+            children: [
+              Text(
+                'Select Days',
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF004E7E),
                 ),
-                const Spacer(),
+              ),
+              const Spacer(),
+              if (selectedDays.isNotEmpty)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -556,10 +569,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                     ),
                   ),
                 ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 12),
+            ],
+          ),
+          const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(top: 6, right: 4),
             child: Builder(builder: (_) {
@@ -921,6 +933,27 @@ class ScheduleFormState extends State<ScheduleForm> {
         startDate.day == now.day;
   }
 
+  /// Default start/end time pair seeded from the **start** date:
+  ///   • start = today → `(now, now + 5m)` (first run happens today, so
+  ///     current wall clock is the useful default).
+  ///   • start = future → `(00:00, 00:05)` (the first run is on a future
+  ///     date — `now` isn't relevant; midnight is the standard default).
+  ({int sh, int sm, int eh, int em}) _defaultsForDate(DateTime startD) {
+    final now = DateTime.now();
+    final startIsToday = startD.year == now.year &&
+        startD.month == now.month &&
+        startD.day == now.day;
+    if (!startIsToday) return (sh: 0, sm: 0, eh: 0, em: 5);
+    final startTotal = now.hour * 60 + now.minute;
+    final endTotal = startTotal + 5;
+    return (
+      sh: now.hour,
+      sm: now.minute,
+      eh: (endTotal ~/ 60) % 24,
+      em: endTotal % 60,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -930,24 +963,20 @@ class ScheduleFormState extends State<ScheduleForm> {
     endDate = widget.initialEndDate ?? todayNorm;
 
     if (widget.initialStartHour == null && widget.initialStartMinute == null) {
-      final now = DateTime.now();
-      final isToday = startDate.year == now.year &&
-          startDate.month == now.month &&
-          startDate.day == now.day;
-      if (isToday) {
-        startHour = now.hour;
-        startMinute = now.minute;
-      } else {
-        startHour = 0;
-        startMinute = 0;
-      }
+      // Fresh create — seed both start and end so the user sees a usable
+      // default window (today-only: now → now+5m, otherwise 00:00 → 00:05).
+      final d = _defaultsForDate(startDate);
+      startHour = d.sh;
+      startMinute = d.sm;
+      endHour = d.eh;
+      endMinute = d.em;
     } else {
+      // Edit mode — the parent supplies the existing record's values.
       startHour = widget.initialStartHour ?? 0;
       startMinute = widget.initialStartMinute ?? 0;
+      endHour = widget.initialEndHour ?? 0;
+      endMinute = widget.initialEndMinute ?? 0;
     }
-
-    endHour = widget.initialEndHour ?? 0;
-    endMinute = widget.initialEndMinute ?? 0;
     cyclicMode = widget.initialCyclicMode ?? false;
     cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
     cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
@@ -969,19 +998,11 @@ class ScheduleFormState extends State<ScheduleForm> {
     setState(() {
       if (startChanged) startDate = newStart;
       if (endChanged) endDate = newEnd;
-      final now = DateTime.now();
-      final isToday = startDate.year == now.year &&
-          startDate.month == now.month &&
-          startDate.day == now.day;
-      if (isToday) {
-        startHour = now.hour;
-        startMinute = now.minute;
-      } else {
-        startHour = 0;
-        startMinute = 0;
-      }
-      endHour = 0;
-      endMinute = 0;
+      final d = _defaultsForDate(startDate);
+      startHour = d.sh;
+      startMinute = d.sm;
+      endHour = d.eh;
+      endMinute = d.em;
       selectedDays.retainWhere((d) => _validDays.contains(d));
     });
 
@@ -1045,25 +1066,22 @@ class ScheduleFormState extends State<ScheduleForm> {
   TimeOfDay get startTime => TimeOfDay(hour: startHour, minute: startMinute);
   TimeOfDay get endTime => TimeOfDay(hour: endHour, minute: endMinute);
 
+  /// Per-date duration in minutes. Each schedule fires this same window on
+  /// every filtered date in the range, so the duration is the time delta
+  /// between [startHour]:[startMinute] and [endHour]:[endMinute] on a single
+  /// day (with `end <= start` rolling into the next day for midnight-wrap).
   int get durationMinutes {
-    final start = DateTime(
-        startDate.year, startDate.month, startDate.day, startHour, startMinute);
-    final end =
-        DateTime(endDate.year, endDate.month, endDate.day, endHour, endMinute);
-
-    if (end.isAtSameMomentAs(start)) return 0;
-    // end before start → schedule wraps midnight (e.g. 23:00 → 02:00).
-    final endAdjusted =
-        end.isBefore(start) ? end.add(const Duration(days: 1)) : end;
-    return endAdjusted.difference(start).inMinutes;
+    final startMin = startHour * 60 + startMinute;
+    var endMin = endHour * 60 + endMinute;
+    if (endMin == startMin) return 0;
+    if (endMin < startMin) endMin += 1440;
+    return endMin - startMin;
   }
 
   String get durationText {
     final total = durationMinutes;
-    final d = total ~/ 1440;
-    final h = (total % 1440) ~/ 60;
+    final h = total ~/ 60;
     final m = total % 60;
-    if (d > 0) return '${d}d ${h}h ${m.toString().padLeft(2, '0')}m';
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
@@ -1072,13 +1090,17 @@ class ScheduleFormState extends State<ScheduleForm> {
       if (isStart) {
         startHour = t.hour;
         startMinute = t.minute;
-        final newStart = DateTime(startDate.year, startDate.month,
-            startDate.day, startHour, startMinute);
-        final currentEnd = DateTime(
-            endDate.year, endDate.month, endDate.day, endHour, endMinute);
-        if (!currentEnd.isAfter(newStart)) {
-          endHour = 0;
-          endMinute = 0;
+        // Per-date schedules run start → end **within a single day**, so
+        // the comparison ignores startDate / endDate and just looks at
+        // HH:MM. If end ≤ new start in single-day terms, bump end to
+        // start + 5m so the window stays positive. If end is already
+        // later than start (e.g. start=10 with end=11:05), leave it.
+        final newStartMin = startHour * 60 + startMinute;
+        final currentEndMin = endHour * 60 + endMinute;
+        if (currentEndMin <= newStartMin) {
+          final endTotal = newStartMin + 5;
+          endHour = (endTotal ~/ 60) % 24;
+          endMinute = endTotal % 60;
         }
       } else {
         endHour = t.hour;
@@ -1092,13 +1114,15 @@ class ScheduleFormState extends State<ScheduleForm> {
   void _openTimePicker(bool isStart) {
     TimeOfDay? minTime;
     if (isStart && _isStartDateToday) {
+      // Start picker on today's date can't go before the current clock.
       final now = DateTime.now();
       minTime = TimeOfDay(hour: now.hour, minute: now.minute);
     } else if (!isStart) {
-      final isSameDate = startDate.year == endDate.year &&
-          startDate.month == endDate.month &&
-          startDate.day == endDate.day;
-      if (isSameDate) minTime = startTime;
+      // End picker is always clamped to ≥ startTime — each filtered date's
+      // run window is "startTime → endTime ON THAT DATE", so endTime
+      // earlier than startTime would mean a zero or negative duration.
+      // This applies whether the range is a single day or many days.
+      minTime = startTime;
     }
     showTimeBottomSheet(
       context,
@@ -1164,16 +1188,11 @@ class ScheduleFormState extends State<ScheduleForm> {
         endDate = maxEnd;
       }
       selectedDays.retainWhere((d) => _validDays.contains(d));
-      if (_isStartDateToday) {
-        final now = DateTime.now();
-        startHour = now.hour;
-        startMinute = now.minute;
-      } else {
-        startHour = 0;
-        startMinute = 0;
-      }
-      endHour = 0;
-      endMinute = 0;
+      final d = _defaultsForDate(picked);
+      startHour = d.sh;
+      startMinute = d.sm;
+      endHour = d.eh;
+      endMinute = d.em;
     });
     widget.onChanged?.call();
   }

@@ -260,6 +260,28 @@ class ScheduleManageController extends GetxController {
     // Blocks until device ACK received (or timeout) — dialog stays open with loading
     final success =
         await motorScheduleController.republishSchedules(records, idx: idx);
+
+    // ACK PATCH every record we just republished. MotorScheduleController
+    // also runs `fetchacknowledgement` inside its T:33 listener, but its
+    // `schedules` field is filtered to a single `selectedDate`, so for a
+    // multi-date republish (e.g. 6 schedules across May 14/15/16) only
+    // the records on that one selected date would be patched and the
+    // rest would stay in PENDING. Patching the full set here covers
+    // every record regardless of which date the motor controller is
+    // currently scoped to.
+    if (success) {
+      final objectIds =
+          records.map((r) => r.id).whereType<int>().toList();
+      if (objectIds.isNotEmpty) {
+        try {
+          await _scheduleRepo.scheduleAcknowledgement(objectIds);
+        } catch (_) {
+          // silent — device already accepted; the next list refresh
+          // will pick up the backend status either way.
+        }
+      }
+    }
+
     isLoading.value = true;
     await fetchSchedules();
     return success;

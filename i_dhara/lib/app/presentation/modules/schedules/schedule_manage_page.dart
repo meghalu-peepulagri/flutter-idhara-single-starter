@@ -635,6 +635,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       ...schedules.map(
         (record) => Obx(() {
           final isSelected = _controller.isSelected(record);
+          final dateLabel = _formatScheduleDate(
+            record.scheduleStartDate,
+            record.scheduleEndDate,
+          );
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: ScheduleCard(
@@ -643,6 +647,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               showEditAction: false,
               showDeleteAction: false,
               disableToggle: true,
+              dateLabel: dateLabel.isEmpty ? null : dateLabel,
               leading: Checkbox(
                 value: isSelected,
                 onChanged: (_) => _controller.toggleSelection(record),
@@ -693,6 +698,35 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
           ),
         ),
     ];
+  }
+
+  /// Renders the record's `schedule_start_date` / `schedule_end_date`
+  /// (YYMMDD ints from the backend) as a compact label shown next to
+  /// the time on the card. Per-date records have start == end → shows
+  /// a single "14 May"; legacy range rows show "14 May → 21 May". The
+  /// year is intentionally omitted — schedules always live in the near
+  /// future, so the year adds noise without disambiguating.
+  String _formatScheduleDate(int? startCode, int? endCode) {
+    final start = _yymmddToDate(startCode);
+    if (start == null) return '';
+    final end = _yymmddToDate(endCode);
+    final fmt = DateFormat('dd MMM');
+    if (end == null ||
+        (start.year == end.year &&
+            start.month == end.month &&
+            start.day == end.day)) {
+      return fmt.format(start);
+    }
+    return '${fmt.format(start)} → ${fmt.format(end)}';
+  }
+
+  DateTime? _yymmddToDate(int? code) {
+    if (code == null || code <= 0) return null;
+    final yy = code ~/ 10000;
+    final mm = (code % 10000) ~/ 100;
+    final dd = code % 100;
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+    return DateTime(2000 + yy, mm, dd);
   }
 
   Widget _buildBulkActionBar() {

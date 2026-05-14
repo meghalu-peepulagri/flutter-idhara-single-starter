@@ -15,6 +15,11 @@ class ScheduleCard extends StatelessWidget {
   final bool showDeleteAction;
   final bool disableToggle;
   final void Function(Record record)? onCancelAction;
+  // Optional date label rendered inside the card above the time row.
+  // Used by the manage page to show each record's per-date date string
+  // ("14 May 2026"). Motor schedule tab passes null since its list is
+  // already grouped under a date selector.
+  final String? dateLabel;
   const ScheduleCard(
       {super.key,
       required this.record,
@@ -25,7 +30,8 @@ class ScheduleCard extends StatelessWidget {
       this.showEditAction = true,
       this.showDeleteAction = true,
       this.disableToggle = false,
-      this.onCancelAction});
+      this.onCancelAction,
+      this.dateLabel});
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +53,10 @@ class ScheduleCard extends StatelessWidget {
 
     final isCompleted = normalizedStatus == 'completed';
     final isFailed = normalizedStatus == 'failed';
+    // Card chrome stays the same regardless of status — the status
+    // badge already communicates terminal states (FAILED / COMPLETED /
+    // PARTIAL / MISSED), so no extra grey-out is applied to the card
+    // body. Action buttons handle their own show/hide per status below.
     // Partial / missed are terminal device-side outcomes — the schedule
     // window is over, so Stop/Restart and Edit are meaningless. Delete is
     // still allowed so the user can clean them up.
@@ -63,9 +73,13 @@ class ScheduleCard extends StatelessWidget {
         isFailed ||
         isPartial ||
         isMissed;
-    // Failed is terminal device-side (same as completed/partial/missed),
-    // so allow delete so the user can clean it up and reclaim the slot.
-    final deleteDisabled = isRunning || isPending;
+    // FAILED rows are read-only from the per-motor card — no actions
+    // (including delete) are exposed there. The Schedule Manage page
+    // already handles bulk cleanup of failed rows, so the per-card
+    // delete is redundant. RUNNING and PENDING are also excluded:
+    // running schedules shouldn't be deleted mid-execution, and
+    // pending ones haven't been ACK'd by the device yet.
+    final deleteDisabled = isRunning || isPending || isFailed;
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
@@ -84,13 +98,18 @@ class ScheduleCard extends StatelessWidget {
     final showActualWindow = actualStartRaw.isNotEmpty;
     final switchController = ValueNotifier<bool>(isActive);
 
+    final cardBorder =
+        isActive ? const Color(0xFFE0E8F0) : const Color(0xFFE8E8E8);
+    final timeIconColor =
+        isActive ? const Color(0xFF004E7E) : const Color(0xFF9E9E9E);
+    const timeTextColor = Color(0XFF1A1A2E);
+    const infoBoxBg = Color(0xFFF8FAFC);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isActive ? const Color(0xFFE0E8F0) : const Color(0xFFE8E8E8),
-        ),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -110,20 +129,48 @@ class ScheduleCard extends StatelessWidget {
                 leading!,
                 const SizedBox(width: 2),
               ],
-              Icon(Icons.schedule_rounded,
-                  size: 16,
-                  color: isActive
-                      ? const Color(0xFF004E7E)
-                      : const Color(0xFF9E9E9E)),
+              Icon(Icons.schedule_rounded, size: 16, color: timeIconColor),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(
-                  '${_formatTo12h(startTime)} → ${_formatTo12h(endTime)}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0XFF1A1A2E),
-                  ),
+                child: Row(
+                  children: [
+                    // Time keeps its full intrinsic width — no Flexible/
+                    // ellipsis on it, since the user always needs to read
+                    // the exact start → end window. Date takes the
+                    // leftover space and truncates instead if the row is
+                    // narrow.
+                    Text(
+                      '${_formatTo12h(startTime)} → ${_formatTo12h(endTime)}',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: timeTextColor,
+                      ),
+                    ),
+                    if (dateLabel != null && dateLabel!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 3,
+                        height: 3,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          dateLabel!,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF64748B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (record.powerLossRecovery == true) ...[
@@ -143,8 +190,8 @@ class ScheduleCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEBF3FE),
                       borderRadius: BorderRadius.circular(4),
@@ -177,184 +224,148 @@ class ScheduleCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: isCyclic
                 ? _buildCyclicInfo(dH, dM, durationMin, onMin, offMin,
-                    showRunTime, actualRunMin)
-                : _buildTimeBasedInfo(dH, dM, showRunTime, actualRunMin),
+                    showRunTime, actualRunMin, infoBoxBg)
+                : _buildTimeBasedInfo(
+                    dH, dM, showRunTime, actualRunMin, infoBoxBg),
           ),
-          if (!disableToggle || showEditAction || showDeleteAction) ...[
-            const Divider(height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
-            const SizedBox(height: 8),
-            Row(
+          // Visibility flags: a button is rendered only when it's enabled
+          // for this record's current status. Disabled actions are
+          // hidden rather than greyed out so the card surface stays
+          // clean — e.g. a FAILED row shows only the Delete button (so
+          // the user can clean it up); a PENDING row shows no actions
+          // at all until the device ACK lands.
+          () {
+            final showToggle = !disableToggle && !toggleDisabled;
+            final showEdit = showEditAction && !editDisabled;
+            final showDelete = showDeleteAction && !deleteDisabled;
+            if (!showToggle && !showEdit && !showDelete) {
+              return const SizedBox.shrink();
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (!disableToggle) ...[
-                  Text(isActive ? 'Stop' : 'Restart',
-                      style: GoogleFonts.dmSans(
+                const Divider(
+                    height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (showToggle) ...[
+                      Text(
+                        isActive ? 'Stop' : 'Restart',
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: toggleDisabled
-                              ? const Color(0xFFB0B0B0)
-                              : const Color(0xFF57636C))),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    height: 25,
-                    child: Tooltip(
-                      message: toggleDisabled
-                          ? (isPending
-                              ? 'Pending — wait for device acknowledgement or republish from Manage'
-                              : isFailed
-                                  ? 'Schedule failed on device'
-                                  : isPartial
-                                      ? 'Schedule completed partially — cannot restart'
-                                      : isMissed
-                                          ? 'Schedule was missed — cannot restart'
-                                          : 'Schedule is completed')
-                          : '',
-                      triggerMode: toggleDisabled
-                          ? TooltipTriggerMode.tap
-                          : TooltipTriggerMode.manual,
-                      showDuration: const Duration(seconds: 3),
-                      preferBelow: false,
-                      textStyle: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                          color: const Color(0xFF57636C),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF004E7E),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GestureDetector(
-                        onTap: toggleDisabled
-                            ? null
-                            : () async {
-                                final newValue = !switchController.value;
-
-                                final success =
-                                    await showScheduleActionConfirmDialog(
-                                  context: context,
-                                  title: newValue
-                                      ? 'Restart Schedule'
-                                      : 'Stop Schedule',
-                                  description: newValue
-                                      ? 'Are you sure you want to restart this schedule?'
-                                      : 'Are you sure you want to stop this schedule?',
-                                  iconAssetPath: 'assets/images/schedule.svg',
-                                  buttonLabel: newValue ? 'Restart' : 'Stop',
-                                  isActive: newValue,
-                                  onConfirm: () async =>
-                                      await onToggle?.call(record, newValue) ??
-                                      false,
-                                  onCancelWhileWaiting: () =>
-                                      onCancelAction?.call(record),
-                                );
-                                if (success) switchController.value = newValue;
-                              },
-                        child: AbsorbPointer(
-                          child: AdvancedSwitch(
-                            controller: switchController,
-                            initialValue: isActive,
-                            activeColor: toggleDisabled
-                                ? const Color(0xFFB0B0B0)
-                                : const Color(0xFF34C759),
-                            inactiveColor: const Color(0xFFE0E0E0),
-                            borderRadius:
-                                const BorderRadius.all(Radius.circular(15)),
-                            width: 46,
-                            height: 24,
-                            enabled: true,
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 25,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final newValue = !switchController.value;
+                            final success =
+                                await showScheduleActionConfirmDialog(
+                              context: context,
+                              title: newValue
+                                  ? 'Restart Schedule'
+                                  : 'Stop Schedule',
+                              description: newValue
+                                  ? 'Are you sure you want to restart this schedule?'
+                                  : 'Are you sure you want to stop this schedule?',
+                              iconAssetPath: 'assets/images/schedule.svg',
+                              buttonLabel: newValue ? 'Restart' : 'Stop',
+                              isActive: newValue,
+                              onConfirm: () async =>
+                                  await onToggle?.call(record, newValue) ??
+                                  false,
+                              onCancelWhileWaiting: () =>
+                                  onCancelAction?.call(record),
+                            );
+                            if (success) switchController.value = newValue;
+                          },
+                          child: AbsorbPointer(
+                            child: AdvancedSwitch(
+                              controller: switchController,
+                              initialValue: isActive,
+                              activeColor: const Color(0xFF34C759),
+                              inactiveColor: const Color(0xFFE0E0E0),
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(15)),
+                              width: 46,
+                              height: 24,
+                              enabled: true,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                if (showEditAction) ...[
-                  Opacity(
-                    opacity: editDisabled ? 0.4 : 1.0,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: editDisabled ? null : () => onEdit?.call(record),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: editDisabled
-                              ? const Color(0xFFF1F5F9)
-                              : const Color(0xFFEBF3FE),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(Icons.edit_outlined,
+                    ],
+                    const Spacer(),
+                    if (showEdit)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () => onEdit?.call(record),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF3FE),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.edit_outlined,
                             size: 16,
-                            color: editDisabled
-                                ? const Color(0xFFB0B0B0)
-                                : const Color(0xFF004E7E)),
-                      ),
-                    ),
-                  ),
-                ],
-                if (showEditAction && showDeleteAction)
-                  const SizedBox(width: 8),
-                if (showDeleteAction)
-                  Opacity(
-                    opacity: deleteDisabled ? 0.4 : 1.0,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: deleteDisabled
-                          ? null
-                          : () async {
-                              await showScheduleActionConfirmDialog(
-                                context: context,
-                                title: 'Delete Schedule',
-                                description:
-                                    'This schedule will be deleted permanently. Do you wish to go ahead?',
-                                iconAssetPath: 'assets/images/schedule.svg',
-                                buttonLabel: 'Delete',
-                                onConfirm: () async =>
-                                    await onDelete?.call(record) ?? false,
-                                onCancelWhileWaiting: () =>
-                                    onCancelAction?.call(record),
-                              );
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: deleteDisabled
-                              ? const Color(0xFFF1F5F9)
-                              : const Color(0xFFFFEBEE),
-                          borderRadius: BorderRadius.circular(6),
+                            color: Color(0xFF004E7E),
+                          ),
                         ),
-                        child: Icon(Icons.delete_outline_rounded,
-                            size: 16,
-                            color: deleteDisabled
-                                ? const Color(0xFFB0B0B0)
-                                : const Color(0xFFE53935)),
                       ),
-                    ),
-                  ),
+                    if (showEdit && showDelete) const SizedBox(width: 8),
+                    if (showDelete)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () async {
+                          await showScheduleActionConfirmDialog(
+                            context: context,
+                            title: 'Delete Schedule',
+                            description:
+                                'This schedule will be deleted permanently. Do you wish to go ahead?',
+                            iconAssetPath: 'assets/images/schedule.svg',
+                            buttonLabel: 'Delete',
+                            onConfirm: () async =>
+                                await onDelete?.call(record) ?? false,
+                            onCancelWhileWaiting: () =>
+                                onCancelAction?.call(record),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 16,
+                            color: Color(0xFFE53935),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+          }(),
         ],
       ),
     );
   }
 
   Widget _buildTimeBasedInfo(
-      int dH, int dM, bool showRunTime, int actualRunMin) {
+      int dH, int dM, bool showRunTime, int actualRunMin, Color bg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.all(Radius.circular(8)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.all(Radius.circular(8)),
       ),
       child: Row(
         children: [
@@ -369,7 +380,7 @@ class ScheduleCard extends StatelessWidget {
   }
 
   Widget _buildCyclicInfo(int dH, int dM, int durationMin, int onMin,
-      int offMin, bool showRunTime, int actualRunMin) {
+      int offMin, bool showRunTime, int actualRunMin, Color bg) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -377,7 +388,7 @@ class ScheduleCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: bg,
             borderRadius: BorderRadius.circular(8),
             // border: Border.all(color: const Color(0xFFE2E8F0)),
           ),

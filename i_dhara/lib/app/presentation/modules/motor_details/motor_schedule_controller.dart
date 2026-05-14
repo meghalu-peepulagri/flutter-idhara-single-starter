@@ -691,34 +691,45 @@ class MotorScheduleController extends GetxController {
       }).toList()
         ..sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
 
-      final completer = Completer<bool>();
-      _republishCompleter = completer;
-      // Republish only needs expected ids for the immediate result toast —
-      // it deliberately does NOT populate the multi-create retry slots, so
-      // partial republish ACKs won't auto re-publish.
+      // Chunk the items into MQTT messages of up to 8 m1 entries each.
+      // The MQTT service then publishes them back-to-back as one logical
+      // batch with per-message `D.last`:
+      //   • last = 0  → more payloads coming after this one
+      //   • last = 1  → this is the only / final payload in the sequence
+      // E.g. 12 records → 2 messages: 8 entries (last=0) + 4 entries
+      // (last=1). 4 records → 1 message (last=1).
+      const entriesPerMessage = 8;
+      final dateMessages = <List<Map<String, dynamic>>>[];
+      for (int i = 0; i < items.length; i += entriesPerMessage) {
+        final end = (i + entriesPerMessage < items.length)
+            ? i + entriesPerMessage
+            : items.length;
+        dateMessages.add(items.sublist(i, end));
+      }
+
+      _republishCompleter = Completer<bool>();
+      // Expected ids drive the post-ACK result toast rendered by
+      // `_showScheduleResultAfterDelay` inside `_listenScheduleAck`.
       _expectedScheduleIds =
           items.map((m) => (m['id'] as int?) ?? 0).where((s) => s > 0).toList();
 
-      await _mqttService.publishMultipleSchedulesCommand(
+      // publishSchedulesBatched fires all messages back-to-back at t=0,
+      // then runs the shared 10s/10s/3s retry loop. It returns true on
+      // first successful ACK, false on timeout. _listenScheduleAck still
+      // fires in parallel — it shows the "Schedules acknowledged by
+      // device" snackbar and the partial-result toast via
+      // _republishCompleter.
+      final ok = await _mqttService.publishSchedulesBatched(
         identifier: id,
-        items: items,
+        dateMessages: dateMessages,
         idx: idx,
-        // Republish gets the same retry-until-all-acked + partial toast
-        // behaviour as multi-create. The toast is rendered by
-        // [_listenScheduleFinalResult] when items.length > 1.
-        trackExpectedAcks: true,
       );
 
-      // Wait for device ACK (T:33) — resolved in _listenScheduleAck.
-      // Matches MQTT retry cycle (10s + 10s + 3s).
-      return await completer.future.timeout(
-        const Duration(seconds: 23),
-        onTimeout: () {
-          _republishCompleter = null;
-          geterrorSnackBar('No response from device');
-          return false;
-        },
-      );
+      _republishCompleter = null;
+      if (!ok) {
+        geterrorSnackBar('No response from device');
+      }
+      return ok;
     } catch (e) {
       _republishCompleter = null;
       geterrorSnackBar('Failed to republish: $e');
