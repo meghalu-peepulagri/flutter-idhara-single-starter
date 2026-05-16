@@ -630,17 +630,14 @@ class _MultiScheduleConfirmDialogState
       _close();
       return;
     }
-    if (error.isEmpty) {
-      // MQTT ACK failed / retry cycle exhausted — close immediately.
-      // Controller already showed the device-error snackbar; no point
-      // holding the user on the Failed/Retry view.
-      _close();
-      return;
-    }
+    // Both empty (MQTT retry cycle exhausted with no message) and
+    // non-empty errors flip the dialog into the failure view with an
+    // OK button. Empty falls back to the standard "No response" copy.
     setState(() {
       _isWaiting = false;
       _isFailed = false;
-      _errorMessage = error;
+      _errorMessage =
+          error.isEmpty ? 'No response from device. Please try again.' : error;
     });
   }
 
@@ -650,6 +647,8 @@ class _MultiScheduleConfirmDialogState
     if (_isWaiting) widget.onCancelWhileWaiting?.call();
     _close();
   }
+
+  void _onOkTap() => _close();
 
   void _close() {
     if (_closed) return;
@@ -676,12 +675,23 @@ class _MultiScheduleConfirmDialogState
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEBF3FE),
+                decoration: BoxDecoration(
+                  // Failure mode swaps the header into a red error
+                  // chip so the user immediately reads the state.
+                  color: _errorMessage != null
+                      ? Colors.red.shade50
+                      : const Color(0xFFEBF3FE),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.schedule_rounded,
-                    size: 26, color: Color(0xFF004E7E)),
+                child: Icon(
+                  _errorMessage != null
+                      ? Icons.error_outline_rounded
+                      : Icons.schedule_rounded,
+                  size: 26,
+                  color: _errorMessage != null
+                      ? Colors.red[600]
+                      : const Color(0xFF004E7E),
+                ),
               ),
               const SizedBox(height: 12),
               Text(
@@ -693,7 +703,22 @@ class _MultiScheduleConfirmDialogState
                   color: const Color(0xFF14181B),
                 ),
               ),
-              if (!_isWaiting && !_isFailed) ...[
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF475569),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ] else if (!_isWaiting && !_isFailed) ...[
                 const SizedBox(height: 6),
                 Text(
                   widget.description ??
@@ -704,14 +729,11 @@ class _MultiScheduleConfirmDialogState
                     color: const Color(0xFF57636C),
                   ),
                 ),
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 10),
-                  _scheduleInlineErrorBanner(
-                    _errorMessage!,
-                    onClose: () => setState(() => _errorMessage = null),
-                  ),
-                ],
                 const SizedBox(height: 12),
+                // When start == end the record covers a single date —
+                // collapse the "Start → End" row into a centred single
+                // date pill so the edit-confirm flow doesn't look like
+                // a range edit.
                 Container(
                   width: double.infinity,
                   padding:
@@ -723,23 +745,42 @@ class _MultiScheduleConfirmDialogState
                       color: const Color(0xFF004E7E).withValues(alpha: 0.15),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(widget.startDate,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF0F172A))),
-                      const Icon(Icons.arrow_forward_rounded,
-                          size: 14, color: Color(0xFF94A3B8)),
-                      Text(widget.endDate,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF0F172A))),
-                    ],
-                  ),
+                  child: widget.startDate == widget.endDate
+                      ? Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.calendar_today_rounded,
+                                  size: 13, color: Color(0xFF004E7E)),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.startDate,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(widget.startDate,
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0F172A))),
+                            const Icon(Icons.arrow_forward_rounded,
+                                size: 14, color: Color(0xFF94A3B8)),
+                            Text(widget.endDate,
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0F172A))),
+                          ],
+                        ),
                 ),
                 const SizedBox(height: 10),
                 // Flexible: shrinks when few cards, scrolls when many
@@ -767,66 +808,109 @@ class _MultiScheduleConfirmDialogState
                   _scheduleAckWaitingView(elapsedSeconds: _elapsed),
               ],
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 44,
-                      child: OutlinedButton(
-                        onPressed: _onCancelTap,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF004E7E)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+              if (_errorMessage != null)
+                // Failure footer: a single full-width gradient OK
+                // button replaces Cancel / Confirm so the user has to
+                // explicitly dismiss the error. No Retry — the user
+                // can re-open the schedule and try again from the
+                // form if they want another attempt.
+                SizedBox(
+                  height: 44,
+                  width: double.infinity,
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    clipBehavior: Clip.antiAlias,
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF004E7E),
+                            Color(0xFF3686AF),
+                          ],
                         ),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF004E7E),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: InkWell(
+                        onTap: _closed ? null : _onOkTap,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Center(
+                          child: Text(
+                            'OK',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: _isWaiting ? null : _onConfirmTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF004E7E),
-                          disabledBackgroundColor: const Color(0xFF004E7E),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed: _onCancelTap,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF004E7E)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          elevation: 0,
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF004E7E),
+                            ),
+                          ),
                         ),
-                        child: _isWaiting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                'Confirm',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: _isWaiting ? null : _onConfirmTap,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF004E7E),
+                            disabledBackgroundColor: const Color(0xFF004E7E),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isWaiting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Confirm',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -999,6 +1083,17 @@ Future<bool> showScheduleActionConfirmDialog({
   required Future<bool> Function() onConfirm,
   VoidCallback? onCancelWhileWaiting,
   bool isActive = false,
+  // PENDING / FAILED deletes never publish MQTT, so the 23s elapsed
+  // ticker + "Waiting for device" view is misleading. Set this to true
+  // for those callers — the dialog keeps the normal confirm body
+  // visible and only spins the Delete button while the API runs.
+  bool skipDeviceAck = false,
+  // Optional builder used to compute the failure message shown in the
+  // dialog when `onConfirm` returns false. Lets bulk callers surface
+  // partial-result info (e.g. "2 of 3 schedules didn't respond") that
+  // the dialog itself can't derive. Return `null` (or throw) to fall
+  // back to the generic "No response from device" copy.
+  Future<String?> Function()? failureMessageBuilder,
 }) async {
   final result = await showDialog<bool>(
     context: context,
@@ -1011,6 +1106,8 @@ Future<bool> showScheduleActionConfirmDialog({
       isActive: isActive,
       onConfirm: onConfirm,
       onCancelWhileWaiting: onCancelWhileWaiting,
+      skipDeviceAck: skipDeviceAck,
+      failureMessageBuilder: failureMessageBuilder,
     ),
   );
   return result ?? false;
@@ -1024,6 +1121,8 @@ class _ScheduleActionConfirmDialog extends StatefulWidget {
   final bool isActive;
   final Future<bool> Function() onConfirm;
   final VoidCallback? onCancelWhileWaiting;
+  final bool skipDeviceAck;
+  final Future<String?> Function()? failureMessageBuilder;
 
   const _ScheduleActionConfirmDialog({
     required this.title,
@@ -1033,6 +1132,8 @@ class _ScheduleActionConfirmDialog extends StatefulWidget {
     required this.isActive,
     required this.onConfirm,
     this.onCancelWhileWaiting,
+    this.skipDeviceAck = false,
+    this.failureMessageBuilder,
   });
 
   @override
@@ -1046,6 +1147,11 @@ class _ScheduleActionConfirmDialogState
   int _elapsed = 0;
   Timer? _ticker;
   bool _closed = false;
+  // When the publish/ACK round-trip resolves with false (and the user
+  // didn't cancel), we switch into a failure view that reads the
+  // cause and exposes a single OK button. This is the source of
+  // truth for "render the error state".
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -1058,13 +1164,20 @@ class _ScheduleActionConfirmDialogState
     setState(() {
       _isWaiting = true;
       _elapsed = 1;
+      _errorMessage = null;
     });
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _elapsed = (_elapsed + 1).clamp(1, _kAckTotalSeconds);
+    // API-only callers (PENDING / FAILED deletes) skip the elapsed
+    // ticker — there's no MQTT round-trip to count up to, and the body
+    // stays on the normal confirm view so only the button spinner
+    // signals progress.
+    if (!widget.skipDeviceAck) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() {
+          _elapsed = (_elapsed + 1).clamp(1, _kAckTotalSeconds);
+        });
       });
-    });
+    }
     widget.onConfirm().then((success) {
       _onPublishResult(success);
     }).catchError((_) {
@@ -1073,16 +1186,40 @@ class _ScheduleActionConfirmDialogState
   }
 
   void _onPublishResult(bool success) {
-    // Always close the dialog on result. Partial bulk ACKs return
-    // success=false, but the device acked at least some schedules and the
-    // backend was already updated for that subset — the "Partial
-    // acknowledgment" toast surfaces the outcome and the manage page's
-    // fetchSchedules() refreshes the list with the updated statuses.
-    // Holding the user on a Failed/Retry view here would mask the partial
-    // success and force a second publish that we don't want.
     if (!mounted || _closed) return;
     _ticker?.cancel();
-    _close(success);
+    if (success) {
+      _close(true);
+      return;
+    }
+    // ACK failed (and not a user-cancel — that path sets `_closed = true`
+    // before this fires). Keep the dialog open with a clear error view
+    // and an OK button so the user has to acknowledge the failure
+    // instead of having the dialog vanish silently. Bulk callers can
+    // override the message via failureMessageBuilder to surface partial
+    // counts; without that, fall back to the generic copy.
+    const fallback = 'No response from device. Please try again.';
+    final builder = widget.failureMessageBuilder;
+    if (builder == null) {
+      setState(() {
+        _isWaiting = false;
+        _errorMessage = fallback;
+      });
+      return;
+    }
+    // Show a transient "checking…" message while the builder runs so
+    // the user sees the dialog has moved past the spinner.
+    setState(() {
+      _isWaiting = false;
+      _errorMessage = fallback;
+    });
+    builder().then((custom) {
+      if (!mounted || _closed) return;
+      if (custom == null || custom.isEmpty) return;
+      setState(() => _errorMessage = custom);
+    }).catchError((_) {
+      // builder failed → fallback message already shown above.
+    });
   }
 
   void _onConfirmTap() => _runPublish();
@@ -1091,6 +1228,8 @@ class _ScheduleActionConfirmDialogState
     if (_isWaiting) widget.onCancelWhileWaiting?.call();
     _close(false);
   }
+
+  void _onOkTap() => _close(false);
 
   void _close(bool success) {
     if (_closed) return;
@@ -1103,6 +1242,7 @@ class _ScheduleActionConfirmDialogState
   Widget build(BuildContext context) {
     final Color confirmColor =
         widget.isActive ? Colors.green[600]! : Colors.red[600]!;
+    final hasError = _errorMessage != null;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1128,7 +1268,44 @@ class _ScheduleActionConfirmDialogState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const SizedBox(height: 4),
-              if (!_isWaiting) ...[
+              if (hasError) ...[
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    size: 38,
+                    color: Colors.red[600],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ] else if (!_isWaiting || widget.skipDeviceAck) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: SvgPicture.asset(
@@ -1177,61 +1354,112 @@ class _ScheduleActionConfirmDialogState
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.only(left: 30, bottom: 18, right: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _closed ? null : _onCancelTap,
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Text(
-                            'Cancel',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: SizedBox(
-                        height: 45,
-                        child: TextButton(
-                          onPressed:
-                              _isWaiting || _closed ? null : _onConfirmTap,
-                          style: TextButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            disabledBackgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          child: _isWaiting
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: confirmColor,
-                                    strokeWidth: 2,
+                child: hasError
+                    // Error state: a single OK button replaces Cancel /
+                    // Confirm so the user can read the failure message
+                    // and dismiss it explicitly. The dialog returns
+                    // `false` so the caller doesn't navigate / refresh
+                    // as if the action succeeded.
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              clipBehavior: Clip.antiAlias,
+                              child: Ink(
+                                height: 45,
+                                decoration: BoxDecoration(
+                                  // Same brand gradient the schedule FAB
+                                  // uses (004E7E → 3686AF) so the
+                                  // confirmation button stays visually
+                                  // anchored to the rest of the app.
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF004E7E),
+                                      Color(0xFF3686AF),
+                                    ],
                                   ),
-                                )
-                              : Text(
-                                  widget.buttonLabel,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: confirmColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: InkWell(
+                                  onTap: _closed ? null : _onOkTap,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Center(
+                                    child: Text(
+                                      'OK',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                        ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: _closed ? null : _onCancelTap,
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                child: Text(
+                                  'Cancel',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: SizedBox(
+                              height: 45,
+                              child: TextButton(
+                                onPressed:
+                                    _isWaiting || _closed ? null : _onConfirmTap,
+                                style: TextButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  disabledBackgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: _isWaiting
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: confirmColor,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        widget.buttonLabel,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: confirmColor,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),

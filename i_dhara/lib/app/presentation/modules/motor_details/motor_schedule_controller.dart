@@ -228,6 +228,53 @@ class MotorScheduleController extends GetxController {
     }
   }
 
+  /// API-only delete for PENDING / FAILED rows. The device never
+  /// accepted these schedules, so there's no slot to clear over MQTT —
+  /// just drop the backend record and remove it from the local list.
+  /// Returns true on a successful API response.
+  Future<bool> deleteScheduleApiOnly(Record record) async {
+    final objectId = record.id ?? 0;
+    if (objectId <= 0) return false;
+    try {
+      await SharedPreference.setscheduleid(objectId);
+      final res = await _scheduleRepo.scheduleDelete();
+      if (res == null) {
+        geterrorSnackBar('Failed to delete schedule');
+        return false;
+      }
+      schedules.removeWhere((r) => r.id == objectId);
+      getsuccessSnackBar('Schedule deleted successfully');
+      unawaited(fetchSchedules(silent: true));
+      return true;
+    } catch (_) {
+      geterrorSnackBar('Failed to delete schedule');
+      return false;
+    }
+  }
+
+  /// API-only bulk delete for a set of PENDING / FAILED rows. Mirrors
+  /// [deleteScheduleApiOnly] but goes through the bulk endpoint so a
+  /// multi-row clear is a single network round-trip.
+  Future<bool> deleteBulkSchedulesApiOnly(List<Record> records) async {
+    final objectIds = records.map((r) => r.id).whereType<int>().toList();
+    if (objectIds.isEmpty) return false;
+    try {
+      final ok = await _scheduleRepo.bulkDeleteSchedules(objectIds);
+      if (!ok) {
+        geterrorSnackBar('Failed to delete schedules');
+        return false;
+      }
+      schedules.removeWhere((r) => r.id != null && objectIds.contains(r.id));
+      final n = objectIds.length;
+      getsuccessSnackBar('$n schedule${n > 1 ? 's' : ''} deleted');
+      unawaited(fetchSchedules(silent: true));
+      return true;
+    } catch (_) {
+      geterrorSnackBar('Failed to delete schedules');
+      return false;
+    }
+  }
+
   /// Delete: publish MQTT cmd:3, wait for ACK + API, then return.
   /// Dialog stays loading until this resolves.
   Future<bool> deleteSchedule(Record record) async {
@@ -715,22 +762,32 @@ class MotorScheduleController extends GetxController {
 
       // publishSchedulesBatched fires all messages back-to-back at t=0,
       // then runs the shared 10s/10s/3s retry loop. It returns true on
-      // first successful ACK, false on timeout. _listenScheduleAck still
-      // fires in parallel — it shows the "Schedules acknowledged by
-      // device" snackbar and the partial-result toast via
-      // _republishCompleter.
+      // first successful ACK, false on timeout. _listenScheduleAck
+      // still fires in parallel — it owns the "Schedules acknowledged
+      // by device" success snackbar and the partial-result toast via
+      // _republishCompleter, so we must NOT null the completer here.
+      // Doing so was the bug that swallowed the success snackbar: the
+      // listener awaits fetchacknowledgement + fetchSchedules before
+      // checking the completer, by which time this function had
+      // already nulled it. Likewise, the timeout-stream listener
+      // (_listenScheduleAckTimeout) owns the "No response from
+      // device" error snackbar and resolves the completer with false;
+      // firing an inline error snackbar here duplicates that toast.
       final ok = await _mqttService.publishSchedulesBatched(
         identifier: id,
         dateMessages: dateMessages,
         idx: idx,
       );
 
-      _republishCompleter = null;
-      if (!ok) {
-        geterrorSnackBar('No response from device');
-      }
       return ok;
     } catch (e) {
+      // Synchronous / non-timeout failure path — neither listener has
+      // run, so clean up the completer ourselves and surface the
+      // exception. The standard "No response from device" message is
+      // reserved for the timeout listener.
+      if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
+        _republishCompleter!.complete(false);
+      }
       _republishCompleter = null;
       geterrorSnackBar('Failed to republish: $e');
       return false;
@@ -759,6 +816,12 @@ class MotorScheduleController extends GetxController {
     if (_expectedScheduleIds.isEmpty) return;
     final expected = List<int>.from(_expectedScheduleIds);
     _expectedScheduleIds = [];
+    // Single-record republish doesn't need the X-of-Y counts toast —
+    // the top "Schedules acknowledged by device" snackbar already
+    // conveys success for one row, and the toast just doubles up the
+    // visual noise. Keep the toast for multi-record publishes where
+    // the per-row breakdown is actually useful.
+    if (expected.length <= 1) return;
     final ackedSet = ackedScheduleIds.toSet();
 
     Future.delayed(const Duration(seconds: 3), () {

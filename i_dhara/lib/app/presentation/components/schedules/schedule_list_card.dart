@@ -10,28 +10,64 @@ class ScheduleCard extends StatelessWidget {
   final Future<bool> Function(Record record)? onDelete;
   final Future<bool> Function(Record record, bool enabled)? onToggle;
   final void Function(Record record)? onEdit;
+  // Fires when the user taps anywhere on the card surface that's NOT
+  // an action pill / checkbox. Used by the manage page + motor schedule
+  // tab to open the per-schedule logs bottom sheet. Null disables the
+  // card-level tap entirely.
+  final void Function(Record record)? onTap;
+  // Triggered for PENDING rows when the user taps Resync to republish
+  // the schedule to the device over MQTT. Wired by the manage page;
+  // per-motor tabs can leave this null to hide the button. Returns
+  // true once the device ACKs so the confirm dialog can close itself.
+  final Future<bool> Function(Record record)? onSync;
   final Widget? leading;
   final bool showEditAction;
   final bool showDeleteAction;
+  final bool showSyncAction;
+  // Mirrors the show* flags but renders the pill as inactive instead
+  // of hiding it. The manage page flips these on while bulk-select is
+  // active so the user can still see the per-card actions but can't
+  // accidentally fire one alongside the pending bulk action.
+  final bool disableEditAction;
+  final bool disableDeleteAction;
+  final bool disableSyncAction;
   final bool disableToggle;
   final void Function(Record record)? onCancelAction;
+  // Cancel handler specific to the Resync action. Routed to a callback
+  // that stops the T:23 (republish) MQTT retry loop, whereas
+  // `onCancelAction` stops T:24 (stop / restart / delete) retries.
+  // Falls back to `onCancelAction` when null so callers that haven't
+  // wired this yet still behave like before.
+  final void Function(Record record)? onCancelSync;
   // Optional date label rendered inside the card above the time row.
   // Used by the manage page to show each record's per-date date string
   // ("14 May 2026"). Motor schedule tab passes null since its list is
   // already grouped under a date selector.
   final String? dateLabel;
+  // STOPPED rows expose Restart only when the window is still in the
+  // future — past stopped rows are read-only (Edit / Delete only).
+  // Parent computes this against the record's date.
+  final bool isFutureSchedule;
   const ScheduleCard(
       {super.key,
       required this.record,
       this.onDelete,
       this.onToggle,
       this.onEdit,
+      this.onTap,
+      this.onSync,
       this.leading,
       this.showEditAction = true,
       this.showDeleteAction = true,
+      this.showSyncAction = true,
+      this.disableEditAction = false,
+      this.disableDeleteAction = false,
+      this.disableSyncAction = false,
       this.disableToggle = false,
       this.onCancelAction,
-      this.dateLabel});
+      this.onCancelSync,
+      this.dateLabel,
+      this.isFutureSchedule = true});
 
   @override
   Widget build(BuildContext context) {
@@ -46,56 +82,64 @@ class ScheduleCard extends StatelessWidget {
 
     final normalizedStatus = status.toLowerCase();
     final isPending = normalizedStatus == 'pending';
-
+    final isScheduled = normalizedStatus == 'scheduled';
     final isRunning = normalizedStatus == 'running';
     final isPartial = normalizedStatus == 'partial';
     final isMissed = normalizedStatus == 'missed';
-
+    final isStopped = normalizedStatus == 'stopped';
     final isCompleted = normalizedStatus == 'completed';
     final isFailed = normalizedStatus == 'failed';
-    // Card chrome stays the same regardless of status — the status
-    // badge already communicates terminal states (FAILED / COMPLETED /
-    // PARTIAL / MISSED), so no extra grey-out is applied to the card
-    // body. Action buttons handle their own show/hide per status below.
-    // Partial / missed are terminal device-side outcomes — the schedule
-    // window is over, so Stop/Restart and Edit are meaningless. Delete is
-    // still allowed so the user can clean them up.
+    // Per-status action eligibility:
+    //   PENDING   → Sync, Edit, Delete (advisory note)
+    //   SCHEDULED → Stop (toggle), Edit, Delete
+    //   RUNNING   → Stop (toggle) only
+    //   STOPPED   → Restart (toggle, only if future), Edit, Delete
+    //   PARTIAL   → no actions (act window still shown if present)
+    //   COMPLETED → no actions (act window still shown if present)
+    //   MISSED    → no actions, advisory note only
+    //   FAILED    → Delete only, advisory note
     final toggleDisabled = disableToggle ||
-        isPending ||
-        isCompleted ||
-        isFailed ||
-        isPartial ||
-        isMissed;
+        !(isScheduled || isRunning || (isStopped && isFutureSchedule));
+    final editDisabled = !(isPending || isScheduled || isStopped);
+    final deleteDisabled =
+        !(isPending || isScheduled || isStopped || isFailed);
 
-    final editDisabled = isRunning ||
-        isCompleted ||
-        isPending ||
-        isFailed ||
-        isPartial ||
-        isMissed;
-    // FAILED rows are read-only from the per-motor card — no actions
-    // (including delete) are exposed there. The Schedule Manage page
-    // already handles bulk cleanup of failed rows, so the per-card
-    // delete is redundant. RUNNING and PENDING are also excluded:
-    // running schedules shouldn't be deleted mid-execution, and
-    // pending ones haven't been ACK'd by the device yet.
-    final deleteDisabled = isRunning || isPending || isFailed;
+    // Advisory note shown below the time row for statuses that need to
+    // explain why nothing is happening on the device side.
+    String? noticeMessage;
+    Color noticeBg = const Color(0xFFF3F4F6);
+    Color noticeFg = const Color(0xFF374151);
+    if (isPending) {
+      noticeMessage = 'Not yet synced to device · tap Resync to send';
+      noticeBg = const Color(0xFFFFF7ED);
+      noticeFg = const Color(0xFFC2410C);
+    } else if (isMissed) {
+      noticeMessage = 'Machine not run in schedule';
+      noticeBg = const Color(0xFFFEF3C7);
+      noticeFg = const Color(0xFFB45309);
+    } else if (isFailed) {
+      noticeMessage = 'Not synced to device';
+      noticeBg = const Color(0xFFFFE4E6);
+      noticeFg = const Color(0xFFBE123C);
+    }
+
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
     final onMin = isCyclic ? (record.cycleOnMinutes as num?)?.toInt() ?? 0 : 0;
     final offMin =
         isCyclic ? (record.cycleOffMinutes as num?)?.toInt() ?? 0 : 0;
-    // Backend returns actual_run_time as minutes once the device starts
-    // running this schedule. Surface it for any status that has elapsed
-    // run time on the device — running / partial / completed.
+    // Act window / run time only make sense once the device has
+    // actually interacted with the schedule — running, stopped
+    // mid-run, partial, or completed. Pending / scheduled / missed /
+    // failed never carry act data.
+    final canHaveActual =
+        isRunning || isPartial || isCompleted || isStopped;
     final actualRunMin = record.actualRunTime ?? 0;
-    final showRunTime =
-        (isRunning || isPartial || isCompleted) && actualRunMin > 0;
-    // Surface the device-reported actual start / end window once the
-    // backend has captured at least the start time. End may still be
-    // null while the schedule is running — render an em dash for it.
+    final showRunTime = canHaveActual && actualRunMin > 0;
+    // End may still be null while the schedule is running — render an
+    // em dash for it.
     final actualStartRaw = record.actualStartTime?.trim() ?? '';
     final actualEndRaw = record.actualEndTime?.trim() ?? '';
-    final showActualWindow = actualStartRaw.isNotEmpty;
+    final showActualWindow = canHaveActual && actualStartRaw.isNotEmpty;
     final switchController = ValueNotifier<bool>(isActive);
 
     final cardBorder =
@@ -105,7 +149,31 @@ class ScheduleCard extends StatelessWidget {
     const timeTextColor = Color(0XFF1A1A2E);
     const infoBoxBg = Color(0xFFF8FAFC);
 
-    return Container(
+    // Status-colored left rail. Every status that has a defined tone
+    // gets its own rail color so the user can scan the card list and
+    // read status at a glance:
+    //   • PENDING                       → orange
+    //   • SCHEDULED                     → blue
+    //   • RUNNING                       → green
+    //   • PARTIAL                       → yellow
+    //   • COMPLETED                     → grey
+    //   • STOPPED / MISSED / FAILED     → red
+    Color? alertRailColor;
+    if (isPending) {
+      alertRailColor = const Color(0xFFF97316); // orange-500
+    } else if (isScheduled) {
+      alertRailColor = const Color(0xFF3B82F6); // blue-500
+    } else if (isRunning) {
+      alertRailColor = const Color(0xFF22C55E); // green-500
+    } else if (isPartial) {
+      alertRailColor = const Color(0xFFFACC15); // yellow-400
+    } else if (isStopped || isMissed || isFailed) {
+      alertRailColor = const Color(0xFFEF4444); // red-500
+    } else if (isCompleted) {
+      alertRailColor = const Color(0xFF9CA3AF); // gray-400
+    }
+
+    final cardBody = Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -162,7 +230,7 @@ class ScheduleCard extends StatelessWidget {
                         child: Text(
                           dateLabel!,
                           style: GoogleFonts.dmSans(
-                            fontSize: 12,
+                            fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: const Color(0xFF64748B),
                           ),
@@ -228,6 +296,33 @@ class ScheduleCard extends StatelessWidget {
                 : _buildTimeBasedInfo(
                     dH, dM, showRunTime, actualRunMin, infoBoxBg),
           ),
+          if (noticeMessage != null) ...[
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: noticeBg,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: noticeFg),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      noticeMessage,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: noticeFg,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           // Visibility flags: a button is rendered only when it's enabled
           // for this record's current status. Disabled actions are
           // hidden rather than greyed out so the card surface stays
@@ -238,10 +333,19 @@ class ScheduleCard extends StatelessWidget {
             final showToggle = !disableToggle && !toggleDisabled;
             final showEdit = showEditAction && !editDisabled;
             final showDelete = showDeleteAction && !deleteDisabled;
-            if (!showToggle && !showEdit && !showDelete) {
+            final showSync = showSyncAction && isPending && onSync != null;
+            if (!showToggle && !showEdit && !showDelete && !showSync) {
               return const SizedBox.shrink();
             }
-            return Column(
+            // Absorb taps that land on the action row (or the empty
+            // space around its pills) so the outer card-level `onTap`
+            // doesn't fire — otherwise tapping just outside an Edit /
+            // Delete / Resync pill would pop the logs sheet while the
+            // user was reaching for an action.
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Divider(
@@ -301,27 +405,52 @@ class ScheduleCard extends StatelessWidget {
                       ),
                     ],
                     const Spacer(),
+                    if (showSync)
+                      _ActionPill(
+                        icon: Icons.refresh_rounded,
+                        label: 'Resync',
+                        bg: const Color(0xFFFFF7ED),
+                        fg: const Color(0xFFC2410C),
+                        disabled: disableSyncAction,
+                        onTap: () async {
+                          await showScheduleActionConfirmDialog(
+                            context: context,
+                            title: 'Resync Schedule',
+                            description:
+                                'Republish this pending schedule to the device?',
+                            iconAssetPath: 'assets/images/schedule.svg',
+                            buttonLabel: 'Resync',
+                            isActive: true,
+                            onConfirm: () async =>
+                                await onSync?.call(record) ?? false,
+                            // Resync uses a dedicated cancel handler so
+                            // the T:23 republish retry loop is what
+                            // gets cancelled, not the T:24 action loop
+                            // that the Stop/Restart/Delete pills use.
+                            onCancelWhileWaiting: () =>
+                                (onCancelSync ?? onCancelAction)?.call(record),
+                          );
+                        },
+                      ),
+                    if (showSync && (showEdit || showDelete))
+                      const SizedBox(width: 8),
                     if (showEdit)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(6),
+                      _ActionPill(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit',
+                        bg: const Color(0xFFEBF3FE),
+                        fg: const Color(0xFF004E7E),
+                        disabled: disableEditAction,
                         onTap: () => onEdit?.call(record),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEBF3FE),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.edit_outlined,
-                            size: 16,
-                            color: Color(0xFF004E7E),
-                          ),
-                        ),
                       ),
                     if (showEdit && showDelete) const SizedBox(width: 8),
                     if (showDelete)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(6),
+                      _ActionPill(
+                        icon: Icons.delete_outline_rounded,
+                        label: 'Delete',
+                        bg: const Color(0xFFFFEBEE),
+                        fg: const Color(0xFFE53935),
+                        disabled: disableDeleteAction,
                         onTap: () async {
                           await showScheduleActionConfirmDialog(
                             context: context,
@@ -330,31 +459,76 @@ class ScheduleCard extends StatelessWidget {
                                 'This schedule will be deleted permanently. Do you wish to go ahead?',
                             iconAssetPath: 'assets/images/schedule.svg',
                             buttonLabel: 'Delete',
+                            // PENDING / FAILED rows never reached the
+                            // device, so the delete is a pure backend
+                            // call — no MQTT, no 23s elapsed counter.
+                            skipDeviceAck: isPending || isFailed,
                             onConfirm: () async =>
                                 await onDelete?.call(record) ?? false,
                             onCancelWhileWaiting: () =>
                                 onCancelAction?.call(record),
                           );
                         },
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFEBEE),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 16,
-                            color: Color(0xFFE53935),
-                          ),
-                        ),
                       ),
                   ],
                 ),
               ],
+              ),
             );
           }(),
         ],
+      ),
+    );
+
+    // Wrap the body in an InkWell only when a card-level tap handler
+    // is provided. Inner taps on action pills / checkbox still win
+    // because Flutter's gesture arena picks the deepest handler — the
+    // outer InkWell only fires for taps on inert surface area.
+    Widget content = cardBody;
+    if (onTap != null) {
+      content = Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onTap!(record),
+          child: cardBody,
+        ),
+      );
+    }
+
+    if (alertRailColor == null) return content;
+    // Overlay the colored rail on the left edge. Clipping the whole
+    // Stack to the card's rounded shape makes the rail follow the
+    // card's curve at the top-left and bottom-left corners — without
+    // this the rail's straight right edge cuts a 90° step across the
+    // card's rounded corner region. The shadow is moved to an outer
+    // DecoratedBox so ClipRRect doesn't trim it.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            content,
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(width: 5, color: alertRailColor),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -604,6 +778,60 @@ class ScheduleCard extends StatelessWidget {
     final h = totalMinutes ~/ 60;
     final m = totalMinutes % 60;
     return '${h}h ${m.toString().padLeft(2, '0')}m';
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  // Selection mode in the manage page wants these pills visible but
+  // inactive, so we dim them and skip the tap callback rather than
+  // hiding the chip entirely.
+  final bool disabled;
+
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+    this.disabled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: disabled ? 0.4 : 1.0,
+      child: InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: disabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: fg,
+              ),
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
   }
 }
 

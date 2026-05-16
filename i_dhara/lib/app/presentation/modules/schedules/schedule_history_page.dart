@@ -59,7 +59,10 @@ class _ScheduleHistoryPageState extends State<ScheduleHistoryPage> {
                 final records = _controller.records;
 
                 if (isLoading) {
-                  return const Center(child: AppLottieLoading());
+                  return const Padding(
+                    padding: EdgeInsets.only(bottom: 50, right: 50),
+                    child: Center(child: AppLottieLoading()),
+                  );
                 }
 
                 return Skeletonizer(

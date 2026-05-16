@@ -197,20 +197,39 @@ class ScheduleManageController extends GetxController {
     final records = selectedRecords;
     if (records.isEmpty) return false;
 
-    // Single-record selection goes through the well-trodden single-action
-    // path (T:24 → _listenScheduleActionAck) which calls the per-record
-    // delete API directly. The bulk path's "all covered" tracking has an
-    // edge case for length=1 where the final-result stream can fail to
-    // fire, leaving the API uncalled and the status stale.
-    final bool success;
-    if (records.length == 1) {
-      success = await motorScheduleController.deleteSchedule(records.first);
-    } else {
-      success = await motorScheduleController.deleteBulkSchedules(records);
+    // PENDING / FAILED rows never landed on the device, so they don't
+    // need an MQTT publish — they can be cleared via a single API call.
+    // Split the selection so the device-resident rows still go through
+    // the MQTT-ACK path and the unsynced ones short-circuit straight
+    // to the backend.
+    bool isApiOnlyStatus(Record r) {
+      final s = (r.scheduleStatus ?? '').toUpperCase();
+      return s == 'PENDING' || s == 'FAILED';
     }
+
+    final apiOnly = records.where(isApiOnlyStatus).toList();
+    final deviceBacked = records.where((r) => !isApiOnlyStatus(r)).toList();
+
+    bool apiOnlySuccess = true;
+    if (apiOnly.isNotEmpty) {
+      apiOnlySuccess = apiOnly.length == 1
+          ? await motorScheduleController.deleteScheduleApiOnly(apiOnly.first)
+          : await motorScheduleController.deleteBulkSchedulesApiOnly(apiOnly);
+    }
+
+    bool deviceSuccess = true;
+    if (deviceBacked.isNotEmpty) {
+      // Same length=1 fork as before — the bulk path's final-result
+      // stream can no-op for single-record selections, so route those
+      // through deleteSchedule which reliably hits the per-record API.
+      deviceSuccess = deviceBacked.length == 1
+          ? await motorScheduleController.deleteSchedule(deviceBacked.first)
+          : await motorScheduleController.deleteBulkSchedules(deviceBacked);
+    }
+
     isLoading.value = true;
     await fetchSchedules();
-    return success;
+    return apiOnlySuccess && deviceSuccess;
   }
 
   Future<bool> toggleSelectedSchedules(
@@ -279,6 +298,43 @@ class ScheduleManageController extends GetxController {
           // silent — device already accepted; the next list refresh
           // will pick up the backend status either way.
         }
+      }
+    }
+
+    isLoading.value = true;
+    await fetchSchedules();
+    return success;
+  }
+
+  /// Single-record counterpart to [republishSelectedSchedules], invoked
+  /// when the user taps the per-card Resync action on a PENDING row.
+  /// Mirrors the same idx-resolution and post-ACK patch path so the
+  /// device picks the correct slot and the row flips out of PENDING on
+  /// the next list refresh.
+  Future<bool> republishSingleSchedule(
+    Record record,
+    MotorScheduleController motorScheduleController,
+  ) async {
+    const nonDeviceStatuses = {'PENDING', 'FAILED'};
+    final hasDeviceActiveSchedule = schedules.any((r) {
+      final s = (r.scheduleStatus ?? '').toUpperCase();
+      return s.isNotEmpty && !nonDeviceStatuses.contains(s);
+    });
+    final idx = hasDeviceActiveSchedule ? 2 : 1;
+
+    final success =
+        await motorScheduleController.republishSchedules([record], idx: idx);
+
+    // Patch this record's ACK directly — the motor controller's T:33
+    // listener only patches records whose date matches its current
+    // `selectedDate`, so a resync from a different date on the manage
+    // page would otherwise stay PENDING until the next backend sync.
+    if (success && record.id != null) {
+      try {
+        await _scheduleRepo.scheduleAcknowledgement([record.id!]);
+      } catch (_) {
+        // silent — device already accepted; the next list refresh will
+        // reflect the backend status either way.
       }
     }
 

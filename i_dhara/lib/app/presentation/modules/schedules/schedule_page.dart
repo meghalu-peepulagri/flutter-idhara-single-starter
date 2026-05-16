@@ -394,35 +394,23 @@ class _SchedulePageState extends State<SchedulePage> {
     return null;
   }
 
-  /// Same return contract as [_createSchedule]: `null` → success (PATCH
-  /// committed), `'message'` → backend rejected. ACK failure does not
-  /// fail the call.
+  /// Return contract: `null` → device ACKed AND PATCH committed.
+  /// `'message'` → ACK timed out / failed OR backend rejected the
+  /// PATCH. The dialog renders the returned string as an inline
+  /// banner and stays open so the user can retry.
   ///
-  /// Order: PATCH /motor-schedules → MQTT T:23 publish → wait T:54 ACK.
+  /// Order: MQTT T:23 publish → wait T:54 ACK → PATCH /motor-schedules.
+  /// The backend is only touched once the device confirms the change,
+  /// so a missing ACK leaves the row unchanged on both sides.
   Future<String?> _updateSchedule() async {
     final form = _formKey.currentState!;
     final id = _resolveIdentifier();
 
-    // scheduleupdate() builds the PATCH URL from SharedPreference's
-    // scheduleid, so it has to be primed BEFORE the call. Setting it
-    // after (as _createSchedule does for a freshly-POSTed row) is fine
-    // when the id is unknown until the response arrives — but here we
-    // already have _editRecord.id. Without this line the PATCH hits
-    // /motor-schedules/0 (or whatever stale id was left over from the
-    // last create / edit), so the request either updates the wrong
-    // record or is treated as an upsert, which is what looked like
-    // "edit created another schedule."
-    SharedPreference.setscheduleid(_editRecord?.id ?? 0);
-
-    // Step 1: PATCH. The only step that can fail the operation.
-    final dto = _buildDto(form, scheduleId: _editRecord?.scheduleId ?? 1);
-    final response = await _scheduleController.updateSchedule(dto: dto);
-    if (response == null) {
-      return _scheduleController.message ?? '';
-    }
-    _scheduleSaved = true;
-
-    // Step 2: Publish MQTT T:23 + wait for T:54 ACK (best-effort).
+    // Step 1: Publish MQTT T:23 and wait for the device ACK. We do
+    // this BEFORE the PATCH so a silent device leaves the backend
+    // record untouched — the previous order (PATCH first) updated the
+    // app DB even when the device never received the command, which
+    // is exactly what the user reported as "auto-updating".
     _ackCompleter = Completer<bool>();
     final isCyclic = form.cyclicMode;
     var ackOk = false;
@@ -447,18 +435,37 @@ class _SchedulePageState extends State<SchedulePage> {
         onTimeout: () => false,
       );
     } catch (_) {
-      // MQTT publish error — best-effort, swallow and continue.
+      ackOk = false;
     }
     _ackCompleter = null;
+
+    if (!ackOk) {
+      // No device ACK → abort. PATCH is intentionally skipped so the
+      // backend record stays consistent with whatever the device is
+      // still holding. The dialog shows the returned banner so the
+      // user can retry.
+      return 'No response from device';
+    }
+
+    // Step 2: PATCH /motor-schedules — runs only after the device
+    // accepted the new payload. scheduleupdate() builds the PATCH URL
+    // from SharedPreference's scheduleid, so prime it from
+    // _editRecord.id before the call; otherwise the request hits
+    // /motor-schedules/0 or a stale id from the last create / edit.
+    SharedPreference.setscheduleid(_editRecord?.id ?? 0);
+    final dto = _buildDto(form, scheduleId: _editRecord?.scheduleId ?? 1);
+    final response = await _scheduleController.updateSchedule(dto: dto);
+    if (response == null) {
+      return _scheduleController.message ?? '';
+    }
+    _scheduleSaved = true;
 
     // Refresh the list so the user sees the updated row.
     if (Get.isRegistered<MotorScheduleController>()) {
       Get.find<MotorScheduleController>().fetchSchedules();
     }
 
-    if (ackOk) {
-      getsuccessSnackBar('Schedule updated successfully');
-    }
+    getsuccessSnackBar('Schedule updated successfully');
     return null;
   }
 
@@ -822,21 +829,11 @@ class _SchedulePageState extends State<SchedulePage> {
     final isCyclic = form.cyclicMode;
 
     if (_isEditMode) {
-      // Edit reuses the multi-style dialog (date range row + schedule card)
-      // so the layout matches the create flow but reads as an update.
-      // Count how many times each picked weekday occurs in the date range
-      // so the chip badges show "2", "3" etc. (same as create-multi).
-      final dayCounts = <int, int>{};
-      final totalDays =
-          form.endDate.difference(form.startDate).inDays.abs() + 1;
-      for (int i = 0; i < totalDays; i++) {
-        final d = form.startDate.add(Duration(days: i));
-        final wd = d.weekday == 7 ? 0 : d.weekday; // 0=Sun..6=Sat
-        if (form.selectedDays.contains(wd)) {
-          dayCounts[wd] = (dayCounts[wd] ?? 0) + 1;
-        }
-      }
-
+      // Edit reuses the multi-style dialog but collapses the range
+      // view: per-date storage means each record covers exactly one
+      // day, so we surface a single date pill via the dialog's
+      // start==end collapse. No weekday chip is shown — the form
+      // already lets the user see and change the date directly.
       await showMultiScheduleConfirmDialog(
         context: context,
         title: 'Edit Schedule',
@@ -855,8 +852,6 @@ class _SchedulePageState extends State<SchedulePage> {
             cyclicOffMinutes: form.cyclicOffMinutes,
           ),
         ],
-        selectedDays: form.selectedDays.toList(),
-        dayCounts: dayCounts,
         onConfirm: _updateSchedule,
         onCancelWhileWaiting: _cancelInFlightCreate,
       );

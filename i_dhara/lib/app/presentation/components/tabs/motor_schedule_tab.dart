@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
+import 'package:i_dhara/app/presentation/components/schedules/schedule_logs_sheet.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -173,6 +174,22 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     _dateScrollController.dispose();
     _capMessageTimer?.cancel();
     super.dispose();
+  }
+
+  /// Handler for the per-card Resync action on PENDING rows. Computes
+  /// the device slot index the same way the manage page's bulk
+  /// republish does — `idx=1` when the device has no accepted slots
+  /// (all loaded rows are PENDING/FAILED) and `idx=2` otherwise — then
+  /// hands off to the motor controller's republishSchedules. Returns
+  /// the ACK result so the card's confirm dialog can close itself.
+  Future<bool> _resyncSingleSchedule(record) async {
+    const nonDeviceStatuses = {'PENDING', 'FAILED'};
+    final hasDeviceActiveSchedule = _controller.schedules.any((r) {
+      final s = (r.scheduleStatus ?? '').toUpperCase();
+      return s.isNotEmpty && !nonDeviceStatuses.contains(s);
+    });
+    final idx = hasDeviceActiveSchedule ? 2 : 1;
+    return _controller.republishSchedules([record], idx: idx);
   }
 
   /// Briefly surface the "Max 4 reached" label next to the FAB. Each tap
@@ -373,12 +390,40 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                                     schedules[i].id ??
                                     i),
                                 record: schedules[i],
-                                onDelete: _controller.deleteSchedule,
+                                // Tapping the card body (away from the
+                                // action pills) opens the per-schedule
+                                // logs bottom sheet.
+                                onTap: (r) {
+                                  final oid = r.id ?? 0;
+                                  if (oid <= 0) return;
+                                  showSingleScheduleLogsSheet(
+                                    context,
+                                    objectId: oid,
+                                  );
+                                },
+                                onDelete: (record) {
+                                  final s = (record.scheduleStatus ?? '')
+                                      .toUpperCase();
+                                  // PENDING / FAILED never reached the
+                                  // device, so skip MQTT and call the
+                                  // backend DELETE directly.
+                                  if (s == 'PENDING' || s == 'FAILED') {
+                                    return _controller
+                                        .deleteScheduleApiOnly(record);
+                                  }
+                                  return _controller.deleteSchedule(record);
+                                },
                                 onToggle: _controller.toggleSchedule,
                                 onEdit: _controller.navigateToEditSchedule,
+                                onSync: (record) => _resyncSingleSchedule(record),
                                 onCancelAction: (record) =>
                                     _controller.cancelPendingScheduleAction(
                                         record.scheduleId ?? 0),
+                                // Cancel during a Resync stops the T:23
+                                // republish retry loop instead of the
+                                // T:24 action loop.
+                                onCancelSync: (_) => _controller
+                                    .cancelInFlightScheduleOperation(),
                               );
                             },
                           ),
@@ -496,12 +541,12 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     const filters = [
       {'label': 'All', 'value': ''},
       {'label': 'Pending', 'value': 'PENDING'},
+      {'label': 'Scheduled', 'value': 'SCHEDULED'},
       {'label': 'Running', 'value': 'RUNNING'},
       {'label': 'Stopped', 'value': 'STOPPED'},
-      {'label': 'Scheduled', 'value': 'SCHEDULED'},
+      {'label': 'Partial', 'value': 'PARTIAL'},
       {'label': 'Completed', 'value': 'COMPLETED'},
       {'label': 'Missed', 'value': 'MISSED'},
-      {'label': 'Partial', 'value': 'PARTIAL'},
       {'label': 'Failed', 'value': 'FAILED'},
     ];
 

@@ -7,6 +7,7 @@ import 'package:i_dhara/app/data/models/schedules/schedule_history_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_stop_restart_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_update_model.dart';
+import 'package:i_dhara/app/data/models/schedules/single_schedule_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repository.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
@@ -172,5 +173,16 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     return response.statusCode == 200 ||
         response.statusCode == 201 ||
         response.statusCode == 204;
+  }
+
+  @override
+  Future<SingleScheduleLogsResponse?> getSingleScheduleLogs(
+      int objectId) async {
+    final response =
+        await NetworkManager().get('/motor-schedules/$objectId/history');
+    if (response.statusCode == 200) {
+      return SingleScheduleLogsResponse.fromJson(response.data);
+    }
+    return null;
   }
 }

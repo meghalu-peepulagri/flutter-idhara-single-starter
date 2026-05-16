@@ -4,8 +4,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
+import 'package:i_dhara/app/presentation/components/schedules/schedule_logs_sheet.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_dialogs.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_manage_controller.dart';
@@ -30,16 +32,21 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   // so the bottom Confirm button stays hidden.
   _BulkScheduleAction? _selectedAction;
   bool _isRunningBulkAction = false;
+  // Flipped on when the user long-presses any card. Acts like a second
+  // gate (alongside `hasFilter`) that surfaces the checkbox column and
+  // the Select All / bulk-action chip row, so power users can multi-
+  // select without first opening the filter sheet.
+  bool _longPressSelectionMode = false;
 
   static const _filters = [
     {'label': 'All', 'value': ''},
     {'label': 'Pending', 'value': 'PENDING'},
+    {'label': 'Scheduled', 'value': 'SCHEDULED'},
     {'label': 'Running', 'value': 'RUNNING'},
     {'label': 'Stopped', 'value': 'STOPPED'},
-    {'label': 'Scheduled', 'value': 'SCHEDULED'},
+    {'label': 'Partial', 'value': 'PARTIAL'},
     {'label': 'Completed', 'value': 'COMPLETED'},
     {'label': 'Missed', 'value': 'MISSED'},
-    {'label': 'Partial', 'value': 'PARTIAL'},
     {'label': 'Failed', 'value': 'FAILED'},
   ];
 
@@ -87,7 +94,11 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       case _BulkScheduleAction.republish:
         return s == 'PENDING';
       case _BulkScheduleAction.delete:
-        return s != 'PENDING';
+        // Delete is allowed for every status the card itself lets the
+        // user delete — including PENDING, since unsynced rows still
+        // exist on the backend and need to be cleared. The FAILED /
+        // PARTIAL / MISSED handling is covered by the guards above.
+        return true;
     }
   }
 
@@ -133,6 +144,9 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                       onRefresh: () async {
                         if (_selectedAction != null) {
                           setState(() => _selectedAction = null);
+                        }
+                        if (_longPressSelectionMode) {
+                          setState(() => _longPressSelectionMode = false);
                         }
                         _controller.clearSelection();
                         _controller.selectedFilter.value = '';
@@ -377,6 +391,12 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     return Obx(() {
       final count = _controller.selectedRecordIds.length;
       final allSchedules = _controller.schedules.toList();
+      // Bulk-selection mode is normally gated behind a chosen status
+      // filter, BUT a card long-press also flips it on (see
+      // `_longPressSelectionMode`). Either path reveals checkboxes,
+      // Select All, and the bulk-action chip row.
+      final hasFilter = _controller.selectedFilter.value.isNotEmpty;
+      final selectionEnabled = hasFilter || _longPressSelectionMode;
 
       final visible = _filterByAction(allSchedules);
       final selectableIds = visible.map((r) => r.id).whereType<int>().toSet();
@@ -414,131 +434,179 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
           children: [
             Row(
               children: [
-                Text(
-                  visibleEmpty
-                      ? (_selectedAction != null
-                          ? 'No schedules for this action'
-                          : 'No schedules')
-                      : (count > 0
-                          ? '$count of ${selectableIds.length} selected'
-                          : '${selectableIds.length} schedule${selectableIds.length > 1 ? 's' : ''}'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: count > 0
-                        ? const Color(0xFF004E7E)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: visibleEmpty
-                      ? null
-                      : () {
-                          if (allSelected) {
-                            _controller.clearSelection();
-                            if (_selectedAction != null) {
-                              setState(() => _selectedAction = null);
+                if (selectionEnabled)
+                  GestureDetector(
+                    onTap: visibleEmpty
+                        ? null
+                        : () {
+                            if (allSelected) {
+                              _controller.clearSelection();
+                              if (_selectedAction != null) {
+                                setState(() => _selectedAction = null);
+                              }
+                              // Leaving an empty selection in long-press
+                              // mode also exits long-press mode so the
+                              // user returns to the regular "tap to
+                              // open logs" interaction.
+                              if (_longPressSelectionMode) {
+                                setState(() => _longPressSelectionMode = false);
+                              }
+                            } else {
+                              _controller.selectAll(visible);
                             }
-                          } else {
-                            _controller.selectAll(visible);
-                          }
-                        },
-                  behavior: HitTestBehavior.opaque,
-                  child: Opacity(
-                    opacity: visibleEmpty ? 0.4 : 1.0,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            allSelected
-                                ? Icons.check_box_rounded
-                                : Icons.check_box_outline_blank_rounded,
-                            size: 18,
-                            color: const Color(0xFF004E7E),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            allSelected ? 'Deselect All' : 'Select All',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                          },
+                    behavior: HitTestBehavior.opaque,
+                    child: Opacity(
+                      opacity: visibleEmpty ? 0.4 : 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              allSelected
+                                  ? Icons.check_box_rounded
+                                  : Icons.check_box_outline_blank_rounded,
+                              size: 18,
                               color: const Color(0xFF004E7E),
                             ),
+                            const SizedBox(width: 6),
+                            Text(
+                              allSelected ? 'Deselect All' : 'Select All',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF004E7E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 14,
+                          color: Color(0xFF64748B),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Apply a status filter to select multiple schedules',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF64748B),
+                              height: 1.3,
+                            ),
+                            softWrap: true,
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                if (selectionEnabled && count > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$count selected',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
+                ],
+                if (selectionEnabled) const Spacer(),
                 Obx(() {
-                  final isFiltered =
-                      _controller.selectedFilter.value.isNotEmpty;
+                  final currentFilter = _controller.selectedFilter.value;
+                  final isFiltered = currentFilter.isNotEmpty;
+                  // Resolve the human label from the static `_filters`
+                  // list so the chip mirrors what the user picked in the
+                  // bottom sheet. Empty value maps to the "All" entry,
+                  // so the chip always reads as a current state rather
+                  // than a bare icon.
+                  final filterLabel = _filters.firstWhere(
+                        (f) => f['value'] == currentFilter,
+                        orElse: () => const {'label': 'All'},
+                      )['label'] ??
+                      'All';
                   return InkWell(
                     borderRadius: BorderRadius.circular(8),
                     onTap: () => _showFilterSheet(context),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: isFiltered
-                                ? const Color(0xFF004E7E)
-                                : const Color(0xFFEBF3FE),
-                            borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        // Apply the brand gradient when a filter is
+                        // active so the chip pops the same way the
+                        // selected-count badge does.
+                        gradient: isFiltered
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFF004E7E),
+                                  Color(0xFF3686AF),
+                                ],
+                              )
+                            : null,
+                        color: isFiltered ? null : const Color(0xFFEBF3FE),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            filterLabel,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isFiltered
+                                  ? Colors.white
+                                  : const Color(0xFF004E7E),
+                            ),
                           ),
-                          child: Icon(
+                          const SizedBox(width: 6),
+                          Icon(
                             Icons.tune_rounded,
-                            size: 18,
+                            size: 15,
                             color: isFiltered
                                 ? Colors.white
                                 : const Color(0xFF004E7E),
                           ),
-                        ),
-                        if (isFiltered)
-                          Positioned(
-                            top: -4,
-                            right: -4,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Text(
-                                '1',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  height: 1,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 }),
               ],
             ),
-            if (count > 0) ...[
+            if (selectionEnabled && count > 0) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
                   _buildTextChip(
                     label: 'Stop',
+                    icon: Icons.stop_circle_outlined,
                     action: _BulkScheduleAction.stop,
                     color: const Color(0xFFF59E0B),
                     enabled: hasStoppable,
@@ -546,6 +614,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                   const SizedBox(width: 8),
                   _buildTextChip(
                     label: 'Restart',
+                    icon: Icons.play_circle_outline_rounded,
                     action: _BulkScheduleAction.restart,
                     color: const Color(0xFF10B981),
                     enabled: hasResumable,
@@ -553,13 +622,15 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                   const SizedBox(width: 8),
                   _buildTextChip(
                     label: 'Delete',
+                    icon: Icons.delete_outline_rounded,
                     action: _BulkScheduleAction.delete,
                     color: const Color(0xFFEF4444),
                     enabled: hasDeletable,
                   ),
                   const SizedBox(width: 8),
                   _buildTextChip(
-                    label: 'Republish',
+                    label: 'Resync',
+                    icon: Icons.refresh_rounded,
                     action: _BulkScheduleAction.republish,
                     color: const Color(0xFF6366F1),
                     enabled: hasPending,
@@ -577,6 +648,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     required String label,
     required _BulkScheduleAction action,
     required Color color,
+    required IconData icon,
     bool enabled = true,
   }) {
     final isSelected = _selectedAction == action;
@@ -616,13 +688,24 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 width: isSelected ? 1.5 : 1,
               ),
             ),
-            child: Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? color : const Color(0xFF64748B),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: isSelected ? color : const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? color : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -635,35 +718,92 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       ...schedules.map(
         (record) => Obx(() {
           final isSelected = _controller.isSelected(record);
+          final hasFilter = _controller.selectedFilter.value.isNotEmpty;
+          // Selection UI also surfaces when the user has long-pressed
+          // to start a bulk pick, not only via the status filter path.
+          final selectionEnabled = hasFilter || _longPressSelectionMode;
+          // While at least one row is checked the user is in bulk-select
+          // mode — the per-card Edit/Delete/Resync pills stay visible
+          // but are rendered inactive so the user can't accidentally
+          // fire a single-record action alongside the pending bulk one.
+          final inSelectionMode = _controller.selectedRecordIds.isNotEmpty;
           final dateLabel = _formatScheduleDate(
             record.scheduleStartDate,
             record.scheduleEndDate,
           );
+          // STOPPED rows can only restart while the window is still in
+          // the future — past-stopped rows stay read-only for the
+          // toggle. The card hides the restart action for those.
+          final startDate = _yymmddToDate(record.scheduleStartDate);
+          final isFutureSchedule = startDate == null
+              ? true
+              : !startDate.isBefore(
+                  DateTime(DateTime.now().year, DateTime.now().month,
+                      DateTime.now().day),
+                );
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: ScheduleCard(
-              key: ValueKey(record.scheduleId ?? record.id),
+            child: GestureDetector(
+              behavior: HitTestBehavior.deferToChild,
+              // Long-pressing a card flips the page into selection mode
+              // and toggles the pressed record. The card's inner
+              // InkWell (added when `onTap` is set) only claims taps —
+              // it leaves long-presses to fall through to this outer
+              // detector, so the gesture arena routes correctly.
+              onLongPress: () {
+                final oid = record.id;
+                if (oid == null || oid <= 0) return;
+                if (!_longPressSelectionMode) {
+                  setState(() => _longPressSelectionMode = true);
+                }
+                _controller.toggleSelection(record);
+              },
+              child: ScheduleCard(
+                key: ValueKey(record.scheduleId ?? record.id),
               record: record,
-              showEditAction: false,
-              showDeleteAction: false,
-              disableToggle: true,
               dateLabel: dateLabel.isEmpty ? null : dateLabel,
-              leading: Checkbox(
-                value: isSelected,
-                onChanged: (_) => _controller.toggleSelection(record),
-                activeColor: const Color(0xFF004E7E),
-                checkColor: Colors.white,
-                visualDensity:
-                    const VisualDensity(horizontal: -4, vertical: -4),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                side: const BorderSide(
-                  color: Color(0xFFB8C7D6),
-                  width: 1.4,
-                ),
-              ),
+              isFutureSchedule: isFutureSchedule,
+              disableEditAction: inSelectionMode,
+              disableDeleteAction: inSelectionMode,
+              disableSyncAction: inSelectionMode,
+              // Tapping anywhere on the card surface opens the
+              // per-schedule logs bottom sheet, except while a bulk
+              // selection is in progress — taps then should only
+              // toggle the checkbox / action pills, not pop a sheet
+              // over the bulk-select UI. Taps that land on the
+              // action-pill row are absorbed inside `ScheduleCard`
+              // itself, so they don't bubble up to this handler.
+              onTap: inSelectionMode || (record.id ?? 0) <= 0
+                  ? null
+                  : (r) => showSingleScheduleLogsSheet(
+                        context,
+                        objectId: r.id!,
+                      ),
+              leading: selectionEnabled
+                  ? Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => _controller.toggleSelection(record),
+                      activeColor: const Color(0xFF004E7E),
+                      checkColor: Colors.white,
+                      visualDensity:
+                          const VisualDensity(horizontal: -4, vertical: -4),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: const BorderSide(
+                        color: Color(0xFFB8C7D6),
+                        width: 1.4,
+                      ),
+                    )
+                  : null,
               onDelete: (item) async {
-                final success =
-                    await _motorScheduleController.deleteSchedule(item);
+                final s = (item.scheduleStatus ?? '').toUpperCase();
+                // PENDING / FAILED rows never reached the device, so
+                // there's nothing to clear over MQTT — call the backend
+                // DELETE directly. Everything else stays on the
+                // MQTT-then-API path that waits for the device ACK.
+                final isApiOnly = s == 'PENDING' || s == 'FAILED';
+                final success = isApiOnly
+                    ? await _motorScheduleController.deleteScheduleApiOnly(item)
+                    : await _motorScheduleController.deleteSchedule(item);
                 if (success) {
                   await _controller.fetchSchedules();
                 }
@@ -680,8 +820,18 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               onEdit: (item) {
                 _motorScheduleController.navigateToEditSchedule(item);
               },
+              onSync: (item) => _controller.republishSingleSchedule(
+                item,
+                _motorScheduleController,
+              ),
               onCancelAction: (item) => _motorScheduleController
                   .cancelPendingScheduleAction(item.scheduleId ?? 0),
+              // Resync's Cancel tap has to stop the T:23 republish
+              // retry loop, not the T:24 action loop that
+              // cancelPendingScheduleAction targets.
+              onCancelSync: (_) =>
+                  _motorScheduleController.cancelInFlightScheduleOperation(),
+              ),
             ),
           );
         }),
@@ -700,24 +850,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     ];
   }
 
-  /// Renders the record's `schedule_start_date` / `schedule_end_date`
-  /// (YYMMDD ints from the backend) as a compact label shown next to
-  /// the time on the card. Per-date records have start == end → shows
-  /// a single "14 May"; legacy range rows show "14 May → 21 May". The
-  /// year is intentionally omitted — schedules always live in the near
-  /// future, so the year adds noise without disambiguating.
+  /// Renders the record's `schedule_start_date` (YYMMDD int from the
+  /// backend) as a compact label shown next to the time on the card.
+  /// Only the start date is surfaced — per-date records have one date
+  /// anyway, and ranges are already disambiguated by the date filter
+  /// chips above the list. The year is intentionally omitted —
+  /// schedules always live in the near future, so the year adds noise
+  /// without disambiguating.
   String _formatScheduleDate(int? startCode, int? endCode) {
     final start = _yymmddToDate(startCode);
     if (start == null) return '';
-    final end = _yymmddToDate(endCode);
-    final fmt = DateFormat('dd MMM');
-    if (end == null ||
-        (start.year == end.year &&
-            start.month == end.month &&
-            start.day == end.day)) {
-      return fmt.format(start);
-    }
-    return '${fmt.format(start)} → ${fmt.format(end)}';
+    return DateFormat('dd MMM').format(start);
   }
 
   DateTime? _yymmddToDate(int? code) {
@@ -767,7 +910,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
-                    setState(() => _selectedAction = null);
+                    setState(() {
+                      _selectedAction = null;
+                      _longPressSelectionMode = false;
+                    });
                     _controller.clearSelection();
                   },
                   style: OutlinedButton.styleFrom(
@@ -983,6 +1129,15 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                       return InkWell(
                         onTap: () async {
                           _controller.selectedFilter.value = filter['value']!;
+                          // Switching filter invalidates any in-flight bulk
+                          // pick — selections made under the old filter may
+                          // not be eligible under the new one (or, when the
+                          // user goes back to "All", the checkbox column
+                          // disappears entirely).
+                          _controller.clearSelection();
+                          if (_selectedAction != null) {
+                            setState(() => _selectedAction = null);
+                          }
                           Navigator.pop(ctx);
                           await _controller.fetchSchedules();
                         },
@@ -1039,13 +1194,13 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       _BulkScheduleAction.delete => 'Delete Schedules',
       _BulkScheduleAction.stop => 'Stop Schedules',
       _BulkScheduleAction.restart => 'Restart Schedules',
-      _BulkScheduleAction.republish => 'Republish Schedules',
+      _BulkScheduleAction.republish => 'Resync Schedules',
     };
     final buttonLabel = switch (action) {
       _BulkScheduleAction.delete => 'Delete',
       _BulkScheduleAction.stop => 'Stop',
       _BulkScheduleAction.restart => 'Restart',
-      _BulkScheduleAction.republish => 'Republish',
+      _BulkScheduleAction.republish => 'Resync',
     };
     final description = switch (action) {
       _BulkScheduleAction.delete =>
@@ -1055,8 +1210,70 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       _BulkScheduleAction.restart =>
         'Are you sure you want to restart $selectedCount selected schedules?',
       _BulkScheduleAction.republish =>
-        'Republish $selectedCount pending schedule${selectedCount > 1 ? 's' : ''} to the device?',
+        'Resync $selectedCount pending schedule${selectedCount > 1 ? 's' : ''} to the device?',
     };
+
+    // For a bulk delete where every picked row is PENDING / FAILED, the
+    // controller skips MQTT entirely — so the dialog should also skip
+    // its 23s "Waiting for device" timer view. Any other action (or a
+    // mixed delete that still has device-resident rows) keeps the
+    // existing timer behavior.
+    final selectedRecords = _controller.schedules
+        .where(
+            (r) => r.id != null && _controller.selectedRecordIds.contains(r.id))
+        .toList();
+    final isApiOnlyDelete = action == _BulkScheduleAction.delete &&
+        selectedRecords.isNotEmpty &&
+        selectedRecords.every((r) {
+          final s = (r.scheduleStatus ?? '').toUpperCase();
+          return s == 'PENDING' || s == 'FAILED';
+        });
+
+    // Snapshot the originally-selected object ids before the dialog
+    // opens. After the bulk run resolves, the failureMessageBuilder
+    // compares the refreshed list against this snapshot to compute
+    // how many rows didn't transition into the expected post-action
+    // state — that count drives the "X of Y didn't respond" copy
+    // shown inside the dialog instead of the generic fallback.
+    //
+    // Per-action "not ACKed" definition:
+    //   • delete   → row is still present in the list
+    //   • stop     → row is still RUNNING or SCHEDULED
+    //   • restart  → row is still STOPPED
+    //   • resync   → row is still PENDING or FAILED
+    final Set<int> originalSelectedIds =
+        Set<int>.from(_controller.selectedRecordIds);
+    final int originalSelectedCount = originalSelectedIds.length;
+
+    bool isStillNotAcked(Record r, _BulkScheduleAction action) {
+      final status = (r.scheduleStatus ?? '').toUpperCase();
+      switch (action) {
+        case _BulkScheduleAction.delete:
+          return true; // present in list => not deleted
+        case _BulkScheduleAction.stop:
+          return status == 'RUNNING' || status == 'SCHEDULED';
+        case _BulkScheduleAction.restart:
+          return status == 'STOPPED';
+        case _BulkScheduleAction.republish:
+          return status == 'PENDING' || status == 'FAILED';
+      }
+    }
+
+    Future<String?> Function()? failureMessageBuilder;
+    if (originalSelectedCount > 0) {
+      failureMessageBuilder = () async {
+        final notAckedCount = _controller.schedules.where((r) {
+          if (r.id == null) return false;
+          if (!originalSelectedIds.contains(r.id)) return false;
+          return isStillNotAcked(r, action);
+        }).length;
+        if (notAckedCount == 0) return null;
+        if (notAckedCount == originalSelectedCount) {
+          return 'No response from device. Please try again.';
+        }
+        return '$notAckedCount of $originalSelectedCount schedules didn\'t respond. Please try again.';
+      };
+    }
 
     showScheduleActionConfirmDialog(
       context: context,
@@ -1066,6 +1283,8 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       iconAssetPath: 'assets/images/schedule.svg',
       isActive: action == _BulkScheduleAction.restart ||
           action == _BulkScheduleAction.republish,
+      skipDeviceAck: isApiOnlyDelete,
+      failureMessageBuilder: failureMessageBuilder,
       onConfirm: () => _runBulkAction(action),
       // Aborts MQTT retries + resolves the bulk/republish completer with
       // false so the controller's 23s `.timeout()` doesn't fire a stale
@@ -1073,20 +1292,26 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       onCancelWhileWaiting:
           _motorScheduleController.cancelInFlightScheduleOperation,
     ).then((success) {
-      // No success snackbar fired from here — MotorScheduleController owns
-      // every one of these messages:
-      //   • single-record stop/restart → _listenScheduleActionAck →
-      //     "Schedule stopped" / "Schedule restarted" after the post API.
-      //   • single-record delete → _deleteScheduleAfterAck →
-      //     "Schedule deleted successfully" after the delete API.
-      //   • single-record republish → _listenScheduleAck →
-      //     "Schedules acknowledged by device" once T:33 lands.
-      //   • multi-record (>1) → showScheduleResultSnackBar with the
-      //     "X succeeded, Y failed" partial / full toast.
-      // Firing anything extra from the page double-toasts the user.
+      // Resync only: fire the success snackbar deterministically from
+      // the manage page rather than relying on the motor controller's
+      // `_listenScheduleAck` listener. In release builds the listener
+      // does two awaited fetch calls before its `getsuccessSnackBar`,
+      // by which time the dialog route has been disposed and the
+      // GetX snackbar can't render. Firing here, in the dialog's own
+      // `.then`, happens before any route teardown so the snackbar
+      // always appears. Stop / Restart / Delete keep their motor-
+      // controller-owned per-record snackbars and aren't touched.
+      if (success == true &&
+          action == _BulkScheduleAction.republish &&
+          mounted) {
+        getsuccessSnackBar('Schedules resynced successfully');
+      }
       _controller.clearSelection();
       if (mounted && _selectedAction != null) {
         setState(() => _selectedAction = null);
+      }
+      if (mounted && _longPressSelectionMode) {
+        setState(() => _longPressSelectionMode = false);
       }
       if (mounted) setState(() => _isRunningBulkAction = false);
     });
