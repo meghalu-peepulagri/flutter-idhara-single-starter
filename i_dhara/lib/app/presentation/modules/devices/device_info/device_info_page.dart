@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,6 +43,16 @@ class DeviceInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // iOS only: block the left-edge swipe-back gesture. The header back
+    // arrow still works — Get.back() pops unconditionally, unaffected by
+    // canPop. Android keeps its normal system back behaviour.
+    return PopScope(
+      canPop: !Platform.isIOS,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final controller = Get.find<DeviceInfoController>();
     return Scaffold(
       backgroundColor: const Color(0xFFEBF3FE),
@@ -528,9 +540,15 @@ class _FullScreenImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
+    // iOS only: block the left-edge swipe-back so it doesn't conflict
+    // with the InteractiveViewer pan/zoom. The close button still works
+    // — Navigator.pop is unconditional, unaffected by canPop. Android
+    // keeps its normal system back behaviour.
+    return PopScope(
+      canPop: !Platform.isIOS,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
         children: [
           Center(
             child: InteractiveViewer(
@@ -567,6 +585,7 @@ class _FullScreenImageViewer extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

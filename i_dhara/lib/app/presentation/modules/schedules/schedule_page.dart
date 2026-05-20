@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -901,6 +902,17 @@ class _SchedulePageState extends State<SchedulePage> {
 
   @override
   Widget build(BuildContext context) {
+    // iOS only: block the left-edge swipe-back gesture so the user can't
+    // accidentally pop the page mid create/edit. The header back arrow
+    // still works — Get.back() pops unconditionally, unaffected by
+    // canPop. Android keeps its normal system back behaviour.
+    return PopScope(
+      canPop: !Platform.isIOS,
+      child: _buildScaffold(),
+    );
+  }
+
+  Widget _buildScaffold() {
     final name = motor?.aliasName ?? motor?.name ?? 'Motor';
     final displayName = name.length > 20 ? '${name.substring(0, 20)}...' : name;
 
@@ -915,6 +927,11 @@ class _SchedulePageState extends State<SchedulePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFEBF3FE),
       body: SafeArea(
+        // On iOS the SafeArea bottom inset (home-indicator) reserves a
+        // strip below the white Cancel/Save bar, showing as a gap. Drop
+        // it on iOS so the bar reaches the screen edge. Android keeps
+        // the inset exactly as before.
+        bottom: !Platform.isIOS,
         child: Column(
           children: [
             _buildHeader(displayName),

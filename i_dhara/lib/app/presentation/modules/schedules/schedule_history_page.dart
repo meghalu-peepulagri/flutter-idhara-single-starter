@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -40,6 +42,13 @@ class _ScheduleHistoryPageState extends State<ScheduleHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !Platform.isIOS,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(

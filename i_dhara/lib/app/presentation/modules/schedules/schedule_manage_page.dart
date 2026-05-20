@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -107,6 +109,17 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
 
   @override
   Widget build(BuildContext context) {
+    // iOS only: block the left-edge swipe-back gesture so the user can't
+    // accidentally pop the page mid bulk-action. The header back arrow
+    // still works — Get.back() pops unconditionally, unaffected by
+    // canPop. Android keeps its normal system back behaviour.
+    return PopScope(
+      canPop: !Platform.isIOS,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEBF3FE),
       body: SafeArea(
@@ -513,8 +526,8 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 if (selectionEnabled && count > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
@@ -760,77 +773,75 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               },
               child: ScheduleCard(
                 key: ValueKey(record.scheduleId ?? record.id),
-              record: record,
-              dateLabel: dateLabel.isEmpty ? null : dateLabel,
-              isFutureSchedule: isFutureSchedule,
-              disableEditAction: inSelectionMode,
-              disableDeleteAction: inSelectionMode,
-              disableSyncAction: inSelectionMode,
-              // Tapping anywhere on the card surface opens the
-              // per-schedule logs bottom sheet, except while a bulk
-              // selection is in progress — taps then should only
-              // toggle the checkbox / action pills, not pop a sheet
-              // over the bulk-select UI. Taps that land on the
-              // action-pill row are absorbed inside `ScheduleCard`
-              // itself, so they don't bubble up to this handler.
-              onTap: inSelectionMode || (record.id ?? 0) <= 0
-                  ? null
-                  : (r) => showSingleScheduleLogsSheet(
-                        context,
-                        objectId: r.id!,
-                      ),
-              leading: selectionEnabled
-                  ? Checkbox(
-                      value: isSelected,
-                      onChanged: (_) => _controller.toggleSelection(record),
-                      activeColor: const Color(0xFF004E7E),
-                      checkColor: Colors.white,
-                      visualDensity:
-                          const VisualDensity(horizontal: -4, vertical: -4),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      side: const BorderSide(
-                        color: Color(0xFFB8C7D6),
-                        width: 1.4,
-                      ),
-                    )
-                  : null,
-              onDelete: (item) async {
-                final s = (item.scheduleStatus ?? '').toUpperCase();
-                // PENDING / FAILED rows never reached the device, so
-                // there's nothing to clear over MQTT — call the backend
-                // DELETE directly. Everything else stays on the
-                // MQTT-then-API path that waits for the device ACK.
-                final isApiOnly = s == 'PENDING' || s == 'FAILED';
-                final success = isApiOnly
-                    ? await _motorScheduleController.deleteScheduleApiOnly(item)
-                    : await _motorScheduleController.deleteSchedule(item);
-                if (success) {
-                  await _controller.fetchSchedules();
-                }
-                return success;
-              },
-              onToggle: (item, enabled) async {
-                final success = await _motorScheduleController.toggleSchedule(
-                    item, enabled);
-                if (success) {
-                  await _controller.fetchSchedules();
-                }
-                return success;
-              },
-              onEdit: (item) {
-                _motorScheduleController.navigateToEditSchedule(item);
-              },
-              onSync: (item) => _controller.republishSingleSchedule(
-                item,
-                _motorScheduleController,
-              ),
-              onCancelAction: (item) => _motorScheduleController
-                  .cancelPendingScheduleAction(item.scheduleId ?? 0),
-              // Resync's Cancel tap has to stop the T:23 republish
-              // retry loop, not the T:24 action loop that
-              // cancelPendingScheduleAction targets.
-              onCancelSync: (_) =>
-                  _motorScheduleController.cancelInFlightScheduleOperation(),
+                record: record,
+                dateLabel: dateLabel.isEmpty ? null : dateLabel,
+                isFutureSchedule: isFutureSchedule,
+                disableEditAction: inSelectionMode,
+                disableDeleteAction: inSelectionMode,
+                disableSyncAction: inSelectionMode,
+                // Tapping anywhere on the card surface opens the
+                // per-schedule logs bottom sheet, except while a bulk
+                // selection is in progress — taps then should only
+                // toggle the checkbox / action pills, not pop a sheet
+                // over the bulk-select UI. Taps that land on the
+                // action-pill row are absorbed inside `ScheduleCard`
+                // itself, so they don't bubble up to this handler.
+                onTap: inSelectionMode || (record.id ?? 0) <= 0
+                    ? null
+                    : (r) => showSingleScheduleLogsSheet(
+                          context,
+                          objectId: r.id!,
+                        ),
+                leading: selectionEnabled
+                    ? Checkbox(
+                        value: isSelected,
+                        onChanged: (_) => _controller.toggleSelection(record),
+                        activeColor: const Color(0xFF004E7E),
+                        checkColor: Colors.white,
+                        visualDensity:
+                            const VisualDensity(horizontal: -4, vertical: -4),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        side: const BorderSide(
+                          color: Color(0xFFB8C7D6),
+                          width: 1.4,
+                        ),
+                      )
+                    : null,
+                onDelete: (item) async {
+                  final s = (item.scheduleStatus ?? '').toUpperCase();
+                  // PENDING / FAILED rows never reached the device, so
+                  // there's nothing to clear over MQTT — call the backend
+                  // DELETE directly. Everything else stays on the
+                  // MQTT-then-API path that waits for the device ACK.
+                  final isApiOnly = s == 'PENDING' || s == 'FAILED';
+                  final success = isApiOnly
+                      ? await _motorScheduleController
+                          .deleteScheduleApiOnly(item)
+                      : await _motorScheduleController.deleteSchedule(item);
+                  if (success) {
+                    await _controller.fetchSchedules();
+                  }
+                  return success;
+                },
+                onToggle: (item, enabled) async {
+                  final success = await _motorScheduleController.toggleSchedule(
+                      item, enabled);
+                  if (success) {
+                    await _controller.fetchSchedules();
+                  }
+                  return success;
+                },
+                onEdit: (item) {
+                  _motorScheduleController.navigateToEditSchedule(item);
+                },
+                onSync: (item) => _controller.republishSingleSchedule(
+                  item,
+                  _motorScheduleController,
+                ),
+                onCancelAction: (item) => _motorScheduleController
+                    .cancelPendingScheduleAction(item.scheduleId ?? 0),
+                onCancelSync: (_) =>
+                    _motorScheduleController.cancelInFlightScheduleOperation(),
               ),
             ),
           );
@@ -850,13 +861,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     ];
   }
 
-  /// Renders the record's `schedule_start_date` (YYMMDD int from the
-  /// backend) as a compact label shown next to the time on the card.
-  /// Only the start date is surfaced — per-date records have one date
-  /// anyway, and ranges are already disambiguated by the date filter
-  /// chips above the list. The year is intentionally omitted —
-  /// schedules always live in the near future, so the year adds noise
-  /// without disambiguating.
   String _formatScheduleDate(int? startCode, int? endCode) {
     final start = _yymmddToDate(startCode);
     if (start == null) return '';
@@ -887,12 +891,13 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
 
       return SafeArea(
         top: false,
+        bottom: !Platform.isIOS,
         child: Container(
           padding: EdgeInsets.fromLTRB(
             16,
             12,
             16,
-            12 + MediaQuery.of(context).padding.bottom,
+            Platform.isIOS ? 20 : 12 + MediaQuery.of(context).padding.bottom,
           ),
           decoration: BoxDecoration(
             color: Colors.white,
