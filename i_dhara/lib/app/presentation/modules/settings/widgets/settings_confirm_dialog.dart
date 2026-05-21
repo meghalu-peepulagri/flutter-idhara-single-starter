@@ -26,6 +26,7 @@ Future<void> showSettingsConfirmDialog(
 }) {
   return showDialog(
     context: context,
+    barrierDismissible: false,
     builder: (context) {
       final screenWidth = MediaQuery.of(context).size.width;
       final screenHeight = MediaQuery.of(context).size.height;
@@ -33,7 +34,12 @@ Future<void> showSettingsConfirmDialog(
       final horizontalPadding = screenWidth < 360 ? 16.0 : 24.0;
       final verticalPadding = screenHeight < 600 ? 16.0 : 20.0;
 
-      return AlertDialog(
+      bool isLoading = false;
+
+      return StatefulBuilder(builder: (context, setStateDialog) {
+        return WillPopScope(
+          onWillPop: () async => !isLoading,
+          child: AlertDialog(
         insetPadding: EdgeInsets.symmetric(
           horizontal: (screenWidth - dialogWidth) / 2,
           vertical: 24.0,
@@ -112,11 +118,12 @@ Future<void> showSettingsConfirmDialog(
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed:
+                isLoading ? null : () => Navigator.of(context).pop(),
             child: Text(
               'Cancel',
               style: GoogleFonts.dmSans(
-                color: Colors.grey,
+                color: isLoading ? Colors.grey.shade400 : Colors.grey,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -133,28 +140,49 @@ Future<void> showSettingsConfirmDialog(
               borderRadius: BorderRadius.circular(8),
             ),
             child: ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await onConfirm();
-              },
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      setStateDialog(() => isLoading = true);
+                      try {
+                        await onConfirm();
+                      } finally {
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
+                      }
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
+                disabledBackgroundColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: Text(
-                'Save',
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      'Save',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
         ],
-      );
+          ),
+        );
+      });
     },
   );
 }

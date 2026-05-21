@@ -206,8 +206,8 @@ class MqttService {
 
   // Retry settings
   static const int _maxRetries = 2;
-  static const Duration _firstRetryDelay = Duration(seconds: 5);
-  static const Duration _secondRetryDelay = Duration(seconds: 5);
+  static const Duration _firstRetryDelay = Duration(seconds: 10);
+  static const Duration _secondRetryDelay = Duration(seconds: 10);
   static const Duration _finalWaitDelay = Duration(seconds: 3);
 
   final Random _random = Random();
@@ -1110,7 +1110,8 @@ class MqttService {
     // When in test run, T:31 ACK stops the retry loop but must NOT update motor
     // state — the test run manages the motor lifecycle independently.
     if (isIdentifierInTestRun(identifier)) {
-      debugPrint('   ✅ T:31 for test run motor — clearing retry, skipping state update');
+      debugPrint(
+          '   ✅ T:31 for test run motor — clearing retry, skipping state update');
       final testRunMotorId = _findMotorWithPendingCommand(identifier, 1) ??
           _findAnyMotorWithIdentifier(identifier);
       if (testRunMotorId != null) {

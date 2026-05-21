@@ -481,12 +481,27 @@ class MotorCardDialogs {
                           ),
                         ),
                         Expanded(
-                          child: Text(
-                            _getMotorDisplayName(motor),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.black,
-                            ),
+                          child: Builder(
+                            builder: (_) {
+                              // First preference: alias name.
+                              // Fallback: motor name when alias is null/empty.
+                              final alias = motor.aliasName?.trim();
+                              final hasAlias =
+                                  alias != null && alias.isNotEmpty;
+                              final displayName = hasAlias
+                                  ? _formatMotorName(alias.capitalizeFirst)
+                                  : _formatMotorName(motor
+                                      .starter?.starterNumber
+                                      ?.trim()
+                                      .capitalizeFirst);
+                              return Text(
+                                displayName,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  color: Colors.black,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],

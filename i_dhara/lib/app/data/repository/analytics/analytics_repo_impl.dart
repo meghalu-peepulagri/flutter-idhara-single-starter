@@ -4,6 +4,7 @@ import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/device_status_history_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_run_time_model.dart';
 import 'package:i_dhara/app/data/models/graphs/motor_status_history_model.dart';
+import 'package:i_dhara/app/data/models/graphs/motor_total_runtime_model.dart';
 import 'package:i_dhara/app/data/models/graphs/power_status_history_model.dart';
 import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repository.dart';
@@ -76,6 +77,25 @@ class AnalyticsRepositoryImpl extends AnalyticsRepository {
     } else {
       return null;
     }
+  }
+
+  @override
+  Future<MotortTotalRuntimeResponse?> getMotorTotalRuntime(
+      String fromDate, String toDate) async {
+    final response = await NetworkManager().get(
+      '/status-history/motor/runtime',
+      queryParameters: {
+        'starter_id': SharedPreference.getStarterId(),
+        'motor_id': SharedPreference.getMotorId(),
+        'from_date': fromDate,
+        'to_date': toDate,
+      },
+    );
+    if (response.statusCode == 200) {
+      return MotortTotalRuntimeResponse.fromJson(
+          Map<String, dynamic>.from(response.data as Map));
+    }
+    return null;
   }
 
   @override

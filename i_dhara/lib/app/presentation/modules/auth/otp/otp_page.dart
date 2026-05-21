@@ -223,6 +223,7 @@ class OtpWidget extends StatelessWidget {
                                           left: 30, right: 30, bottom: 10),
                                       child: PinFieldAutoFill(
                                         enableInteractiveSelection: false,
+                                        keyboardType: TextInputType.number,
                                         controller:
                                             controller.pinCodeController,
                                         onCodeChanged: (val) async {
