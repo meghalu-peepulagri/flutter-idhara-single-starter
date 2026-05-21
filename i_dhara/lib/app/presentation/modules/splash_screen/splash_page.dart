@@ -48,6 +48,20 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final shortestSide = size.shortestSide;
+    final isTablet = shortestSide >= 600;
+    final isLargeTablet = shortestSide >= 900;
+
+    final horizontalPadding = isLargeTablet ? 96.0 : (isTablet ? 64.0 : 36.0);
+    final logoMaxWidth = isLargeTablet ? 360.0 : (isTablet ? 300.0 : 240.0);
+    final tagFontSize = isLargeTablet ? 28.0 : (isTablet ? 24.0 : 20.0);
+    final spacingBetween = isTablet ? 48.0 : 36.0;
+    final bottomGap = isTablet ? 96.0 : 64.0;
+    final arrowPadding = isTablet ? 28.0 : 20.0;
+    final arrowIconSize = isTablet ? 32.0 : 24.0;
+    final contentMaxWidth = isLargeTablet ? 560.0 : (isTablet ? 480.0 : 420.0);
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -79,43 +93,47 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
                 children: [
                   Expanded(
                     child: Padding(
-                      padding:
-                          const EdgeInsetsDirectional.fromSTEB(36, 0, 36, 0),
-                      child: Container(
-                        decoration: const BoxDecoration(),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(0),
-                              child: SvgPicture.asset(
-                                'assets/images/idhara_splash_logo.svg',
-                                fit: BoxFit.cover,
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                          horizontalPadding, 0, horizontalPadding, 0),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxWidth: contentMaxWidth),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ConstrainedBox(
+                                constraints:
+                                    BoxConstraints(maxWidth: logoMaxWidth),
+                                child: SvgPicture.asset(
+                                  'assets/images/idhara_splash_logo.svg',
+                                  fit: BoxFit.contain,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Smart pump control and monitoring, at your fingertips',
-                              textAlign: TextAlign.center,
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.dmSans(
+                              Text(
+                                'Smart pump control and monitoring, at your fingertips',
+                                textAlign: TextAlign.center,
+                                style: FlutterFlowTheme.of(context)
+                                    .bodyMedium
+                                    .override(
+                                      font: GoogleFonts.dmSans(
+                                        fontWeight: FontWeight.w600,
+                                        fontStyle: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .fontStyle,
+                                      ),
+                                      color: Colors.white,
+                                      fontSize: tagFontSize,
+                                      letterSpacing: 0.0,
                                       fontWeight: FontWeight.w600,
                                       fontStyle: FlutterFlowTheme.of(context)
                                           .bodyMedium
                                           .fontStyle,
                                     ),
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w600,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                            ),
-                          ].divide(const SizedBox(height: 36)),
+                              ),
+                            ].divide(SizedBox(height: spacingBetween)),
+                          ),
                         ),
                       ),
                     ),
@@ -129,17 +147,17 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
                       onTap: () {
                         Get.toNamed(Routes.loginwithmobile);
                       },
-                      child: const Padding(
-                        padding: EdgeInsets.all(20),
+                      child: Padding(
+                        padding: EdgeInsets.all(arrowPadding),
                         child: FaIcon(
                           FontAwesomeIcons.arrowRight,
                           color: Colors.white,
-                          size: 24,
+                          size: arrowIconSize,
                         ),
                       ),
                     ),
                   ),
-                ].addToEnd(const SizedBox(height: 64)),
+                ].addToEnd(SizedBox(height: bottomGap)),
               ),
             ),
           ],

@@ -23,10 +23,12 @@ class AuthRepositoryImpl extends AuthRepository {
   }
 
   Future<UserLogoutResponse?> fetchlogout() async {
+    final userId = SharedPreference.getUserId();
+    if (userId == null) return null;
     final token = SharedPreference.getFcmToken();
     final body = {"fcm_token": token};
     final response = await NetworkManager()
-        .post('/users/${SharedPreference.getUserId()}/log-out', data: body, {});
+        .post('/users/$userId/log-out', data: body, {});
     try {
       if (response.statusCode == 200 ||
           response.statusCode == 201 ||

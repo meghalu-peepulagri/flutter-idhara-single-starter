@@ -1,10 +1,10 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:i_dhara/app/data/models/user_profile/user_profile_model.dart';
 import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../data/repository/auth/auth_repository_impl.dart';
 import '../../../data/services/mqtt_manager/mqtt_service.dart';

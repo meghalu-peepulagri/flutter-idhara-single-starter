@@ -148,7 +148,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   void _startAckTimer() {
     _settingsAckTimer?.cancel();
-    _settingsAckTimer = Timer(const Duration(seconds: 11), _onAckTimeout);
+    _settingsAckTimer = Timer(const Duration(seconds: 23), _onAckTimeout);
   }
 
   void _onAckTimeout() {
