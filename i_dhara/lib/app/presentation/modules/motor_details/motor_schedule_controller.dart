@@ -60,6 +60,12 @@ class MotorScheduleController extends GetxController {
   // Completers for delete (cmd=3): resolved when ACK arrives
   final _deleteCompleters = <int, Completer<bool>>{};
 
+  // scheduleId → backend object id captured when deleteSchedule is invoked.
+  // _deleteScheduleAfterAck reads from this instead of the local `schedules`
+  // list, which is scoped to selectedDate and resolves to the wrong record
+  // when the manage page deletes a row on a different date.
+  final _pendingDeleteObjectIds = <int, int>{};
+
   // Completers for stop/restart (cmd=1/2): resolved after ACK + post API
   final _toggleCompleters = <int, Completer<bool>>{};
 
@@ -283,6 +289,7 @@ class MotorScheduleController extends GetxController {
     if (_pendingActions.containsKey(scheduleId)) return false;
     final completer = Completer<bool>();
     _deleteCompleters[scheduleId] = completer;
+    _pendingDeleteObjectIds[scheduleId] = record.id ?? 0;
     await publishScheduleAction(record, 3);
     return completer.future.timeout(
       // Matches MQTT retry cycle (10s + 10s + 3s) so the dialog only closes
@@ -290,6 +297,7 @@ class MotorScheduleController extends GetxController {
       const Duration(seconds: 23),
       onTimeout: () {
         _deleteCompleters.remove(scheduleId);
+        _pendingDeleteObjectIds.remove(scheduleId);
         _pendingActions.remove(scheduleId);
         geterrorSnackBar('No response from device');
         // fetchSchedules();
@@ -523,6 +531,7 @@ class MotorScheduleController extends GetxController {
     //    case the ACK landed in the same frame as the cancel tap.
     final delete = _deleteCompleters.remove(scheduleId);
     if (delete != null && !delete.isCompleted) delete.complete(false);
+    _pendingDeleteObjectIds.remove(scheduleId);
     final toggle = _toggleCompleters.remove(scheduleId);
     if (toggle != null && !toggle.isCompleted) toggle.complete(false);
   }
@@ -625,17 +634,26 @@ class MotorScheduleController extends GetxController {
   }
 
   Future<void> _deleteScheduleAfterAck(int scheduleId) async {
+    // Use the objectId captured when deleteSchedule(record) was invoked.
+    // Looking it up from the local `schedules` list by scheduleId is
+    // unsafe — that list is scoped to selectedDate, so a delete coming
+    // from the manage page for a different date can resolve to the
+    // wrong record (the DELETE API would then target the wrong row, or
+    // fall back to a stale SharedPreference value).
+    final objectId = _pendingDeleteObjectIds.remove(scheduleId) ?? 0;
     final record =
         schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
     if (record != null) {
-      SharedPreference.setscheduleid(record.id ?? 0);
       schedules.remove(record);
     }
-    getsuccessSnackBar('Schedule deleted successfully');
-    try {
-      await _scheduleRepo.scheduleDelete();
-    } catch (_) {
-      // silently fail
+    if (objectId > 0) {
+      SharedPreference.setscheduleid(objectId);
+      getsuccessSnackBar('Schedule deleted successfully');
+      try {
+        await _scheduleRepo.scheduleDelete();
+      } catch (_) {
+        // silently fail
+      }
     }
     // Reconcile in the background — silent so the list area doesn't
     // flash to the lottie loader; the row is already removed locally.

@@ -96,7 +96,13 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   int? _pendingModeValue;
   Timer? _modeAckTimer;
   StreamSubscription? _modeAckErrorSubscription;
-  static const Duration _ackTimeout = Duration(seconds: 13);
+  static const Duration _ackTimeout = Duration(seconds: 23);
+  // After a local mode change we briefly ignore stale `mode` values reported
+  // in live data (T:35/T:41) — the device sometimes keeps sending the old
+  // mode for a few packets before its reporting catches up to the T:32 ACK,
+  // which would otherwise flip the UI back to the old mode.
+  DateTime? _modeGuardUntil;
+  static const Duration _modeGuardDuration = Duration(seconds: 10);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = false.obs;
   var signalQuality = 0.obs;
