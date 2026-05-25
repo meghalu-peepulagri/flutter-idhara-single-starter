@@ -12,4 +12,11 @@ class UserProfileRepoImpl extends UserProfileRepository {
     }
     return null;
   }
+
+  @override
+  Future<bool> deleteAccount(int userId) async {
+    final response = await NetworkManager().delete('/users/$userId');
+    final code = response.statusCode ?? 0;
+    return code == 200 || code == 201 || code == 204;
+  }
 }

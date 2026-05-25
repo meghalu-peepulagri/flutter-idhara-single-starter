@@ -16,10 +16,33 @@ class NetworkManager {
     _dio.interceptors.add(InterceptorsWrapper(
         onRequest: _onRequest, onError: _onError, onResponse: _onResponse));
   }
+  // Endpoints that must NEVER receive an Authorization header.
+  // Sending "Bearer " (empty) or an expired token to these causes the
+  // backend auth middleware to 500, which surfaces as "Internal Server Error"
+  // on the login screen even though the phone number is registered.
+  static const _publicPaths = <String>[
+    '/auth/signin-phone',
+    '/auth/verify-otp',
+    '/auth/register',
+    '/auth/resend-otp',
+  ];
+
+  bool _isPublicPath(String path) {
+    return _publicPaths.any((p) => path.contains(p));
+  }
+
   void _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = SharedPreference.getAccessToken();
-    options.headers["Authorization"] = "Bearer $token";
+    if (_isPublicPath(options.path)) {
+      options.headers.remove('Authorization');
+    } else {
+      final token = SharedPreference.getAccessToken();
+      if (token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      } else {
+        options.headers.remove('Authorization');
+      }
+    }
 
     handler.next(options);
   }

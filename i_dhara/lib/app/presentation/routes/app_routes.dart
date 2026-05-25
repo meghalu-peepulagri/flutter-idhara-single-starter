@@ -16,4 +16,5 @@ class Routes {
   static const String schedule = '/schedule';
   static const String settingsDevices = '/settings-devices';
   static const String deviceInfo = '/device-info';
+  static const String deleteAccount = '/delete-account';
 }

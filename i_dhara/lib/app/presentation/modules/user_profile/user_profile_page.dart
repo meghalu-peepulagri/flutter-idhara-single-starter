@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -118,6 +121,15 @@ class ProfileWidget extends StatelessWidget {
                                 await controller.fetchFcmToken();
                               },
                             ),
+                            if (!kIsWeb && Platform.isIOS) ...[
+                              const SizedBox(height: 24),
+                              const _SectionLabel(label: 'DANGER ZONE'),
+                              const SizedBox(height: 12),
+                              _DeleteAccountButton(
+                                onPressed: () =>
+                                    Get.toNamed(Routes.deleteAccount),
+                              ),
+                            ],
                             const SizedBox(height: 32),
                             _AppVersionInfo(controller: controller),
                           ],
@@ -688,6 +700,61 @@ class _AppVersionInfo extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+class _DeleteAccountButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _DeleteAccountButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kRed.withOpacity(0.25)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onPressed,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _kRed.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.delete_forever_rounded,
+                      color: _kRed, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Delete Account',
+                    style: GoogleFonts.dmSans(
+                      color: _kRed,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: _kRed, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/data/services/weather_service/permission_handler.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:video_player/video_player.dart';
 
@@ -27,6 +28,13 @@ class _SplashCopyWidgetState extends State<SplashCopyWidget> {
   void initState() {
     super.initState();
     _initializeVideo();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestLocationPermission();
+    });
+  }
+
+  Future<void> _requestLocationPermission() async {
+    await PermissionService.requestLocationPermission();
   }
 
   Future<void> _initializeVideo() async {

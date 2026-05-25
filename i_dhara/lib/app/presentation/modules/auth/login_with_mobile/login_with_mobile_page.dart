@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -61,20 +58,16 @@ class _LoginwithmobileWidgetState extends State<LoginwithmobileWidget> {
     }
   }
 
+  // Only checks whether the device has any active network interface
+  // (cellular / WiFi / ethernet). Does NOT probe a remote host — earlier
+  // versions did an `InternetAddress.lookup('google.com')` with a 5s
+  // timeout, which falsely failed on slow rural cellular, networks that
+  // throttle Google, and during WiFi↔cellular handovers, blocking login
+  // on phones that actually had a stable connection. Let the real API
+  // call surface a true network error if the connection is bad.
   Future<bool> _checkConnectivity() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      return false;
-    }
-    try {
-      final result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    } on TimeoutException catch (_) {
-      return false;
-    }
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return !connectivityResult.contains(ConnectivityResult.none);
   }
 
   @override

@@ -10,7 +10,6 @@ import 'package:i_dhara/app/data/models/locations/location_drop_down_model.dart'
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
-import 'package:i_dhara/app/data/services/weather_service/permission_handler.dart';
 
 import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
@@ -68,7 +67,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
   @override
   void onInit() {
     super.onInit();
-    _requestPermissionAndLoad();
     final args = Get.arguments;
     final forceRefresh = args != null && args['refresh'] == true;
     if (!forceRefresh && _canRestoreFromMqtt()) {
@@ -158,11 +156,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
     } finally {
       isLoading.value = false;
     }
-  }
-
-  Future<void> _requestPermissionAndLoad() async {
-    hasLocationPermission.value =
-        await PermissionService.requestLocationPermission();
   }
 
   @override
