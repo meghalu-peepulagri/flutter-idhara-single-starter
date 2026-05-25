@@ -89,7 +89,13 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   bool _hasPendingModeCommand = false;
   int? _pendingModeValue;
   Timer? _modeAckTimer;
-  static const Duration _ackTimeout = Duration(seconds: 13);
+  // Snapshot of each relevant motorDataMap entry's modeIndex captured just
+  // before publishing a mode command. Used to tell a real ACK (a group's
+  // modeIndex transitions to the new mode after publish) apart from a stale
+  // entry that happened to already show the new mode (e.g. groups that
+  // never received their own ACK still carry the initial API-derived mode).
+  Map<String, int?> _modeAckSnapshot = {};
+  static const Duration _ackTimeout = Duration(seconds: 23);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = false.obs;
   var signalQuality = 0.obs;
