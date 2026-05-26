@@ -23,6 +23,7 @@ Future<void> showSettingsConfirmDialog(
   required String originalFlc,
   required String currentFlc,
   required Future<void> Function() onConfirm,
+  Future<void> Function()? onCancel,
 }) {
   return showDialog(
     context: context,
@@ -40,146 +41,153 @@ Future<void> showSettingsConfirmDialog(
         return WillPopScope(
           onWillPop: () async => !isLoading,
           child: AlertDialog(
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: (screenWidth - dialogWidth) / 2,
-          vertical: 24.0,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        contentPadding: EdgeInsets.fromLTRB(
-          horizontalPadding,
-          verticalPadding,
-          horizontalPadding,
-          0,
-        ),
-        actionsPadding: EdgeInsets.all(horizontalPadding),
-        content: SizedBox(
-          width: dialogWidth,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Confirm Setting Updates',
-                style: GoogleFonts.dmSans(
-                  fontSize: screenWidth < 360 ? 16 : 18,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF004E7E),
-                ),
-              ),
-              SizedBox(height: verticalPadding),
-              if (flcChanged)
-                _flcCard(
-                  oldFlc: originalFlc,
-                  newFlc: currentFlc,
-                ),
-              if (flcChanged && (isVoltageRange || isCurrentRange))
-                const SizedBox(height: 12),
-              if (isVoltageRange)
-                infoCard(
-                  bgColor: const Color(0xFFEAF3FF),
-                  iconBg: const Color(0xFF3B82F6),
-                  svg: 'assets/images/Voltage.svg',
-                  title: "Voltage Fault",
-                  lowOld: '${originalVoltageLow ?? currentLvf} V',
-                  lowNew: '$currentLvf V',
-                  highOld: '${originalVoltageHigh ?? currentHvf} V',
-                  highNew: '$currentHvf V',
-                  valueColor: const Color(0xFF2563EB),
-                  vmin: vmin,
-                  vmax: vmax,
-                  cmin: false,
-                  cmax: false,
-                  lowLabel: 'Low Volts:',
-                  highLabel: 'High Volts:',
-                ),
-              if (isVoltageRange && isCurrentRange) const SizedBox(height: 12),
-              if (isCurrentRange)
-                infoCard(
-                  bgColor: const Color(0xFFFFF3E8),
-                  iconBg: const Color(0xFFFF7A00),
-                  svg: 'assets/images/Current.svg',
-                  title: "Current Fault",
-                  lowOld: originalCurrentLow ?? currentDrf,
-                  lowNew: currentDrf,
-                  highOld: originalCurrentHigh ?? currentOlf,
-                  highNew: currentOlf,
-                  valueColor: const Color(0xFFF97316),
-                  vmin: false,
-                  vmax: false,
-                  cmin: cmin,
-                  cmax: cmax,
-                  lowLabel: 'Dry Run:',
-                  highLabel: 'Overload:',
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed:
-                isLoading ? null : () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.dmSans(
-                color: isLoading ? Colors.grey.shade400 : Colors.grey,
-                fontWeight: FontWeight.w600,
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: (screenWidth - dialogWidth) / 2,
+              vertical: 24.0,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            contentPadding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              verticalPadding,
+              horizontalPadding,
+              0,
+            ),
+            actionsPadding: EdgeInsets.all(horizontalPadding),
+            content: SizedBox(
+              width: dialogWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Confirm Setting Updates',
+                    style: GoogleFonts.dmSans(
+                      fontSize: screenWidth < 360 ? 16 : 18,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
+                    ),
+                  ),
+                  SizedBox(height: verticalPadding),
+                  if (flcChanged)
+                    _flcCard(
+                      oldFlc: originalFlc,
+                      newFlc: currentFlc,
+                    ),
+                  if (flcChanged && (isVoltageRange || isCurrentRange))
+                    const SizedBox(height: 12),
+                  if (isVoltageRange)
+                    infoCard(
+                      bgColor: const Color(0xFFEAF3FF),
+                      iconBg: const Color(0xFF3B82F6),
+                      svg: 'assets/images/Voltage.svg',
+                      title: "Voltage Fault",
+                      lowOld: '${originalVoltageLow ?? currentLvf} V',
+                      lowNew: '$currentLvf V',
+                      highOld: '${originalVoltageHigh ?? currentHvf} V',
+                      highNew: '$currentHvf V',
+                      valueColor: const Color(0xFF2563EB),
+                      vmin: vmin,
+                      vmax: vmax,
+                      cmin: false,
+                      cmax: false,
+                      lowLabel: 'Low Volts:',
+                      highLabel: 'High Volts:',
+                    ),
+                  if (isVoltageRange && isCurrentRange)
+                    const SizedBox(height: 12),
+                  if (isCurrentRange)
+                    infoCard(
+                      bgColor: const Color(0xFFFFF3E8),
+                      iconBg: const Color(0xFFFF7A00),
+                      svg: 'assets/images/Current.svg',
+                      title: "Current Fault",
+                      lowOld: originalCurrentLow ?? currentDrf,
+                      lowNew: currentDrf,
+                      highOld: originalCurrentHigh ?? currentOlf,
+                      highNew: currentOlf,
+                      valueColor: const Color(0xFFF97316),
+                      vmin: false,
+                      vmax: false,
+                      cmin: cmin,
+                      cmax: cmax,
+                      lowLabel: 'Dry Run:',
+                      highLabel: 'Overload:',
+                    ),
+                ],
               ),
             ),
-          ),
-          Container(
-            width: dialogWidth * 0.35,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      setStateDialog(() => isLoading = true);
-                      try {
-                        await onConfirm();
-                      } finally {
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
+            actions: [
+              TextButton(
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        Navigator.of(context).pop();
+                        if (onCancel != null) {
+                          await onCancel();
                         }
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                disabledBackgroundColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
+                      },
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.dmSans(
+                    color: isLoading ? Colors.grey.shade400 : Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                width: dialogWidth * 0.35,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      'Save',
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                child: ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          setStateDialog(() => isLoading = true);
+                          try {
+                            await onConfirm();
+                          } finally {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    disabledBackgroundColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-            ),
-          ),
-        ],
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          'Save',
+                          style: GoogleFonts.dmSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         );
       });

@@ -141,11 +141,12 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                         final newModeIndex = index == 0 ? 1 : 0;
                                         if (newModeIndex != currentModeIndex) {
                                           setState(() => _isDialogOpen = true);
-                                          MotorCardDialogs.showModeChangeDialog(
+                                          MotorCardDialogs
+                                              .showModeChangeDialogWithAck(
                                             context,
                                             widget.controller.motorName.value,
                                             newModeIndex,
-                                            widget.controller.handleModeChange,
+                                            widget.controller,
                                           ).then((_) {
                                             if (mounted) {
                                               setState(

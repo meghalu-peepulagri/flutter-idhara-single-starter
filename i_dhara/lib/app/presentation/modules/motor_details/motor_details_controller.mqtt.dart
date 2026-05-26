@@ -88,48 +88,53 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       return;
     }
 
+    // ACK detection first — scan ALL groups across both mac and pcb keys for
+    // any entry whose modeIndex now equals the pending value. getMotorData()
+    // returns the first entry with hasReceivedData=true, which may not be
+    // the same entry MqttService updated when the T:32 ACK arrived, so a
+    // single-entry comparison was missing real ACKs.
+    if (_hasPendingModeCommand && _pendingModeValue != null) {
+      if (_anyGroupTransitionedTo(_pendingModeValue!)) {
+        final ackedMode = _pendingModeValue!;
+        _modeAckTimer?.cancel();
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+        _modeAckSnapshot.clear();
+        isWaitingForModeAck.value = false;
+
+        final mId = _getMotorId();
+        if (mId.isNotEmpty) {
+          mqttService.clearPendingModeCommand(mId);
+        }
+
+        localModeIndex.value = ackedMode;
+        motorMode.value = ackedMode == 1 ? 'Auto' : 'Manual';
+        _updateCanChangeMode();
+        return;
+      }
+    }
+
     final motorData = getMotorData();
 
     if (motorData != null && motorData.hasReceivedData) {
-      // Handle mode ACK
-      if (_hasPendingModeCommand) {
-        final mqttMode = motorData.modeIndex;
-
-        if (mqttMode == _pendingModeValue) {
-          if (kDebugMode) {}
-
-          _modeAckTimer?.cancel();
-          _hasPendingModeCommand = false;
-          _pendingModeValue = null;
-          isWaitingForModeAck.value = false;
-
-          // ACK may have arrived via live data (T:35/41) rather than the
-          // explicit T:32 ACK, so the MqttService retry timer may still be
-          // running. Cancel it now to prevent it from re-publishing the old
-          // command after we already consider it resolved.
-          final mId = _getMotorId();
-          if (mId.isNotEmpty) {
-            mqttService.clearPendingModeCommand(mId);
-          }
-
-          // Force UI update
-          localModeIndex.value = mqttMode!;
-          motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
-        } else {
-          if (kDebugMode) {}
-        }
-      } else {
+      if (!_hasPendingModeCommand) {
         final mqttMode = motorData.modeIndex;
         if (mqttMode != null && localModeIndex.value != mqttMode) {
-          if (kDebugMode) {}
-          localModeIndex.value = mqttMode;
-          motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
+          // Only accept MQTT's mode if our current local mode is no longer
+          // represented in any group's data. Right after an ACK, the
+          // confirmed group has modeIndex=new but a periodic live-data
+          // publish may still be carrying mode=old on another group; without
+          // this guard, getMotorData() can pick the stale group and revert
+          // localModeIndex back to the pre-ACK value.
+          if (!_anyGroupHasMode(localModeIndex.value)) {
+            localModeIndex.value = mqttMode;
+            motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
+          }
         }
       }
 
       // Update motor state
       if (motorState.value != motorData.state) {
-        if (kDebugMode) {}
         motorState.value = motorData.state;
       }
 
@@ -143,6 +148,51 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     }
 
     _updateCanChangeMode();
+  }
+
+  List<String> _allMotorKeys() {
+    final keys = <String>[];
+    final starter = motorDetails.value?.starter;
+    if (starter == null) return keys;
+    final mac = starter.macAddress;
+    final pcb = starter.pcbNumber;
+    for (int i = 1; i <= 4; i++) {
+      final groupId = 'G0$i';
+      if (mac != null && mac.isNotEmpty) keys.add('$mac-$groupId');
+      if (pcb != null && pcb.isNotEmpty) keys.add('$pcb-$groupId');
+    }
+    return keys;
+  }
+
+  Map<String, int?> _snapshotGroupModes() {
+    final snapshot = <String, int?>{};
+    for (final key in _allMotorKeys()) {
+      snapshot[key] = mqttService.motorDataMap[key]?.modeIndex;
+    }
+    return snapshot;
+  }
+
+  bool _anyGroupHasMode(int expectedMode) {
+    for (final key in _allMotorKeys()) {
+      if (mqttService.motorDataMap[key]?.modeIndex == expectedMode) return true;
+    }
+    return false;
+  }
+
+  // ACK-detection variant of _anyGroupHasMode. Only returns true when a
+  // group's modeIndex moved to expectedMode AFTER the publish — i.e. its
+  // snapshot value at publish time was different. This prevents false ACKs
+  // from stale entries that were already at expectedMode (typical on the
+  // 2nd+ mode change of a session: groups that never received a real ACK
+  // still carry the initial API-derived modeIndex).
+  bool _anyGroupTransitionedTo(int expectedMode) {
+    for (final key in _allMotorKeys()) {
+      final current = mqttService.motorDataMap[key]?.modeIndex;
+      if (current != expectedMode) continue;
+      final snapshot = _modeAckSnapshot[key];
+      if (snapshot != expectedMode) return true;
+    }
+    return false;
   }
 
   MotorData? getMotorData() {
@@ -237,7 +287,6 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     _modeAckTimer?.cancel();
     _modeAckTimer = Timer(AnalyticsController._ackTimeout, () {
       if (_hasPendingModeCommand) {
-        if (kDebugMode) {}
         // Cancel MQTT retries immediately so they don't re-publish the old
         // command after we've given up, and to avoid the race where the
         // MqttService timer fires just after the controller clears its state
@@ -250,6 +299,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
         _hasPendingModeCommand = false;
         _pendingModeValue = null;
+        _modeAckSnapshot.clear();
         isWaitingForModeAck.value = false;
       }
     });
@@ -280,6 +330,13 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     // after this publish and overwrite the new mode on the device.
     mqttService.clearPendingModeCommand(mId);
 
+    // Snapshot every relevant group's modeIndex BEFORE the publish so the
+    // ACK detector can distinguish a real transition from a pre-existing
+    // stale value that already matches the new mode.
+    _modeAckSnapshot
+      ..clear()
+      ..addAll(_snapshotGroupModes());
+
     // Optimistically update UI
     isWaitingForModeAck.value = true;
     localModeIndex.value = newModeIndex;
@@ -298,6 +355,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       motorMode.value = previousValue == 1 ? 'Auto' : 'Manual';
       _hasPendingModeCommand = false;
       _pendingModeValue = null;
+      _modeAckSnapshot.clear();
       isWaitingForModeAck.value = false;
     }
   }

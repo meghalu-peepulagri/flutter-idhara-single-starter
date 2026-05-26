@@ -95,15 +95,14 @@ Future<void> _requestFCMPermission() async {
 
 Future<void> _requestNotificationPermission() async {
   try {
-    var status = await Permission.notification.status;
+    final status = await Permission.notification.status;
     if (status.isDenied) {
-      final result = await Permission.notification.request();
-      if (result.isPermanentlyDenied) {
-        openAppSettings();
-      }
-    } else if (status.isPermanentlyDenied) {
-      openAppSettings();
+      await Permission.notification.request();
     }
+    // Never call openAppSettings() at launch — Apple rejects under
+    // Guideline 2.1(a) ("Redirect to Settings upon launch"). If the user
+    // has permanently denied notifications, surface a manual "Enable
+    // notifications" entry in Profile/Settings instead.
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>()
