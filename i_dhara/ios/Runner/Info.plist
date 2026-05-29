@@ -65,7 +65,7 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app uses your location to support location-based features such as detecting your farm position and fetching local weather. Background access is requested only if you choose to enable continuous location-based updates.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app requires access to your location to provide location-based services.</string>
+	<string>iDhara uses your location to set the geographic position of your smart farming device during setup and to fetch accurate local weather for your farm. For example, when you register a new pump or motor controller, your current location is used as the default farm coordinates so the app can show weather-based irrigation guidance for that site.</string>
 	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 	<dict>
 		<key>WhenInUseUsageDescription</key>
