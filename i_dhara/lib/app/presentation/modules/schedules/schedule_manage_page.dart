@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
@@ -1189,6 +1190,44 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
 
     setState(() => _isRunningBulkAction = true);
 
+    // Resync only: cap the selection to a FIXED window of the next
+    // _kResyncMaxDates calendar days starting from today (inclusive)
+    // so the device receives one small MQTT payload per round and
+    // only the schedules that are actually about to run get
+    // resent. Anything outside that window — past-dated rows or
+    // dates further out — is excluded from this payload and stays
+    // PENDING for a follow-up resync closer to its date. Done at
+    // the page layer so the confirm dialog's count and the
+    // failureMessageBuilder both see the already-capped selection.
+    if (action == _BulkScheduleAction.republish) {
+      final allSelected = _controller.selectedRecords;
+      final capped = _takeNextNDaysFromToday(allSelected, _kResyncMaxDates);
+
+      if (capped.isEmpty && allSelected.isNotEmpty) {
+        // Every selected schedule is past-dated or beyond the
+        // resync window. Nothing to publish, so abort before the
+        // dialog opens.
+        setState(() => _isRunningBulkAction = false);
+        geterrorSnackBar(
+          'Nothing to resync. Selected schedules are past or '
+          'beyond the next $_kResyncMaxDates days.',
+        );
+        return;
+      }
+
+      if (capped.length < allSelected.length) {
+        // Narrow the selection to the publishable subset; the
+        // confirm dialog (and the controller below) only sees the
+        // capped ids. No top snackbar is fired here — the dialog
+        // itself communicates how many schedules will be resynced
+        // via its count, so the green "Resyncing X / N excluded"
+        // toast would just be visual noise.
+        _controller.selectedRecordIds.assignAll(
+          capped.map((r) => r.id).whereType<int>().toSet(),
+        );
+      }
+    }
+
     final selectedCount = _controller.selectedRecordIds.length;
     final title = switch (action) {
       _BulkScheduleAction.delete => 'Delete Schedules',
@@ -1336,4 +1375,56 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
 
   String _formatCardDate(DateTime value) =>
       DateFormat('dd MMM yyyy').format(value);
+
+  /// Size of the fixed, today-anchored window the Resync action
+  /// publishes in a single MQTT round. The window is
+  /// `[today, today+1, today+2]` when this is 3 — schedules outside
+  /// that range are excluded so the device receives one small
+  /// payload covering only its immediate upcoming work.
+  static const int _kResyncMaxDates = 3;
+
+  /// Returns the subset of [records] whose `schedule_start_date`
+  /// falls within the [days]-day window starting at today
+  /// (inclusive). The window is FIXED — anchored to today's date,
+  /// not derived from the input.
+  ///
+  /// Every PENDING row inside the window is published, INCLUDING
+  /// rows that share a date with an existing SCHEDULED / RUNNING
+  /// entry on the device — the device side accepts up to
+  /// `kMaxSchedulesPerDate` schedules per calendar date, and
+  /// `republishSelectedSchedules` sends `idx = 2` (append) when
+  /// any non-PENDING/FAILED record is present, so the new entries
+  /// land in free slots beside the existing ones instead of
+  /// overwriting them.
+  ///
+  /// Records dated before today or after today + (days - 1) are
+  /// excluded. Records with no schedule_start_date are also
+  /// excluded.
+  ///
+  /// Example with [days] = 3 and today = 27 May:
+  ///   selection [27, 28, 29] → returns [27, 28, 29]
+  ///                            (even if 27 already has a
+  ///                            SCHEDULED row — the new PENDING
+  ///                            row for 27 still gets published)
+  ///   selection [25, 26, 27] → returns [27]  (25, 26 are past)
+  ///   selection [30, 31]     → returns []   (beyond window)
+  List<Record> _takeNextNDaysFromToday(List<Record> records, int days) {
+    if (records.isEmpty || days <= 0) return records;
+
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(Duration(days: days - 1));
+
+    return records.where((r) {
+      final sd = r.scheduleStartDate ?? 0;
+      if (sd <= 0) return false;
+      final yy = sd ~/ 10000;
+      final mm = (sd % 10000) ~/ 100;
+      final dd = sd % 100;
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
+      final date = DateTime(2000 + yy, mm, dd);
+      if (date.isBefore(start) || date.isAfter(end)) return false;
+      return true;
+    }).toList();
+  }
 }

@@ -79,7 +79,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Switch between Auto and Manual modes',
+                      'Switch between Auto, Manual and Schedule modes',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
                         color: const Color(0xFF6B7280),
@@ -168,6 +168,12 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                             widget.controller.motorName.value,
                                             newModeIndex,
                                             widget.controller.handleModeChange,
+                                            isWaitingForModeAck: widget
+                                                .controller.isWaitingForModeAck,
+                                            onCancelWhileWaiting: widget
+                                                .controller.cancelModeChange,
+                                            currentModeIndex: widget
+                                                .controller.localModeIndex,
                                           ).then((_) {
                                             if (mounted) {
                                               setState(

@@ -57,6 +57,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   StreamSubscription? _mqttStreamSubscription;
   Timer? _settingsAckTimer;
+  Completer<void>? _saveAckCompleter;
 
   double? _currentVoltageLow;
   double? _currentVoltageHigh;
@@ -87,6 +88,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
+        _completeSaveAck();
         isSnackbarShown = true;
         getsuccessSnackBar("Settings updated successfully");
         controller.isLoading.value = true;
@@ -107,6 +109,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _settingsAckTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
+        _completeSaveAck();
         isSnackbarShown = true;
         geterrorSnackBar("Settings update failed");
         controller.isLoading.value = true;
@@ -137,6 +140,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   void dispose() {
     _settingsAckTimer?.cancel();
     _mqttStreamSubscription?.cancel();
+    _completeSaveAck();
     super.dispose();
   }
 
@@ -144,7 +148,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   void _startAckTimer() {
     _settingsAckTimer?.cancel();
-    _settingsAckTimer = Timer(const Duration(seconds: 11), _onAckTimeout);
+    _settingsAckTimer = Timer(const Duration(seconds: 23), _onAckTimeout);
   }
 
   void _onAckTimeout() {
@@ -154,9 +158,43 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       isSnackbarShown = true;
       geterrorSnackBar('No acknowledgment received from device');
     }
+    _completeSaveAck();
+    _revertLocal();
+  }
+
+  void _completeSaveAck() {
+    if (_saveAckCompleter != null && !_saveAckCompleter!.isCompleted) {
+      _saveAckCompleter!.complete();
+    }
   }
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
+
+  /// Instant local revert used when the user cancels the confirm dialog.
+  /// Skips the API re-fetch in [_handleCancel] so the UI snaps back without
+  /// the network round-trip delay.
+  void _revertLocal() {
+    _currentVoltageLow = null;
+    _currentVoltageHigh = null;
+    _currentCurrentLow = null;
+    _currentCurrentHigh = null;
+    _originalVoltageLow = null;
+    _originalVoltageHigh = null;
+    _originalCurrentLow = null;
+    _originalCurrentHigh = null;
+
+    voltageCardKey.currentState?.resetValues();
+    currentCardKey.currentState?.resetValues();
+    flcCardKey.currentState?.resetValue();
+    controller.flc.value =
+        controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+
+    if (mounted) {
+      setState(() {
+        isbuttonActive = false;
+      });
+    }
+  }
 
   Future<void> _handleCancel() async {
     _currentVoltageLow = null;
@@ -433,10 +471,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       onConfirm: () async {
         isSnackbarShown = false;
         _hasPendingSave = true;
+        _saveAckCompleter = Completer<void>();
         await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
         await controller.fetchupdateSettings();
         _startAckTimer();
+        await _saveAckCompleter!.future;
       },
+      onCancel: () async => _revertLocal(),
     );
   }
 

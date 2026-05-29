@@ -4,57 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// 23s is still the controller-side ACK deadline (10 + 10 + 3 retry
+// budget), so the elapsed-clamp callers below still need it even
+// though the dialog no longer renders the countdown.
 const int _kAckTotalSeconds = 23;
-const int _kAckTotalAttempts = 3;
 
-int _ackAttemptForElapsed(int elapsed) {
-  if (elapsed >= 20) return 3;
-  if (elapsed >= 10) return 2;
-  return 1;
-}
-
-Widget _scheduleAckWaitingView({required int elapsedSeconds}) {
-  final clamped = elapsedSeconds.clamp(1, _kAckTotalSeconds);
-  final attempt = _ackAttemptForElapsed(clamped);
-  final progress = (clamped / _kAckTotalSeconds).clamp(0.0, 1.0);
+// Used to drive the ring + countdown + "Attempt X of 3" UI. Removed
+// per request — the waiting view is now just a centered spinner.
+// The view keeps the "Waiting for response..." caption so the user
+// still has context for what's happening; only the timer and attempt
+// breadcrumb are gone.
+Widget _scheduleAckWaitingView() {
   return Column(
     mainAxisSize: MainAxisSize.min,
-    children: [
+    children: const [
       SizedBox(
-        width: 64,
-        height: 64,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox.expand(
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 4,
-                color: const Color(0xFF004E7E),
-                backgroundColor: const Color(0xFFE2E8F0),
-              ),
-            ),
-            Text(
-              '${clamped}s',
-              style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF004E7E),
-              ),
-            ),
-          ],
+        width: 40,
+        height: 40,
+        child: CircularProgressIndicator(
+          strokeWidth: 3.5,
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF004E7E)),
         ),
       ),
-      const SizedBox(height: 10),
-      const _WaitingForAckText(),
-      const SizedBox(height: 4),
-      Text(
-        'Attempt $attempt of $_kAckTotalAttempts',
-        style: GoogleFonts.dmSans(
-          fontSize: 12,
-          color: const Color(0xFF57636C),
-        ),
-      ),
+      SizedBox(height: 12),
+      _WaitingForAckText(),
     ],
   );
 }
@@ -432,7 +405,7 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
               if (_isFailed)
                 _scheduleAckFailedView()
               else
-                _scheduleAckWaitingView(elapsedSeconds: _elapsed),
+                _scheduleAckWaitingView(),
             ],
             const SizedBox(height: 20),
             Row(
@@ -441,9 +414,17 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
                   child: SizedBox(
                     height: 44,
                     child: OutlinedButton(
-                      onPressed: _onCancelTap,
+                      // Cancel disabled while the publish is in
+                      // flight — user can only abort before tapping
+                      // Confirm. Border + text dim to 30% to signal
+                      // the disabled state.
+                      onPressed: _isWaiting ? null : _onCancelTap,
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF004E7E)),
+                        side: BorderSide(
+                          color: _isWaiting
+                              ? const Color(0xFF004E7E).withValues(alpha: 0.3)
+                              : const Color(0xFF004E7E),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -453,7 +434,9 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF004E7E),
+                          color: _isWaiting
+                              ? const Color(0xFF004E7E).withValues(alpha: 0.3)
+                              : const Color(0xFF004E7E),
                         ),
                       ),
                     ),
@@ -805,7 +788,7 @@ class _MultiScheduleConfirmDialogState
                 if (_isFailed)
                   _scheduleAckFailedView()
                 else
-                  _scheduleAckWaitingView(elapsedSeconds: _elapsed),
+                  _scheduleAckWaitingView(),
               ],
               const SizedBox(height: 16),
               if (_errorMessage != null)
@@ -857,9 +840,17 @@ class _MultiScheduleConfirmDialogState
                       child: SizedBox(
                         height: 44,
                         child: OutlinedButton(
-                          onPressed: _onCancelTap,
+                          // Cancel disabled while the publish is in
+                          // flight — same pattern as the first
+                          // dialog above.
+                          onPressed: _isWaiting ? null : _onCancelTap,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF004E7E)),
+                            side: BorderSide(
+                              color: _isWaiting
+                                  ? const Color(0xFF004E7E)
+                                      .withValues(alpha: 0.3)
+                                  : const Color(0xFF004E7E),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -869,7 +860,10 @@ class _MultiScheduleConfirmDialogState
                             style: GoogleFonts.dmSans(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF004E7E),
+                              color: _isWaiting
+                                  ? const Color(0xFF004E7E)
+                                      .withValues(alpha: 0.3)
+                                  : const Color(0xFF004E7E),
                             ),
                           ),
                         ),
@@ -1349,7 +1343,7 @@ class _ScheduleActionConfirmDialogState
                   ),
                 ),
                 const SizedBox(height: 12),
-                _scheduleAckWaitingView(elapsedSeconds: _elapsed),
+                _scheduleAckWaitingView(),
               ],
               const SizedBox(height: 16),
               Padding(
@@ -1409,7 +1403,14 @@ class _ScheduleActionConfirmDialogState
                         children: [
                           Expanded(
                             child: GestureDetector(
-                              onTap: _closed ? null : _onCancelTap,
+                              // Cancel disabled while the publish is
+                              // in flight (matches the first two
+                              // dialogs in this file). `_closed`
+                              // gate still applies for the route-
+                              // teardown edge case.
+                              onTap: (_isWaiting || _closed)
+                                  ? null
+                                  : _onCancelTap,
                               behavior: HitTestBehavior.opaque,
                               child: Padding(
                                 padding:
@@ -1419,7 +1420,9 @@ class _ScheduleActionConfirmDialogState
                                   style: GoogleFonts.inter(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.grey[700],
+                                    color: _isWaiting
+                                        ? Colors.grey.withValues(alpha: 0.4)
+                                        : Colors.grey[700],
                                   ),
                                 ),
                               ),

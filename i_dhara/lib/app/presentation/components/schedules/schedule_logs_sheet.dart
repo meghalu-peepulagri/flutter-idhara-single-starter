@@ -210,13 +210,38 @@ class _ScheduleRecordCard extends StatelessWidget {
     return time;
   }
 
+  /// Converts the backend's YYMMDD int (e.g. 260527 → 2026-05-27)
+  /// to a local DateTime. Returns null for missing or malformed
+  /// codes. Mirrors the card-side converter so the sheet header
+  /// date matches the date label on the manage page card.
+  static DateTime? _yymmddToDate(int? code) {
+    if (code == null || code <= 0) return null;
+    final yy = code ~/ 10000;
+    final mm = (code % 10000) ~/ 100;
+    final dd = code % 100;
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+    return DateTime(2000 + yy, mm, dd);
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = (data.scheduleStatus ?? '').toUpperCase();
     final statusColor = _statusColor(status);
-    final dateStr = data.createdAt != null
-        ? DateFormat('dd MMM yyyy').format(data.createdAt!.toLocal())
-        : '—';
+    // Header date = the schedule's RUN date (schedule_start_date),
+    // not its creation timestamp. createdAt can fall on a different
+    // calendar day than the run date (e.g. a schedule added late on
+    // 26 May to run on 27 May), which made the sheet read "26 May"
+    // while the card read "27 May". Falls back to createdAt only
+    // when the run date is missing.
+    final runDate = _yymmddToDate(data.scheduleStartDate);
+    final String dateStr;
+    if (runDate != null) {
+      dateStr = DateFormat('dd MMM yyyy').format(runDate);
+    } else if (data.createdAt != null) {
+      dateStr = DateFormat('dd MMM yyyy').format(data.createdAt!.toLocal());
+    } else {
+      dateStr = '—';
+    }
 
     // Oldest → newest so the chronological flow reads top-to-bottom,
     // matching the global history page layout.

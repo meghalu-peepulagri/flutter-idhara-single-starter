@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
@@ -101,8 +100,7 @@ class ScheduleCard extends StatelessWidget {
     final toggleDisabled = disableToggle ||
         !(isScheduled || isRunning || (isStopped && isFutureSchedule));
     final editDisabled = !(isPending || isScheduled || isStopped);
-    final deleteDisabled =
-        !(isPending || isScheduled || isStopped || isFailed);
+    final deleteDisabled = !(isPending || isScheduled || isStopped || isFailed);
 
     // Advisory note shown below the time row for statuses that need to
     // explain why nothing is happening on the device side.
@@ -114,7 +112,8 @@ class ScheduleCard extends StatelessWidget {
       noticeBg = const Color(0xFFFFF7ED);
       noticeFg = const Color(0xFFC2410C);
     } else if (isMissed) {
-      noticeMessage = 'Machine not run in schedule';
+      noticeMessage =
+          'Schedule didn\'t reach the device in time — it was missed';
       noticeBg = const Color(0xFFFEF3C7);
       noticeFg = const Color(0xFFB45309);
     } else if (isFailed) {
@@ -131,8 +130,7 @@ class ScheduleCard extends StatelessWidget {
     // actually interacted with the schedule — running, stopped
     // mid-run, partial, or completed. Pending / scheduled / missed /
     // failed never carry act data.
-    final canHaveActual =
-        isRunning || isPartial || isCompleted || isStopped;
+    final canHaveActual = isRunning || isPartial || isCompleted || isStopped;
     final actualRunMin = record.actualRunTime ?? 0;
     final showRunTime = canHaveActual && actualRunMin > 0;
     // End may still be null while the schedule is running — render an
@@ -140,7 +138,6 @@ class ScheduleCard extends StatelessWidget {
     final actualStartRaw = record.actualStartTime?.trim() ?? '';
     final actualEndRaw = record.actualEndTime?.trim() ?? '';
     final showActualWindow = canHaveActual && actualStartRaw.isNotEmpty;
-    final switchController = ValueNotifier<bool>(isActive);
 
     final cardBorder =
         isActive ? const Color(0xFFE0E8F0) : const Color(0xFFE8E8E8);
@@ -298,8 +295,7 @@ class ScheduleCard extends StatelessWidget {
           ),
           if (noticeMessage != null) ...[
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: noticeBg,
                 borderRadius: BorderRadius.circular(6),
@@ -346,133 +342,152 @@ class ScheduleCard extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: () {},
               child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Divider(
-                    height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (showToggle) ...[
-                      Text(
-                        isActive ? 'Stop' : 'Restart',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF57636C),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 25,
-                        child: GestureDetector(
-                          onTap: () async {
-                            final newValue = !switchController.value;
-                            final success =
-                                await showScheduleActionConfirmDialog(
-                              context: context,
-                              title: newValue
-                                  ? 'Restart Schedule'
-                                  : 'Stop Schedule',
-                              description: newValue
-                                  ? 'Are you sure you want to restart this schedule?'
-                                  : 'Are you sure you want to stop this schedule?',
-                              iconAssetPath: 'assets/images/schedule.svg',
-                              buttonLabel: newValue ? 'Restart' : 'Stop',
-                              isActive: newValue,
-                              onConfirm: () async =>
-                                  await onToggle?.call(record, newValue) ??
-                                  false,
-                              onCancelWhileWaiting: () =>
-                                  onCancelAction?.call(record),
-                            );
-                            if (success) switchController.value = newValue;
-                          },
-                          child: AbsorbPointer(
-                            child: AdvancedSwitch(
-                              controller: switchController,
-                              initialValue: isActive,
-                              activeColor: const Color(0xFF34C759),
-                              inactiveColor: const Color(0xFFE0E0E0),
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(15)),
-                              width: 46,
-                              height: 24,
-                              enabled: true,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Divider(
+                      height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      // Stop / Restart is the primary status action for
+                      // SCHEDULED / RUNNING / STOPPED rows, so it's
+                      // rendered as a filled button (solid bg, white
+                      // text + icon, ripple on tap) rather than a soft
+                      // pastel pill — the secondary actions (Edit /
+                      // Delete / Resync) stay as pastel pills further
+                      // right. That visual hierarchy is what makes the
+                      // button read as actionable; users were asking
+                      // "is this clickable?" on the previous pastel
+                      // version. Same dialog flow, same onToggle, same
+                      // status eligibility — only the widget changed.
+                      if (showToggle) ...[
+                        Material(
+                          color: isActive
+                              ? const Color(0xFFEA580C) // orange-600 Stop
+                              : const Color(0xFF059669), // emerald-600 Restart
+                          borderRadius: BorderRadius.circular(8),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () async {
+                              final newValue = !isActive;
+                              await showScheduleActionConfirmDialog(
+                                context: context,
+                                title: newValue
+                                    ? 'Restart Schedule'
+                                    : 'Stop Schedule',
+                                description: newValue
+                                    ? 'Are you sure you want to restart this schedule?'
+                                    : 'Are you sure you want to stop this schedule?',
+                                iconAssetPath: 'assets/images/schedule.svg',
+                                buttonLabel: newValue ? 'Restart' : 'Stop',
+                                isActive: newValue,
+                                onConfirm: () async =>
+                                    await onToggle?.call(record, newValue) ??
+                                    false,
+                                onCancelWhileWaiting: () =>
+                                    onCancelAction?.call(record),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isActive
+                                        ? Icons.stop_circle_outlined
+                                        : Icons.play_circle_outline_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    isActive ? 'Stop' : 'Restart',
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
+                      const Spacer(),
+                      if (showSync)
+                        _ActionPill(
+                          icon: Icons.refresh_rounded,
+                          label: 'Resync',
+                          bg: const Color(0xFFFFF7ED),
+                          fg: const Color(0xFFC2410C),
+                          disabled: disableSyncAction,
+                          onTap: () async {
+                            await showScheduleActionConfirmDialog(
+                              context: context,
+                              title: 'Resync Schedule',
+                              description:
+                                  'Republish this pending schedule to the device?',
+                              iconAssetPath: 'assets/images/schedule.svg',
+                              buttonLabel: 'Resync',
+                              isActive: true,
+                              onConfirm: () async =>
+                                  await onSync?.call(record) ?? false,
+                              // Resync uses a dedicated cancel handler so
+                              // the T:23 republish retry loop is what
+                              // gets cancelled, not the T:24 action loop
+                              // that the Stop/Restart/Delete pills use.
+                              onCancelWhileWaiting: () =>
+                                  (onCancelSync ?? onCancelAction)
+                                      ?.call(record),
+                            );
+                          },
+                        ),
+                      if (showSync && (showEdit || showDelete))
+                        const SizedBox(width: 8),
+                      if (showEdit)
+                        _ActionPill(
+                          icon: Icons.edit_outlined,
+                          label: 'Edit',
+                          bg: const Color(0xFFEBF3FE),
+                          fg: const Color(0xFF004E7E),
+                          disabled: disableEditAction,
+                          onTap: () => onEdit?.call(record),
+                        ),
+                      if (showEdit && showDelete) const SizedBox(width: 8),
+                      if (showDelete)
+                        _ActionPill(
+                          icon: Icons.delete_outline_rounded,
+                          label: 'Delete',
+                          bg: const Color(0xFFFFEBEE),
+                          fg: const Color(0xFFE53935),
+                          disabled: disableDeleteAction,
+                          onTap: () async {
+                            await showScheduleActionConfirmDialog(
+                              context: context,
+                              title: 'Delete Schedule',
+                              description:
+                                  'This schedule will be deleted permanently. Do you wish to go ahead?',
+                              iconAssetPath: 'assets/images/schedule.svg',
+                              buttonLabel: 'Delete',
+                              // PENDING / FAILED rows never reached the
+                              // device, so the delete is a pure backend
+                              // call — no MQTT, no 23s elapsed counter.
+                              skipDeviceAck: isPending || isFailed,
+                              onConfirm: () async =>
+                                  await onDelete?.call(record) ?? false,
+                              onCancelWhileWaiting: () =>
+                                  onCancelAction?.call(record),
+                            );
+                          },
+                        ),
                     ],
-                    const Spacer(),
-                    if (showSync)
-                      _ActionPill(
-                        icon: Icons.refresh_rounded,
-                        label: 'Resync',
-                        bg: const Color(0xFFFFF7ED),
-                        fg: const Color(0xFFC2410C),
-                        disabled: disableSyncAction,
-                        onTap: () async {
-                          await showScheduleActionConfirmDialog(
-                            context: context,
-                            title: 'Resync Schedule',
-                            description:
-                                'Republish this pending schedule to the device?',
-                            iconAssetPath: 'assets/images/schedule.svg',
-                            buttonLabel: 'Resync',
-                            isActive: true,
-                            onConfirm: () async =>
-                                await onSync?.call(record) ?? false,
-                            // Resync uses a dedicated cancel handler so
-                            // the T:23 republish retry loop is what
-                            // gets cancelled, not the T:24 action loop
-                            // that the Stop/Restart/Delete pills use.
-                            onCancelWhileWaiting: () =>
-                                (onCancelSync ?? onCancelAction)?.call(record),
-                          );
-                        },
-                      ),
-                    if (showSync && (showEdit || showDelete))
-                      const SizedBox(width: 8),
-                    if (showEdit)
-                      _ActionPill(
-                        icon: Icons.edit_outlined,
-                        label: 'Edit',
-                        bg: const Color(0xFFEBF3FE),
-                        fg: const Color(0xFF004E7E),
-                        disabled: disableEditAction,
-                        onTap: () => onEdit?.call(record),
-                      ),
-                    if (showEdit && showDelete) const SizedBox(width: 8),
-                    if (showDelete)
-                      _ActionPill(
-                        icon: Icons.delete_outline_rounded,
-                        label: 'Delete',
-                        bg: const Color(0xFFFFEBEE),
-                        fg: const Color(0xFFE53935),
-                        disabled: disableDeleteAction,
-                        onTap: () async {
-                          await showScheduleActionConfirmDialog(
-                            context: context,
-                            title: 'Delete Schedule',
-                            description:
-                                'This schedule will be deleted permanently. Do you wish to go ahead?',
-                            iconAssetPath: 'assets/images/schedule.svg',
-                            buttonLabel: 'Delete',
-                            // PENDING / FAILED rows never reached the
-                            // device, so the delete is a pure backend
-                            // call — no MQTT, no 23s elapsed counter.
-                            skipDeviceAck: isPending || isFailed,
-                            onConfirm: () async =>
-                                await onDelete?.call(record) ?? false,
-                            onCancelWhileWaiting: () =>
-                                onCancelAction?.call(record),
-                          );
-                        },
-                      ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
               ),
             );
           }(),
@@ -806,30 +821,30 @@ class _ActionPill extends StatelessWidget {
     return Opacity(
       opacity: disabled ? 0.4 : 1.0,
       child: InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: disabled ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: fg),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: fg,
+        borderRadius: BorderRadius.circular(6),
+        onTap: disabled ? null : onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: fg),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

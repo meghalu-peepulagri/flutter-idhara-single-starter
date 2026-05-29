@@ -29,6 +29,34 @@ class ScheduleHistoryController extends GetxController {
   static final _fmt = DateFormat('yyyy-MM-dd');
   String _fmtDate(DateTime d) => _fmt.format(d);
 
+  /// Convert the backend's YYMMDD integer (e.g. 260526) to a DateTime in
+  /// the local 21st-century calendar (2026-05-26). Returns null for any
+  /// value that can't be parsed.
+  static DateTime? parseScheduleDate(int? yymmdd) {
+    if (yymmdd == null) return null;
+    final s = yymmdd.toString().padLeft(6, '0');
+    if (s.length != 6) return null;
+    final yy = int.tryParse(s.substring(0, 2));
+    final mm = int.tryParse(s.substring(2, 4));
+    final dd = int.tryParse(s.substring(4, 6));
+    if (yy == null || mm == null || dd == null) return null;
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+    return DateTime(2000 + yy, mm, dd);
+  }
+
+  /// Keep only records whose schedule_start_date falls inside the selected
+  /// [fromDate]..[toDate] range. Defends against the backend currently
+  /// returning records outside the requested window.
+  List<Record> _filterToDateRange(Iterable<Record> input) {
+    final from = _normalize(fromDate.value);
+    final to = _normalize(toDate.value);
+    return input.where((r) {
+      final scheduleDate = parseScheduleDate(r.scheduleStartDate);
+      if (scheduleDate == null) return false;
+      return !scheduleDate.isBefore(from) && !scheduleDate.isAfter(to);
+    }).toList();
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -79,11 +107,12 @@ class ScheduleHistoryController extends GetxController {
         page: page.value,
         limit: limit.value,
       );
-      records.value = response?.data?.records ?? [];
+      final raw = response?.data?.records ?? [];
+      records.value = _filterToDateRange(raw);
       final pagination = response?.data?.pagination;
       currentPage.value = pagination?.currentPage ?? 1;
       totalPages.value = pagination?.totalPages ?? 1;
-      totalRecords.value = pagination?.totalRecords ?? records.length;
+      totalRecords.value = records.length;
     } catch (_) {
       records.clear();
       totalRecords.value = 0;
@@ -109,11 +138,12 @@ class ScheduleHistoryController extends GetxController {
         page: page.value,
         limit: limit.value,
       );
-      records.addAll(response?.data?.records ?? []);
+      final raw = response?.data?.records ?? [];
+      records.addAll(_filterToDateRange(raw));
       final pagination = response?.data?.pagination;
       currentPage.value = pagination?.currentPage ?? page.value;
       totalPages.value = pagination?.totalPages ?? totalPages.value;
-      totalRecords.value = pagination?.totalRecords ?? totalRecords.value;
+      totalRecords.value = records.length;
     } catch (_) {
       // keep current state
     } finally {

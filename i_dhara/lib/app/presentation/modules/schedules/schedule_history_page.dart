@@ -376,9 +376,17 @@ class _HistoryRecordCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = (record.scheduleStatus ?? '').toUpperCase();
     final statusColor = _statusColor(status);
-    final dateStr = record.createdAt != null
-        ? DateFormat('dd MMM yyyy').format(record.createdAt!.toLocal())
-        : '—';
+    // Display the date the schedule is meant to RUN
+    // (schedule_start_date, in YYMMDD form), not the day the record was
+    // created — those are often the same for all rows on a freshly created
+    // recurring schedule, which made every card look identical.
+    final scheduledDate =
+        ScheduleHistoryController.parseScheduleDate(record.scheduleStartDate);
+    final dateStr = scheduledDate != null
+        ? DateFormat('dd MMM yyyy').format(scheduledDate)
+        : (record.createdAt != null
+            ? DateFormat('dd MMM yyyy').format(record.createdAt!.toLocal())
+            : '—');
 
     // Sort events chronologically
     final events = [...(record.events ?? [])]..sort((a, b) {

@@ -89,6 +89,18 @@ class MotorScheduleController extends GetxController {
   final _bulkObjectIds = <String, Map<int, int>>{};
   final _bulkCmds = <String, int>{};
 
+  // ScheduleIds the device most recently ACK'd via T:33. Manage controller
+  // reads this through [lastAckedScheduleIds] after `republishSchedules`
+  // returns and patches only the subset that actually landed on the device
+  // — not the full payload we sent. The device may accept some entries and
+  // reject others (e.g. payload bitmask 28 with ACK bitmask 24 means
+  // schedule 3 was rejected); patching rejected entries to SCHEDULED on
+  // the backend would lie about device state. Reset at the start of each
+  // republish so a stale value from a prior round can't leak into the next.
+  List<int> _lastAckedScheduleIds = [];
+  List<int> get lastAckedScheduleIds =>
+      List<int>.unmodifiable(_lastAckedScheduleIds);
+
   /// Converts a DateTime to YYMMDD int format (e.g. 2026-03-17 → 260317)
   static int dateToYYMMDD(DateTime d) =>
       (d.year % 100) * 10000 + d.month * 100 + d.day;
@@ -727,6 +739,9 @@ class MotorScheduleController extends GetxController {
       geterrorSnackBar('Device identifier not found');
       return false;
     }
+    // Reset acked tracking before publishing so a value from a prior
+    // republish round can't be mistaken for this round's result.
+    _lastAckedScheduleIds = [];
     try {
       final items = records.map((r) {
         final sid = r.scheduleId ?? 0;
@@ -995,6 +1010,10 @@ class MotorScheduleController extends GetxController {
 
       debugPrint('ACK scheduleIds: $ackedScheduleIds');
 
+      // Cache the exact set the device confirmed so the manage controller
+      // can patch only those records (not the full payload it sent).
+      _lastAckedScheduleIds = List<int>.from(ackedScheduleIds);
+
       // Strict: only acknowledge the exact scheduleIds the device named.
       // Never fall back to "all schedules" — that wrongly flips earlier
       // PENDING schedules to scheduled when the user later creates a new one
@@ -1008,6 +1027,53 @@ class MotorScheduleController extends GetxController {
         return;
       }
 
+      // ── Republish path (manage page) ──────────────────────────────────
+      // When a republish is in flight, the manage controller owns the
+      // PATCH. scheduleId is a per-date device SLOT index (1..N), not a
+      // globally unique key — so filtering motor's local list (scoped
+      // to selectedDate) by `ackedScheduleIds.contains(r.scheduleId)`
+      // would match records on a DIFFERENT date than the one actually
+      // resynced.
+      //
+      // Concrete bug this prevents: manage page resyncs dates 27/28/29
+      // with slots 6/8/9; device ACKs bitmask 416 → [6, 8, 9]; motor's
+      // selectedDate happens to be 30; motor's local list for date 30
+      // also has PENDING rows on slots 6/8/9 — those wrong-date rows
+      // would otherwise be PATCHed to SCHEDULED here, even though the
+      // device only accepted the date-27/28/29 entries.
+      //
+      // Manage controller already patches the right rows by backend
+      // object id (which IS globally unique). We just refresh motor's
+      // list silently so any rows that DID belong to the resync round
+      // (i.e. rows on selectedDate that were part of the published
+      // batch) pick up the new status from the backend.
+      final isRepublishInFlight =
+          _republishCompleter != null && !_republishCompleter!.isCompleted;
+      if (isRepublishInFlight) {
+        try {
+          await fetchSchedules(silent: true);
+        } catch (_) {}
+
+        if (_republishCompleter != null &&
+            !_republishCompleter!.isCompleted) {
+          // Skip the controller-side snackbar — the manage page
+          // fires 'Schedules resynced successfully' from its
+          // dialog `.then()` after the dialog closes, and that's
+          // the single top message we want on republish success.
+          // Bottom count toast (`_showScheduleResultAfterDelay`
+          // → `showScheduleResultSnackBar`) is untouched.
+          _republishCompleter!.complete(true);
+          _republishCompleter = null;
+          _showScheduleResultAfterDelay(ackedScheduleIds);
+        }
+        return;
+      }
+
+      // ── Create-flow path (motor tab schedule_page) ────────────────────
+      // The freshly-created record is in motor's local list because
+      // create sets selectedDate to the new schedule's date before
+      // publish, so filtering by scheduleId here is safe — there's
+      // only one record per date+slot in the local list.
       final objectIds = schedules
           .where((r) =>
               r.scheduleId != null && ackedScheduleIds.contains(r.scheduleId))
@@ -1018,10 +1084,6 @@ class MotorScheduleController extends GetxController {
       if (objectIds.isEmpty) {
         debugPrint(
             '⚠️ No matching object IDs for ackedScheduleIds: $ackedScheduleIds');
-        if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
-          _republishCompleter!.complete(false);
-          _republishCompleter = null;
-        }
         return;
       }
 
@@ -1033,14 +1095,7 @@ class MotorScheduleController extends GetxController {
         await fetchSchedules(silent: true);
       } catch (_) {}
 
-      if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
-        getsuccessSnackBar('Schedules acknowledged by device');
-        _republishCompleter!.complete(true);
-        _republishCompleter = null;
-        _showScheduleResultAfterDelay(ackedScheduleIds);
-      } else {
-        onScheduleAckRefreshed?.call();
-      }
+      onScheduleAckRefreshed?.call();
     });
   }
 

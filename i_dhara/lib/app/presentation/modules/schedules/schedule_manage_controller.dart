@@ -280,20 +280,29 @@ class ScheduleManageController extends GetxController {
     final success =
         await motorScheduleController.republishSchedules(records, idx: idx);
 
-    // ACK PATCH every record we just republished. MotorScheduleController
-    // also runs `fetchacknowledgement` inside its T:33 listener, but its
-    // `schedules` field is filtered to a single `selectedDate`, so for a
-    // multi-date republish (e.g. 6 schedules across May 14/15/16) only
-    // the records on that one selected date would be patched and the
-    // rest would stay in PENDING. Patching the full set here covers
-    // every record regardless of which date the motor controller is
-    // currently scoped to.
+    // ACK PATCH only the schedules the device actually confirmed via
+    // T:33. The motor controller's listener also patches records whose
+    // scheduleId is in the ACK, but its `schedules` field is scoped to
+    // a single `selectedDate`, so for a multi-date republish only the
+    // records on that one date get patched there — the rest are
+    // patched here. Critically, we filter by `lastAckedScheduleIds`
+    // (not the full `records` set) because a partial ACK is normal —
+    // the device may accept some entries in the payload and reject
+    // others (e.g. payload bitmask 28 = ids [3,4,5] but ACK bitmask
+    // 24 = ids [4,5] means 3 was rejected). Patching the rejected
+    // schedules to SCHEDULED would lie about device state.
     if (success) {
-      final objectIds =
-          records.map((r) => r.id).whereType<int>().toList();
-      if (objectIds.isNotEmpty) {
+      final ackedSet =
+          motorScheduleController.lastAckedScheduleIds.toSet();
+      final ackedObjectIds = records
+          .where((r) =>
+              r.scheduleId != null && ackedSet.contains(r.scheduleId))
+          .map((r) => r.id)
+          .whereType<int>()
+          .toList();
+      if (ackedObjectIds.isNotEmpty) {
         try {
-          await _scheduleRepo.scheduleAcknowledgement(objectIds);
+          await _scheduleRepo.scheduleAcknowledgement(ackedObjectIds);
         } catch (_) {
           // silent — device already accepted; the next list refresh
           // will pick up the backend status either way.
@@ -329,12 +338,20 @@ class ScheduleManageController extends GetxController {
     // listener only patches records whose date matches its current
     // `selectedDate`, so a resync from a different date on the manage
     // page would otherwise stay PENDING until the next backend sync.
+    // Only patch when the device actually confirmed THIS scheduleId
+    // (success=true returns on the first ACK of the round, which may
+    // not include this specific schedule).
     if (success && record.id != null) {
-      try {
-        await _scheduleRepo.scheduleAcknowledgement([record.id!]);
-      } catch (_) {
-        // silent — device already accepted; the next list refresh will
-        // reflect the backend status either way.
+      final ackedSet =
+          motorScheduleController.lastAckedScheduleIds.toSet();
+      final scheduleId = record.scheduleId;
+      if (scheduleId != null && ackedSet.contains(scheduleId)) {
+        try {
+          await _scheduleRepo.scheduleAcknowledgement([record.id!]);
+        } catch (_) {
+          // silent — device already accepted; the next list refresh will
+          // reflect the backend status either way.
+        }
       }
     }
 

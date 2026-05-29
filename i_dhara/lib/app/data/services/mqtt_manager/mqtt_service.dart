@@ -2197,11 +2197,24 @@ class MqttService {
 
     // Mode
     if (data.containsKey('mode')) {
-      final modeValue = data['mode'] as int?;
+      var modeValue = data['mode'] as int?;
       if (modeValue != null) {
+        // Translate device code 6 → UI index 2 (Schedule) so the
+        // mode tab toggle (which lives in UI-index space: 0=Manual,
+        // 1=Auto, 2=Schedule) lines up with what the device reports
+        // in live data. Mirrors the same translation in
+        // _handleModeChangeAck — T:32 ACKs and T:35 / T:41 live
+        // data now converge on the same encoding so a passive sync
+        // from any group (G01, G02, G04) lands on the right toggle
+        // segment.
+        if (modeValue == scheduleModeDeviceCode) {
+          modeValue = scheduleModeUiIndex;
+        }
         motorData.modeIndex = modeValue;
         motorData.modeswitchcontroller.value = modeValue;
-        motorData.motorMode = modeValue == 1 ? 'AUTO' : 'MANUAL';
+        motorData.motorMode = modeValue == 1
+            ? 'AUTO'
+            : (modeValue == scheduleModeUiIndex ? 'SCHEDULE' : 'MANUAL');
       }
     }
 
