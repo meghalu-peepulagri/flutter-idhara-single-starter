@@ -307,7 +307,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                   Expanded(
                     child: SingleChildScrollView(
                       keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
+                          ScrollViewKeyboardDismissBehavior.manual,
                       padding: const EdgeInsetsDirectional.fromSTEB(
                           16.0, 0.0, 16.0, 24.0),
                       child: Column(

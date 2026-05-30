@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1049,13 +1051,22 @@ class _ModeChangeAckDialog extends StatefulWidget {
 }
 
 class _ModeChangeAckDialogState extends State<_ModeChangeAckDialog> {
+  // Three phases:
+  //   • idle       — confirmation question + motor / new-mode card
+  //   • loading    — title "Mode Change", centred spinner,
+  //                  "Waiting for response..."
+  //   • success    — green check + "Mode updated successfully"
+  //                  (auto-closes after 2s)
   bool _isWaiting = false;
+  bool _showSuccess = false;
   Worker? _ackWorker;
+  Timer? _autoCloseTimer;
   bool _popped = false;
 
   @override
   void dispose() {
     _ackWorker?.dispose();
+    _autoCloseTimer?.cancel();
     super.dispose();
   }
 
@@ -1068,21 +1079,52 @@ class _ModeChangeAckDialogState extends State<_ModeChangeAckDialog> {
   Future<void> _onConfirm() async {
     setState(() => _isWaiting = true);
 
-    // Watch the controller's ack flag — when it flips back to false, either
-    // the device acknowledged the mode change or the ack timer expired and
-    // reverted. Either way, close the dialog so the user is unblocked.
+    // Watch the controller's ack flag — when it flips back to false the
+    // request has resolved. _onAckResolved decides whether that means
+    // success (controller's localModeIndex equals newModeIndex) or
+    // failure (timer reverted it).
     _ackWorker = ever<bool>(widget.controller.isWaitingForModeAck, (waiting) {
-      if (!waiting) _closeOnce();
+      if (waiting || !mounted) return;
+      _onAckResolved();
     });
 
     await widget.controller.handleModeChange(widget.newModeIndex);
 
-    // If handleModeChange short-circuited (no motor id, already waiting), the
-    // ack flag never went true, so the watcher above will never fire. Close
-    // the dialog manually in that case.
+    // If handleModeChange short-circuited (no motor id, already waiting,
+    // mqtt not initialised) the ack flag never went true, so the watcher
+    // above will never fire. Close the dialog manually in that case.
     if (mounted && !widget.controller.isWaitingForModeAck.value) {
-      _closeOnce();
+      _onAckResolved();
     }
+  }
+
+  void _onAckResolved() {
+    _ackWorker?.dispose();
+    _ackWorker = null;
+
+    if (!mounted) return;
+
+    // Success = controller's optimistic localModeIndex is still at the
+    // requested value. handleModeChange sets it before publish; the ACK
+    // path keeps it there, the timeout / error paths revert it. So a
+    // match here means the device confirmed the change.
+    final wasSuccess =
+        widget.controller.localModeIndex.value == widget.newModeIndex;
+
+    if (!wasSuccess) {
+      _closeOnce();
+      return;
+    }
+
+    setState(() {
+      _isWaiting = false;
+      _showSuccess = true;
+    });
+
+    _autoCloseTimer?.cancel();
+    _autoCloseTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) _closeOnce();
+    });
   }
 
   @override
@@ -1092,115 +1134,195 @@ class _ModeChangeAckDialogState extends State<_ModeChangeAckDialog> {
         ? const Color(0xFFFFA500)
         : const Color(0xFF2F80ED);
 
+    final Widget body;
+    if (_showSuccess) {
+      body = _buildSuccessBody();
+    } else if (_isWaiting) {
+      body = _buildLoadingBody();
+    } else {
+      body = _buildIdleBody(modeName, modeColor);
+    }
+
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _isWaiting
-                ? 'Waiting for device to acknowledge the mode change...'
-                : 'Are you sure you want to change the motor mode?',
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              color: const Color(0xFF6B7280),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEBF3FE),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Motor: ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        MotorCardDialogs._formatMotorName(widget.motorName),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      'New Mode: ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E),
-                      ),
-                    ),
-                    Text(
-                      modeName,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: modeColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+      content: SizedBox(
+        width: 260,
+        child: body,
       ),
-      actions: [
-        TextButton(
-          onPressed: _isWaiting ? null : () => Navigator.of(context).pop(),
-          child: Text(
-            'Cancel',
-            style: GoogleFonts.dmSans(
-              color: _isWaiting ? Colors.grey.shade400 : Colors.grey,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: _isWaiting ? null : _onConfirm,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF004E7E),
-            disabledBackgroundColor: const Color(0xFF004E7E).withValues(alpha: 0.7),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: _isWaiting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      // No buttons during loading or success — loading view shows the
+      // centred spinner, success view shows the green check + auto-
+      // closes after 2 seconds.
+      actions: (_showSuccess || _isWaiting)
+          ? null
+          : [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
                   ),
-                )
-              : Text(
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _onConfirm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF004E7E),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
                   'Confirm',
                   style: GoogleFonts.dmSans(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+            ],
+    );
+  }
+
+  // ── Phase bodies ────────────────────────────────────────────────
+
+  Widget _buildIdleBody(String modeName, Color modeColor) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Are you sure you want to change the motor mode?',
+          style: GoogleFonts.dmSans(
+            fontSize: 14,
+            color: const Color(0xFF6B7280),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEBF3FE),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Motor: ',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      MotorCardDialogs._formatMotorName(widget.motorName),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    'New Mode: ',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
+                    ),
+                  ),
+                  Text(
+                    modeName,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: modeColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingBody() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'Mode Change',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.dmSans(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const SizedBox(
+          width: 40,
+          height: 40,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF004E7E)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Waiting for response...',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF6B7280),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccessBody() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: Color(0xFF22C55E),
+            size: 32,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Mode updated successfully',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.dmSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A1A2E),
+          ),
         ),
       ],
     );

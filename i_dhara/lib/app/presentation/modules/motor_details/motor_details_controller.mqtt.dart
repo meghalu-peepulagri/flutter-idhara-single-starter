@@ -94,12 +94,22 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     // the same entry MqttService updated when the T:32 ACK arrived, so a
     // single-entry comparison was missing real ACKs.
     if (_hasPendingModeCommand && _pendingModeValue != null) {
+      // Record any group whose modeIndex has moved off its publish-time
+      // snapshot. Combined with current==expectedMode in the check below,
+      // this lets us recognise the real ACK across echo sequences (e.g.
+      // device sends D:current_mode echo then D:new_mode) and across mode
+      // changes where the publish-time snapshot happened to already equal
+      // the requested mode — neither of which the strict snapshot-vs-current
+      // comparison alone catches.
+      _trackPerGroupChanges();
       if (_anyGroupTransitionedTo(_pendingModeValue!)) {
         final ackedMode = _pendingModeValue!;
         _modeAckTimer?.cancel();
         _hasPendingModeCommand = false;
         _pendingModeValue = null;
         _modeAckSnapshot = {};
+        _modeAckGroupChanged = {};
+        _modeAckLastAckSnapshot = {};
         isWaitingForModeAck.value = false;
 
         final mId = _getMotorId();
@@ -118,18 +128,17 @@ extension AnalyticsControllerMqtt on AnalyticsController {
 
     if (motorData != null && motorData.hasReceivedData) {
       if (!_hasPendingModeCommand) {
-        final mqttMode = motorData.modeIndex;
-        if (mqttMode != null && localModeIndex.value != mqttMode) {
-          // Only accept MQTT's mode if our current local mode is no longer
-          // represented in any group's data. Right after an ACK, the
-          // confirmed group has modeIndex=new but a periodic live-data
-          // publish may still be carrying mode=old on another group; without
-          // this guard, getMotorData() can pick the stale group and revert
-          // localModeIndex back to the pre-ACK value.
-          if (!_anyGroupHasMode(localModeIndex.value)) {
-            localModeIndex.value = mqttMode;
-            motorMode.value = mqttMode == 1 ? 'Auto' : 'Manual';
-          }
+        // Use the freshest group's modeIndex as the source of truth, not
+        // motorData (which getMotorData returns by static iteration order).
+        // Otherwise, when both MAC-G0X and PCB-G0X exist (built in init for
+        // every group) and the device publishes T:41 on whichever of the
+        // two is *not* first in iteration, the stale entry wins and
+        // localModeIndex never updates from live data — only the API
+        // refresh would correct it.
+        final freshestMode = _freshestGroupModeIndex();
+        if (freshestMode != null && localModeIndex.value != freshestMode) {
+          localModeIndex.value = freshestMode;
+          motorMode.value = freshestMode == 1 ? 'Auto' : 'Manual';
         }
       }
 
@@ -172,25 +181,71 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     return snapshot;
   }
 
-  bool _anyGroupHasMode(int expectedMode) {
+  // Picks the modeIndex of the group whose lastAckTime is the most recent
+  // among groups with hasReceivedData=true. This is the only mode value
+  // safe to follow for localModeIndex updates: it ignores stale per-key
+  // entries (e.g. the MAC-G0X duplicate sitting on its API-derived init
+  // value while the device is currently publishing on PCB topic, or vice
+  // versa) that would otherwise hide the device's current mode behind
+  // getMotorData's static iteration order.
+  int? _freshestGroupModeIndex() {
+    DateTime? freshestTime;
+    int? freshestMode;
     for (final key in _allMotorKeys()) {
-      if (mqttService.motorDataMap[key]?.modeIndex == expectedMode) return true;
+      final data = mqttService.motorDataMap[key];
+      if (data?.hasReceivedData != true) continue;
+      final lastAck = mqttService.getLastAckTime(key);
+      if (lastAck == null) continue;
+      if (freshestTime == null || lastAck.isAfter(freshestTime)) {
+        freshestTime = lastAck;
+        freshestMode = data?.modeIndex;
+      }
     }
-    return false;
+    return freshestMode;
   }
 
-  // ACK-detection variant of _anyGroupHasMode. Only returns true when a
-  // group's modeIndex moved to expectedMode AFTER the publish — i.e. its
-  // snapshot value at publish time was different. This prevents false ACKs
-  // from stale entries that were already at expectedMode (typical on the
-  // 2nd+ mode change of a session: groups that never received a real ACK
-  // still carry the initial API-derived modeIndex).
+  // Sticky per-group flag: once a group's modeIndex is observed to differ
+  // from its publish-time snapshot, the flag stays true for the remainder
+  // of the pending window. Combined with current==expectedMode this lets us
+  // detect the real ACK in patterns the snapshot-only check misses
+  // (echo D:current → real D:new, or value oscillating back to the
+  // snapshot during the wait).
+  void _trackPerGroupChanges() {
+    for (final key in _allMotorKeys()) {
+      final current = mqttService.motorDataMap[key]?.modeIndex;
+      if (current != _modeAckSnapshot[key]) {
+        _modeAckGroupChanged[key] = true;
+      }
+    }
+  }
+
+  // Returns true if any group's modeIndex equals expectedMode and we have
+  // evidence that group transitioned during this pending window. Evidence
+  // is either:
+  //   (a) the publish-time snapshot for the group differed from
+  //       expectedMode — the original strict check,
+  //   (b) the per-group change flag is set — covers echo + real ACK
+  //       sequences (D:current echo → D:new real), or
+  //   (c) the group's lastAckTime advanced past its publish-time snapshot —
+  //       covers the case where the publish-time snapshot already equalled
+  //       expectedMode AND the real ACK arrives without changing the
+  //       modeIndex value, which (a) and (b) both miss.
+  // The change flag and the per-key lastAckTime check both avoid the false
+  // ACK risk of a session-wide "any change observed" condition.
   bool _anyGroupTransitionedTo(int expectedMode) {
     for (final key in _allMotorKeys()) {
       final current = mqttService.motorDataMap[key]?.modeIndex;
       if (current != expectedMode) continue;
+      if (_modeAckGroupChanged[key] == true) return true;
       final snapshot = _modeAckSnapshot[key];
       if (snapshot != expectedMode) return true;
+      final currentLastAck = mqttService.getLastAckTime(key);
+      final snapshotLastAck = _modeAckLastAckSnapshot[key];
+      if (currentLastAck != null &&
+          (snapshotLastAck == null ||
+              currentLastAck.isAfter(snapshotLastAck))) {
+        return true;
+      }
     }
     return false;
   }
@@ -300,6 +355,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         _hasPendingModeCommand = false;
         _pendingModeValue = null;
         _modeAckSnapshot = {};
+        _modeAckGroupChanged = {};
+        _modeAckLastAckSnapshot = {};
         isWaitingForModeAck.value = false;
       }
     });
@@ -334,6 +391,10 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     // ACK detector can distinguish a real transition from a pre-existing
     // stale value that already matches the new mode.
     _modeAckSnapshot = _snapshotGroupModes();
+    _modeAckGroupChanged = {for (final k in _allMotorKeys()) k: false};
+    _modeAckLastAckSnapshot = {
+      for (final k in _allMotorKeys()) k: mqttService.getLastAckTime(k)
+    };
 
     // Optimistically update UI
     isWaitingForModeAck.value = true;
@@ -354,6 +415,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       _hasPendingModeCommand = false;
       _pendingModeValue = null;
       _modeAckSnapshot = {};
+      _modeAckGroupChanged = {};
+      _modeAckLastAckSnapshot = {};
       isWaitingForModeAck.value = false;
     }
   }
