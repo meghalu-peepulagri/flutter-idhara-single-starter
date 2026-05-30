@@ -23,6 +23,7 @@ Future<void> showSettingsConfirmDialog(
   required String originalFlc,
   required String currentFlc,
   required Future<void> Function() onConfirm,
+  Future<void> Function()? onCancel,
 }) {
   return showDialog(
     context: context,
@@ -118,8 +119,14 @@ Future<void> showSettingsConfirmDialog(
         ),
         actions: [
           TextButton(
-            onPressed:
-                isLoading ? null : () => Navigator.of(context).pop(),
+            onPressed: isLoading
+                ? null
+                : () async {
+                    Navigator.of(context).pop();
+                    if (onCancel != null) {
+                      await onCancel();
+                    }
+                  },
             child: Text(
               'Cancel',
               style: GoogleFonts.dmSans(

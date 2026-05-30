@@ -159,6 +159,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       geterrorSnackBar('No acknowledgment received from device');
     }
     _completeSaveAck();
+    _revertLocal();
   }
 
   void _completeSaveAck() {
@@ -168,6 +169,32 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   }
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
+
+  /// Instant local revert used when the user cancels the confirm dialog.
+  /// Skips the API re-fetch in [_handleCancel] so the UI snaps back without
+  /// the network round-trip delay.
+  void _revertLocal() {
+    _currentVoltageLow = null;
+    _currentVoltageHigh = null;
+    _currentCurrentLow = null;
+    _currentCurrentHigh = null;
+    _originalVoltageLow = null;
+    _originalVoltageHigh = null;
+    _originalCurrentLow = null;
+    _originalCurrentHigh = null;
+
+    voltageCardKey.currentState?.resetValues();
+    currentCardKey.currentState?.resetValues();
+    flcCardKey.currentState?.resetValue();
+    controller.flc.value =
+        controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+
+    if (mounted) {
+      setState(() {
+        isbuttonActive = false;
+      });
+    }
+  }
 
   Future<void> _handleCancel() async {
     _currentVoltageLow = null;
@@ -450,6 +477,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _startAckTimer();
         await _saveAckCompleter!.future;
       },
+      onCancel: () async => _revertLocal(),
     );
   }
 

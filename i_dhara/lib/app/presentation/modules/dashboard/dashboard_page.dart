@@ -268,7 +268,13 @@ class _DashboardWidgetState extends State<DashboardWidget>
       return Skeletonizer(
         enabled: controller.isRefreshing.value,
         child: RefreshIndicator(
-          onRefresh: controller.refreshMotors,
+          onRefresh: () async {
+            await controller.refreshMotors();
+            // Ask every motor for a fresh T:41 live-data payload so the
+            // cards reflect the device's current state immediately after
+            // pull-to-refresh, without waiting for the next periodic publish.
+            await controller.requestLiveDataForAllMotors();
+          },
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(0, 0, 0, 24.0),

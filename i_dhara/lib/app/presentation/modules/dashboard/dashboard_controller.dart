@@ -791,4 +791,31 @@ class DashboardController extends GetxController with ConnectivityMixin {
     final motorId = '${motor.starter!.macAddress}-$groupId';
     return mqttService.motorDataMap[motorId];
   }
+
+  // Publish a live-data request ({"T": 5, "S": <seq>, "D": 1}) for every
+  // motor currently in the dashboard list. The device replies with a T:41
+  // live-data payload per motor, refreshing the on-screen state, mode,
+  // voltage and current immediately after a pull-to-refresh.
+  Future<void> requestLiveDataForAllMotors() async {
+    if (!mqttInitialized || !mqttService.isConnected) return;
+
+    for (final motor in allMotors) {
+      if (motor.starter == null) continue;
+
+      final mac = motor.starter!.macAddress;
+      final pcb = motor.starter!.pcbNumber;
+      final identifier = (mac != null && mac.isNotEmpty)
+          ? mac
+          : (pcb != null && pcb.isNotEmpty ? pcb : null);
+      if (identifier == null) continue;
+
+      final motorId = '$identifier-${_getGroupIdForMotor(motor)}';
+      try {
+        await mqttService.publishTestRunCommand(motorId, 5,
+            data: 1, type: 5);
+      } catch (e) {
+        debugPrint('Live data request failed for $motorId: $e');
+      }
+    }
+  }
 }

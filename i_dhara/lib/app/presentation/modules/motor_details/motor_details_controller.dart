@@ -89,7 +89,25 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   bool _hasPendingModeCommand = false;
   int? _pendingModeValue;
   Timer? _modeAckTimer;
-  static const Duration _ackTimeout = Duration(seconds: 13);
+  // Snapshot of each relevant motorDataMap entry's modeIndex captured just
+  // before publishing a mode command. Used to tell a real ACK (a group's
+  // modeIndex transitions to the new mode after publish) apart from a stale
+  // entry that happened to already show the new mode (e.g. groups that
+  // never received their own ACK still carry the initial API-derived mode).
+  Map<String, int?> _modeAckSnapshot = {};
+  // Per-group flag set to true the first time we observe a group's modeIndex
+  // differ from its publish-time snapshot. Lets us recognise an ACK when the
+  // group later lands back on a value that happens to equal the publish-time
+  // snapshot (e.g. echo D:current → real D:new → some downstream publish
+  // bringing the value back to the original snapshot, or stale-matching
+  // snapshot where the ACK value equals what we captured).
+  Map<String, bool> _modeAckGroupChanged = {};
+  // Per-group lastAckTime snapshot captured at publish time. Combined with
+  // the post-publish lastAckTime, lets us detect an ACK arrival even when
+  // the group's modeIndex didn't change value (e.g. snapshot already
+  // happened to equal the requested mode on a 2nd+ round).
+  Map<String, DateTime?> _modeAckLastAckSnapshot = {};
+  static const Duration _ackTimeout = Duration(seconds: 23);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = false.obs;
   var signalQuality = 0.obs;
