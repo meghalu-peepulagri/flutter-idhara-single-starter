@@ -120,8 +120,8 @@ class ScheduleInfo {
   final int missedTimes;
   final int failureEpoch;
   final int failureReason; // 1=Power Loss, 2=Fault, 3=Mode Change
-  final int startEpoch; // st_ep — unix epoch (seconds) for the schedule start
-  final int endEpoch; // ed_ep — unix epoch (seconds) for the schedule end
+  final int startEpoch; // st — unix epoch (seconds) for the schedule start
+  final int endEpoch; // et — unix epoch (seconds) for the schedule end
 
   ScheduleInfo({
     required this.id,
@@ -2275,14 +2275,14 @@ class MqttService {
 
     final info = ScheduleInfo(
       id: scheduleId,
-      startTime: asInt(schRaw['st']),
+      startTime: 0,
       runtime: asInt(schRaw['rt']),
-      endTime: asInt(schRaw['et']),
+      endTime: 0,
       missedTimes: asInt(schRaw['mm']),
       failureEpoch: asInt(schRaw['fe']),
       failureReason: asInt(schRaw['fr']),
-      startEpoch: asInt(schRaw['st_ep']),
-      endEpoch: asInt(schRaw['et_ep']),
+      startEpoch: asInt(schRaw['st']),
+      endEpoch: asInt(schRaw['et']),
     );
     motorData.schedules[scheduleId] = info;
 
@@ -2299,7 +2299,7 @@ class MqttService {
       'endEpoch': info.endEpoch,
     });
     debugPrint(
-        '   ✓ Schedule[$scheduleId] updated: rt=${schRaw['rt']}, fr=${schRaw['fr']}, st_ep=${schRaw['st_ep']}, et_ep=${schRaw['et_ep']}');
+        '   ✓ Schedule[$scheduleId] updated: rt=${schRaw['rt']}, fr=${schRaw['fr']}, st=${schRaw['st']}, et=${schRaw['et']}');
   }
 
   /// Find motor with pending command of given type for the identifier

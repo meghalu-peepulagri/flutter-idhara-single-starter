@@ -901,11 +901,9 @@ class MotorScheduleController extends GetxController {
 
   // --- MQTT live schedule updates (sch field from T:35 / T:41) ---
 
-  /// Convert integer time (e.g. 700 or 1430) to "HH:MM" string.
-  static String _intToTimeStr(int t) {
-    final h = t ~/ 100;
-    final m = t % 100;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  static String _epochToTimeStr(int epochSeconds) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000);
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   /// Fired by MqttService when a schedule-create publish (T:23) exhausts
@@ -946,31 +944,18 @@ class MotorScheduleController extends GetxController {
       final idx = schedules.indexWhere((r) => r.scheduleId == scheduleId);
       if (idx == -1) return;
 
-      // Device-side schedule live block (`sch` in T:35 / T:41):
-      //   rt = actual run time so far, in MINUTES → Record.actualRunTime.
-      //   st = ACTUAL start (HHMM) — when the device actually began this
-      //        run. Routed to actualStartTime; the planned `startTime`
-      //        from the API is left untouched.
-      //   et = ACTUAL end (HHMM); null/0 while still running. Routed to
-      //        actualEndTime, planned `endTime` is left untouched.
-      // Duration (runtimeMinutes) is static — never updated from live data,
-      // otherwise the schedule's planned duration would get overwritten by
-      // the elapsed-run value and the "Duration" tile would tick.
-      final stRaw = data['startTime'] as int?;
-      final etRaw = data['endTime'] as int?;
+      final stEpoch = data['startEpoch'] as int?;
+      final etEpoch = data['endEpoch'] as int?;
       final runtime = data['runtime'] as int?;
 
-      // copyWith creates a NEW Record instance so Flutter's widget diff detects
-      // a real object change and guarantees ScheduleCard.build() is called.
-      // Only update actual start/end when the device reported a real value
-      // (> 0). 0 / null means "not provided this tick" — keep existing.
       schedules[idx] = schedules[idx].copyWith(
         actualRunTime: runtime,
         actualStartTime:
-            (stRaw != null && stRaw > 0) ? _intToTimeStr(stRaw) : null,
+            (stEpoch != null && stEpoch > 0) ? _epochToTimeStr(stEpoch) : null,
         actualEndTime:
-            (etRaw != null && etRaw > 0) ? _intToTimeStr(etRaw) : null,
+            (etEpoch != null && etEpoch > 0) ? _epochToTimeStr(etEpoch) : null,
       );
+      schedules.refresh();
     });
   }
 
