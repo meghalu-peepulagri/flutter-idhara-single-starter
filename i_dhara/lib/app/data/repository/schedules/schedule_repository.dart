@@ -17,7 +17,8 @@ abstract class ScheduleRepository {
       int? page,
       int? limit});
   Future<CreateScheduleResponse?> createschedule(List<CreateScheduleDto> dtos);
-  Future<ScheduleAcknowledgement?> scheduleAcknowledgement(List<int> ids);
+  Future<ScheduleAcknowledgement?> scheduleAcknowledgement(List<int> ids,
+      {Map<int, int>? slotMap});
   Future<ScheduleDeleteResponse?> scheduleDelete();
   Future<ScheduleUpdateResponse?> scheduleupdate(CreateScheduleDto dto);
   Future<ScheduleStopAndRestartResponse?> scheduleStopAndRestart(int cmd);

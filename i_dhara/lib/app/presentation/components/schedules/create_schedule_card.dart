@@ -22,6 +22,7 @@ class MultiScheduleForm extends StatefulWidget {
   final bool showBottomBar;
 
   final int existingScheduleCount;
+  final DateTime? initialDate;
 
   const MultiScheduleForm({
     super.key,
@@ -29,6 +30,7 @@ class MultiScheduleForm extends StatefulWidget {
     this.onBack,
     this.showBottomBar = true,
     this.existingScheduleCount = 0,
+    this.initialDate,
   });
 
   @override
@@ -187,14 +189,23 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     final now = DateTime.now();
 
     final todayNorm = DateTime(now.year, now.month, now.day);
-    startDate = todayNorm;
-    endDate = todayNorm;
-    // Pre-select today's weekday so the user immediately sees the
+    // Seed from the date selected on the motor schedule tab when provided;
+    // fall back to today. Never start before today (the date pickers also
+    // gate on firstDate = today).
+    final picked = widget.initialDate;
+    final baseDate = (picked != null &&
+            !DateTime(picked.year, picked.month, picked.day)
+                .isBefore(todayNorm))
+        ? DateTime(picked.year, picked.month, picked.day)
+        : todayNorm;
+    startDate = baseDate;
+    endDate = baseDate;
+    // Pre-select the base date's weekday so the user immediately sees the
     // current day chip rendered in the active state — no second tap
     // needed for a same-day schedule. Sun=0..Sat=6 mapping (Dart's
     // weekday returns Mon=1..Sun=7).
-    final todayWd = now.weekday == 7 ? 0 : now.weekday;
-    selectedDays = {todayWd};
+    final baseWd = baseDate.weekday == 7 ? 0 : baseDate.weekday;
+    selectedDays = {baseWd};
     // Add first schedule directly (no setState) so it renders expanded on first build
     _schedules.add(_ScheduleEntry(
       id: _nextId++,
@@ -1180,6 +1191,24 @@ class ScheduleFormState extends State<ScheduleForm> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
+  /// Multi-day span from (startDate + start time) to (endDate + end time).
+  /// Display only — the per-date backend runtime is still [durationMinutes].
+  String get multiDaySpanText {
+    final start = DateTime(
+        startDate.year, startDate.month, startDate.day, startHour, startMinute);
+    var end = DateTime(
+        endDate.year, endDate.month, endDate.day, endHour, endMinute);
+    // Same-day window that ends at/before it starts wraps past midnight.
+    if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
+    var mins = end.difference(start).inMinutes;
+    if (mins < 0) mins = 0;
+    final d = mins ~/ 1440;
+    final h = (mins % 1440) ~/ 60;
+    final m = mins % 60;
+    final hm = '${h}h ${m.toString().padLeft(2, '0')}m';
+    return d > 0 ? '${d}d $hm' : hm;
+  }
+
   void _onTimePicked(TimeOfDay t, bool isStart) {
     setState(() {
       if (isStart) {
@@ -1857,11 +1886,11 @@ class ScheduleFormState extends State<ScheduleForm> {
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.nightlight_round,
+                      const Icon(Icons.timer_outlined,
                           size: 14, color: Color(0xFF004E7E)),
                       const SizedBox(width: 6),
                       Text(
-                        'Overnight  •  $durationText',
+                        'Duration: $multiDaySpanText',
                         style: GoogleFonts.dmSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1872,10 +1901,10 @@ class ScheduleFormState extends State<ScheduleForm> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.timer_outlined,
+                      const Icon(Icons.nightlight_round,
                           size: 14, color: Color(0xFF004E7E)),
                       const SizedBox(width: 6),
-                      Text('Duration: $durationText',
+                      Text('Overnight  •  $multiDaySpanText',
                           style: GoogleFonts.dmSans(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,

@@ -215,9 +215,10 @@ class MotorScheduleController extends GetxController {
     }
   }
 
-  Future<void> fetchacknowledgement(List<int> ids) async {
+  Future<void> fetchacknowledgement(List<int> ids,
+      {Map<int, int>? slotMap}) async {
     try {
-      await _scheduleRepo.scheduleAcknowledgement(ids);
+      await _scheduleRepo.scheduleAcknowledgement(ids, slotMap: slotMap);
     } catch (_) {
       // silently fail
     }
@@ -704,6 +705,7 @@ class MotorScheduleController extends GetxController {
       arguments: {
         'motor': _buildMotorFromDetails(),
         'existingScheduleCount': existingCount,
+        'selectedDate': selectedDate.value,
       },
     );
     fetchSchedules();
@@ -1059,12 +1061,16 @@ class MotorScheduleController extends GetxController {
       // create sets selectedDate to the new schedule's date before
       // publish, so filtering by scheduleId here is safe — there's
       // only one record per date+slot in the local list.
-      final objectIds = schedules
-          .where((r) =>
-              r.scheduleId != null && ackedScheduleIds.contains(r.scheduleId))
-          .map((r) => r.id)
-          .whereType<int>()
-          .toList();
+      final objectIds = <int>[];
+      final slotMap = <int, int>{};
+      for (final r in schedules) {
+        if (r.scheduleId != null &&
+            ackedScheduleIds.contains(r.scheduleId) &&
+            r.id != null) {
+          objectIds.add(r.id!);
+          slotMap[r.id!] = r.scheduleId!;
+        }
+      }
 
       if (objectIds.isEmpty) {
         debugPrint(
@@ -1073,7 +1079,7 @@ class MotorScheduleController extends GetxController {
       }
 
       try {
-        await fetchacknowledgement(objectIds);
+        await fetchacknowledgement(objectIds, slotMap: slotMap);
       } catch (_) {}
       // silent: true → no isLoading flip → list stays put, no lottie reload.
       try {

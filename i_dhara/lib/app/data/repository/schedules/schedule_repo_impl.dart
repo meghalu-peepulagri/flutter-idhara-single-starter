@@ -86,8 +86,12 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
 
   @override
   Future<ScheduleAcknowledgement?> scheduleAcknowledgement(
-      List<int> ids) async {
-    final body = {'schedule_ids': ids};
+      List<int> ids, {Map<int, int>? slotMap}) async {
+    final body = {
+      'schedule_ids': ids,
+      if (slotMap != null && slotMap.isNotEmpty)
+        'slot_map': slotMap.map((k, v) => MapEntry(k.toString(), v)),
+    };
     final response =
         await NetworkManager().patch('/motor-schedules/bulk/ack', data: body);
 

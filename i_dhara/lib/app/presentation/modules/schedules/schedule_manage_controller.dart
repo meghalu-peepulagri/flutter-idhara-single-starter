@@ -294,15 +294,20 @@ class ScheduleManageController extends GetxController {
     if (success) {
       final ackedSet =
           motorScheduleController.lastAckedScheduleIds.toSet();
-      final ackedObjectIds = records
-          .where((r) =>
-              r.scheduleId != null && ackedSet.contains(r.scheduleId))
-          .map((r) => r.id)
-          .whereType<int>()
-          .toList();
+      final ackedObjectIds = <int>[];
+      final slotMap = <int, int>{};
+      for (final r in records) {
+        if (r.scheduleId != null &&
+            ackedSet.contains(r.scheduleId) &&
+            r.id != null) {
+          ackedObjectIds.add(r.id!);
+          slotMap[r.id!] = r.scheduleId!;
+        }
+      }
       if (ackedObjectIds.isNotEmpty) {
         try {
-          await _scheduleRepo.scheduleAcknowledgement(ackedObjectIds);
+          await _scheduleRepo.scheduleAcknowledgement(ackedObjectIds,
+              slotMap: slotMap);
         } catch (_) {
           // silent — device already accepted; the next list refresh
           // will pick up the backend status either way.
@@ -347,7 +352,8 @@ class ScheduleManageController extends GetxController {
       final scheduleId = record.scheduleId;
       if (scheduleId != null && ackedSet.contains(scheduleId)) {
         try {
-          await _scheduleRepo.scheduleAcknowledgement([record.id!]);
+          await _scheduleRepo.scheduleAcknowledgement([record.id!],
+              slotMap: {record.id!: scheduleId});
         } catch (_) {
           // silent — device already accepted; the next list refresh will
           // reflect the backend status either way.

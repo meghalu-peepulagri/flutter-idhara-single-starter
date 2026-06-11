@@ -51,6 +51,9 @@ class _SchedulePageState extends State<SchedulePage> {
   // entries the multi-create form allows. Default 0 means "no existing
   // schedules", giving the form the full 4-slot allowance.
   int _existingScheduleCount = 0;
+  // Date selected on the motor schedule tab — the create form seeds its
+  // start/end date from this instead of always defaulting to today.
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -63,6 +66,7 @@ class _SchedulePageState extends State<SchedulePage> {
       _isEditMode = _editRecord != null;
       _existingScheduleCount =
           (args['existingScheduleCount'] as int?) ?? 0;
+      _selectedDate = args['selectedDate'] as DateTime?;
     }
     // ACK listeners are wired for BOTH create and edit modes — the create
     // confirm dialog now stays open during the 23s ACK window, so it needs
@@ -379,7 +383,8 @@ class _SchedulePageState extends State<SchedulePage> {
     // Without an ACK the row stays 'pending' on the backend.
     if (ackOk && newObjectId != null) {
       try {
-        await _scheduleRepo.scheduleAcknowledgement([newObjectId]);
+        await _scheduleRepo.scheduleAcknowledgement([newObjectId],
+            slotMap: {newObjectId: scheduleId});
       } catch (_) {
         // silently fail
       }
@@ -644,22 +649,41 @@ class _SchedulePageState extends State<SchedulePage> {
     }
 
     final ackIds = <int>{};
+    // slot_map sent with the ack: backend object id → device_schedule_id.
+    final slotMap = <int, int>{};
     if (response.data?.id != null) {
       SharedPreference.setscheduleid(response.data!.id!);
       ackIds.add(response.data!.id!);
+      if (response.data!.scheduleId != null) {
+        slotMap[response.data!.id!] = response.data!.scheduleId!;
+      }
     }
 
-    // POST response only carries a single Data, so refresh and collect
-    // every backend object id whose scheduleId is in our set.
+    // Exact (scheduleStartDate, device_schedule_id) pairs we just POSTed.
+    // Matching on BOTH avoids picking up unrelated rows from other dates
+    // that merely reuse the same slot id (the bug where one create acked
+    // several old schedules sharing scheduleId 1).
+    final createdRows = <String>{};
+    var rowIdx = 0;
+    for (final d in filteredDates) {
+      final dc = _dateToYYMMDD(d);
+      for (int i = 0; i < forms.length; i++) {
+        createdRows.add('$dc:${scheduleIds[rowIdx++]}');
+      }
+    }
+
+    // POST response only carries a single Data, so refresh and collect the
+    // backend object ids for exactly the rows we created.
     if (Get.isRegistered<MotorScheduleController>()) {
       final ctrl = Get.find<MotorScheduleController>();
       try {
         await ctrl.fetchSchedules(silent: true);
         for (final r in ctrl.schedules) {
-          if (r.scheduleId != null &&
-              scheduleIds.contains(r.scheduleId) &&
-              r.id != null) {
+          if (r.id != null &&
+              r.scheduleId != null &&
+              createdRows.contains('${r.scheduleStartDate}:${r.scheduleId}')) {
             ackIds.add(r.id!);
+            slotMap[r.id!] = r.scheduleId!;
           }
         }
       } catch (_) {
@@ -756,7 +780,8 @@ class _SchedulePageState extends State<SchedulePage> {
     // Step 3: Acknowledgement API — only when the device actually ACKed.
     if (ackOk && ackIds.isNotEmpty) {
       try {
-        await _scheduleRepo.scheduleAcknowledgement(ackIds.toList());
+        await _scheduleRepo.scheduleAcknowledgement(ackIds.toList(),
+            slotMap: slotMap);
       } catch (_) {
         // silently fail — schedules are already on backend
       }
@@ -953,6 +978,7 @@ class _SchedulePageState extends State<SchedulePage> {
                             onSave: _onMultiSaveTapped,
                             onBack: () => Get.back(),
                             existingScheduleCount: _existingScheduleCount,
+                            initialDate: _selectedDate,
                           ),
                   ),
                 ),
