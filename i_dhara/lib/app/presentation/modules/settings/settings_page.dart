@@ -364,7 +364,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
       if (vmax) {
         try {
-          if (dvcMap['hvf'] > controller.payload['dvc_c']['hvf']) {
+          if (dvcMap['hvf'] > controller.payload['dvc_c']['hvf'] ||
+              dvcMap['hvf'] < controller.payload['dvc_c']['hvf']) {
             updatedpayload["dvc_c"]['hvr'] = dvcMap['hvf'] - 10;
             controller.hvr.value = dvcMap['hvf'] - 10;
           }
