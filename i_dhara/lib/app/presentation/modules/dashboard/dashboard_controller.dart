@@ -386,11 +386,14 @@ class DashboardController extends GetxController with ConnectivityMixin {
     if (!mqttInitialized || !mqttService.isConnected) return;
     for (final motor in allMotors) {
       if (motor.starter == null) continue;
-      final mac = motor.starter!.macAddress;
-      final pcb = motor.starter!.pcbNumber;
-      final identifier =
-          (mac != null && mac.isNotEmpty) ? mac : pcb;
-      if (identifier == null || identifier.isEmpty) continue;
+      final deviceAlloc = motor.starter!.deviceAllocation ?? 'false';
+      final pcb = motor.starter!.pcbNumber?.trim() ?? '';
+      final mac = motor.starter!.macAddress?.trim() ?? '';
+      // device_allocation decides the topic identifier: prefer PCB, and
+      // fall back to MAC only when there is no PCB.
+      var identifier = getMotorIdentifier(deviceAlloc, pcb, mac);
+      if (identifier.isEmpty) identifier = pcb.isNotEmpty ? pcb : mac;
+      if (identifier.isEmpty) continue;
       final motorId = '$identifier-${_getGroupIdForMotor(motor)}';
       try {
         await mqttService.publishTestRunCommand(
