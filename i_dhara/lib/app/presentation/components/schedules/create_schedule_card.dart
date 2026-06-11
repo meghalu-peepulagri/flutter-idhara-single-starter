@@ -46,6 +46,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   late DateTime endDate;
   late Set<int> selectedDays;
 
+  bool _multiDay = false;
+  final ValueNotifier<bool> _singleDayController = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> _multiDayController = ValueNotifier<bool>(false);
+
   static const _months = [
     'Jan',
     'Feb',
@@ -163,7 +167,18 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _singleDayController.dispose();
+    _multiDayController.dispose();
     super.dispose();
+  }
+
+  void _setMultiDay(bool multi) {
+    if (_multiDay == multi) return;
+    setState(() {
+      _multiDay = multi;
+      _singleDayController.value = !multi;
+      _multiDayController.value = multi;
+    });
   }
 
   @override
@@ -538,123 +553,147 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
           ),
 
           const SizedBox(height: 10),
-          // "Select Days" label sits between the date row and the weekday
-          // chips. Pairs with the right-side "N days active" pill so the
-          // user sees both the instruction and the live count.
-          Row(
-            children: [
-              Text(
-                'Select Days',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF004E7E),
-                ),
-              ),
-              const Spacer(),
-              if (selectedDays.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(12),
+          _buildModeToggles(),
+          if (_multiDay) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text(
+                  'Select Days',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF004E7E),
                   ),
-                  child: Text(
-                    '$_activeDays ${_activeDays == 1 ? 'day' : 'days'} active',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF004E7E),
+                ),
+                const Spacer(),
+                if (selectedDays.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$_activeDays ${_activeDays == 1 ? 'day' : 'days'} active',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF004E7E),
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(top: 6, right: 4),
-            child: Builder(builder: (_) {
-              final counts = _dayCounts;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (i) {
-                  final valid = _validDays.contains(i);
-                  final isActive = selectedDays.contains(i);
-                  final count = counts[i] ?? 0;
-                  return GestureDetector(
-                    onTap: valid ? () => _toggleDay(i) : null,
-                    child: Opacity(
-                      opacity: valid ? 1.0 : 0.35,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? const Color(0xFFEBF3FE)
-                                  : Colors.transparent,
-                              border: Border.all(
+              ],
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 6, right: 4),
+              child: Builder(builder: (_) {
+                final counts = _dayCounts;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(7, (i) {
+                    final valid = _validDays.contains(i);
+                    final isActive = selectedDays.contains(i);
+                    final count = counts[i] ?? 0;
+                    return GestureDetector(
+                      onTap: valid ? () => _toggleDay(i) : null,
+                      child: Opacity(
+                        opacity: valid ? 1.0 : 0.35,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 26,
+                              decoration: BoxDecoration(
                                 color: isActive
-                                    ? const Color(0xFF3686AF)
-                                    : const Color(0xFFCBD5E1),
-                                width: 1.2,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Center(
-                              child: Text(
-                                dayLabels[i],
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 10,
-                                  fontWeight: isActive
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
+                                    ? const Color(0xFFEBF3FE)
+                                    : Colors.transparent,
+                                border: Border.all(
                                   color: isActive
-                                      ? const Color(0xFF004E7E)
-                                      : const Color(0xFF64748B),
+                                      ? const Color(0xFF3686AF)
+                                      : const Color(0xFFCBD5E1),
+                                  width: 1.2,
                                 ),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                            ),
-                          ),
-                          if (isActive && count > 1)
-                            Positioned(
-                              top: -7,
-                              right: -6,
-                              child: Container(
-                                constraints: const BoxConstraints(minWidth: 14),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 3, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF004E7E),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border:
-                                      Border.all(color: Colors.white, width: 1),
-                                ),
+                              child: Center(
                                 child: Text(
-                                  '$count',
-                                  textAlign: TextAlign.center,
+                                  dayLabels[i],
                                   style: GoogleFonts.dmSans(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    height: 1.0,
+                                    fontSize: 10,
+                                    fontWeight: isActive
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isActive
+                                        ? const Color(0xFF004E7E)
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                               ),
                             ),
-                        ],
+                            if (isActive && count > 1)
+                              Positioned(
+                                top: -7,
+                                right: -6,
+                                child: Container(
+                                  constraints:
+                                      const BoxConstraints(minWidth: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 3, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF004E7E),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.white, width: 1),
+                                  ),
+                                  child: Text(
+                                    '$count',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              );
-            }),
-          ),
+                    );
+                  }),
+                );
+              }),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildModeToggles() {
+    return Column(
+      children: [
+        buildScheduleToggle(
+          icon: Icons.event_rounded,
+          title: 'Single Day Schedule',
+          subtitle: 'Run on the selected date only',
+          controller: _singleDayController,
+          onChanged: (v) => _setMultiDay(!v),
+        ),
+        const SizedBox(height: 8),
+        buildScheduleToggle(
+          icon: Icons.date_range_rounded,
+          title: 'Multi Day Schedule',
+          subtitle: 'Run across selected weekdays',
+          controller: _multiDayController,
+          onChanged: (v) => _setMultiDay(v),
+        ),
+      ],
     );
   }
 
@@ -723,6 +762,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                     onBack: () {},
                     showBottomBar: false,
                     showDateCard: false,
+                    isMultiDay: _multiDay,
                     initialStartDate: startDate,
                     initialEndDate: endDate,
                     onChanged: () {
@@ -852,6 +892,7 @@ class ScheduleForm extends StatefulWidget {
   final bool isEditMode;
   final bool showBottomBar;
   final bool showDateCard;
+  final bool isMultiDay;
 
   final VoidCallback? onChanged;
 
@@ -875,6 +916,7 @@ class ScheduleForm extends StatefulWidget {
     this.isEditMode = false,
     this.showBottomBar = true,
     this.showDateCard = true,
+    this.isMultiDay = false,
     this.onChanged,
     this.initialStartHour,
     this.initialStartMinute,
@@ -933,25 +975,34 @@ class ScheduleFormState extends State<ScheduleForm> {
         startDate.day == now.day;
   }
 
-  /// Default start/end time pair seeded from the **start** date:
-  ///   • start = today → `(now, now + 5m)` (first run happens today, so
-  ///     current wall clock is the useful default).
-  ///   • start = future → `(00:00, 00:05)` (the first run is on a future
-  ///     date — `now` isn't relevant; midnight is the standard default).
+  bool get _isSingleDay =>
+      startDate.year == endDate.year &&
+      startDate.month == endDate.month &&
+      startDate.day == endDate.day;
+
   ({int sh, int sm, int eh, int em}) _defaultsForDate(DateTime startD) {
     final now = DateTime.now();
-    final startIsToday = startD.year == now.year &&
-        startD.month == now.month &&
-        startD.day == now.day;
-    if (!startIsToday) return (sh: 0, sm: 0, eh: 0, em: 5);
-    final startTotal = now.hour * 60 + now.minute;
-    final endTotal = startTotal + 5;
-    return (
-      sh: now.hour,
-      sm: now.minute,
-      eh: (endTotal ~/ 60) % 24,
-      em: endTotal % 60,
-    );
+    bool isToday(DateTime d) =>
+        d.year == now.year && d.month == now.month && d.day == now.day;
+    final startIsToday = isToday(startD);
+    final endIsToday = isToday(endDate);
+
+    final sh = startIsToday ? now.hour : 0;
+    final sm = startIsToday ? now.minute : 0;
+
+    int eh, em;
+    if (endIsToday) {
+      final endTotal = (startIsToday ? now.hour * 60 + now.minute : 0) + 5;
+      eh = (endTotal ~/ 60) % 24;
+      em = endTotal % 60;
+    } else if (startIsToday) {
+      eh = 0;
+      em = 0;
+    } else {
+      eh = 0;
+      em = 5;
+    }
+    return (sh: sh, sm: sm, eh: eh, em: em);
   }
 
   @override
@@ -1158,14 +1209,9 @@ class ScheduleFormState extends State<ScheduleForm> {
   void _openTimePicker(bool isStart) {
     TimeOfDay? minTime;
     if (isStart && _isStartDateToday) {
-      // Start picker on today's date can't go before the current clock.
       final now = DateTime.now();
       minTime = TimeOfDay(hour: now.hour, minute: now.minute);
-    } else if (!isStart) {
-      // End picker is always clamped to ≥ startTime — each filtered date's
-      // run window is "startTime → endTime ON THAT DATE", so endTime
-      // earlier than startTime would mean a zero or negative duration.
-      // This applies whether the range is a single day or many days.
+    } else if (!isStart && _isSingleDay) {
       minTime = startTime;
     }
     showTimeBottomSheet(
@@ -1410,8 +1456,7 @@ class ScheduleFormState extends State<ScheduleForm> {
           // pair. In edit mode also require at least one actual change
           // from the loaded record — otherwise tapping Save fires a
           // pointless MQTT publish + PATCH for an unchanged schedule.
-          saveEnabled:
-              durationMinutes > 0 && (!widget.isEditMode || _isDirty),
+          saveEnabled: durationMinutes > 0 && (!widget.isEditMode || _isDirty),
         ),
       ],
     );
@@ -1565,8 +1610,8 @@ class ScheduleFormState extends State<ScheduleForm> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEBF3FE),
                     border: Border.all(
@@ -1637,8 +1682,8 @@ class ScheduleFormState extends State<ScheduleForm> {
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEBF3FE),
                       borderRadius: BorderRadius.circular(12),
@@ -1808,19 +1853,35 @@ class ScheduleFormState extends State<ScheduleForm> {
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.timer_outlined,
-                    size: 14, color: Color(0xFF004E7E)),
-                const SizedBox(width: 6),
-                Text('Duration: $durationText',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF475569))),
-              ],
-            ),
+            child: widget.isMultiDay
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.nightlight_round,
+                          size: 14, color: Color(0xFF004E7E)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Overnight  •  $durationText',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF475569)),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.timer_outlined,
+                          size: 14, color: Color(0xFF004E7E)),
+                      const SizedBox(width: 6),
+                      Text('Duration: $durationText',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF475569))),
+                    ],
+                  ),
           ),
         ],
       ),

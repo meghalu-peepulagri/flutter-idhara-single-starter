@@ -56,6 +56,7 @@ class CreateScheduleDto {
       'repeat': repeat,
       'enabled': enabled,
       'schedule_id': scheduleId,
+      'device_schedule_id': scheduleId,
     };
   }
 }
