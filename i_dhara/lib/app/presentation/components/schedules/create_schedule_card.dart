@@ -44,6 +44,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       .toList();
 
   int get scheduleCount => _schedules.length;
+  bool get isMultiDay => _multiDay;
   late DateTime startDate;
   late DateTime endDate;
   late Set<int> selectedDays;
@@ -180,6 +181,11 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       _multiDay = multi;
       _singleDayController.value = !multi;
       _multiDayController.value = multi;
+      // Single day allows exactly one schedule — drop any extras that were
+      // added while in multi-day mode.
+      if (!multi && _schedules.length > 1) {
+        _schedules.removeRange(1, _schedules.length);
+      }
     });
   }
 
@@ -218,7 +224,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   void _addSchedule() {
-    if (_schedules.length >= _maxSchedules) return;
+    if (!_multiDay || _schedules.length >= _maxSchedules) return;
     setState(() {
       _schedules.add(_ScheduleEntry(
         id: _nextId++,
@@ -470,7 +476,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   Widget _buildAddScheduleRow() {
-    final canAdd = _schedules.length < _maxSchedules;
+    final canAdd = _multiDay && _schedules.length < _maxSchedules;
     return GestureDetector(
       onTap: canAdd ? _addSchedule : null,
       child: Opacity(
@@ -480,7 +486,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
           child: Row(
             children: [
               Text(
-                canAdd
+                canAdd || !_multiDay
                     ? 'Add Schedule'
                     : 'Maximum $_absoluteMaxSchedules schedules per date reached',
                 style: GoogleFonts.dmSans(
@@ -691,7 +697,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       children: [
         buildScheduleToggle(
           icon: Icons.event_rounded,
-          title: 'Single Day Schedule',
+          title: 'Single Schedule',
           subtitle: 'Run on the selected date only',
           controller: _singleDayController,
           onChanged: (v) => _setMultiDay(!v),
@@ -699,7 +705,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         const SizedBox(height: 8),
         buildScheduleToggle(
           icon: Icons.date_range_rounded,
-          title: 'Multi Day Schedule',
+          title: 'Multi Schedule',
           subtitle: 'Run across selected weekdays',
           controller: _multiDayController,
           onChanged: (v) => _setMultiDay(v),
@@ -1882,8 +1888,27 @@ class ScheduleFormState extends State<ScheduleForm> {
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: widget.isMultiDay
+            // Overnight only for a Single Schedule spanning a multi-day date
+            // range. A single date (start == end) or Multi Schedule shows the
+            // normal duration.
+            child: (!widget.isMultiDay &&
+                    (startDate.year != endDate.year ||
+                        startDate.month != endDate.month ||
+                        startDate.day != endDate.day))
                 ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.nightlight_round,
+                          size: 14, color: Color(0xFF004E7E)),
+                      const SizedBox(width: 6),
+                      Text('Overnight  •  $multiDaySpanText',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF475569))),
+                    ],
+                  )
+                : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.timer_outlined,
@@ -1896,19 +1921,6 @@ class ScheduleFormState extends State<ScheduleForm> {
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF475569)),
                       ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.nightlight_round,
-                          size: 14, color: Color(0xFF004E7E)),
-                      const SizedBox(width: 6),
-                      Text('Overnight  •  $multiDaySpanText',
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF475569))),
                     ],
                   ),
           ),
