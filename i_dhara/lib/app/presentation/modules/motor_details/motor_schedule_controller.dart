@@ -81,6 +81,12 @@ class MotorScheduleController extends GetxController {
   // the bottom result snackbar. Cleared after the toast fires.
   List<int> _expectedScheduleIds = [];
 
+  // Maps the MQTT id we published (device slot, 1..15) → the unique
+  // schedule_id of that row. The device ACKs the device slot, so we translate
+  // it back to schedule_id before matching records (slots get reused, but
+  // schedule_id is unique). Set on every publish / republish round.
+  final Map<int, int> _slotToScheduleId = {};
+
   // Called after a non-republish schedule-create ACK refresh completes.
   // ScheduleManagePageState sets this to refresh its own list without waiting.
   VoidCallback? onScheduleAckRefreshed;
@@ -736,111 +742,39 @@ class MotorScheduleController extends GetxController {
   /// its existing slots instead of overwriting them.
   Future<bool> republishSchedules(List<Record> records, {int idx = 2}) async {
     if (records.isEmpty) return false;
-    final id = _resolveIdentifier();
-    if (id.isEmpty) {
-      geterrorSnackBar('Device identifier not found');
-      return false;
-    }
-    // Reset acked tracking before publishing so a value from a prior
-    // republish round can't be mistaken for this round's result.
+    // MQTT republish removed. The records already exist on the backend and the
+    // device sync is handled server-side, so nothing is published from here.
     _lastAckedScheduleIds = [];
-    try {
-      final items = records.map((r) {
-        final sid = r.scheduleId ?? 0;
-        final startHHMM = _timeStrToHHMM(r.startTime);
-        final endHHMM = _timeStrToHHMM(r.endTime);
-        final sd = r.scheduleStartDate ?? 0;
-        final ed = r.scheduleEndDate ?? sd;
-        final isCyclic = r.scheduleType == ScheduleType.CYCLIC;
-        return <String, dynamic>{
-          'id': sid,
-          'sd': sd,
-          'ed': ed,
-          'st': startHHMM,
-          'et': endHHMM,
-          'st_ep': _yymmddHhmmToEpoch(sd, startHHMM),
-          'ed_ep': _yymmddHhmmToEpoch(ed, endHHMM),
-          'en': 1,
-          if (isCyclic) ...{
-            'cy': 1,
-            'on': (r.cycleOnMinutes as num?)?.toInt() ?? 20,
-            'off': (r.cycleOffMinutes as num?)?.toInt() ?? 15,
-            'pwr_rec': 0,
-          } else ...{
-            'pwr_rec': (r.powerLossRecovery == true) ? 1 : 0,
-          },
-        };
-      }).toList()
-        ..sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
-
-      // Chunk the items into MQTT messages of up to 8 m1 entries each.
-      // The MQTT service then publishes them back-to-back as one logical
-      // batch with per-message `D.last`:
-      //   • last = 0  → more payloads coming after this one
-      //   • last = 1  → this is the only / final payload in the sequence
-      // E.g. 12 records → 2 messages: 8 entries (last=0) + 4 entries
-      // (last=1). 4 records → 1 message (last=1).
-      const entriesPerMessage = 8;
-      final dateMessages = <List<Map<String, dynamic>>>[];
-      for (int i = 0; i < items.length; i += entriesPerMessage) {
-        final end = (i + entriesPerMessage < items.length)
-            ? i + entriesPerMessage
-            : items.length;
-        dateMessages.add(items.sublist(i, end));
-      }
-
-      _republishCompleter = Completer<bool>();
-      // Expected ids drive the post-ACK result toast rendered by
-      // `_showScheduleResultAfterDelay` inside `_listenScheduleAck`.
-      _expectedScheduleIds =
-          items.map((m) => (m['id'] as int?) ?? 0).where((s) => s > 0).toList();
-
-      // publishSchedulesBatched fires all messages back-to-back at t=0,
-      // then runs the shared 10s/10s/3s retry loop. It returns true on
-      // first successful ACK, false on timeout. _listenScheduleAck
-      // still fires in parallel — it owns the "Schedules acknowledged
-      // by device" success snackbar and the partial-result toast via
-      // _republishCompleter, so we must NOT null the completer here.
-      // Doing so was the bug that swallowed the success snackbar: the
-      // listener awaits fetchacknowledgement + fetchSchedules before
-      // checking the completer, by which time this function had
-      // already nulled it. Likewise, the timeout-stream listener
-      // (_listenScheduleAckTimeout) owns the "No response from
-      // device" error snackbar and resolves the completer with false;
-      // firing an inline error snackbar here duplicates that toast.
-      final ok = await _mqttService.publishSchedulesBatched(
-        identifier: id,
-        dateMessages: dateMessages,
-        idx: idx,
-      );
-
-      return ok;
-    } catch (e) {
-      // Synchronous / non-timeout failure path — neither listener has
-      // run, so clean up the completer ourselves and surface the
-      // exception. The standard "No response from device" message is
-      // reserved for the timeout listener.
-      if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
-        _republishCompleter!.complete(false);
-      }
-      _republishCompleter = null;
-      geterrorSnackBar('Failed to republish: $e');
-      return false;
-    }
+    return true;
   }
 
-  /// Called by the multi-schedule create flow (schedule_page) right before it
-  /// publishes the T:3 payload. Stores the expected scheduleIds so the
-  /// controller can compute partial / full success when the ACK or timeout
-  /// arrives. Single-create deliberately does NOT call this, so single-create
-  /// never surfaces a result toast.
-  void trackPendingSchedulePublish({
-    required List<Map<String, dynamic>> items,
-    required String identifier,
-    int idx = 2,
-  }) {
-    _expectedScheduleIds =
-        items.map((m) => (m['id'] as int?) ?? 0).where((s) => s > 0).toList();
+  /// Resync via the backend `/motor-schedules/bulk/republish` API — the same
+  /// endpoint the manage page's bulk resync uses. Sends the records' object
+  /// ids; the backend publishes to the device. Returns true once the POST
+  /// completes so the card's confirm dialog closes.
+  Future<bool> republishSchedulesViaApi(List<Record> records) async {
+    final ids = records
+        .map((r) => r.id)
+        .whereType<int>()
+        .where((id) => id > 0)
+        .toList();
+    if (ids.isEmpty) return false;
+    final result = await _scheduleRepo.bulkRepublishSchedules(ids);
+
+    // Device offline (ids landed in `failed`, nothing republished) → show the
+    // backend message in an error snackbar.
+    if (result != null && result.hasFailed && !result.hasRepublished) {
+      geterrorSnackBar(
+        (result.message != null && result.message!.isNotEmpty)
+            ? result.message!
+            : 'Device is offline. Schedules will be delivered on the next heartbeat.',
+      );
+    }
+
+    try {
+      await fetchSchedules(silent: true);
+    } catch (_) {}
+    return true;
   }
 
   /// Compares the in-flight expected scheduleIds against the device's acked
@@ -870,28 +804,6 @@ class MotorScheduleController extends GetxController {
     });
   }
 
-  static int _timeStrToHHMM(String? time) {
-    if (time == null || time.isEmpty) return 0;
-    if (time.contains(':')) {
-      final parts = time.split(':');
-      if (parts.length < 2) return 0;
-      final h = int.tryParse(parts[0]) ?? 0;
-      final m =
-          int.tryParse(parts[1].substring(0, parts[1].length.clamp(0, 2))) ?? 0;
-      return h * 100 + m;
-    }
-    return int.tryParse(time) ?? 0;
-  }
-
-  static int _yymmddHhmmToEpoch(int yymmdd, int hhmm) {
-    if (yymmdd == 0) return 0;
-    final yy = yymmdd ~/ 10000;
-    final mm = (yymmdd % 10000) ~/ 100;
-    final dd = yymmdd % 100;
-    final h = hhmm ~/ 100;
-    final m = hhmm % 100;
-    return DateTime(2000 + yy, mm, dd, h, m).millisecondsSinceEpoch ~/ 1000;
-  }
 
   String _resolveIdentifier() {
     final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
@@ -992,10 +904,21 @@ class MotorScheduleController extends GetxController {
         return;
       }
 
-      final ackedScheduleIds =
+      // The device ACKs the MQTT id it received (the device slot, 1..15 —
+      // reused across creates). Translate each slot back to the UNIQUE
+      // schedule_id of the row we published with it, so we match the right
+      // record (never an old one that happens to share a low schedule_id).
+      final ackedDeviceSlots =
           (ack['schedule_ids'] as List?)?.whereType<int>().toList() ?? <int>[];
+      final ackedScheduleIds = _slotToScheduleId.isEmpty
+          ? ackedDeviceSlots
+          : ackedDeviceSlots
+              .map((slot) => _slotToScheduleId[slot])
+              .whereType<int>()
+              .toList();
 
-      debugPrint('ACK scheduleIds: $ackedScheduleIds');
+      debugPrint(
+          'ACK device slots: $ackedDeviceSlots -> scheduleIds: $ackedScheduleIds');
 
       // Cache the exact set the device confirmed so the manage controller
       // can patch only those records (not the full payload it sent).
@@ -1056,31 +979,12 @@ class MotorScheduleController extends GetxController {
         return;
       }
 
-      // ── Create-flow path (motor tab schedule_page) ────────────────────
-      // The freshly-created record is in motor's local list because
-      // create sets selectedDate to the new schedule's date before
-      // publish, so filtering by scheduleId here is safe — there's
-      // only one record per date+slot in the local list.
-      final objectIds = <int>[];
-      final slotMap = <int, int>{};
-      for (final r in schedules) {
-        if (r.scheduleId != null &&
-            ackedScheduleIds.contains(r.scheduleId) &&
-            r.id != null) {
-          objectIds.add(r.id!);
-          slotMap[r.id!] = r.scheduleId!;
-        }
-      }
-
-      if (objectIds.isEmpty) {
-        debugPrint(
-            '⚠️ No matching object IDs for ackedScheduleIds: $ackedScheduleIds');
-        return;
-      }
-
-      try {
-        await fetchacknowledgement(objectIds, slotMap: slotMap);
-      } catch (_) {}
+      // ── Create / republish ACK path ──────────────────────────────────
+      // No backend acknowledgement PATCH (/bulk/ack) from the app — create
+      // and republish (resync) no longer forward the device ACK to the
+      // backend. We just refresh the list silently so any status the
+      // backend updated server-side is picked up. (Delete / stop / restart
+      // use the separate T:24 action-ack listener and are unaffected.)
       // silent: true → no isLoading flip → list stays put, no lottie reload.
       try {
         await fetchSchedules(silent: true);

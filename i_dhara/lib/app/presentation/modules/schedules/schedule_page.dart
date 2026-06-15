@@ -151,17 +151,6 @@ class _SchedulePageState extends State<SchedulePage> {
   int _computeBitwiseDays(List<int> daysOfWeek) =>
       daysOfWeek.fold(0, (acc, d) => acc | (_bitwiseMap[d] ?? 0));
 
-  int _mqttIdx() {
-    if (!Get.isRegistered<MotorScheduleController>()) return 1;
-    final existing = Get.find<MotorScheduleController>().schedules;
-    final hasDeviceAccepted = existing.any((r) {
-      final s = (r.scheduleStatus ?? '').toLowerCase();
-      if (s.isEmpty) return false;
-      return s != 'pending' && s != 'failed';
-    });
-    return hasDeviceAccepted ? 2 : 1;
-  }
-
   Future<List<int>> _computeScheduleIds(int count) async {
     const reusableStatuses = <String>{};
 
@@ -212,6 +201,48 @@ class _SchedulePageState extends State<SchedulePage> {
     return result;
   }
 
+  /// Device slot ids for the MQTT `id`: the lowest FREE slots in 1..15 only.
+  /// Every existing schedule holds its slot regardless of status — only a
+  /// deleted schedule (gone from the list) frees its slot for reuse. Never
+  /// goes past 15.
+  Future<List<int>> _computeDeviceScheduleIds(int count) async {
+    const maxSlots = 15;
+    final occupied = <int>{};
+    void absorb(Iterable<Record> records) {
+      for (final s in records) {
+        final sid = s.deviceScheduleId;
+        if (sid == null || sid < 1 || sid > maxSlots) continue;
+        occupied.add(sid);
+      }
+    }
+
+    // Read occupancy from BOTH the backend list and the controller's loaded
+    // list — if one is paginated / stale / for another motor, the other still
+    // covers the live slots so we never re-hand-out an occupied id.
+    try {
+      final response = await _scheduleRepo.getScheduleList(1, 1000);
+      absorb(response?.data?.records ?? <Record>[]);
+    } catch (_) {}
+    if (Get.isRegistered<MotorScheduleController>()) {
+      absorb(Get.find<MotorScheduleController>().schedules);
+    }
+
+    final result = <int>[];
+    for (int slot = 1; slot <= maxSlots && result.length < count; slot++) {
+      if (!occupied.contains(slot)) {
+        result.add(slot);
+        occupied.add(slot);
+      }
+    }
+    // Device full (every 1..15 slot live) — fill the rest with the lowest
+    // slots NOT already in this payload, so ids stay unique and within 1..15
+    // (never duplicated, never past 15).
+    for (int slot = 1; slot <= maxSlots && result.length < count; slot++) {
+      if (!result.contains(slot)) result.add(slot);
+    }
+    return result;
+  }
+
   CreateScheduleDto _buildDto(ScheduleFormState form,
       {required int scheduleId}) {
     final isCyclic = form.cyclicMode;
@@ -244,60 +275,16 @@ class _SchedulePageState extends State<SchedulePage> {
     if (response == null) {
       return _scheduleController.message ?? '';
     }
-    final newObjectId = response.data?.id;
-    SharedPreference.setscheduleid(newObjectId ?? 0);
+    SharedPreference.setscheduleid(response.data?.id ?? 0);
     _scheduleSaved = true;
 
-    final id = _resolveIdentifier();
-    final today = DateTime.now();
-    final todayNorm = DateTime(today.year, today.month, today.day);
-    final startNorm =
-        DateTime(form.startDate.year, form.startDate.month, form.startDate.day);
-    final daysDiff = startNorm.difference(todayNorm).inDays;
-    final shouldPublishMqtt = id.isNotEmpty && daysDiff <= 2;
-
-    var ackOk = !shouldPublishMqtt;
-    if (shouldPublishMqtt) {
-      _expectedAckScheduleIds = <int>{scheduleId};
-      _ackCompleter = Completer<bool>();
-
-      final isCyclic = form.cyclicMode;
+    if (Get.isRegistered<MotorScheduleController>()) {
       try {
-        await _mqttService.publishScheduleCommand(
-          identifier: id,
-          scheduleId: scheduleId,
-          startTimeHHMM: form.startHour * 100 + form.startMinute,
-          endTimeHHMM: form.endHour * 100 + form.endMinute,
-          startDateYYMMDD: _dateToYYMMDD(form.startDate),
-          endDateYYMMDD: _dateToYYMMDD(form.endDate),
-          isCyclic: isCyclic,
-          cyclicOnMinutes: isCyclic ? form.cyclicOnMinutes : null,
-          cyclicOffMinutes: isCyclic ? form.cyclicOffMinutes : null,
-          powerRecovery: (isCyclic ? false : form.powerLossRecovery) ? 1 : 0,
-          enabled: 1,
-          idx: _mqttIdx(),
-        );
-        ackOk = await _ackCompleter!.future.timeout(
-          const Duration(seconds: 23),
-          onTimeout: () => false,
-        );
-      } catch (_) {
-        ackOk = false;
-      }
-      _ackCompleter = null;
-      _expectedAckScheduleIds = <int>{};
-    }
-
-    if (ackOk && newObjectId != null) {
-      try {
-        await _scheduleRepo.scheduleAcknowledgement([newObjectId],
-            slotMap: {newObjectId: scheduleId});
+        await Get.find<MotorScheduleController>().fetchSchedules(silent: true);
       } catch (_) {}
     }
 
-    if (ackOk) {
-      getsuccessSnackBar('Schedule created successfully');
-    }
+    getsuccessSnackBar('Schedule created successfully');
     return null;
   }
 
@@ -353,59 +340,6 @@ class _SchedulePageState extends State<SchedulePage> {
     return null;
   }
 
-  Map<String, dynamic> _buildMqttScheduleItem({
-    required int scheduleId,
-    required DateTime date,
-    required ScheduleFormState form,
-    required int enabled,
-    DateTime? endDate,
-  }) {
-    final isCyclic = form.cyclicMode;
-    final endD = endDate ?? date;
-
-    final start = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      form.startHour,
-      form.startMinute,
-    );
-    var end = DateTime(
-      endD.year,
-      endD.month,
-      endD.day,
-      form.endHour,
-      form.endMinute,
-    );
-    if (!end.isAfter(start)) {
-      end = end.add(const Duration(days: 1));
-    }
-
-    final stEpoch = start.millisecondsSinceEpoch ~/ 1000;
-    final edEpoch = end.millisecondsSinceEpoch ~/ 1000;
-    final dateCode = _dateToYYMMDD(date);
-    final endDateCode = _dateToYYMMDD(endD);
-
-    return {
-      'id': scheduleId,
-      'sd': dateCode,
-      'ed': endDateCode,
-      'st': form.startHour * 100 + form.startMinute,
-      'et': form.endHour * 100 + form.endMinute,
-      'st_ep': stEpoch,
-      'ed_ep': edEpoch,
-      'en': enabled,
-      if (isCyclic) ...{
-        'cy': 1,
-        'on': form.cyclicOnMinutes,
-        'off': form.cyclicOffMinutes,
-        'pwr_rec': 0,
-      } else ...{
-        'pwr_rec': form.powerLossRecovery ? 1 : 0,
-      },
-    };
-  }
-
   List<DateTime> _filteredDates(DateTime start, DateTime end, Set<int> days) {
     final out = <DateTime>[];
     final s = DateTime(start.year, start.month, start.day);
@@ -424,6 +358,7 @@ class _SchedulePageState extends State<SchedulePage> {
     required DateTime date,
     required Set<int> selectedDays,
     required int scheduleId,
+    required int deviceScheduleId,
     DateTime? endDate,
   }) {
     final isCyclic = form.cyclicMode;
@@ -463,6 +398,7 @@ class _SchedulePageState extends State<SchedulePage> {
       repeat: 0,
       enabled: true,
       scheduleId: scheduleId,
+      deviceScheduleId: deviceScheduleId,
     );
   }
 
@@ -496,6 +432,9 @@ class _SchedulePageState extends State<SchedulePage> {
 
     final totalRows = forms.length * filteredDates.length;
     final scheduleIds = await _computeScheduleIds(totalRows);
+    // Device slots — separate 1..15 ids, not the schedule_id. Still sent in
+    // the POST body (device_schedule_id); no MQTT publish here.
+    final deviceScheduleIds = await _computeDeviceScheduleIds(totalRows);
     final dtos = <CreateScheduleDto>[];
     var idIdx = 0;
     for (final d in filteredDates) {
@@ -504,9 +443,11 @@ class _SchedulePageState extends State<SchedulePage> {
           form: forms[i],
           date: d,
           selectedDays: payloadDays,
-          scheduleId: scheduleIds[idIdx++],
+          scheduleId: scheduleIds[idIdx],
+          deviceScheduleId: deviceScheduleIds[idIdx],
           endDate: multi.isMultiDay ? null : sharedEnd,
         ));
+        idIdx++;
       }
     }
 
@@ -515,107 +456,20 @@ class _SchedulePageState extends State<SchedulePage> {
       return _scheduleController.message ?? '';
     }
 
-    final ackIds = <int>{};
-    final slotMap = <int, int>{};
     if (response.data?.id != null) {
       SharedPreference.setscheduleid(response.data!.id!);
-      ackIds.add(response.data!.id!);
-      if (response.data!.scheduleId != null) {
-        slotMap[response.data!.id!] = response.data!.scheduleId!;
-      }
-    }
-
-    final createdRows = <String>{};
-    var rowIdx = 0;
-    for (final d in filteredDates) {
-      final dc = _dateToYYMMDD(d);
-      for (int i = 0; i < forms.length; i++) {
-        createdRows.add('$dc:${scheduleIds[rowIdx++]}');
-      }
-    }
-
-    if (Get.isRegistered<MotorScheduleController>()) {
-      final ctrl = Get.find<MotorScheduleController>();
-      try {
-        await ctrl.fetchSchedules(silent: true);
-        for (final r in ctrl.schedules) {
-          if (r.id != null &&
-              r.scheduleId != null &&
-              createdRows.contains('${r.scheduleStartDate}:${r.scheduleId}')) {
-            ackIds.add(r.id!);
-            slotMap[r.id!] = r.scheduleId!;
-          }
-        }
-      } catch (_) {}
     }
 
     _scheduleSaved = true;
 
-    final id = _resolveIdentifier();
-    final today = DateTime.now();
-    final todayNorm = DateTime(today.year, today.month, today.day);
-
-    final allMqttItems = <Map<String, dynamic>>[];
-    for (int dIdx = 0; dIdx < filteredDates.length; dIdx++) {
-      final d = filteredDates[dIdx];
-      final diffDays = d.difference(todayNorm).inDays;
-      if (diffDays > 2) continue;
-      for (int i = 0; i < forms.length; i++) {
-        allMqttItems.add(_buildMqttScheduleItem(
-          scheduleId: scheduleIds[dIdx * forms.length + i],
-          date: d,
-          form: forms[i],
-          enabled: 1,
-          endDate: multi.isMultiDay ? null : sharedEnd,
-        ));
-      }
-    }
-
-    const entriesPerMessage = 8;
-    final dateMessages = <List<Map<String, dynamic>>>[];
-    for (int i = 0; i < allMqttItems.length; i += entriesPerMessage) {
-      final end = (i + entriesPerMessage < allMqttItems.length)
-          ? i + entriesPerMessage
-          : allMqttItems.length;
-      dateMessages.add(allMqttItems.sublist(i, end));
-    }
-
-    final shouldPublishMqtt = id.isNotEmpty && dateMessages.isNotEmpty;
-    var ackOk = !shouldPublishMqtt;
-    if (shouldPublishMqtt) {
-      if (Get.isRegistered<MotorScheduleController>() &&
-          allMqttItems.isNotEmpty) {
-        Get.find<MotorScheduleController>().trackPendingSchedulePublish(
-          items: allMqttItems,
-          identifier: id,
-          idx: _mqttIdx(),
-        );
-      }
-
-      _expectedAckScheduleIds = scheduleIds.toSet();
-
+    // Refresh the list so the newly-created schedules appear.
+    if (Get.isRegistered<MotorScheduleController>()) {
       try {
-        ackOk = await _mqttService.publishSchedulesBatched(
-          identifier: id,
-          dateMessages: dateMessages,
-          idx: _mqttIdx(),
-        );
-      } catch (_) {
-        ackOk = false;
-      }
-      _expectedAckScheduleIds = <int>{};
-    }
-
-    if (ackOk && ackIds.isNotEmpty) {
-      try {
-        await _scheduleRepo.scheduleAcknowledgement(ackIds.toList(),
-            slotMap: slotMap);
+        await Get.find<MotorScheduleController>().fetchSchedules(silent: true);
       } catch (_) {}
     }
 
-    if (ackOk) {
-      getsuccessSnackBar('Schedules created successfully');
-    }
+    getsuccessSnackBar('Schedules created successfully');
     return null;
   }
 

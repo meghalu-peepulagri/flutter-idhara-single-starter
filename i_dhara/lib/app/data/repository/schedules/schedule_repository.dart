@@ -4,6 +4,7 @@ import 'package:i_dhara/app/data/models/schedules/schedule_acknowledment_model.d
 import 'package:i_dhara/app/data/models/schedules/schedule_delete_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_history_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_republish_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_stop_restart_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_update_model.dart';
 import 'package:i_dhara/app/data/models/schedules/single_schedule_model.dart';
@@ -25,5 +26,6 @@ abstract class ScheduleRepository {
   Future<bool> bulkStopSchedules(List<int> objectIds);
   Future<bool> bulkRestartSchedules(List<int> objectIds);
   Future<bool> bulkDeleteSchedules(List<int> objectIds);
+  Future<ScheduleRepublishResult?> bulkRepublishSchedules(List<int> objectIds);
   Future<SingleScheduleLogsResponse?> getSingleScheduleLogs(int objectId);
 }

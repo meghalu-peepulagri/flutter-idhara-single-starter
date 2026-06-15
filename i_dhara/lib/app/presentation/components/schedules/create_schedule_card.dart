@@ -49,9 +49,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   late DateTime endDate;
   late Set<int> selectedDays;
 
-  bool _multiDay = false;
-  final ValueNotifier<bool> _singleDayController = ValueNotifier<bool>(true);
-  final ValueNotifier<bool> _multiDayController = ValueNotifier<bool>(false);
+  // Always a repeated/weekday schedule now — the Single/Repeated toggle was
+  // removed, so weekdays are always shown and up to _maxSchedules can be added.
+  final bool _multiDay = true;
 
   static const _months = [
     'Jan',
@@ -170,23 +170,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _singleDayController.dispose();
-    _multiDayController.dispose();
     super.dispose();
-  }
-
-  void _setMultiDay(bool multi) {
-    if (_multiDay == multi) return;
-    setState(() {
-      _multiDay = multi;
-      _singleDayController.value = !multi;
-      _multiDayController.value = multi;
-      // Single day allows exactly one schedule — drop any extras that were
-      // added while in multi-day mode.
-      if (!multi && _schedules.length > 1) {
-        _schedules.removeRange(1, _schedules.length);
-      }
-    });
   }
 
   @override
@@ -570,10 +554,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
           ),
 
           const SizedBox(height: 10),
-          _buildModeToggles(),
-          if (_multiDay) ...[
-            const SizedBox(height: 10),
-            Row(
+          Row(
               children: [
                 Text(
                   'Select Days',
@@ -686,31 +667,8 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                 );
               }),
             ),
-          ],
         ],
       ),
-    );
-  }
-
-  Widget _buildModeToggles() {
-    return Column(
-      children: [
-        buildScheduleToggle(
-          icon: Icons.event_rounded,
-          title: 'Single Schedule',
-          subtitle: 'Run on the selected date only',
-          controller: _singleDayController,
-          onChanged: (v) => _setMultiDay(!v),
-        ),
-        const SizedBox(height: 8),
-        buildScheduleToggle(
-          icon: Icons.date_range_rounded,
-          title: 'Multi Schedule',
-          subtitle: 'Run across selected weekdays',
-          controller: _multiDayController,
-          onChanged: (v) => _setMultiDay(v),
-        ),
-      ],
     );
   }
 
@@ -1218,20 +1176,9 @@ class ScheduleFormState extends State<ScheduleForm> {
   void _onTimePicked(TimeOfDay t, bool isStart) {
     setState(() {
       if (isStart) {
+        // Keep exactly what the user picked — don't auto-shift the end time.
         startHour = t.hour;
         startMinute = t.minute;
-        // Per-date schedules run start → end **within a single day**, so
-        // the comparison ignores startDate / endDate and just looks at
-        // HH:MM. If end ≤ new start in single-day terms, bump end to
-        // start + 5m so the window stays positive. If end is already
-        // later than start (e.g. start=10 with end=11:05), leave it.
-        final newStartMin = startHour * 60 + startMinute;
-        final currentEndMin = endHour * 60 + endMinute;
-        if (currentEndMin <= newStartMin) {
-          final endTotal = newStartMin + 5;
-          endHour = (endTotal ~/ 60) % 24;
-          endMinute = endTotal % 60;
-        }
       } else {
         endHour = t.hour;
         endMinute = t.minute;
@@ -1888,13 +1835,12 @@ class ScheduleFormState extends State<ScheduleForm> {
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),
             ),
-            // Overnight only for a Single Schedule spanning a multi-day date
-            // range. A single date (start == end) or Multi Schedule shows the
-            // normal duration.
-            child: (!widget.isMultiDay &&
-                    (startDate.year != endDate.year ||
-                        startDate.month != endDate.month ||
-                        startDate.day != endDate.day))
+            // A multi-day date range shows Overnight; a single date
+            // (start == end) shows the normal duration — for both Single and
+            // Repeated schedules.
+            child: (startDate.year != endDate.year ||
+                    startDate.month != endDate.month ||
+                    startDate.day != endDate.day)
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

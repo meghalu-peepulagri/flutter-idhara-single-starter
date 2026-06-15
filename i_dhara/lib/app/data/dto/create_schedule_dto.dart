@@ -16,6 +16,7 @@ class CreateScheduleDto {
   final int repeat;
   final bool enabled;
   final int scheduleId;
+  final int? deviceScheduleId;
 
   const CreateScheduleDto({
     required this.motorId,
@@ -35,6 +36,7 @@ class CreateScheduleDto {
     required this.repeat,
     required this.enabled,
     required this.scheduleId,
+    this.deviceScheduleId,
   });
 
   Map<String, dynamic> toJson() {
@@ -56,7 +58,7 @@ class CreateScheduleDto {
       'repeat': repeat,
       'enabled': enabled,
       'schedule_id': scheduleId,
-      'device_schedule_id': scheduleId,
+      'device_schedule_id': deviceScheduleId ?? scheduleId,
     };
   }
 }

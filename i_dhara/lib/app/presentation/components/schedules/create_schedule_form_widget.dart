@@ -13,9 +13,9 @@ Widget scheduleSectionLabel(String text) => Text(
 
 //  Generic Toggle Row
 Widget buildScheduleToggle({
-  required IconData icon,
+  IconData? icon,
   required String title,
-  required String subtitle,
+  String? subtitle,
   required ValueNotifier<bool> controller,
   required ValueChanged<bool> onChanged,
   bool enabled = true,
@@ -31,8 +31,10 @@ Widget buildScheduleToggle({
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF6B7280)),
-          const SizedBox(width: 10),
+          if (icon != null) ...[
+            Icon(icon, size: 18, color: const Color(0xFF6B7280)),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,12 +44,14 @@ Widget buildScheduleToggle({
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: const Color(0xFF0F172A))),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF64748B))),
+                if (subtitle != null && subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF64748B))),
+                ],
               ],
             ),
           ),

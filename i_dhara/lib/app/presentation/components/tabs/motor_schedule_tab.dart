@@ -120,6 +120,19 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     return DateTime(2000 + yy, mm, dd);
   }
 
+  /// The device only holds a rolling 3-day window — today, today+1, today+2.
+  /// A PENDING schedule dated beyond that window is "locked": it can't be
+  /// synced until the earlier dates complete and the window rolls forward.
+  /// The card uses this to show the locked note and hide the Resync action.
+  bool _isResyncLocked(record) {
+    final code = record.scheduleStartDate as int?;
+    if (code == null || code <= 0) return false;
+    final now = DateTime.now();
+    final windowEnd = DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: 2));
+    return _yymmddToDate(code).isAfter(windowEnd);
+  }
+
   Color _statusColor(String status) {
     switch (status.toUpperCase()) {
       case 'RUNNING':
@@ -176,20 +189,13 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     super.dispose();
   }
 
-  /// Handler for the per-card Resync action on PENDING rows. Computes
-  /// the device slot index the same way the manage page's bulk
-  /// republish does — `idx=1` when the device has no accepted slots
-  /// (all loaded rows are PENDING/FAILED) and `idx=2` otherwise — then
-  /// hands off to the motor controller's republishSchedules. Returns
-  /// the ACK result so the card's confirm dialog can close itself.
+  /// Handler for the per-card Resync action on PENDING rows. Calls the
+  /// backend `/motor-schedules/bulk/republish` API (the same endpoint the
+  /// manage page's bulk resync uses) with this record's object id; the
+  /// backend publishes to the device. Returns true once the POST completes
+  /// so the card's confirm dialog can close itself.
   Future<bool> _resyncSingleSchedule(record) async {
-    const nonDeviceStatuses = {'PENDING', 'FAILED'};
-    final hasDeviceActiveSchedule = _controller.schedules.any((r) {
-      final s = (r.scheduleStatus ?? '').toUpperCase();
-      return s.isNotEmpty && !nonDeviceStatuses.contains(s);
-    });
-    final idx = hasDeviceActiveSchedule ? 2 : 1;
-    return _controller.republishSchedules([record], idx: idx);
+    return _controller.republishSchedulesViaApi([record]);
   }
 
   /// Briefly surface the "Max 4 reached" label next to the FAB. Each tap
@@ -390,6 +396,11 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                                     schedules[i].id ??
                                     i),
                                 record: schedules[i],
+                                // Beyond the device's rolling 3-day window →
+                                // show the locked note + hide Resync until the
+                                // earlier dates complete.
+                                isResyncLocked:
+                                    _isResyncLocked(schedules[i]),
                                 // Tapping the card body (away from the
                                 // action pills) opens the per-schedule
                                 // logs bottom sheet.

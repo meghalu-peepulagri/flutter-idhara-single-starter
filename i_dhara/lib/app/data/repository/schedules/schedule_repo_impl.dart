@@ -5,6 +5,7 @@ import 'package:i_dhara/app/data/models/schedules/schedule_acknowledment_model.d
 import 'package:i_dhara/app/data/models/schedules/schedule_delete_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_history_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_republish_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_stop_restart_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_update_model.dart';
 import 'package:i_dhara/app/data/models/schedules/single_schedule_model.dart';
@@ -177,6 +178,25 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     return response.statusCode == 200 ||
         response.statusCode == 201 ||
         response.statusCode == 204;
+  }
+
+  @override
+  Future<ScheduleRepublishResult?> bulkRepublishSchedules(
+      List<int> objectIds) async {
+    final body = {
+      'starter_id': SharedPreference.getStarterId(),
+      'ids': objectIds,
+    };
+    final response = await NetworkManager()
+        .post('/motor-schedules/bulk/republish', data: body, {});
+    // The endpoint always replies 200 with the per-item buckets in the body.
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.data is Map<String, dynamic>) {
+        return ScheduleRepublishResult.fromJson(response.data);
+      }
+      return const ScheduleRepublishResult();
+    }
+    return null;
   }
 
   @override

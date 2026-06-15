@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
+import 'package:i_dhara/app/data/models/schedules/schedule_republish_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 
@@ -21,6 +23,11 @@ class ScheduleManageController extends GetxController {
   final totalRecords = 0.obs;
   final selectedFilter = ''.obs;
   final selectedRecordIds = <int>{}.obs;
+
+  // Outcome of the most recent bulk/republish call. The manage page reads
+  // this after the action resolves to surface the backend message (e.g.
+  // "Device is offline …") when the `failed` bucket comes back populated.
+  ScheduleRepublishResult? lastRepublishResult;
 
   late final Rx<DateTime> fromDate;
   late final Rx<DateTime> toDate;
@@ -255,115 +262,49 @@ class ScheduleManageController extends GetxController {
     return success;
   }
 
-  Future<bool> republishSelectedSchedules(
-      MotorScheduleController motorScheduleController) async {
-    final records = selectedRecords;
-    if (records.isEmpty) return false;
+  /// Resyncs the currently-selected schedules by POSTing their object ids
+  /// to `/motor-schedules/bulk/republish`. The backend owns the device
+  /// publish + ACK; the app makes a single API call and closes the dialog.
+  /// The endpoint always returns 200 with per-item buckets (republished /
+  /// skipped / failed); the page shows a single snackbar from the result.
+  Future<bool> republishSelectedSchedules() async {
+    final ids = selectedRecords
+        .map((r) => r.id)
+        .whereType<int>()
+        .where((id) => id > 0)
+        .toList();
+    if (ids.isEmpty) return false;
 
-    // idx=1 means "first publish — device has nothing yet", idx=2 means
-    // "device already holds at least one accepted schedule, append to it".
-    //
-    // Only statuses the device has actually accepted occupy a slot:
-    // SCHEDULED / RUNNING / STOPPED / COMPLETED / PARTIAL / MISSED.
-    // PENDING never reached the device, FAILED was rejected — neither
-    // takes a slot. So if every loaded schedule is PENDING or FAILED,
-    // the device is empty and we must send idx=1 (fresh-create);
-    // otherwise idx=2 (append).
-    const nonDeviceStatuses = {'PENDING', 'FAILED'};
-    final hasDeviceActiveSchedule = schedules.any((r) {
-      final s = (r.scheduleStatus ?? '').toUpperCase();
-      return s.isNotEmpty && !nonDeviceStatuses.contains(s);
-    });
-    final idx = hasDeviceActiveSchedule ? 2 : 1;
-
-    // Blocks until device ACK received (or timeout) — dialog stays open with loading
-    final success =
-        await motorScheduleController.republishSchedules(records, idx: idx);
-
-    // ACK PATCH only the schedules the device actually confirmed via
-    // T:33. The motor controller's listener also patches records whose
-    // scheduleId is in the ACK, but its `schedules` field is scoped to
-    // a single `selectedDate`, so for a multi-date republish only the
-    // records on that one date get patched there — the rest are
-    // patched here. Critically, we filter by `lastAckedScheduleIds`
-    // (not the full `records` set) because a partial ACK is normal —
-    // the device may accept some entries in the payload and reject
-    // others (e.g. payload bitmask 28 = ids [3,4,5] but ACK bitmask
-    // 24 = ids [4,5] means 3 was rejected). Patching the rejected
-    // schedules to SCHEDULED would lie about device state.
-    if (success) {
-      final ackedSet =
-          motorScheduleController.lastAckedScheduleIds.toSet();
-      final ackedObjectIds = <int>[];
-      final slotMap = <int, int>{};
-      for (final r in records) {
-        if (r.scheduleId != null &&
-            ackedSet.contains(r.scheduleId) &&
-            r.id != null) {
-          ackedObjectIds.add(r.id!);
-          slotMap[r.id!] = r.scheduleId!;
-        }
-      }
-      if (ackedObjectIds.isNotEmpty) {
-        try {
-          await _scheduleRepo.scheduleAcknowledgement(ackedObjectIds,
-              slotMap: slotMap);
-        } catch (_) {
-          // silent — device already accepted; the next list refresh
-          // will pick up the backend status either way.
-        }
-      }
-    }
+    final result = await _scheduleRepo.bulkRepublishSchedules(ids);
+    lastRepublishResult = result;
 
     isLoading.value = true;
     await fetchSchedules();
-    return success;
+    return true;
   }
 
   /// Single-record counterpart to [republishSelectedSchedules], invoked
   /// when the user taps the per-card Resync action on a PENDING row.
-  /// Mirrors the same idx-resolution and post-ACK patch path so the
-  /// device picks the correct slot and the row flips out of PENDING on
-  /// the next list refresh.
-  Future<bool> republishSingleSchedule(
-    Record record,
-    MotorScheduleController motorScheduleController,
-  ) async {
-    const nonDeviceStatuses = {'PENDING', 'FAILED'};
-    final hasDeviceActiveSchedule = schedules.any((r) {
-      final s = (r.scheduleStatus ?? '').toUpperCase();
-      return s.isNotEmpty && !nonDeviceStatuses.contains(s);
-    });
-    final idx = hasDeviceActiveSchedule ? 2 : 1;
+  Future<bool> republishSingleSchedule(Record record) async {
+    final id = record.id;
+    if (id == null || id <= 0) return false;
 
-    final success =
-        await motorScheduleController.republishSchedules([record], idx: idx);
+    final result = await _scheduleRepo.bulkRepublishSchedules([id]);
+    lastRepublishResult = result;
 
-    // Patch this record's ACK directly — the motor controller's T:33
-    // listener only patches records whose date matches its current
-    // `selectedDate`, so a resync from a different date on the manage
-    // page would otherwise stay PENDING until the next backend sync.
-    // Only patch when the device actually confirmed THIS scheduleId
-    // (success=true returns on the first ACK of the round, which may
-    // not include this specific schedule).
-    if (success && record.id != null) {
-      final ackedSet =
-          motorScheduleController.lastAckedScheduleIds.toSet();
-      final scheduleId = record.scheduleId;
-      if (scheduleId != null && ackedSet.contains(scheduleId)) {
-        try {
-          await _scheduleRepo.scheduleAcknowledgement([record.id!],
-              slotMap: {record.id!: scheduleId});
-        } catch (_) {
-          // silent — device already accepted; the next list refresh will
-          // reflect the backend status either way.
-        }
-      }
+    // Device offline (id landed in `failed`, nothing republished) → show the
+    // backend message in an error snackbar.
+    if (result != null && result.hasFailed && !result.hasRepublished) {
+      geterrorSnackBar(
+        (result.message != null && result.message!.isNotEmpty)
+            ? result.message!
+            : 'Device is offline. Schedules will be delivered on the next heartbeat.',
+      );
     }
 
     isLoading.value = true;
     await fetchSchedules();
-    return success;
+    return true;
   }
 
   void _syncSelection() {

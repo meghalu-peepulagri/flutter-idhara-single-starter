@@ -47,6 +47,13 @@ class ScheduleCard extends StatelessWidget {
   // future — past stopped rows are read-only (Edit / Delete only).
   // Parent computes this against the record's date.
   final bool isFutureSchedule;
+  // True when this PENDING row sits in a future date window that is still
+  // locked behind earlier, not-yet-completed dates. The device only holds a
+  // rolling 3-day window, so dates beyond it can't be synced until the
+  // earlier ones finish. While locked the card shows an advisory note and
+  // hides the Resync action. Parent computes this against the schedule list
+  // (an earlier date that isn't COMPLETED ⇒ this later date is locked).
+  final bool isResyncLocked;
   const ScheduleCard(
       {super.key,
       required this.record,
@@ -66,7 +73,8 @@ class ScheduleCard extends StatelessWidget {
       this.onCancelAction,
       this.onCancelSync,
       this.dateLabel,
-      this.isFutureSchedule = true});
+      this.isFutureSchedule = true,
+      this.isResyncLocked = false});
 
   @override
   Widget build(BuildContext context) {
@@ -105,9 +113,17 @@ class ScheduleCard extends StatelessWidget {
     // Advisory note shown below the time row for statuses that need to
     // explain why nothing is happening on the device side.
     String? noticeMessage;
+    IconData? noticeIcon = Icons.info_outline;
     Color noticeBg = const Color(0xFFF3F4F6);
     Color noticeFg = const Color(0xFF374151);
-    if (isPending) {
+    if (isPending && isResyncLocked) {
+      // Future window still locked behind earlier dates that haven't
+      // completed yet — the device only holds a rolling 3-day window.
+      noticeMessage = 'Sync the previous dates before this one.';
+      noticeIcon = null;
+      noticeBg = const Color(0xFFF1F5F9); // slate-100
+      noticeFg = const Color(0xFF475569); // slate-600
+    } else if (isPending) {
       noticeMessage = 'Not yet synced to device · tap Resync to send';
       noticeBg = const Color(0xFFFFF7ED);
       noticeFg = const Color(0xFFC2410C);
@@ -302,8 +318,10 @@ class ScheduleCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: noticeFg),
-                  const SizedBox(width: 6),
+                  if (noticeIcon != null) ...[
+                    Icon(noticeIcon, size: 14, color: noticeFg),
+                    const SizedBox(width: 6),
+                  ],
                   Expanded(
                     child: Text(
                       noticeMessage,
@@ -425,7 +443,9 @@ class ScheduleCard extends StatelessWidget {
                           label: 'Resync',
                           bg: const Color(0xFFFFF7ED),
                           fg: const Color(0xFFC2410C),
-                          disabled: disableSyncAction,
+                          // Locked future dates show the pill greyed out and
+                          // non-tappable until the earlier window completes.
+                          disabled: disableSyncAction || isResyncLocked,
                           onTap: () async {
                             await showScheduleActionConfirmDialog(
                               context: context,
@@ -435,6 +455,11 @@ class ScheduleCard extends StatelessWidget {
                               iconAssetPath: 'assets/images/schedule.svg',
                               buttonLabel: 'Resync',
                               isActive: true,
+                              // Resync goes through the backend's
+                              // bulk/republish API (server owns the device
+                              // publish + ACK), so the dialog just awaits the
+                              // call — no 23s "waiting for device" MQTT timer.
+                              skipDeviceAck: true,
                               onConfirm: () async =>
                                   await onSync?.call(record) ?? false,
                               // Resync uses a dedicated cancel handler so
