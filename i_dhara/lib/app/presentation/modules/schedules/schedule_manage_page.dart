@@ -1,11 +1,11 @@
+import 'dart:async';
+
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
-import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
-import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_list_card.dart';
 import 'package:i_dhara/app/presentation/components/schedules/schedule_logs_sheet.dart';
@@ -38,6 +38,11 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   // the Select All / bulk-action chip row, so power users can multi-
   // select without first opening the filter sheet.
   bool _longPressSelectionMode = false;
+  // Keeps the resync dialog open for a fixed 10s after the POST, then closes
+  // it as success. The completer resolves when the timer fires (or early if
+  // the user cancels).
+  Completer<bool>? _resyncAckCompleter;
+  Timer? _resyncWaitTimer;
 
   static const _filters = [
     {'label': 'All', 'value': ''},
@@ -1260,6 +1265,16 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     Future<String?> Function()? failureMessageBuilder;
     if (originalSelectedCount > 0) {
       failureMessageBuilder = () async {
+        // Resync: device offline (backend put the ids in `failed`) → show its
+        // message; otherwise it's an ACK timeout → generic copy below.
+        if (action == _BulkScheduleAction.republish) {
+          final res = _controller.lastRepublishResult;
+          if (res != null && res.hasFailed && !res.hasRepublished) {
+            return (res.message != null && res.message!.isNotEmpty)
+                ? res.message
+                : 'Device is offline. Schedules will be delivered on the next heartbeat.';
+          }
+        }
         final notAckedCount = _controller.schedules.where((r) {
           if (r.id == null) return false;
           if (!originalSelectedIds.contains(r.id)) return false;
@@ -1281,18 +1296,25 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       iconAssetPath: 'assets/images/schedule.svg',
       isActive: action == _BulkScheduleAction.restart ||
           action == _BulkScheduleAction.republish,
-      // Resync hits the backend's bulk/republish endpoint (the server owns
-      // the device publish + ACK), so the dialog just awaits the API call
-      // instead of running the 23s "waiting for device" MQTT timer.
-      skipDeviceAck:
-          isApiOnlyDelete || action == _BulkScheduleAction.republish,
+      // Resync POSTs to bulk/republish (backend publishes), then the dialog
+      // stays open and waits for the device ACK — so it keeps the
+      // "waiting for device" timer. Only API-only deletes skip the wait.
+      skipDeviceAck: isApiOnlyDelete,
       failureMessageBuilder: failureMessageBuilder,
-      onConfirm: () => _runBulkAction(action),
-      // Aborts MQTT retries + resolves the bulk/republish completer with
-      // false so the controller's 23s `.timeout()` doesn't fire a stale
-      // "No response from device" snackbar after the user dismisses.
-      onCancelWhileWaiting:
-          _motorScheduleController.cancelInFlightScheduleOperation,
+      // Resync waits for the device ACK before resolving; other actions run
+      // as before.
+      onConfirm: () => action == _BulkScheduleAction.republish
+          ? _resyncAndWaitForAck()
+          : _runBulkAction(action),
+      // Resync's cancel resolves the ACK waiter; other actions abort their
+      // MQTT retry loop.
+      onCancelWhileWaiting: () {
+        if (action == _BulkScheduleAction.republish) {
+          _cancelResyncWait();
+        } else {
+          _motorScheduleController.cancelInFlightScheduleOperation();
+        }
+      },
     ).then((success) {
       // Resync only: fire the success snackbar deterministically from
       // the manage page rather than relying on the motor controller's
@@ -1303,23 +1325,6 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       // `.then`, happens before any route teardown so the snackbar
       // always appears. Stop / Restart / Delete keep their motor-
       // controller-owned per-record snackbars and aren't touched.
-      // The dialog has already closed. Show a single snackbar: the backend's
-      // offline message when the device is offline (ids in `failed`),
-      // otherwise the success copy.
-      if (action == _BulkScheduleAction.republish && mounted) {
-        final res = _controller.lastRepublishResult;
-        // Error only when nothing was republished (device offline). If any
-        // schedule was republished, it's a success.
-        if (res != null && res.hasFailed && !res.hasRepublished) {
-          geterrorSnackBar(
-            (res.message != null && res.message!.isNotEmpty)
-                ? res.message!
-                : 'Device is offline. Schedules will be delivered on the next heartbeat.',
-          );
-        } else {
-          getsuccessSnackBar('Schedules resynced successfully');
-        }
-      }
       _controller.clearSelection();
       if (mounted && _selectedAction != null) {
         setState(() => _selectedAction = null);
@@ -1329,6 +1334,43 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       }
       if (mounted) setState(() => _isRunningBulkAction = false);
     });
+  }
+
+  /// Resync flow that keeps the confirm dialog open for a fixed 10s after the
+  /// POST (so the backend has time to publish + the device to apply), then
+  /// closes it as success. Device-offline resolves immediately with false so
+  /// the dialog shows the offline message instead of waiting.
+  Future<bool> _resyncAndWaitForAck() async {
+    await _controller.republishSelectedSchedules();
+
+    // Device offline / nothing pushed → don't hold the dialog; resolve now so
+    // it surfaces the offline message.
+    final res = _controller.lastRepublishResult;
+    if (res != null && res.hasFailed && !res.hasRepublished) {
+      return false;
+    }
+
+    _resyncAckCompleter = Completer<bool>();
+    _resyncWaitTimer = Timer(const Duration(seconds: 10), () {
+      if (_resyncAckCompleter?.isCompleted == false) {
+        _resyncAckCompleter!.complete(true);
+      }
+    });
+    final ok = await _resyncAckCompleter!.future;
+    _resyncWaitTimer?.cancel();
+    _resyncWaitTimer = null;
+    _resyncAckCompleter = null;
+    return ok;
+  }
+
+  /// Cancel tap while the resync dialog is waiting — stop the 10s timer and
+  /// resolve the waiter with false so the dialog closes immediately.
+  void _cancelResyncWait() {
+    _resyncWaitTimer?.cancel();
+    _resyncWaitTimer = null;
+    if (_resyncAckCompleter?.isCompleted == false) {
+      _resyncAckCompleter!.complete(false);
+    }
   }
 
   Future<bool> _runBulkAction(_BulkScheduleAction action) {

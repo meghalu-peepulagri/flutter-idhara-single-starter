@@ -1835,40 +1835,23 @@ class ScheduleFormState extends State<ScheduleForm> {
               color: const Color(0xFFEBF3FE),
               borderRadius: BorderRadius.circular(8),
             ),
-            // A multi-day date range shows Overnight; a single date
-            // (start == end) shows the normal duration — for both Single and
-            // Repeated schedules.
-            child: (startDate.year != endDate.year ||
-                    startDate.month != endDate.month ||
-                    startDate.day != endDate.day)
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.nightlight_round,
-                          size: 14, color: Color(0xFF004E7E)),
-                      const SizedBox(width: 6),
-                      Text('Overnight  •  $multiDaySpanText',
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF475569))),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.timer_outlined,
-                          size: 14, color: Color(0xFF004E7E)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Duration: $multiDaySpanText',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF475569)),
-                      ),
-                    ],
-                  ),
+            // Always show the simple time-based duration (start → end time),
+            // no Overnight / date-range span.
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.timer_outlined,
+                    size: 14, color: Color(0xFF004E7E)),
+                const SizedBox(width: 6),
+                Text(
+                  'Duration: $durationText',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF475569)),
+                ),
+              ],
+            ),
           ),
         ],
       ),
