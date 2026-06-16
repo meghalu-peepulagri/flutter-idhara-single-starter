@@ -421,34 +421,52 @@ class _SchedulePageState extends State<SchedulePage> {
     final sharedDays = multi.selectedDays;
     final payloadDays = multi.isMultiDay ? sharedDays : <int>{};
 
-    final filteredDates = multi.isMultiDay
-        ? _filteredDates(sharedStart, sharedEnd, sharedDays)
-        : <DateTime>[
-            DateTime(sharedStart.year, sharedStart.month, sharedStart.day),
-          ];
-    if (filteredDates.isEmpty) {
+    final startNorm =
+        DateTime(sharedStart.year, sharedStart.month, sharedStart.day);
+    final endNorm = DateTime(sharedEnd.year, sharedEnd.month, sharedEnd.day);
+
+    // Build one (form, startDate, endDate) entry per record to create.
+    //
+    // • Weekday(s) selected → one SINGLE-DAY record per matching date
+    //   (schedule_start_date == schedule_end_date). Overnight windows wrap
+    //   into the next morning via end_time / runtime, so consecutive dates
+    //   stay single-day and never overlap each other.
+    // • No weekday selected → exactly ONE schedule spanning the whole range
+    //   (schedule_start_date = range start, schedule_end_date = range end).
+    final entries =
+        <({ScheduleFormState form, DateTime start, DateTime end})>[];
+    for (final form in forms) {
+      if (payloadDays.isEmpty) {
+        entries.add((form: form, start: startNorm, end: endNorm));
+      } else {
+        for (final d in _filteredDates(sharedStart, sharedEnd, sharedDays)) {
+          entries.add((form: form, start: d, end: d));
+        }
+      }
+    }
+
+    if (entries.isEmpty) {
       return 'No matching dates in the selected range';
     }
 
-    final totalRows = forms.length * filteredDates.length;
+    final totalRows = entries.length;
     final scheduleIds = await _computeScheduleIds(totalRows);
-    // Device slots — separate 1..15 ids, not the schedule_id. Still sent in
-    // the POST body (device_schedule_id); no MQTT publish here.
+    // Device slots — separate 1..15 ids, not the schedule_id.
     final deviceScheduleIds = await _computeDeviceScheduleIds(totalRows);
     final dtos = <CreateScheduleDto>[];
-    var idIdx = 0;
-    for (final d in filteredDates) {
-      for (int i = 0; i < forms.length; i++) {
-        dtos.add(_buildDtoForFilteredDate(
-          form: forms[i],
-          date: d,
-          selectedDays: payloadDays,
-          scheduleId: scheduleIds[idIdx],
-          deviceScheduleId: deviceScheduleIds[idIdx],
-          endDate: multi.isMultiDay ? null : sharedEnd,
-        ));
-        idIdx++;
-      }
+    for (int idx = 0; idx < entries.length; idx++) {
+      final e = entries[idx];
+      final spansRange = e.end.isAfter(e.start);
+      dtos.add(_buildDtoForFilteredDate(
+        form: e.form,
+        date: e.start,
+        selectedDays: payloadDays,
+        scheduleId: scheduleIds[idx],
+        deviceScheduleId: deviceScheduleIds[idx],
+        // No-days single schedule spans to the range end; per-date records
+        // are single-day (end == start → null).
+        endDate: spansRange ? e.end : null,
+      ));
     }
 
     final response = await _scheduleController.createSchedule(dtos: dtos);

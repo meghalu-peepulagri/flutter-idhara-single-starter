@@ -385,8 +385,9 @@ class _ScheduleConfirmDialogState extends State<_ScheduleConfirmDialog> {
                       _dialogRow(
                           'Cyclic OFF', '${widget.cyclicOffMinutes} min'),
                     ] else ...[
-                      const SizedBox(height: 6),
-                      _dialogRow('Power Recovery', widget.powerRecovery),
+                      // Power Loss Recovery row — commented out per requirement.
+                      // const SizedBox(height: 6),
+                      // _dialogRow('Power Recovery', widget.powerRecovery),
                     ],
                   ],
                 ),
@@ -920,7 +921,9 @@ Widget _multiScheduleCard(
 }) {
   final String detail = s.isCyclic
       ? 'Cyclic  ·  ON ${s.cyclicOnMinutes}m / OFF ${s.cyclicOffMinutes}m'
-      : '${s.duration}${s.powerRecovery == 'ON' ? '  ·  Pwr Recovery' : ''}';
+      // Power Loss Recovery suffix — commented out per requirement.
+      // : '${s.duration}${s.powerRecovery == 'ON' ? '  ·  Pwr Recovery' : ''}';
+      : s.duration;
 
   return Container(
     width: double.infinity,

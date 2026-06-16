@@ -190,12 +190,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         : todayNorm;
     startDate = baseDate;
     endDate = baseDate;
-    // Pre-select the base date's weekday so the user immediately sees the
-    // current day chip rendered in the active state — no second tap
-    // needed for a same-day schedule. Sun=0..Sat=6 mapping (Dart's
-    // weekday returns Mon=1..Sun=7).
-    final baseWd = baseDate.weekday == 7 ? 0 : baseDate.weekday;
-    selectedDays = {baseWd};
+    // Start with NO days selected — the user taps the weekday chips to
+    // choose which days the schedule runs on.
+    selectedDays = <int>{};
     // Add first schedule directly (no setState) so it renders expanded on first build
     _schedules.add(_ScheduleEntry(
       id: _nextId++,
@@ -318,10 +315,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         } else if (endDate.isAfter(maxEnd)) {
           endDate = maxEnd;
         }
-        // Auto-select every weekday that falls inside the new range so
-        // the chip row mirrors the picked dates by default — user can
-        // still tap individual chips off to filter further.
-        selectedDays = Set<int>.from(_validDays);
+        // Keep the user's chosen days; just drop any that are no longer
+        // valid for the new range. Don't auto-select.
+        selectedDays.retainWhere((d) => _validDays.contains(d));
       });
     }
   }
@@ -343,9 +339,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       if (picked == null) return;
       setState(() {
         endDate = picked;
-        // Same auto-select rule as `_openStartDatePicker`: extend the
-        // chip selection to every weekday now in the range.
-        selectedDays = Set<int>.from(_validDays);
+        // Keep the user's chosen days; drop any no longer valid for the
+        // new range. Don't auto-select.
+        selectedDays.retainWhere((d) => _validDays.contains(d));
       });
     }
   }
@@ -460,7 +456,18 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   Widget _buildAddScheduleRow() {
-    final canAdd = _multiDay && _schedules.length < _maxSchedules;
+    final isSingleDate = startDate.year == endDate.year &&
+        startDate.month == endDate.month &&
+        startDate.day == endDate.day;
+    final hasDays = selectedDays.isNotEmpty;
+    final underCap = _schedules.length < _maxSchedules;
+    // Add is enabled while under the per-date cap AND either it's a single
+    // date (weekday selection is moot) or, for a multi-day range, at least
+    // one day is selected.
+    final canAdd = _multiDay && underCap && (isSingleDate || hasDays);
+    final label = (_multiDay && (isSingleDate || hasDays) && !underCap)
+        ? 'Maximum $_absoluteMaxSchedules schedules per date reached'
+        : 'Add Schedule';
     return GestureDetector(
       onTap: canAdd ? _addSchedule : null,
       child: Opacity(
@@ -470,9 +477,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
           child: Row(
             children: [
               Text(
-                canAdd || !_multiDay
-                    ? 'Add Schedule'
-                    : 'Maximum $_absoluteMaxSchedules schedules per date reached',
+                label,
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -738,6 +743,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                     showBottomBar: false,
                     showDateCard: false,
                     isMultiDay: _multiDay,
+                    hasSelectedDays: selectedDays.isNotEmpty,
                     initialStartDate: startDate,
                     initialEndDate: endDate,
                     onChanged: () {
@@ -832,7 +838,8 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
           'Cyclic  ON ${state.cyclicOnMinutes}m / OFF ${state.cyclicOffMinutes}m';
     } else {
       final parts = <String>[state.durationText];
-      if (state.powerLossRecovery) parts.add('Power Recovery ON');
+      // Power Loss Recovery summary — commented out per requirement.
+      // if (state.powerLossRecovery) parts.add('Power Recovery ON');
       detailLine = parts.join('  •  ');
     }
 
@@ -868,6 +875,9 @@ class ScheduleForm extends StatefulWidget {
   final bool showBottomBar;
   final bool showDateCard;
   final bool isMultiDay;
+  // Parent (MultiScheduleForm) passes whether any weekday is selected. Drives
+  // the timing card's "Overnight" vs "Duration" label for overnight windows.
+  final bool hasSelectedDays;
 
   final VoidCallback? onChanged;
 
@@ -892,6 +902,7 @@ class ScheduleForm extends StatefulWidget {
     this.showBottomBar = true,
     this.showDateCard = true,
     this.isMultiDay = false,
+    this.hasSelectedDays = false,
     this.onChanged,
     this.initialStartHour,
     this.initialStartMinute,
@@ -1393,18 +1404,19 @@ class ScheduleFormState extends State<ScheduleForm> {
           onDecrementEnabled: cyclicOnMinutes > 5,
           offDecrementEnabled: cyclicOffMinutes > 5,
         ),
-        const SizedBox(height: 8),
-        buildScheduleToggle(
-          icon: Icons.power_rounded,
-          title: 'Power Loss Recovery',
-          subtitle: 'Auto-resume after power restored',
-          controller: _powerLossController,
-          enabled: !cyclicMode,
-          onChanged: (v) => setState(() {
-            powerLossRecovery = v;
-            _powerLossController.value = v;
-          }),
-        ),
+        // Power Loss Recovery — commented out per requirement.
+        // const SizedBox(height: 8),
+        // buildScheduleToggle(
+        //   icon: Icons.power_rounded,
+        //   title: 'Power Loss Recovery',
+        //   subtitle: 'Auto-resume after power restored',
+        //   controller: _powerLossController,
+        //   enabled: !cyclicMode,
+        //   onChanged: (v) => setState(() {
+        //     powerLossRecovery = v;
+        //     _powerLossController.value = v;
+        //   }),
+        // ),
         const SizedBox(height: 4),
       ],
     );
@@ -1829,30 +1841,48 @@ class ScheduleFormState extends State<ScheduleForm> {
             ],
           ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEBF3FE),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            // Always show the simple time-based duration (start → end time),
-            // no Overnight / date-range span.
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.timer_outlined,
-                    size: 14, color: Color(0xFF004E7E)),
-                const SizedBox(width: 6),
-                Text(
-                  'Duration: $durationText',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF475569)),
-                ),
-              ],
-            ),
-          ),
+          Builder(builder: (_) {
+            // Overnight window = end time at/before start time (crosses
+            // midnight). In the create (embedded) form, an overnight window
+            // with no weekday selected yet shows "Overnight"; once days are
+            // picked — or for a same-day window — it shows the duration.
+            final isOvernight = (endHour * 60 + endMinute) <=
+                (startHour * 60 + startMinute);
+            final showOvernight = !widget.showBottomBar &&
+                isOvernight &&
+                !widget.hasSelectedDays;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF3FE),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    showOvernight
+                        ? Icons.nightlight_round
+                        : Icons.timer_outlined,
+                    size: 14,
+                    color: const Color(0xFF004E7E),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    // Both show the full span across the date range
+                    // (e.g. "1d 12h 44m").
+                    showOvernight
+                        ? 'Overnight  •  $multiDaySpanText'
+                        : 'Duration: $multiDaySpanText',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF475569)),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
