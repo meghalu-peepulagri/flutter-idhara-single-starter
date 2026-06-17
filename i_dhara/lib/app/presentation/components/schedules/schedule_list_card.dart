@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_dialogs.dart';
+import 'package:intl/intl.dart';
 
 class ScheduleCard extends StatelessWidget {
   final Record record;
@@ -155,6 +156,13 @@ class ScheduleCard extends StatelessWidget {
     final actualEndRaw = record.actualEndTime?.trim() ?? '';
     final showActualWindow = canHaveActual && actualStartRaw.isNotEmpty;
 
+    // Overnight schedules span two dates (start_date != end_date) — show the
+    // date range ("16-17 Jun") on the card. Same-day rows fall back to the
+    // single-date label the parent passed (dateLabel), unchanged.
+    final overnightRange = _overnightDateRange();
+    final dateText = overnightRange ??
+        ((dateLabel != null && dateLabel!.isNotEmpty) ? dateLabel : null);
+
     final cardBorder =
         isActive ? const Color(0xFFE0E8F0) : const Color(0xFFE8E8E8);
     final timeIconColor =
@@ -228,7 +236,7 @@ class ScheduleCard extends StatelessWidget {
                         color: timeTextColor,
                       ),
                     ),
-                    if (dateLabel != null && dateLabel!.isNotEmpty) ...[
+                    if (dateText != null && dateText.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
                         width: 3,
@@ -241,7 +249,7 @@ class ScheduleCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          dateLabel!,
+                          dateText,
                           style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -809,6 +817,31 @@ class ScheduleCard extends StatelessWidget {
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  /// For overnight schedules (schedule_start_date != schedule_end_date)
+  /// returns a compact date range like "16-17 Jun" (or "30 Jun - 1 Jul"
+  /// across months). Same-day schedules return null so the single-date
+  /// [dateLabel] passed by the parent is used instead.
+  String? _overnightDateRange() {
+    final s = record.scheduleStartDate;
+    final e = record.scheduleEndDate;
+    if (s == null || e == null || s <= 0 || e <= 0 || s == e) return null;
+    DateTime? toDate(int v) {
+      final yy = v ~/ 10000;
+      final mm = (v % 10000) ~/ 100;
+      final dd = v % 100;
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+      return DateTime(2000 + yy, mm, dd);
+    }
+
+    final sd = toDate(s);
+    final ed = toDate(e);
+    if (sd == null || ed == null) return null;
+    if (sd.year == ed.year && sd.month == ed.month) {
+      return '${sd.day}-${ed.day} ${DateFormat('MMM').format(sd)}';
+    }
+    return '${DateFormat('d MMM').format(sd)} - ${DateFormat('d MMM').format(ed)}';
+  }
 
   /// Renders [actual_run_time] (in minutes) as either `13m` (under an hour)
   /// or `1h 13m` (one hour or more) so short runs read naturally without a

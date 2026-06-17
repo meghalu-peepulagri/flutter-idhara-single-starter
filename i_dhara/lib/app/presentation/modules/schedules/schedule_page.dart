@@ -427,17 +427,38 @@ class _SchedulePageState extends State<SchedulePage> {
 
     // Build one (form, startDate, endDate) entry per record to create.
     //
-    // • Weekday(s) selected → one SINGLE-DAY record per matching date
-    //   (schedule_start_date == schedule_end_date). Overnight windows wrap
-    //   into the next morning via end_time / runtime, so consecutive dates
-    //   stay single-day and never overlap each other.
     // • No weekday selected → exactly ONE schedule spanning the whole range
     //   (schedule_start_date = range start, schedule_end_date = range end).
+    // • Weekday(s) selected:
+    //     - Same-day window (end time AFTER start time) → one record per
+    //       matching date (schedule_start_date == schedule_end_date).
+    //     - Overnight window (end time AT/BEFORE start time → crosses
+    //       midnight, e.g. 11pm → 2am) → one record per NIGHT spanning
+    //       D → D+1 (schedule_end_date = next day). Nights start on
+    //       [rangeStart, rangeEnd - 1] filtered by the start night's weekday:
+    //         16 → 17 ⇒ 1 record (16→17)
+    //         16 → 18 ⇒ 2 records (16→17, 17→18)
     final entries =
         <({ScheduleFormState form, DateTime start, DateTime end})>[];
     for (final form in forms) {
       if (payloadDays.isEmpty) {
         entries.add((form: form, start: startNorm, end: endNorm));
+        continue;
+      }
+      final isOvernight = (form.endHour * 60 + form.endMinute) <=
+          (form.startHour * 60 + form.startMinute);
+      if (isOvernight) {
+        var lastStart = endNorm.subtract(const Duration(days: 1));
+        if (lastStart.isBefore(startNorm)) lastStart = startNorm;
+        for (var d = startNorm;
+            !d.isAfter(lastStart);
+            d = d.add(const Duration(days: 1))) {
+          final wd = d.weekday == 7 ? 0 : d.weekday;
+          if (payloadDays.contains(wd)) {
+            entries.add(
+                (form: form, start: d, end: d.add(const Duration(days: 1))));
+          }
+        }
       } else {
         for (final d in _filteredDates(sharedStart, sharedEnd, sharedDays)) {
           entries.add((form: form, start: d, end: d));
