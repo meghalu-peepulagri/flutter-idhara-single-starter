@@ -132,7 +132,7 @@ class _PreCheckPhaseState extends State<PreCheckPhase> {
       return motorData.signalBars;
     }
     final signal = widget.motor.starter?.signalQuality;
-    if (signal == null || signal < 2 || signal > 31) return 0;
+    if (signal == null || signal < 2 || signal > 40) return 0;
     if (signal < 10) return 1;
     if (signal < 15) return 2;
     if (signal < 20) return 3;

@@ -81,14 +81,14 @@ class MotorDetailsCard extends StatelessWidget {
       int bars = 0;
 
       // Calculate signal bars based on signal quality
-      if (signalQuality >= 2 && signalQuality <= 31) {
+      if (signalQuality >= 2 && signalQuality <= 40) {
         if (signalQuality >= 2 && signalQuality <= 9) {
           bars = 1;
         } else if (signalQuality >= 10 && signalQuality <= 14) {
           bars = 2;
         } else if (signalQuality >= 15 && signalQuality <= 19) {
           bars = 3;
-        } else if (signalQuality >= 20 && signalQuality <= 31) {
+        } else if (signalQuality >= 20 && signalQuality <= 40) {
           bars = 4;
         }
       }

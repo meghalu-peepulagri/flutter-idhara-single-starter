@@ -804,9 +804,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
       final mac = motor.starter!.macAddress;
       final pcb = motor.starter!.pcbNumber;
-      final identifier = (mac != null && mac.isNotEmpty)
-          ? mac
-          : (pcb != null && pcb.isNotEmpty ? pcb : null);
+      final identifier = (pcb != null && pcb.isNotEmpty)
+          ? pcb
+          : (mac != null && mac.isNotEmpty ? mac : null);
       if (identifier == null) continue;
 
       final motorId = '$identifier-${_getGroupIdForMotor(motor)}';
