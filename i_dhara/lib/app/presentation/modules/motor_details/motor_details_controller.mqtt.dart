@@ -224,9 +224,33 @@ extension AnalyticsControllerMqtt on AnalyticsController {
         }
       }
 
-      // Update motor state
-      if (motorState.value != motorData.state) {
-        motorState.value = motorData.state;
+      // Update motor state. Only adopt the device's live state from a row
+      // that has actually received live data (T:35/41). A heartbeat (T:40)
+      // flips hasReceivedData=true but carries ONLY signal quality, leaving
+      // `state` at its stale/init value — trusting it there shows "ON" while
+      // the device (and API) report OFF. Pick the freshest live-data row,
+      // mirroring the mode sync above; fall back to the API state when no
+      // live data has arrived yet.
+      int? liveState;
+      DateTime? liveStateTime;
+      for (final entry in mqttService.motorDataMap.entries) {
+        final data = entry.value;
+        if (!data.hasReceivedLiveData) continue;
+        if (!entryBelongsToThisMotor(data)) continue;
+        final ackTime = mqttService.getLastAckTime(entry.key);
+        if (ackTime != null) {
+          if (liveStateTime == null || ackTime.isAfter(liveStateTime)) {
+            liveStateTime = ackTime;
+            liveState = data.state;
+          }
+        } else if (liveState == null) {
+          liveState = data.state;
+        }
+      }
+      final resolvedState =
+          liveState ?? motorDetails.value?.state ?? motorState.value;
+      if (motorState.value != resolvedState) {
+        motorState.value = resolvedState;
       }
 
       // Update network signal quality
@@ -322,7 +346,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       return motorData.signalBars;
     }
     final signal = motorDetails.value?.starter?.signalQuality;
-    if (signal == null || signal < 2 || signal > 31) return 0;
+    if (signal == null || signal < 2 || signal > 40) return 0;
     if (signal < 10) return 1;
     if (signal < 15) return 2;
     if (signal < 20) return 3;

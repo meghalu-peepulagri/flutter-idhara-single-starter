@@ -91,7 +91,7 @@ class MotorData {
     signalStrength = strength;
     lastSignalUpdate = DateTime.now();
 
-    if (strength < 2 || strength > 31) {
+    if (strength < 2 || strength > 40) {
       signalBars = 0;
     } else if (strength <= 9) {
       signalBars = 1;
@@ -99,7 +99,7 @@ class MotorData {
       signalBars = 2;
     } else if (strength <= 19) {
       signalBars = 3;
-    } else if (strength <= 30) {
+    } else if (strength <= 40) {
       signalBars = 4;
     } else {
       signalBars = 0;
@@ -2161,7 +2161,7 @@ class MqttService {
   }
 
   int testRunSignalStrength(int strength) {
-    if (strength < 2 || strength > 31) {
+    if (strength < 2 || strength > 40) {
       return 0;
     } else if (strength <= 9) {
       return 1;
@@ -2169,7 +2169,7 @@ class MqttService {
       return 2;
     } else if (strength <= 19) {
       return 3;
-    } else if (strength <= 30) {
+    } else if (strength <= 40) {
       return 4;
     } else {
       return 0;

@@ -83,13 +83,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
   bool _isEligibleForAction(Record record, _BulkScheduleAction? action) {
     if (action == null) return true;
     final s = (record.scheduleStatus ?? '').toUpperCase();
-    // Failed schedules are read-only from the manage page — no bulk action
-    // (including republish) should target them.
-    if (s == 'FAILED') return false;
-    // Partial / missed are terminal — the window already ended on the
-    // device, so Stop / Restart / Republish make no sense. Only Delete
-    // is allowed so the user can clear them out.
-    if (s == 'PARTIAL' || s == 'MISSED') {
+    // Failed / partial / missed are terminal — Stop / Restart / Republish
+    // make no sense, but Delete is allowed so the user can clear them out.
+    // (FAILED never reached the device, so its delete runs API-only.)
+    if (s == 'FAILED' || s == 'PARTIAL' || s == 'MISSED') {
       return action == _BulkScheduleAction.delete;
     }
     switch (action) {
