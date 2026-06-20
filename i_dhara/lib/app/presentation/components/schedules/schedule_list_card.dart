@@ -106,7 +106,10 @@ class ScheduleCard extends StatelessWidget {
     //   COMPLETED → no actions (act window still shown if present)
     //   MISSED    → no actions, advisory note only
     //   FAILED    → Delete only, advisory note
-    final toggleDisabled = disableToggle ||
+    // Status eligibility only. `disableToggle` (selection mode) no longer
+    // hides the Stop/Restart button — it renders it dimmed + non-tappable
+    // (handled where the button is built below).
+    final toggleDisabled =
         !(isScheduled || isRunning || (isStopped && isFutureSchedule));
     final editDisabled = !(isPending || isScheduled || isStopped);
     final deleteDisabled = !(isPending || isScheduled || isStopped || isFailed);
@@ -352,7 +355,7 @@ class ScheduleCard extends StatelessWidget {
           // the user can clean it up); a PENDING row shows no actions
           // at all until the device ACK lands.
           () {
-            final showToggle = !disableToggle && !toggleDisabled;
+            final showToggle = !toggleDisabled;
             final showEdit = showEditAction && !editDisabled;
             final showDelete = showDeleteAction && !deleteDisabled;
             final showSync = showSyncAction && isPending && onSync != null;
@@ -387,14 +390,22 @@ class ScheduleCard extends StatelessWidget {
                       // version. Same dialog flow, same onToggle, same
                       // status eligibility — only the widget changed.
                       if (showToggle) ...[
-                        Material(
+                        // In selection mode (disableToggle) the button is
+                        // dimmed and non-tappable, matching the Edit / Delete /
+                        // Resync pills, so a bulk pick can't fire a per-row
+                        // Stop / Restart by accident.
+                        Opacity(
+                          opacity: disableToggle ? 0.4 : 1.0,
+                          child: Material(
                           color: isActive
                               ? const Color(0xFFEA580C) // orange-600 Stop
                               : const Color(0xFF059669), // emerald-600 Restart
                           borderRadius: BorderRadius.circular(8),
                           clipBehavior: Clip.antiAlias,
                           child: InkWell(
-                            onTap: () async {
+                            onTap: disableToggle
+                                ? null
+                                : () async {
                               final newValue = !isActive;
                               await showScheduleActionConfirmDialog(
                                 context: context,
@@ -442,6 +453,7 @@ class ScheduleCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        ),
                         ),
                       ],
                       const Spacer(),

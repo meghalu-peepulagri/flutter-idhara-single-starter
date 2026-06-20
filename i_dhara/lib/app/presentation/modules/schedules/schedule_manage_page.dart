@@ -769,6 +769,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               disableEditAction: inSelectionMode,
               disableDeleteAction: inSelectionMode,
               disableSyncAction: inSelectionMode,
+              disableToggle: inSelectionMode,
               // Tapping anywhere on the card surface opens the
               // per-schedule logs bottom sheet, except while a bulk
               // selection is in progress — taps then should only

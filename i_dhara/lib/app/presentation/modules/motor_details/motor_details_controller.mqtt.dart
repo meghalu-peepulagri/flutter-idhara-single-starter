@@ -375,6 +375,24 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     });
   }
 
+  /// Checks whether this motor has any schedule by calling the schedule-list
+  /// API with no status filter, so schedules in every status (PARTIAL,
+  /// SCHEDULED, COMPLETED, etc.) count. The result drives the Mode tab's
+  /// Schedule segment — enabled when at least one schedule exists, disabled
+  /// otherwise. On error we leave the segment enabled so a failed request
+  /// never wrongly blocks the user.
+  Future<void> checkScheduleAvailability() async {
+    try {
+      final response = await ScheduleRepositoryImpl().getScheduleList(1, 1);
+      final records = response?.data?.records ?? [];
+      final total =
+          response?.data?.paginationInfo?.totalRecords ?? records.length;
+      hasSchedule.value = total > 0 || records.isNotEmpty;
+    } catch (_) {
+      hasSchedule.value = true;
+    }
+  }
+
   Future<void> handleLiveData() async {
     if (!mqttInitialized || isWaitingForModeAck.value) return;
 

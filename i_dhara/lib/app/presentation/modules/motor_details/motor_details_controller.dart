@@ -20,6 +20,7 @@ import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
+import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
 import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
@@ -105,6 +106,10 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   static const Duration _modeGuardDuration = Duration(seconds: 10);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = false.obs;
+  // True when the schedule-list API returns at least one schedule for this
+  // motor (any status). Drives the Mode tab's Schedule segment: enabled when
+  // a schedule exists, disabled (with a hint on tap) otherwise.
+  var hasSchedule = false.obs;
   var signalQuality = 0.obs;
 
   final bool _isUsingExistingMqttInstance = false;

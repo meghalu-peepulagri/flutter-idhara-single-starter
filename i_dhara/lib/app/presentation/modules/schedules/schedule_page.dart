@@ -310,6 +310,7 @@ class _SchedulePageState extends State<SchedulePage> {
         enabled: 1,
         isEdit: true,
         idx: 2,
+        last: 1,
       );
       ackOk = await _ackCompleter!.future.timeout(
         const Duration(seconds: 30),

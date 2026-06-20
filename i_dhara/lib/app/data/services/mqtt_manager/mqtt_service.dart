@@ -649,6 +649,7 @@ class MqttService {
 
     final scheduleItem = <String, dynamic>{
       'id': scheduleId,
+      if (isEdit) 'cid': scheduleId,
       'sd': startDateYYMMDD,
       'ed': endDateYYMMDD,
       'st': startTimeHHMM,

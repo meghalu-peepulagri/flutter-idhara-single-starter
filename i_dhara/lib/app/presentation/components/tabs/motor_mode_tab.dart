@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
+import '../../../core/utils/snackbars/error_snackbar.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
 import '../motor_card/motor_card_dialogs.dart';
 import 'motor_mode_info_sheet.dart';
@@ -28,6 +29,10 @@ class _MotorModeTabState extends State<MotorModeTab> {
   void initState() {
     super.initState();
     _modeNotifier = ValueNotifier<int>(widget.controller.localModeIndex.value);
+
+    // Refresh whether this motor has a schedule each time the Mode tab opens,
+    // so the Schedule segment reflects schedules created since the last visit.
+    widget.controller.checkScheduleAvailability();
 
     // Listen to controller mode changes and update the notifier
     _modeWorker = ever(widget.controller.localModeIndex, (value) {
@@ -113,6 +118,8 @@ class _MotorModeTabState extends State<MotorModeTab> {
                           final isDisabled =
                               widget.controller.isWaitingForModeAck.value ||
                                   !widget.controller.canChangeMode.value;
+                          final hasSchedule =
+                              widget.controller.hasSchedule.value;
 
                           return Column(
                             children: [
@@ -154,6 +161,18 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                 fontSize: 12,
                                 totalSwitches: 3,
                                 labels: const ['Auto', 'Manual', 'Schedule'],
+                                // Grey out the Schedule segment when the motor
+                                // has no schedule, signalling it is disabled.
+                                customTextStyles: [
+                                  null,
+                                  null,
+                                  hasSchedule
+                                      ? null
+                                      : const TextStyle(
+                                          color: Color(0xFFB0B0B0),
+                                          fontSize: 12,
+                                        ),
+                                ],
                                 borderWidth: 1,
                                 borderColor: [Colors.grey.shade300],
                                 onToggle: !isDisabled
@@ -161,6 +180,14 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                         if (index == null || _isDialogOpen)
                                           return;
                                         final newModeIndex = modeForUi(index);
+                                        // Schedule needs at least one schedule
+                                        // to exist. Block the switch and tell
+                                        // the user to create one.
+                                        if (newModeIndex == 2 && !hasSchedule) {
+                                          geterrorSnackBar(
+                                              'No schedule found. Please create a schedule first.');
+                                          return;
+                                        }
                                         if (newModeIndex != currentModeIndex) {
                                           setState(() => _isDialogOpen = true);
                                           MotorCardDialogs.showModeChangeDialog(
