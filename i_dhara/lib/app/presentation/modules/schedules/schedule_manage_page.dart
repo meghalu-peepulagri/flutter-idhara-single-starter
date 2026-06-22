@@ -826,7 +826,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
               },
               onSync: (item) => _controller.republishSingleSchedule(item),
               onCancelAction: (item) => _motorScheduleController
-                  .cancelPendingScheduleAction(item.scheduleId ?? 0),
+                  .cancelPendingScheduleAction(item),
               // Resync's Cancel tap has to stop the T:23 republish
               // retry loop, not the T:24 action loop that
               // cancelPendingScheduleAction targets.

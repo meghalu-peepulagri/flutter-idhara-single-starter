@@ -520,35 +520,74 @@ class _EventRow extends StatelessWidget {
     return const Color(0xFF6B7280);
   }
 
+  /// Trims the backend `failure_reason` (any type) to a non-empty
+  /// display string, or null when there's nothing meaningful to show.
+  static String? _failureText(dynamic reason) {
+    if (reason == null) return null;
+    final text = reason.toString().trim();
+    if (text.isEmpty || text.toLowerCase() == 'null') return null;
+    return text;
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = _eventColor(event.event);
+    final failureText = _failureText(event.failureReason);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              event.event ?? '—',
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E293B),
+          Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  event.event ?? '—',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+              if (event.timestamp != null)
+                Text(
+                  DateFormat('hh:mm:ss a').format(event.timestamp!.toLocal()),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ),
+            ],
           ),
-          if (event.timestamp != null)
-            Text(
-              DateFormat('hh:mm:ss a').format(event.timestamp!.toLocal()),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                color: const Color(0xFF94A3B8),
+          // Failure reason (e.g. PARTIAL events) shown under the row,
+          // aligned with the event label, with a warning icon on the left.
+          if (failureText != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 15, top: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 13, color: color),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      failureText,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

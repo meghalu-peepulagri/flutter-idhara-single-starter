@@ -113,6 +113,8 @@ class Record {
   String? endTime;
   int? scheduleStartDate;
   int? scheduleEndDate;
+  dynamic failureReason;
+  DateTime? failureAt;
   int? repeat;
   DateTime? createdAt;
   List<Event>? events;
@@ -128,6 +130,8 @@ class Record {
     this.endTime,
     this.scheduleStartDate,
     this.scheduleEndDate,
+    this.failureReason,
+    this.failureAt,
     this.repeat,
     this.createdAt,
     this.events,
@@ -144,6 +148,10 @@ class Record {
         endTime: json["end_time"],
         scheduleStartDate: json["schedule_start_date"],
         scheduleEndDate: json["schedule_end_date"],
+        failureReason: json["failure_reason"],
+        failureAt: json["failure_at"] == null
+            ? null
+            : DateTime.parse(json["failure_at"]),
         repeat: json["repeat"],
         createdAt: json["created_at"] == null
             ? null
@@ -164,6 +172,8 @@ class Record {
         "end_time": endTime,
         "schedule_start_date": scheduleStartDate,
         "schedule_end_date": scheduleEndDate,
+        "failure_reason": failureReason,
+        "failure_at": failureAt?.toIso8601String(),
         "repeat": repeat,
         "created_at": createdAt?.toIso8601String(),
         "events": events == null
@@ -175,10 +185,14 @@ class Record {
 class Event {
   String? event;
   DateTime? timestamp;
+  dynamic failureReason;
+  DateTime? failureAt;
 
   Event({
     this.event,
     this.timestamp,
+    this.failureReason,
+    this.failureAt,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) => Event(
@@ -186,10 +200,16 @@ class Event {
         timestamp: json["timestamp"] == null
             ? null
             : DateTime.parse(json["timestamp"]),
+        failureReason: json["failure_reason"],
+        failureAt: json["failure_at"] == null
+            ? null
+            : DateTime.parse(json["failure_at"]),
       );
 
   Map<String, dynamic> toJson() => {
         "event": event,
         "timestamp": timestamp?.toIso8601String(),
+        "failure_reason": failureReason,
+        "failure_at": failureAt?.toIso8601String(),
       };
 }

@@ -428,8 +428,8 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                                 onEdit: _controller.navigateToEditSchedule,
                                 onSync: (record) => _resyncSingleSchedule(record),
                                 onCancelAction: (record) =>
-                                    _controller.cancelPendingScheduleAction(
-                                        record.scheduleId ?? 0),
+                                    _controller
+                                        .cancelPendingScheduleAction(record),
                                 // Cancel during a Resync stops the T:23
                                 // republish retry loop instead of the
                                 // T:24 action loop.

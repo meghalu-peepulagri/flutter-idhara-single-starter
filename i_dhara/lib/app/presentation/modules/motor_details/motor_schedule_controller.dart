@@ -114,6 +114,16 @@ class MotorScheduleController extends GetxController {
   String _bulkKey(List<int> scheduleIds) =>
       (List<int>.from(scheduleIds)..sort()).join(',');
 
+  /// The device addresses each schedule by its SLOT (1..15) — the
+  /// `device_schedule_id` — which is what the T:24 bitmask and the
+  /// device ACKs use. The backend `schedule_id` grows monotonically and
+  /// diverges from the slot once any schedule is deleted and its slot is
+  /// reused. Every device-facing action (stop/restart/delete) must key off
+  /// the slot, not `schedule_id`, or the bitmask points at the wrong slot
+  /// (e.g. schedule_id 3 / slot 2 sent bit 4 instead of 2). Falls back to
+  /// `scheduleId` for legacy rows that predate `device_schedule_id`.
+  int _deviceSlot(Record r) => r.deviceScheduleId ?? r.scheduleId ?? 0;
+
   @override
   void onInit() {
     super.onInit();
@@ -233,11 +243,11 @@ class MotorScheduleController extends GetxController {
   // --- Schedule Actions (T:24): stop/resume/delete ---
 
   /// Publish schedule action: cmd 1=stop, 2=resume, 3=delete
-  /// ids in payload = 2^(scheduleId - 1)
+  /// ids in payload = 2^(deviceSlot - 1)
   Future<void> publishScheduleAction(Record record, int cmd) async {
     final id = _resolveIdentifier();
     if (id.isEmpty) return;
-    final scheduleId = record.scheduleId ?? 0;
+    final scheduleId = _deviceSlot(record);
     _pendingActions[scheduleId] = cmd;
     try {
       await _mqttService.publishScheduleActionCommand(
@@ -303,7 +313,7 @@ class MotorScheduleController extends GetxController {
   /// Delete: publish MQTT cmd:3, wait for ACK + API, then return.
   /// Dialog stays loading until this resolves.
   Future<bool> deleteSchedule(Record record) async {
-    final scheduleId = record.scheduleId ?? 0;
+    final scheduleId = _deviceSlot(record);
     // Guard: skip if this schedule already has an in-flight action from any path.
     if (_pendingActions.containsKey(scheduleId)) return false;
     final completer = Completer<bool>();
@@ -329,7 +339,7 @@ class MotorScheduleController extends GetxController {
   /// wait for ACK, then call stop/restart API.
   /// Returns true on success, false on failure.
   Future<bool> toggleSchedule(Record record, bool enabled) async {
-    final scheduleId = record.scheduleId ?? 0;
+    final scheduleId = _deviceSlot(record);
     // Guard: skip if this schedule already has an in-flight action from any path.
     if (_pendingActions.containsKey(scheduleId)) return false;
     final completer = Completer<bool>();
@@ -357,7 +367,7 @@ class MotorScheduleController extends GetxController {
     final id = _resolveIdentifier();
     if (id.isEmpty) return;
     final scheduleIds =
-        records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
+        records.map(_deviceSlot).where((sid) => sid > 0).toList();
     if (scheduleIds.isEmpty) return;
     for (final sid in scheduleIds) {
       _pendingActions[sid] = cmd;
@@ -381,7 +391,7 @@ class MotorScheduleController extends GetxController {
   /// then call DELETE /motor-schedules/bulk API.
   Future<bool> deleteBulkSchedules(List<Record> records) async {
     final scheduleIds =
-        records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
+        records.map(_deviceSlot).where((sid) => sid > 0).toList();
     if (scheduleIds.isEmpty) return false;
     // Guard: skip if any of these schedules already has an in-flight action.
     if (scheduleIds.any((sid) => _pendingActions.containsKey(sid)))
@@ -392,7 +402,7 @@ class MotorScheduleController extends GetxController {
     _bulkDeleteCompleters[key] = completer;
     _bulkObjectIds[key] = {
       for (final r in records)
-        if (r.scheduleId != null && r.id != null) r.scheduleId!: r.id!
+        if (_deviceSlot(r) > 0 && r.id != null) _deviceSlot(r): r.id!
     };
     _bulkCmds[key] = 3;
 
@@ -432,7 +442,7 @@ class MotorScheduleController extends GetxController {
   /// ACK, then call POST /motor-schedules/bulk/stop|restart API.
   Future<bool> toggleBulkSchedules(List<Record> records, bool enabled) async {
     final scheduleIds =
-        records.map((r) => r.scheduleId ?? 0).where((sid) => sid > 0).toList();
+        records.map(_deviceSlot).where((sid) => sid > 0).toList();
     if (scheduleIds.isEmpty) return false;
     // Guard: skip if any of these schedules already has an in-flight action.
     if (scheduleIds.any((sid) => _pendingActions.containsKey(sid)))
@@ -444,7 +454,7 @@ class MotorScheduleController extends GetxController {
     _bulkToggleCompleters[key] = completer;
     _bulkObjectIds[key] = {
       for (final r in records)
-        if (r.scheduleId != null && r.id != null) r.scheduleId!: r.id!
+        if (_deviceSlot(r) > 0 && r.id != null) _deviceSlot(r): r.id!
     };
     _bulkCmds[key] = cmd;
 
@@ -536,7 +546,10 @@ class MotorScheduleController extends GetxController {
   /// still waiting on the device ACK. Stops the MQTT retry loop and resolves
   /// the awaiting completer with `false` so the dialog's future returns
   /// immediately and the dialog can be dismissed.
-  void cancelPendingScheduleAction(int scheduleId) {
+  void cancelPendingScheduleAction(Record record) {
+    // Pending maps are keyed by the device SLOT the action was published
+    // with, not the backend schedule_id.
+    final scheduleId = _deviceSlot(record);
     // 1. Stop MQTT retry loop for this device identifier.
     final id = _resolveIdentifier();
     if (id.isNotEmpty) {
@@ -610,8 +623,10 @@ class MotorScheduleController extends GetxController {
             _deleteCompleters.remove(scheduleId)?.complete(true);
           } else if (cmd == 1 || cmd == 2) {
             // ── STOP / RESTART: call post API, complete completer ──
+            // `scheduleId` here is the device SLOT the ACK named, so match
+            // records by their slot, not the backend schedule_id.
             final record =
-                schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
+                schedules.firstWhereOrNull((r) => _deviceSlot(r) == scheduleId);
             if (record != null) {
               await SharedPreference.setscheduleid(record.id ?? 0);
             }
@@ -660,8 +675,9 @@ class MotorScheduleController extends GetxController {
     // wrong record (the DELETE API would then target the wrong row, or
     // fall back to a stale SharedPreference value).
     final objectId = _pendingDeleteObjectIds.remove(scheduleId) ?? 0;
+    // `scheduleId` here is the device SLOT — match the local row by slot.
     final record =
-        schedules.firstWhereOrNull((r) => r.scheduleId == scheduleId);
+        schedules.firstWhereOrNull((r) => _deviceSlot(r) == scheduleId);
     if (record != null) {
       schedules.remove(record);
     }
@@ -855,7 +871,9 @@ class MotorScheduleController extends GetxController {
       final scheduleId = data['scheduleId'] as int?;
       if (scheduleId == null) return;
 
-      final idx = schedules.indexWhere((r) => r.scheduleId == scheduleId);
+      // The live-data `sch.id` is the DEVICE slot (device_schedule_id),
+      // not the backend schedule_id — match the row by its device slot.
+      final idx = schedules.indexWhere((r) => _deviceSlot(r) == scheduleId);
       if (idx == -1) return;
 
       final stEpoch = data['startEpoch'] as int?;
