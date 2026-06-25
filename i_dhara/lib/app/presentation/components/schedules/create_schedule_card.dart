@@ -1015,8 +1015,8 @@ class ScheduleFormState extends State<ScheduleForm> {
       endMinute = widget.initialEndMinute ?? 0;
     }
     cyclicMode = widget.initialCyclicMode ?? false;
-    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
-    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
+    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? _cyclicStep;
+    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? _cyclicStep;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
     selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
@@ -1123,11 +1123,21 @@ class ScheduleFormState extends State<ScheduleForm> {
     return counts;
   }
 
+  // Cyclic ON/OFF adjust in 3-minute steps. There's no minimum-window
+  // restriction — the cycle is just sized to fit whatever duration the
+  // user has set (see [_clampCyclicDurations]).
+  static const int _cyclicStep = 3;
+
   void _clampCyclicDurations() {
     final total = durationMinutes;
-    if (cyclicOnMinutes + cyclicOffMinutes > total) {
-      cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-      cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
+    // ON + OFF must always fill the whole window — no leftover minutes. When
+    // they don't (cyclic just enabled, or the window changed), re-split the
+    // duration in half with ON taking the larger half. (e.g. 12 min →
+    // ON 6 / OFF 6, 5 min → ON 3 / OFF 2.) The +/- controls then move time
+    // between ON and OFF while keeping the total fixed.
+    if (cyclicOnMinutes + cyclicOffMinutes != total) {
+      cyclicOffMinutes = (total ~/ 2).clamp(1, 120);
+      cyclicOnMinutes = (total - cyclicOffMinutes).clamp(1, 120);
     }
   }
 
@@ -1194,6 +1204,8 @@ class ScheduleFormState extends State<ScheduleForm> {
         endHour = t.hour;
         endMinute = t.minute;
       }
+      // Resize the cycle to fit the new window so ON + OFF never exceeds
+      // the duration.
       if (cyclicMode) _clampCyclicDurations();
     });
     widget.onChanged?.call();
@@ -1367,42 +1379,45 @@ class ScheduleFormState extends State<ScheduleForm> {
             if (v) {
               powerLossRecovery = false;
               _powerLossController.value = false;
-              final total = durationMinutes;
-              if (cyclicOnMinutes + cyclicOffMinutes > total) {
-                cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-                cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
-              }
+              _clampCyclicDurations();
             } else {
-              cyclicOnMinutes = 20;
-              cyclicOffMinutes = 15;
+              cyclicOnMinutes = _cyclicStep;
+              cyclicOffMinutes = _cyclicStep;
             }
           }),
+          // ON/OFF are complementary — the window is fixed, so adding to one
+          // takes the same amount from the other. ON + OFF therefore always
+          // equals the full duration (no missing minutes).
           onOnDecrement: () => setState(() {
-            if (cyclicOnMinutes > 5) cyclicOnMinutes -= 5;
+            if (cyclicOnMinutes - _cyclicStep >= 1) {
+              cyclicOnMinutes -= _cyclicStep;
+              cyclicOffMinutes += _cyclicStep;
+            }
           }),
           onOnIncrement: () => setState(() {
-            final maxOn = durationMinutes - cyclicOffMinutes;
-            if (cyclicOnMinutes + 5 <= maxOn && cyclicOnMinutes < 120) {
-              cyclicOnMinutes += 5;
+            if (cyclicOffMinutes - _cyclicStep >= 1 && cyclicOnMinutes < 120) {
+              cyclicOnMinutes += _cyclicStep;
+              cyclicOffMinutes -= _cyclicStep;
             }
           }),
           onOffDecrement: () => setState(() {
-            if (cyclicOffMinutes > 5) cyclicOffMinutes -= 5;
+            if (cyclicOffMinutes - _cyclicStep >= 1) {
+              cyclicOffMinutes -= _cyclicStep;
+              cyclicOnMinutes += _cyclicStep;
+            }
           }),
           onOffIncrement: () => setState(() {
-            final maxOff = durationMinutes - cyclicOnMinutes;
-            if (cyclicOffMinutes + 5 <= maxOff && cyclicOffMinutes < 120) {
-              cyclicOffMinutes += 5;
+            if (cyclicOnMinutes - _cyclicStep >= 1 && cyclicOffMinutes < 120) {
+              cyclicOffMinutes += _cyclicStep;
+              cyclicOnMinutes -= _cyclicStep;
             }
           }),
           onIncrementEnabled:
-              cyclicOnMinutes + 5 <= durationMinutes - cyclicOffMinutes &&
-                  cyclicOnMinutes < 120,
+              cyclicOffMinutes - _cyclicStep >= 1 && cyclicOnMinutes < 120,
           offIncrementEnabled:
-              cyclicOffMinutes + 5 <= durationMinutes - cyclicOnMinutes &&
-                  cyclicOffMinutes < 120,
-          onDecrementEnabled: cyclicOnMinutes > 5,
-          offDecrementEnabled: cyclicOffMinutes > 5,
+              cyclicOnMinutes - _cyclicStep >= 1 && cyclicOffMinutes < 120,
+          onDecrementEnabled: cyclicOnMinutes - _cyclicStep >= 1,
+          offDecrementEnabled: cyclicOffMinutes - _cyclicStep >= 1,
         ),
         // Power Loss Recovery — commented out per requirement.
         // const SizedBox(height: 8),

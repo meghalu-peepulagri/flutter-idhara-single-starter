@@ -336,7 +336,8 @@ class _ScheduleRecordCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          status,
+                          // COMPLETED schedules read as "ENDED" on the card.
+                          status == 'COMPLETED' ? 'ENDED' : status,
                           style: GoogleFonts.dmSans(
                             fontSize: 9,
                             fontWeight: FontWeight.w700,

@@ -820,7 +820,6 @@ class MotorScheduleController extends GetxController {
     });
   }
 
-
   String _resolveIdentifier() {
     final starter = Get.find<AnalyticsController>().motorDetails.value?.starter;
     final deviceAlloc = starter?.deviceAllocation ?? 'false';
@@ -982,8 +981,7 @@ class MotorScheduleController extends GetxController {
           await fetchSchedules(silent: true);
         } catch (_) {}
 
-        if (_republishCompleter != null &&
-            !_republishCompleter!.isCompleted) {
+        if (_republishCompleter != null && !_republishCompleter!.isCompleted) {
           // Skip the controller-side snackbar — the manage page
           // fires 'Schedules resynced successfully' from its
           // dialog `.then()` after the dialog closes, and that's

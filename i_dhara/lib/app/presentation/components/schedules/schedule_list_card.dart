@@ -153,11 +153,13 @@ class ScheduleCard extends StatelessWidget {
     final canHaveActual = isRunning || isPartial || isCompleted || isStopped;
     final actualRunMin = record.actualRunTime ?? 0;
     final showRunTime = canHaveActual && actualRunMin > 0;
+    // ── "Act" actual-window display commented out per requirement. The
+    // logic is preserved (just disabled) so it can be re-enabled later. ──
     // End may still be null while the schedule is running — render an
     // em dash for it.
-    final actualStartRaw = record.actualStartTime?.trim() ?? '';
-    final actualEndRaw = record.actualEndTime?.trim() ?? '';
-    final showActualWindow = canHaveActual && actualStartRaw.isNotEmpty;
+    // final actualStartRaw = record.actualStartTime?.trim() ?? '';
+    // final actualEndRaw = record.actualEndTime?.trim() ?? '';
+    // final showActualWindow = canHaveActual && actualStartRaw.isNotEmpty;
 
     // Overnight schedules span two dates (start_date != end_date) — show the
     // date range ("16-17 Jun") on the card. Same-day rows fall back to the
@@ -273,44 +275,45 @@ class ScheduleCard extends StatelessWidget {
             ],
           ),
 
-          if (showActualWindow) ...[
-            const SizedBox(height: 4),
-            Padding(
-              // Indent under the schedule icon so the "Act" row reads as a
-              // sub-detail of the planned time range above it.
-              padding: const EdgeInsets.only(left: 22),
-              child: Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF3FE),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'Act',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF004E7E),
-                        height: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${_formatTo12h(actualStartRaw)} → ${actualEndRaw.isEmpty ? '—' : _formatTo12h(actualEndRaw)}',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF475569),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          // ── "Act" actual-window row commented out per requirement ──
+          // if (showActualWindow) ...[
+          //   const SizedBox(height: 4),
+          //   Padding(
+          //     // Indent under the schedule icon so the "Act" row reads as a
+          //     // sub-detail of the planned time range above it.
+          //     padding: const EdgeInsets.only(left: 22),
+          //     child: Row(
+          //       children: [
+          //         Container(
+          //           padding:
+          //               const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          //           decoration: BoxDecoration(
+          //             color: const Color(0xFFEBF3FE),
+          //             borderRadius: BorderRadius.circular(4),
+          //           ),
+          //           child: Text(
+          //             'Act',
+          //             style: GoogleFonts.dmSans(
+          //               fontSize: 10,
+          //               fontWeight: FontWeight.w700,
+          //               color: const Color(0xFF004E7E),
+          //               height: 1.2,
+          //             ),
+          //           ),
+          //         ),
+          //         const SizedBox(width: 6),
+          //         Text(
+          //           '${_formatTo12h(actualStartRaw)} → ${actualEndRaw.isEmpty ? '—' : _formatTo12h(actualEndRaw)}',
+          //           style: GoogleFonts.dmSans(
+          //             fontSize: 12,
+          //             fontWeight: FontWeight.w500,
+          //             color: const Color(0xFF475569),
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // ],
 
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -797,7 +800,10 @@ class ScheduleCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            _capitalize(status),
+            // COMPLETED schedules read as "ENDED" on the card.
+            status.toLowerCase() == 'completed'
+                ? 'ENDED'
+                : _capitalize(status),
             style: GoogleFonts.dmSans(
               fontSize: 11,
               fontWeight: FontWeight.w600,

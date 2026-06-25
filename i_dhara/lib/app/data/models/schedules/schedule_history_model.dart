@@ -113,6 +113,8 @@ class Record {
   String? endTime;
   int? scheduleStartDate;
   int? scheduleEndDate;
+  int? runtimeMinutes;
+  int? actualRunTime;
   dynamic failureReason;
   DateTime? failureAt;
   int? repeat;
@@ -130,6 +132,8 @@ class Record {
     this.endTime,
     this.scheduleStartDate,
     this.scheduleEndDate,
+    this.runtimeMinutes,
+    this.actualRunTime,
     this.failureReason,
     this.failureAt,
     this.repeat,
@@ -148,6 +152,8 @@ class Record {
         endTime: json["end_time"],
         scheduleStartDate: json["schedule_start_date"],
         scheduleEndDate: json["schedule_end_date"],
+        runtimeMinutes: json["runtime_minutes"],
+        actualRunTime: json["actual_run_time"],
         failureReason: json["failure_reason"],
         failureAt: json["failure_at"] == null
             ? null
@@ -172,6 +178,8 @@ class Record {
         "end_time": endTime,
         "schedule_start_date": scheduleStartDate,
         "schedule_end_date": scheduleEndDate,
+        "runtime_minutes": runtimeMinutes,
+        "actual_run_time": actualRunTime,
         "failure_reason": failureReason,
         "failure_at": failureAt?.toIso8601String(),
         "repeat": repeat,

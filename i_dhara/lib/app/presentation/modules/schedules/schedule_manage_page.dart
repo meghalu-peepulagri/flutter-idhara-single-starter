@@ -51,7 +51,7 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     {'label': 'Running', 'value': 'RUNNING'},
     {'label': 'Stopped', 'value': 'STOPPED'},
     {'label': 'Partial', 'value': 'PARTIAL'},
-    {'label': 'Completed', 'value': 'COMPLETED'},
+    {'label': 'Ended', 'value': 'COMPLETED'},
     {'label': 'Missed', 'value': 'MISSED'},
     {'label': 'Failed', 'value': 'FAILED'},
   ];
