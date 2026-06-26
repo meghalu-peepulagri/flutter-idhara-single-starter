@@ -223,20 +223,10 @@ class _ScheduleRecordCard extends StatelessWidget {
     return DateTime(2000 + yy, mm, dd);
   }
 
-  /// Trims the backend `failure_reason` (any type) to a non-empty
-  /// display string, or null when there's nothing meaningful to show.
-  static String? _failureText(dynamic reason) {
-    if (reason == null) return null;
-    final text = reason.toString().trim();
-    if (text.isEmpty || text.toLowerCase() == 'null') return null;
-    return text;
-  }
-
   @override
   Widget build(BuildContext context) {
     final status = (data.scheduleStatus ?? '').toUpperCase();
     final statusColor = _statusColor(status);
-    final failureText = _failureText(data.failureReason);
     // Header date = the schedule's RUN date (schedule_start_date),
     // not its creation timestamp. createdAt can fall on a different
     // calendar day than the run date (e.g. a schedule added late on
@@ -336,7 +326,6 @@ class _ScheduleRecordCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          // COMPLETED schedules read as "ENDED" on the card.
                           status == 'COMPLETED' ? 'ENDED' : status,
                           style: GoogleFonts.dmSans(
                             fontSize: 9,
@@ -350,41 +339,6 @@ class _ScheduleRecordCard extends StatelessWidget {
               ],
             ),
           ),
-          // ── Failure reason (only when the backend sends one,
-          // e.g. PARTIAL / FAILED runs) ──
-          if (failureText != null) ...[
-            const Divider(height: 1, color: Color(0xFFEEF4FB)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        size: 14, color: statusColor),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        failureText,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: statusColor,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
           // ── Events list (always visible) ──
           if (events.isNotEmpty) ...[
             const Divider(height: 1, color: Color(0xFFEEF4FB)),
@@ -421,35 +375,70 @@ class _EventRow extends StatelessWidget {
     return const Color(0xFF6B7280);
   }
 
+  static String? _failureText(dynamic reason) {
+    if (reason == null) return null;
+    final text = reason.toString().trim();
+    if (text.isEmpty || text.toLowerCase() == 'null') return null;
+    return text;
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = _eventColor(event.event);
+    final failureText = _failureText(event.failureReason);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              event.event ?? '—',
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E293B),
+          Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  event.event ?? '—',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+              if (event.timestamp != null)
+                Text(
+                  DateFormat('hh:mm:ss a').format(event.timestamp!.toLocal()),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ),
+            ],
           ),
-          if (event.timestamp != null)
-            Text(
-              DateFormat('hh:mm:ss a').format(event.timestamp!.toLocal()),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                color: const Color(0xFF94A3B8),
+          if (failureText != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 15, top: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 13, color: color),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      failureText,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

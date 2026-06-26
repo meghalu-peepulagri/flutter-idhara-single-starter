@@ -109,6 +109,7 @@ class Record {
   ScheduleType? scheduleType;
   int? scheduleId;
   int? deviceScheduleId;
+  int? deviceScheduleStatus;
   int? bitWiseDays;
   int? scheduleStartDate;
   int? scheduleEndDate;
@@ -145,6 +146,7 @@ class Record {
     this.scheduleType,
     this.scheduleId,
     this.deviceScheduleId,
+    this.deviceScheduleStatus,
     this.bitWiseDays,
     this.scheduleStartDate,
     this.scheduleEndDate,
@@ -182,6 +184,7 @@ class Record {
         scheduleType: scheduleTypeValues.map[json["schedule_type"]]!,
         scheduleId: json["schedule_id"],
         deviceScheduleId: json["device_schedule_id"],
+        deviceScheduleStatus: json["device_schedule_status"],
         bitWiseDays: json["bit_wise_days"],
         scheduleStartDate: json["schedule_start_date"],
         scheduleEndDate: json["schedule_end_date"],
@@ -231,6 +234,7 @@ class Record {
     int? actualRunTime,
     String? actualStartTime,
     String? actualEndTime,
+    int? deviceScheduleStatus,
   }) =>
       Record(
         id: id,
@@ -239,6 +243,8 @@ class Record {
         scheduleType: scheduleType,
         scheduleId: scheduleId,
         deviceScheduleId: deviceScheduleId,
+        deviceScheduleStatus:
+            deviceScheduleStatus ?? this.deviceScheduleStatus,
         bitWiseDays: bitWiseDays,
         scheduleStartDate: scheduleStartDate,
         scheduleEndDate: scheduleEndDate,
@@ -276,6 +282,7 @@ class Record {
         "schedule_type": scheduleTypeValues.reverse[scheduleType],
         "schedule_id": scheduleId,
         "device_schedule_id": deviceScheduleId,
+        "device_schedule_status": deviceScheduleStatus,
         "bit_wise_days": bitWiseDays,
         "schedule_start_date": scheduleStartDate,
         "schedule_end_date": scheduleEndDate,

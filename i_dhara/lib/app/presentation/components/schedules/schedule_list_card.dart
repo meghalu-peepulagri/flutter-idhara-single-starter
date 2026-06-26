@@ -140,6 +140,10 @@ class ScheduleCard extends StatelessWidget {
       noticeMessage = 'Not synced to device';
       noticeBg = const Color(0xFFFFE4E6);
       noticeFg = const Color(0xFFBE123C);
+    } else if (record.deviceScheduleStatus == 0) {
+      noticeMessage = 'Schedule window expired';
+      noticeBg = const Color(0xFFF1F5F9);
+      noticeFg = const Color(0xFF475569);
     }
 
     final isCyclic = record.scheduleType == ScheduleType.CYCLIC;
@@ -618,6 +622,7 @@ class ScheduleCard extends StatelessWidget {
 
   Widget _buildCyclicInfo(int dH, int dM, int durationMin, int onMin,
       int offMin, bool showRunTime, int actualRunMin, Color bg) {
+    final cycles = onMin > 0 ? actualRunMin ~/ onMin : 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -634,7 +639,11 @@ class ScheduleCard extends StatelessWidget {
               _infoItem('Duration', '${dH}h ${dM.toString().padLeft(2, '0')}m'),
               if (showRunTime) ...[
                 const SizedBox(width: 12),
-                _infoItem('Run Time', _formatRunTime(actualRunMin)),
+                _infoItem(
+                    'Run Time',
+                    cycles > 0
+                        ? '${_formatRunTime(actualRunMin)} · $cycles ${cycles == 1 ? 'cycle' : 'cycles'}'
+                        : _formatRunTime(actualRunMin)),
               ],
             ],
           ),
@@ -800,7 +809,6 @@ class ScheduleCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            // COMPLETED schedules read as "ENDED" on the card.
             status.toLowerCase() == 'completed'
                 ? 'ENDED'
                 : _capitalize(status),

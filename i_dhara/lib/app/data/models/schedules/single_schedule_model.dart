@@ -140,10 +140,12 @@ class Data {
 class Event {
   String? event;
   DateTime? timestamp;
+  dynamic failureReason;
 
   Event({
     this.event,
     this.timestamp,
+    this.failureReason,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) => Event(
@@ -151,10 +153,12 @@ class Event {
         timestamp: json["timestamp"] == null
             ? null
             : DateTime.parse(json["timestamp"]),
+        failureReason: json["failure_reason"],
       );
 
   Map<String, dynamic> toJson() => {
         "event": event,
         "timestamp": timestamp?.toIso8601String(),
+        "failure_reason": failureReason,
       };
 }

@@ -388,8 +388,6 @@ class _HistoryRecordCard extends StatelessWidget {
             ? DateFormat('dd MMM yyyy').format(record.createdAt!.toLocal())
             : '—');
 
-    // Actual run time reported by the device. Shown only when present —
-    // a null actual_run_time hides the Run Time row entirely.
     final actualRunMin = record.actualRunTime;
     final showRunTime = actualRunMin != null;
 
@@ -427,7 +425,6 @@ class _HistoryRecordCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Time window + inline Run Time on top.
                       Row(
                         children: [
                           const Icon(Icons.access_time_rounded,
@@ -441,8 +438,6 @@ class _HistoryRecordCard extends StatelessWidget {
                               color: const Color(0xFF0F172A),
                             ),
                           ),
-                          // Run Time inline next to the planned window — only
-                          // when the device reported an actual_run_time.
                           if (showRunTime) ...[
                             const SizedBox(width: 6),
                             Container(
@@ -466,7 +461,6 @@ class _HistoryRecordCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 3),
-                      // Schedule type (CYCLIC / TIME_BASED) below.
                       Text(
                         record.scheduleType ?? '—',
                         style: GoogleFonts.dmSans(
@@ -499,7 +493,6 @@ class _HistoryRecordCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        // COMPLETED schedules read as "ENDED" on the card.
                         status == 'COMPLETED' ? 'ENDED' : status,
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
@@ -529,8 +522,6 @@ class _HistoryRecordCard extends StatelessWidget {
     );
   }
 
-  /// Renders actual_run_time (minutes) as `13m` under an hour or
-  /// `1h 13m` once it reaches an hour.
   String _formatRunTime(int totalMinutes) {
     if (totalMinutes < 60) return '${totalMinutes}m';
     final h = totalMinutes ~/ 60;
@@ -559,8 +550,6 @@ class _EventRow extends StatelessWidget {
     return const Color(0xFF6B7280);
   }
 
-  /// Trims the backend `failure_reason` (any type) to a non-empty
-  /// display string, or null when there's nothing meaningful to show.
   static String? _failureText(dynamic reason) {
     if (reason == null) return null;
     final text = reason.toString().trim();
@@ -605,8 +594,6 @@ class _EventRow extends StatelessWidget {
                 ),
             ],
           ),
-          // Failure reason (e.g. PARTIAL events) shown under the row,
-          // aligned with the event label, with a warning icon on the left.
           if (failureText != null)
             Padding(
               padding: const EdgeInsets.only(left: 15, top: 3),

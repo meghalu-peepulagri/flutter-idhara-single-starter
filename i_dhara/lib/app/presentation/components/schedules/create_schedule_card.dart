@@ -367,21 +367,31 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
       ),
     );
 
-    if (!widget.showBottomBar) return scroll;
+    if (!widget.showBottomBar) {
+      return GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: scroll,
+      );
+    }
 
     final showBanner = _showConflict && _conflictBannerMessage != null;
 
-    return Column(
-      children: [
-        Expanded(child: scroll),
-        if (showBanner) _buildConflictBanner(_conflictBannerMessage!),
-        ScheduleFormBottomBar(
-          onBack: widget.onBack ?? () {},
-          onSave: _handleSavePressed,
-          isEditMode: false,
-          saveEnabled: true,
-        ),
-      ],
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Column(
+        children: [
+          Expanded(child: scroll),
+          if (showBanner) _buildConflictBanner(_conflictBannerMessage!),
+          ScheduleFormBottomBar(
+            onBack: widget.onBack ?? () {},
+            onSave: _handleSavePressed,
+            isEditMode: false,
+            saveEnabled: true,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1123,18 +1133,10 @@ class ScheduleFormState extends State<ScheduleForm> {
     return counts;
   }
 
-  // Cyclic ON/OFF adjust in 3-minute steps. There's no minimum-window
-  // restriction — the cycle is just sized to fit whatever duration the
-  // user has set (see [_clampCyclicDurations]).
   static const int _cyclicStep = 3;
 
   void _clampCyclicDurations() {
     final total = durationMinutes;
-    // ON + OFF must always fill the whole window — no leftover minutes. When
-    // they don't (cyclic just enabled, or the window changed), re-split the
-    // duration in half with ON taking the larger half. (e.g. 12 min →
-    // ON 6 / OFF 6, 5 min → ON 3 / OFF 2.) The +/- controls then move time
-    // between ON and OFF while keeping the total fixed.
     if (cyclicOnMinutes + cyclicOffMinutes != total) {
       cyclicOffMinutes = (total ~/ 2).clamp(1, 120);
       cyclicOnMinutes = (total - cyclicOffMinutes).clamp(1, 120);
@@ -1197,15 +1199,15 @@ class ScheduleFormState extends State<ScheduleForm> {
   void _onTimePicked(TimeOfDay t, bool isStart) {
     setState(() {
       if (isStart) {
-        // Keep exactly what the user picked — don't auto-shift the end time.
         startHour = t.hour;
         startMinute = t.minute;
+        final endTotal = (t.hour * 60 + t.minute + 5) % 1440;
+        endHour = endTotal ~/ 60;
+        endMinute = endTotal % 60;
       } else {
         endHour = t.hour;
         endMinute = t.minute;
       }
-      // Resize the cycle to fit the new window so ON + OFF never exceeds
-      // the duration.
       if (cyclicMode) _clampCyclicDurations();
     });
     widget.onChanged?.call();
@@ -1385,9 +1387,6 @@ class ScheduleFormState extends State<ScheduleForm> {
               cyclicOffMinutes = _cyclicStep;
             }
           }),
-          // ON/OFF are complementary — the window is fixed, so adding to one
-          // takes the same amount from the other. ON + OFF therefore always
-          // equals the full duration (no missing minutes).
           onOnDecrement: () => setState(() {
             if (cyclicOnMinutes - _cyclicStep >= 1) {
               cyclicOnMinutes -= _cyclicStep;
@@ -1418,6 +1417,18 @@ class ScheduleFormState extends State<ScheduleForm> {
               cyclicOnMinutes - _cyclicStep >= 1 && cyclicOffMinutes < 120,
           onDecrementEnabled: cyclicOnMinutes - _cyclicStep >= 1,
           offDecrementEnabled: cyclicOffMinutes - _cyclicStep >= 1,
+          onOnChanged: (v) => setState(() {
+            final total = durationMinutes;
+            if (total < 2) return;
+            cyclicOnMinutes = v.clamp(1, total - 1);
+            cyclicOffMinutes = total - cyclicOnMinutes;
+          }),
+          onOffChanged: (v) => setState(() {
+            final total = durationMinutes;
+            if (total < 2) return;
+            cyclicOffMinutes = v.clamp(1, total - 1);
+            cyclicOnMinutes = total - cyclicOffMinutes;
+          }),
         ),
         // Power Loss Recovery — commented out per requirement.
         // const SizedBox(height: 8),
@@ -1448,26 +1459,31 @@ class ScheduleFormState extends State<ScheduleForm> {
     }
 
     // Standalone usage (create / edit single schedule)
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: _buildFormContent(),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: _buildFormContent(),
+            ),
           ),
-        ),
-        ScheduleFormBottomBar(
-          onBack: widget.onBack,
-          onSave: widget.onSave,
-          isEditMode: widget.isEditMode,
-          // Block save until the user has set a real start/end time
-          // pair. In edit mode also require at least one actual change
-          // from the loaded record — otherwise tapping Save fires a
-          // pointless MQTT publish + PATCH for an unchanged schedule.
-          saveEnabled: durationMinutes > 0 && (!widget.isEditMode || _isDirty),
-        ),
-      ],
+          ScheduleFormBottomBar(
+            onBack: widget.onBack,
+            onSave: widget.onSave,
+            isEditMode: widget.isEditMode,
+            // Block save until the user has set a real start/end time
+            // pair. In edit mode also require at least one actual change
+            // from the loaded record — otherwise tapping Save fires a
+            // pointless MQTT publish + PATCH for an unchanged schedule.
+            saveEnabled:
+                durationMinutes > 0 && (!widget.isEditMode || _isDirty),
+          ),
+        ],
+      ),
     );
   }
 
