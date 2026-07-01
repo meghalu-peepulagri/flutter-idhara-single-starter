@@ -213,8 +213,11 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         isExpanded: true,
       ));
     });
-    // Scroll to reveal the new card after it renders
+    // Scroll to reveal the new card after it renders, and rebuild so the
+    // header duration reads the freshly-created form's state (currentState is
+    // still null on the frame the card is added).
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -803,6 +806,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                 ],
               ),
             ),
+            if (entry.isExpanded && state != null) ...[
+              _buildHeaderDuration(state),
+              const SizedBox(width: 8),
+            ],
             if (_schedules.length > 1) ...[
               GestureDetector(
                 onTap: () => _removeSchedule(index),
@@ -831,6 +838,39 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderDuration(ScheduleFormState state) {
+    final isOvernight = (state.endHour * 60 + state.endMinute) <=
+        (state.startHour * 60 + state.startMinute);
+    final showOvernight = isOvernight && !state.widget.hasSelectedDays;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEBF3FE),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            showOvernight ? Icons.nightlight_round : Icons.timer_outlined,
+            size: 14,
+            color: const Color(0xFF004E7E),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            showOvernight
+                ? 'Overnight  •  ${state.durationText}'
+                : state.durationText,
+            style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF475569)),
+          ),
+        ],
       ),
     );
   }
@@ -1025,8 +1065,8 @@ class ScheduleFormState extends State<ScheduleForm> {
       endMinute = widget.initialEndMinute ?? 0;
     }
     cyclicMode = widget.initialCyclicMode ?? false;
-    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? _cyclicStep;
-    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? _cyclicStep;
+    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
+    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
     selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
@@ -1133,13 +1173,11 @@ class ScheduleFormState extends State<ScheduleForm> {
     return counts;
   }
 
-  static const int _cyclicStep = 3;
-
   void _clampCyclicDurations() {
     final total = durationMinutes;
-    if (cyclicOnMinutes + cyclicOffMinutes != total) {
-      cyclicOffMinutes = (total ~/ 2).clamp(1, 120);
-      cyclicOnMinutes = (total - cyclicOffMinutes).clamp(1, 120);
+    if (cyclicOnMinutes + cyclicOffMinutes > total) {
+      cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
+      cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
     }
   }
 
@@ -1366,8 +1404,6 @@ class ScheduleFormState extends State<ScheduleForm> {
           _buildDateCard(),
           const SizedBox(height: 14),
         ],
-        scheduleSectionLabel('Schedule Timing'),
-        const SizedBox(height: 6),
         _buildTimingCard(),
         const SizedBox(height: 10),
         ScheduleCyclicCard(
@@ -1381,54 +1417,42 @@ class ScheduleFormState extends State<ScheduleForm> {
             if (v) {
               powerLossRecovery = false;
               _powerLossController.value = false;
-              _clampCyclicDurations();
+              final total = durationMinutes;
+              if (cyclicOnMinutes + cyclicOffMinutes > total) {
+                cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
+                cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
+              }
             } else {
-              cyclicOnMinutes = _cyclicStep;
-              cyclicOffMinutes = _cyclicStep;
+              cyclicOnMinutes = 20;
+              cyclicOffMinutes = 15;
             }
           }),
           onOnDecrement: () => setState(() {
-            if (cyclicOnMinutes - _cyclicStep >= 1) {
-              cyclicOnMinutes -= _cyclicStep;
-              cyclicOffMinutes += _cyclicStep;
-            }
+            if (cyclicOnMinutes > 5) cyclicOnMinutes -= 5;
           }),
           onOnIncrement: () => setState(() {
-            if (cyclicOffMinutes - _cyclicStep >= 1 && cyclicOnMinutes < 120) {
-              cyclicOnMinutes += _cyclicStep;
-              cyclicOffMinutes -= _cyclicStep;
+            final maxOn = durationMinutes - cyclicOffMinutes;
+            if (cyclicOnMinutes + 5 <= maxOn && cyclicOnMinutes < 120) {
+              cyclicOnMinutes += 5;
             }
           }),
           onOffDecrement: () => setState(() {
-            if (cyclicOffMinutes - _cyclicStep >= 1) {
-              cyclicOffMinutes -= _cyclicStep;
-              cyclicOnMinutes += _cyclicStep;
-            }
+            if (cyclicOffMinutes > 5) cyclicOffMinutes -= 5;
           }),
           onOffIncrement: () => setState(() {
-            if (cyclicOnMinutes - _cyclicStep >= 1 && cyclicOffMinutes < 120) {
-              cyclicOffMinutes += _cyclicStep;
-              cyclicOnMinutes -= _cyclicStep;
+            final maxOff = durationMinutes - cyclicOnMinutes;
+            if (cyclicOffMinutes + 5 <= maxOff && cyclicOffMinutes < 120) {
+              cyclicOffMinutes += 5;
             }
           }),
           onIncrementEnabled:
-              cyclicOffMinutes - _cyclicStep >= 1 && cyclicOnMinutes < 120,
+              cyclicOnMinutes + 5 <= durationMinutes - cyclicOffMinutes &&
+                  cyclicOnMinutes < 120,
           offIncrementEnabled:
-              cyclicOnMinutes - _cyclicStep >= 1 && cyclicOffMinutes < 120,
-          onDecrementEnabled: cyclicOnMinutes - _cyclicStep >= 1,
-          offDecrementEnabled: cyclicOffMinutes - _cyclicStep >= 1,
-          onOnChanged: (v) => setState(() {
-            final total = durationMinutes;
-            if (total < 2) return;
-            cyclicOnMinutes = v.clamp(1, total - 1);
-            cyclicOffMinutes = total - cyclicOnMinutes;
-          }),
-          onOffChanged: (v) => setState(() {
-            final total = durationMinutes;
-            if (total < 2) return;
-            cyclicOffMinutes = v.clamp(1, total - 1);
-            cyclicOnMinutes = total - cyclicOffMinutes;
-          }),
+              cyclicOffMinutes + 5 <= durationMinutes - cyclicOnMinutes &&
+                  cyclicOffMinutes < 120,
+          onDecrementEnabled: cyclicOnMinutes > 5,
+          offDecrementEnabled: cyclicOffMinutes > 5,
         ),
         // Power Loss Recovery — commented out per requirement.
         // const SizedBox(height: 8),
@@ -1871,6 +1895,9 @@ class ScheduleFormState extends State<ScheduleForm> {
                   child: _buildTimePicker('END', endHour, endMinute, false)),
             ],
           ),
+          // Embedded (multi) form shows the duration in the "Schedule N"
+          // header instead — only the standalone form keeps the pill here.
+          if (widget.showBottomBar) ...[
           const SizedBox(height: 10),
           Builder(builder: (_) {
             // Overnight window = end time at/before start time (crosses
@@ -1900,11 +1927,11 @@ class ScheduleFormState extends State<ScheduleForm> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    // Both show the full span across the date range
-                    // (e.g. "1d 12h 44m").
+                    // Both show the per-day time window only
+                    // (e.g. "11h 17m"), not the multi-day date-range span.
                     showOvernight
-                        ? 'Overnight  •  $multiDaySpanText'
-                        : 'Duration: $multiDaySpanText',
+                        ? 'Overnight  •  $durationText'
+                        : 'Duration: $durationText',
                     style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -1914,6 +1941,7 @@ class ScheduleFormState extends State<ScheduleForm> {
               ),
             );
           }),
+          ],
         ],
       ),
     );

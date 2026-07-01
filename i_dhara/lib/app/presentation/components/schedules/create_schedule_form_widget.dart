@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -88,8 +87,6 @@ class ScheduleCyclicCard extends StatelessWidget {
   final bool offIncrementEnabled;
   final bool onDecrementEnabled;
   final bool offDecrementEnabled;
-  final ValueChanged<int>? onOnChanged;
-  final ValueChanged<int>? onOffChanged;
 
   const ScheduleCyclicCard({
     super.key,
@@ -106,8 +103,6 @@ class ScheduleCyclicCard extends StatelessWidget {
     this.offIncrementEnabled = true,
     this.onDecrementEnabled = true,
     this.offDecrementEnabled = true,
-    this.onOnChanged,
-    this.onOffChanged,
   });
 
   @override
@@ -169,13 +164,12 @@ class ScheduleCyclicCard extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: _CyclicDurationField(
+                            child: _buildDurationField(
                               label: 'ON Duration',
                               color: const Color(0xFF34C759),
                               minutes: cyclicOnMinutes,
                               onDecrement: onOnDecrement,
                               onIncrement: onOnIncrement,
-                              onChanged: onOnChanged,
                               incrementEnabled: onIncrementEnabled,
                               decrementEnabled: onDecrementEnabled,
                             ),
@@ -187,13 +181,12 @@ class ScheduleCyclicCard extends StatelessWidget {
                             margin: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           Expanded(
-                            child: _CyclicDurationField(
+                            child: _buildDurationField(
                               label: 'OFF Duration',
                               color: const Color(0xFFEF4444),
                               minutes: cyclicOffMinutes,
                               onDecrement: onOffDecrement,
                               onIncrement: onOffIncrement,
-                              onChanged: onOffChanged,
                               incrementEnabled: offIncrementEnabled,
                               decrementEnabled: offDecrementEnabled,
                             ),
@@ -209,99 +202,19 @@ class ScheduleCyclicCard extends StatelessWidget {
     );
   }
 
-}
-
-class _CyclicDurationField extends StatefulWidget {
-  final String label;
-  final Color color;
-  final int minutes;
-  final VoidCallback onDecrement;
-  final VoidCallback onIncrement;
-  final ValueChanged<int>? onChanged;
-  final bool incrementEnabled;
-  final bool decrementEnabled;
-
-  const _CyclicDurationField({
-    required this.label,
-    required this.color,
-    required this.minutes,
-    required this.onDecrement,
-    required this.onIncrement,
-    this.onChanged,
-    this.incrementEnabled = true,
-    this.decrementEnabled = true,
-  });
-
-  @override
-  State<_CyclicDurationField> createState() => _CyclicDurationFieldState();
-}
-
-class _CyclicDurationFieldState extends State<_CyclicDurationField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: '${widget.minutes}');
-    _focusNode = FocusNode();
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus) _syncText();
-  }
-
-  void _syncText() {
-    final text = '${widget.minutes}';
-    if (_controller.text != text) {
-      _controller.text = text;
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _CyclicDurationField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_focusNode.hasFocus && widget.minutes != oldWidget.minutes) {
-      _syncText();
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Widget _stepButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    required bool enabled,
+  Widget _buildDurationField({
+    required String label,
+    required Color color,
+    required int minutes,
+    required VoidCallback onDecrement,
+    required VoidCallback onIncrement,
+    bool incrementEnabled = true,
+    bool decrementEnabled = true,
   }) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Opacity(
-        opacity: enabled ? 1.0 : 0.35,
-        child: Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-              color: const Color(0xFFEBF3FE),
-              borderRadius: BorderRadius.circular(6)),
-          child: Icon(icon, size: 16, color: const Color(0xFF004E7E)),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label,
+        Text(label,
             style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -309,59 +222,40 @@ class _CyclicDurationFieldState extends State<_CyclicDurationField> {
         const SizedBox(height: 6),
         Row(
           children: [
-            _stepButton(
-              icon: Icons.remove_rounded,
-              onTap: widget.onDecrement,
-              enabled: widget.decrementEnabled,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: SizedBox(
-                height: 34,
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(3),
-                  ],
-                  style: GoogleFonts.dmSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: widget.color),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                    suffixText: 'min',
-                    suffixStyle: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF9CA3AF)),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: widget.color, width: 1.4),
-                    ),
-                  ),
-                  onChanged: (val) {
-                    final v = int.tryParse(val);
-                    if (v != null) widget.onChanged?.call(v);
-                  },
-                  onSubmitted: (_) => _syncText(),
+            GestureDetector(
+              onTap: decrementEnabled ? onDecrement : null,
+              child: Opacity(
+                opacity: decrementEnabled ? 1.0 : 0.35,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.remove_rounded,
+                      size: 16, color: Color(0xFF004E7E)),
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            _stepButton(
-              icon: Icons.add_rounded,
-              onTap: widget.onIncrement,
-              enabled: widget.incrementEnabled,
+            const SizedBox(width: 8),
+            Text('${minutes}min',
+                style: GoogleFonts.dmSans(
+                    fontSize: 15, fontWeight: FontWeight.w700, color: color)),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: incrementEnabled ? onIncrement : null,
+              child: Opacity(
+                opacity: incrementEnabled ? 1.0 : 0.35,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFEBF3FE),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.add_rounded,
+                      size: 16, color: Color(0xFF004E7E)),
+                ),
+              ),
             ),
           ],
         ),

@@ -98,7 +98,7 @@ class ScheduleCard extends StatelessWidget {
     final isCompleted = normalizedStatus == 'completed';
     final isFailed = normalizedStatus == 'failed';
     // Per-status action eligibility:
-    //   PENDING   → Sync, Edit, Delete (advisory note)
+    //   PENDING   → Sync, Delete (advisory note)
     //   SCHEDULED → Stop (toggle), Edit, Delete
     //   RUNNING   → Stop (toggle) only
     //   STOPPED   → Restart (toggle, only if future), Edit, Delete
@@ -111,7 +111,7 @@ class ScheduleCard extends StatelessWidget {
     // (handled where the button is built below).
     final toggleDisabled =
         !(isScheduled || isRunning || (isStopped && isFutureSchedule));
-    final editDisabled = !(isPending || isScheduled || isStopped);
+    final editDisabled = !(isScheduled || isStopped);
     final deleteDisabled = !(isPending || isScheduled || isStopped || isFailed);
 
     // Advisory note shown below the time row for statuses that need to

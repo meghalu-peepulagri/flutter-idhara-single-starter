@@ -75,7 +75,7 @@ class _SchedulePageState extends State<SchedulePage> {
       final ackCode = ack['ack_code'] as int? ?? (ack['D'] as int? ?? 0);
 
       final expected = _isEditMode
-          ? <int>{_editRecord?.scheduleId ?? 0}
+          ? <int>{_editRecord?.deviceScheduleId ?? 0}
           : _expectedAckScheduleIds;
       final isSuccess = ackCode == 1 &&
           (ackedScheduleIds.isEmpty || ackedScheduleIds.any(expected.contains));
@@ -244,7 +244,7 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   CreateScheduleDto _buildDto(ScheduleFormState form,
-      {required int scheduleId}) {
+      {required int scheduleId, int? deviceScheduleId}) {
     final isCyclic = form.cyclicMode;
     return CreateScheduleDto(
       motorId: SharedPreference.getMotorId(),
@@ -263,6 +263,7 @@ class _SchedulePageState extends State<SchedulePage> {
       repeat: 0,
       enabled: true,
       scheduleId: scheduleId,
+      deviceScheduleId: deviceScheduleId,
     );
   }
 
@@ -298,7 +299,7 @@ class _SchedulePageState extends State<SchedulePage> {
     try {
       await _mqttService.publishScheduleCommand(
         identifier: id,
-        scheduleId: _editRecord?.scheduleId ?? 1,
+        scheduleId: _editRecord?.deviceScheduleId ?? 1,
         startTimeHHMM: form.startHour * 100 + form.startMinute,
         endTimeHHMM: form.endHour * 100 + form.endMinute,
         startDateYYMMDD: _dateToYYMMDD(form.startDate),
@@ -326,7 +327,9 @@ class _SchedulePageState extends State<SchedulePage> {
     }
 
     SharedPreference.setscheduleid(_editRecord?.id ?? 0);
-    final dto = _buildDto(form, scheduleId: _editRecord?.scheduleId ?? 1);
+    final dto = _buildDto(form,
+        scheduleId: _editRecord?.deviceScheduleId ?? 1,
+        deviceScheduleId: _editRecord?.deviceScheduleId);
     final response = await _scheduleController.updateSchedule(dto: dto);
     if (response == null) {
       return _scheduleController.message ?? '';
