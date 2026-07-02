@@ -291,8 +291,8 @@ class MotorDetailsCard extends StatelessWidget {
         textColor = const Color(0xFFCA3500);
       } else if (mode.contains('schedule')) {
         modeText = 'Schedule';
-        bgColor = const Color(0xFFEDE9FE);
-        textColor = const Color(0xFF6D28D9);
+        bgColor = const Color(0xFFE8F5E9);
+        textColor = const Color(0xFF2E7D32);
       } else {
         modeText = 'Manual';
         bgColor = const Color(0xFFFFEDD4);

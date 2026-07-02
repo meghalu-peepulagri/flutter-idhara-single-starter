@@ -642,9 +642,9 @@ class MotorScheduleController extends GetxController {
     if (ids.isEmpty) return false;
     final result = await _scheduleRepo.bulkRepublishSchedules(ids);
 
-    // Device offline (ids landed in `failed`, nothing republished) → show the
-    // backend message in an error snackbar.
-    if (result != null && result.hasFailed && !result.hasRepublished) {
+    // Device offline (nothing republished, or the backend reported
+    // acked == 0) → show the backend message in an error snackbar.
+    if (result != null && result.isDeviceOffline) {
       geterrorSnackBar(
         (result.message != null && result.message!.isNotEmpty)
             ? result.message!

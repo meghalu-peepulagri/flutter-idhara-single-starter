@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_republish_model.dart';
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
@@ -278,6 +279,21 @@ class ScheduleManageController extends GetxController {
     final result = await _scheduleRepo.bulkRepublishSchedules(ids);
     lastRepublishResult = result;
 
+    // Device offline (nothing republished, or acked == 0) → error snackbar.
+    // Actually pushed & acknowledged by the device → success snackbar.
+    if (result != null) {
+      if (result.isDeviceOffline) {
+        geterrorSnackBar(
+          (result.message != null && result.message!.isNotEmpty)
+              ? result.message!
+              : 'Device is offline. Schedules will be delivered on the next heartbeat.',
+        );
+      } else if (result.hasRepublished ||
+          (result.acked != null && result.acked! > 0)) {
+        getsuccessSnackBar('Republished to device successfully');
+      }
+    }
+
     isLoading.value = true;
     await fetchSchedules();
     return true;
@@ -292,14 +308,19 @@ class ScheduleManageController extends GetxController {
     final result = await _scheduleRepo.bulkRepublishSchedules([id]);
     lastRepublishResult = result;
 
-    // Device offline (id landed in `failed`, nothing republished) → show the
-    // backend message in an error snackbar.
-    if (result != null && result.hasFailed && !result.hasRepublished) {
-      geterrorSnackBar(
-        (result.message != null && result.message!.isNotEmpty)
-            ? result.message!
-            : 'Device is offline. Schedules will be delivered on the next heartbeat.',
-      );
+    // Device offline (nothing republished, or acked == 0) → error snackbar.
+    // Actually pushed & acknowledged by the device → success snackbar.
+    if (result != null) {
+      if (result.isDeviceOffline) {
+        geterrorSnackBar(
+          (result.message != null && result.message!.isNotEmpty)
+              ? result.message!
+              : 'Device is offline. Schedules will be delivered on the next heartbeat.',
+        );
+      } else if (result.hasRepublished ||
+          (result.acked != null && result.acked! > 0)) {
+        getsuccessSnackBar('Republished to device successfully');
+      }
     }
 
     isLoading.value = true;

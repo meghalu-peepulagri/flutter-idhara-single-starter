@@ -138,7 +138,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                     ? [
                                         [const Color(0xFFFFA500)],
                                         [const Color(0xFF2F80ED)],
-                                        [const Color(0xFF8B5CF6)],
+                                        [const Color(0xFF2E7D32)],
                                       ]
                                     : [
                                         [
@@ -150,7 +150,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                               .withValues(alpha: 0.3)
                                         ],
                                         [
-                                          const Color(0xFF8B5CF6)
+                                          const Color(0xFF2E7D32)
                                               .withValues(alpha: 0.3)
                                         ],
                                       ],

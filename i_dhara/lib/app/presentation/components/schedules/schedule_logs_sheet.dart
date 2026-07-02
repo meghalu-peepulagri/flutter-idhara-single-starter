@@ -382,6 +382,18 @@ class _EventRow extends StatelessWidget {
     return text;
   }
 
+  /// Turns raw event names like "CREATED" / "SCHEDULE_STARTED" into
+  /// title case ("Created", "Schedule Started") for display.
+  static String _titleCase(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '—';
+    return raw
+        .trim()
+        .split(RegExp(r'[\s_]+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = _eventColor(event.event);
@@ -401,7 +413,7 @@ class _EventRow extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  event.event ?? '—',
+                  _titleCase(event.event),
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

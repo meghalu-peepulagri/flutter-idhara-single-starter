@@ -79,7 +79,7 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
                     final String modeText =
                         isSchedule ? 'Schedule' : (isAuto ? 'Auto' : 'Manual');
                     final Color chipColor = isSchedule
-                        ? const Color(0xFF8B5CF6)
+                        ? const Color(0xFF2E7D32)
                         : (isAuto
                             ? const Color(0xFFFFA500)
                             : const Color(0xFF2F80ED));

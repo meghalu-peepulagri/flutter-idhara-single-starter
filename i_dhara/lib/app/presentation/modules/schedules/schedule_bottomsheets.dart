@@ -222,7 +222,12 @@ void showTimeBottomSheet(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     buildScrollWheel(
-                      key: ValueKey('h_$selectedHour'),
+                      // Key must NOT include selectedHour — otherwise every
+                      // hour tick while scrolling recreates the wheel and
+                      // kills the fling, making it crawl one item at a time.
+                      // The hours list only changes with minTime, so key on
+                      // its length to keep the element (and momentum) alive.
+                      key: ValueKey('h_${hours.length}'),
                       values: hours.isNotEmpty
                           ? hours
                           : List.generate(24, (i) => i),

@@ -14,6 +14,8 @@ class ScheduleRepublishResult {
   final List<int> republished;
   final List<int> skipped;
   final List<int> failed;
+  final int? chunks;
+  final int? acked;
 
   const ScheduleRepublishResult({
     this.success = false,
@@ -21,6 +23,8 @@ class ScheduleRepublishResult {
     this.republished = const [],
     this.skipped = const [],
     this.failed = const [],
+    this.chunks,
+    this.acked,
   });
 
   factory ScheduleRepublishResult.fromJson(Map<String, dynamic> json) {
@@ -36,6 +40,8 @@ class ScheduleRepublishResult {
       republished: toIntList(map['republished']),
       skipped: toIntList(map['skipped']),
       failed: toIntList(map['failed']),
+      chunks: map['chunks'] is int ? map['chunks'] as int : null,
+      acked: map['acked'] is int ? map['acked'] as int : null,
     );
   }
 
@@ -45,4 +51,10 @@ class ScheduleRepublishResult {
   /// True when at least one schedule couldn't be pushed — the backend puts
   /// device-offline / MQTT-publish failures in this bucket.
   bool get hasFailed => failed.isNotEmpty;
+
+  /// True when the backend couldn't reach the device. Covers both response
+  /// shapes: the bucketed form (rows in `failed`, none republished) and the
+  /// newer counter form (`data.acked == 0`, nothing acknowledged).
+  bool get isDeviceOffline =>
+      !hasRepublished && (hasFailed || (acked != null && acked! <= 0));
 }

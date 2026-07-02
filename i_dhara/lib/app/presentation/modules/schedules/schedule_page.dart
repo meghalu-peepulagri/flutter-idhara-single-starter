@@ -201,17 +201,17 @@ class _SchedulePageState extends State<SchedulePage> {
     return result;
   }
 
-  /// Device slot ids for the MQTT `id`: the lowest FREE slots in 1..15 only.
+  /// Device slot ids for the `device_schedule_id`: the lowest FREE slots.
   /// Every existing schedule holds its slot regardless of status — only a
-  /// deleted schedule (gone from the list) frees its slot for reuse. Never
-  /// goes past 15.
+  /// deleted schedule (gone from the list) frees its slot for reuse. No cap:
+  /// when more records are created it continues past 15, so it always returns
+  /// exactly [count] unique ids.
   Future<List<int>> _computeDeviceScheduleIds(int count) async {
-    const maxSlots = 15;
     final occupied = <int>{};
     void absorb(Iterable<Record> records) {
       for (final s in records) {
         final sid = s.deviceScheduleId;
-        if (sid == null || sid < 1 || sid > maxSlots) continue;
+        if (sid == null || sid < 1) continue;
         occupied.add(sid);
       }
     }
@@ -228,17 +228,13 @@ class _SchedulePageState extends State<SchedulePage> {
     }
 
     final result = <int>[];
-    for (int slot = 1; slot <= maxSlots && result.length < count; slot++) {
+    var slot = 1;
+    while (result.length < count) {
       if (!occupied.contains(slot)) {
         result.add(slot);
         occupied.add(slot);
       }
-    }
-    // Device full (every 1..15 slot live) — fill the rest with the lowest
-    // slots NOT already in this payload, so ids stay unique and within 1..15
-    // (never duplicated, never past 15).
-    for (int slot = 1; slot <= maxSlots && result.length < count; slot++) {
-      if (!result.contains(slot)) result.add(slot);
+      slot++;
     }
     return result;
   }
@@ -535,7 +531,7 @@ class _SchedulePageState extends State<SchedulePage> {
         typeLabel: f.cyclicMode ? 'Cyclic' : 'Time Based',
         startTime: formatTime24h(f.startTime),
         endTime: formatTime24h(f.endTime),
-        duration: f.multiDaySpanText,
+        duration: f.durationText,
         powerRecovery: f.powerLossRecovery ? 'ON' : 'OFF',
         isCyclic: f.cyclicMode,
         cyclicOnMinutes: f.cyclicOnMinutes,

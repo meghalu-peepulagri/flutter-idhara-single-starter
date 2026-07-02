@@ -1239,9 +1239,6 @@ class ScheduleFormState extends State<ScheduleForm> {
       if (isStart) {
         startHour = t.hour;
         startMinute = t.minute;
-        final endTotal = (t.hour * 60 + t.minute + 5) % 1440;
-        endHour = endTotal ~/ 60;
-        endMinute = endTotal % 60;
       } else {
         endHour = t.hour;
         endMinute = t.minute;
