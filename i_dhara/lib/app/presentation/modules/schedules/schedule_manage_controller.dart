@@ -279,18 +279,21 @@ class ScheduleManageController extends GetxController {
     final result = await _scheduleRepo.bulkRepublishSchedules(ids);
     lastRepublishResult = result;
 
-    // Device offline (nothing republished, or acked == 0) → error snackbar.
-    // Actually pushed & acknowledged by the device → success snackbar.
+    // The backend returns success:true for both cases, and `acked` can be 0
+    // on a successful publish because the device ACK is async — so decide by
+    // the message: an "offline" message is an error (queued for the next
+    // heartbeat); anything else is a success (published to the device).
     if (result != null) {
-      if (result.isDeviceOffline) {
-        geterrorSnackBar(
-          (result.message != null && result.message!.isNotEmpty)
-              ? result.message!
-              : 'Device is offline. Schedules will be delivered on the next heartbeat.',
-        );
-      } else if (result.hasRepublished ||
-          (result.acked != null && result.acked! > 0)) {
-        getsuccessSnackBar('Republished to device successfully');
+      final msg = (result.message != null && result.message!.trim().isNotEmpty)
+          ? result.message!.trim()
+          : '';
+      if (msg.toLowerCase().contains('offline')) {
+        geterrorSnackBar(msg.isEmpty
+            ? 'Device is offline. Schedules will be delivered on the next heartbeat.'
+            : msg);
+      } else {
+        getsuccessSnackBar(
+            msg.isEmpty ? 'Republished to device successfully' : msg);
       }
     }
 
@@ -308,18 +311,21 @@ class ScheduleManageController extends GetxController {
     final result = await _scheduleRepo.bulkRepublishSchedules([id]);
     lastRepublishResult = result;
 
-    // Device offline (nothing republished, or acked == 0) → error snackbar.
-    // Actually pushed & acknowledged by the device → success snackbar.
+    // The backend returns success:true for both cases, and `acked` can be 0
+    // on a successful publish because the device ACK is async — so decide by
+    // the message: an "offline" message is an error (queued for the next
+    // heartbeat); anything else is a success (published to the device).
     if (result != null) {
-      if (result.isDeviceOffline) {
-        geterrorSnackBar(
-          (result.message != null && result.message!.isNotEmpty)
-              ? result.message!
-              : 'Device is offline. Schedules will be delivered on the next heartbeat.',
-        );
-      } else if (result.hasRepublished ||
-          (result.acked != null && result.acked! > 0)) {
-        getsuccessSnackBar('Republished to device successfully');
+      final msg = (result.message != null && result.message!.trim().isNotEmpty)
+          ? result.message!.trim()
+          : '';
+      if (msg.toLowerCase().contains('offline')) {
+        geterrorSnackBar(msg.isEmpty
+            ? 'Device is offline. Schedules will be delivered on the next heartbeat.'
+            : msg);
+      } else {
+        getsuccessSnackBar(
+            msg.isEmpty ? 'Republished to device successfully' : msg);
       }
     }
 

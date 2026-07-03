@@ -615,8 +615,13 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
           _handleMotorOffFailure('No acknowledgment received from device');
         }
       });
-      widget.mqttService
-          .publishTestRunCommand(_mqttMotorId, 1, data: 0, type: 1);
+      // Wait 5s after the last test-run (T:5) command before sending the
+      // motor OFF (T:1), so the two don't hit the device at the same instant.
+      final offMotorId = _mqttMotorId;
+      Future.delayed(const Duration(seconds: 5), () {
+        widget.mqttService
+            .publishTestRunCommand(offMotorId, 1, data: 0, type: 1);
+      });
     } else {
       // No motor ID — skip D:0, go straight to completed.
       _hasPendingSave = false;
