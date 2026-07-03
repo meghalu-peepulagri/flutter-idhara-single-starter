@@ -84,7 +84,12 @@ class ScheduleCard extends StatelessWidget {
     final durationMin = record.runtimeMinutes ?? 0;
     final dH = durationMin ~/ 60;
     final dM = durationMin % 60;
-    final status = record.scheduleStatus ?? 'unknown';
+    // Cyclic completion (frontend): the live-data stream updates a running
+    // cyclic row's run time but not its status string, and the backend flips
+    // the DB status silently (no ACK). So once the accumulated run time has
+    // reached the window's total ON minutes, show it as ENDED (completed)
+    // immediately instead of waiting for a manual refresh.
+    final status = _effectiveStatus(record);
 
     final isActive = record.enabled ?? false;
 
@@ -598,6 +603,34 @@ class ScheduleCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Total ON minutes available in a cyclic window (ON first, then OFF).
+  /// e.g. 25-min window with ON 5 / OFF 5 → ON,OFF,ON,OFF,ON = 15 ON minutes.
+  int _cyclicTotalOnMinutes(int durationMin, int onMin, int offMin) {
+    final cycleLen = onMin + offMin;
+    if (onMin <= 0 || cycleLen <= 0 || durationMin <= 0) return 0;
+    final fullCycles = durationMin ~/ cycleLen;
+    final remainder = durationMin % cycleLen;
+    return fullCycles * onMin + (remainder > onMin ? onMin : remainder);
+  }
+
+  /// Displayed status. A RUNNING cyclic schedule whose accumulated run time
+  /// has reached its total ON minutes has finished every ON cycle, so it
+  /// reads as COMPLETED. Everything else returns the backend status unchanged.
+  String _effectiveStatus(Record record) {
+    final raw = record.scheduleStatus ?? 'unknown';
+    if (raw.toLowerCase() != 'running' ||
+        record.scheduleType != ScheduleType.CYCLIC) {
+      return raw;
+    }
+    final onMin = (record.cycleOnMinutes as num?)?.toInt() ?? 0;
+    final offMin = (record.cycleOffMinutes as num?)?.toInt() ?? 0;
+    final durationMin = record.runtimeMinutes ?? 0;
+    final runMin = record.actualRunTime ?? 0;
+    final totalOn = _cyclicTotalOnMinutes(durationMin, onMin, offMin);
+    if (totalOn > 0 && runMin >= totalOn) return 'completed';
+    return raw;
   }
 
   Widget _buildTimeBasedInfo(

@@ -479,7 +479,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
     // one day is selected.
     final canAdd = _multiDay && underCap && (isSingleDate || hasDays);
     final label = (_multiDay && (isSingleDate || hasDays) && !underCap)
-        ? 'Maximum $_absoluteMaxSchedules schedules per date reached'
+        ? 'Only $_maxSchedules schedule${_maxSchedules == 1 ? '' : 's'} available for this date'
         : 'Add Schedule';
     return GestureDetector(
       onTap: canAdd ? _addSchedule : null,
