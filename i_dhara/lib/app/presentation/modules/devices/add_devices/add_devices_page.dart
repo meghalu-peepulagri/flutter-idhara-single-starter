@@ -307,7 +307,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                   Expanded(
                     child: SingleChildScrollView(
                       keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
+                          ScrollViewKeyboardDismissBehavior.manual,
                       padding: const EdgeInsetsDirectional.fromSTEB(
                           16.0, 0.0, 16.0, 24.0),
                       child: Column(
@@ -423,7 +423,7 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(context, 'Device Location', isMandatory: false),
+        _buildLabel(context, 'Land Mark', isMandatory: false),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,

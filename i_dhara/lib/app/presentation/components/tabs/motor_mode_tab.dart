@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
+import '../../../core/utils/snackbars/error_snackbar.dart';
 import '../../modules/motor_details/motor_details_controller.dart';
 import '../motor_card/motor_card_dialogs.dart';
 import 'motor_mode_info_sheet.dart';
@@ -28,6 +29,10 @@ class _MotorModeTabState extends State<MotorModeTab> {
   void initState() {
     super.initState();
     _modeNotifier = ValueNotifier<int>(widget.controller.localModeIndex.value);
+
+    // Refresh whether this motor has a schedule each time the Mode tab opens,
+    // so the Schedule segment reflects schedules created since the last visit.
+    widget.controller.checkScheduleAvailability();
 
     // Listen to controller mode changes and update the notifier
     _modeWorker = ever(widget.controller.localModeIndex, (value) {
@@ -79,7 +84,7 @@ class _MotorModeTabState extends State<MotorModeTab> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Switch between Auto and Manual modes',
+                      'Switch between Auto, Manual and Schedule modes',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
                         color: const Color(0xFF6B7280),
@@ -91,20 +96,39 @@ class _MotorModeTabState extends State<MotorModeTab> {
                     ValueListenableBuilder<int>(
                       valueListenable: _modeNotifier,
                       builder: (context, currentModeIndex, child) {
-                        final isAuto = currentModeIndex == 1;
-                        final int uiIndex = isAuto ? 0 : 1;
+                        // Controller mode index: 0 = Manual, 1 = Auto,
+                        // 2 = Schedule. Toggle UI order: Auto, Manual,
+                        // Schedule (Auto first because it's the most-used
+                        // mode and matches the prior 2-segment layout).
+                        int uiForMode(int m) {
+                          if (m == 1) return 0; // Auto
+                          if (m == 0) return 1; // Manual
+                          return 2; // Schedule
+                        }
+
+                        int modeForUi(int u) {
+                          if (u == 0) return 1; // Auto
+                          if (u == 1) return 0; // Manual
+                          return 2; // Schedule
+                        }
+
+                        final int uiIndex = uiForMode(currentModeIndex);
 
                         return Obx(() {
                           final isDisabled =
                               widget.controller.isWaitingForModeAck.value ||
                                   !widget.controller.canChangeMode.value;
+                          final hasSchedule =
+                              widget.controller.hasSchedule.value;
 
                           return Column(
                             children: [
                               ToggleSwitch(
                                 key: ValueKey('mode_toggle_$currentModeIndex'),
                                 changeOnTap: false,
-                                customWidths: const [90, 90],
+                                // Schedule's label is wider than Auto/Manual,
+                                // so give it a touch more room.
+                                customWidths: const [85, 85, 100],
                                 radiusStyle: true,
                                 minWidth: 80.0,
                                 minHeight: 30.0,
@@ -113,7 +137,8 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                 activeBgColors: !isDisabled
                                     ? [
                                         [const Color(0xFFFFA500)],
-                                        [const Color(0xFF2F80ED)]
+                                        [const Color(0xFF2F80ED)],
+                                        [const Color(0xFF2E7D32)],
                                       ]
                                     : [
                                         [
@@ -124,21 +149,45 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                           const Color(0xFF2F80ED)
                                               .withValues(alpha: 0.3)
                                         ],
+                                        [
+                                          const Color(0xFF2E7D32)
+                                              .withValues(alpha: 0.3)
+                                        ],
                                       ],
                                 activeFgColor:
                                     !isDisabled ? Colors.white : Colors.black54,
                                 inactiveBgColor: Colors.white,
                                 inactiveFgColor: Colors.black,
                                 fontSize: 12,
-                                totalSwitches: 2,
-                                labels: const ['Auto', 'Manual'],
+                                totalSwitches: 3,
+                                labels: const ['Auto', 'Manual', 'Schedule'],
+                                // Grey out the Schedule segment when the motor
+                                // has no schedule, signalling it is disabled.
+                                customTextStyles: [
+                                  null,
+                                  null,
+                                  hasSchedule
+                                      ? null
+                                      : const TextStyle(
+                                          color: Color(0xFFB0B0B0),
+                                          fontSize: 12,
+                                        ),
+                                ],
                                 borderWidth: 1,
                                 borderColor: [Colors.grey.shade300],
                                 onToggle: !isDisabled
                                     ? (index) {
                                         if (index == null || _isDialogOpen)
                                           return;
-                                        final newModeIndex = index == 0 ? 1 : 0;
+                                        final newModeIndex = modeForUi(index);
+                                        // Schedule needs at least one schedule
+                                        // to exist. Block the switch and tell
+                                        // the user to create one.
+                                        if (newModeIndex == 2 && !hasSchedule) {
+                                          geterrorSnackBar(
+                                              'No schedule found. Please create a schedule first.');
+                                          return;
+                                        }
                                         if (newModeIndex != currentModeIndex) {
                                           setState(() => _isDialogOpen = true);
                                           MotorCardDialogs.showModeChangeDialog(
@@ -146,6 +195,12 @@ class _MotorModeTabState extends State<MotorModeTab> {
                                             widget.controller.motorName.value,
                                             newModeIndex,
                                             widget.controller.handleModeChange,
+                                            isWaitingForModeAck: widget
+                                                .controller.isWaitingForModeAck,
+                                            onCancelWhileWaiting: widget
+                                                .controller.cancelModeChange,
+                                            currentModeIndex: widget
+                                                .controller.localModeIndex,
                                           ).then((_) {
                                             if (mounted) {
                                               setState(

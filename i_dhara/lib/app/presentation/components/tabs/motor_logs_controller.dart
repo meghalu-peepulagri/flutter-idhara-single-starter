@@ -134,10 +134,15 @@ class MotorLogsController extends GetxController {
       if (response != null &&
           response.success == true &&
           response.data?.records != null) {
+        final records = response.data!.records!;
         if (append) {
-          motorLogsList.addAll(response.data!.records!);
+          // Deduplicate: only add records whose id is not already in the list
+          final existingIds = motorLogsList.map((l) => l.id).toSet();
+          final newRecords =
+              records.where((r) => !existingIds.contains(r.id)).toList();
+          motorLogsList.addAll(newRecords);
         } else {
-          motorLogsList.value = response.data!.records!;
+          motorLogsList.value = records;
         }
 
         if (response.data!.paginationInfo != null) {
@@ -145,6 +150,11 @@ class MotorLogsController extends GetxController {
               response.data!.paginationInfo!.currentPage ?? page.value;
           totalPages.value = response.data!.paginationInfo!.totalPages ?? 1;
           hasMoreData.value = currentPage.value < totalPages.value;
+        } else {
+          // Pagination info absent — infer from data count so hasMoreData
+          // is not left as true indefinitely (which would repeat page 1).
+          currentPage.value = page.value;
+          hasMoreData.value = records.length >= limit.value;
         }
       }
     } catch (e) {
@@ -165,7 +175,8 @@ class MotorLogsController extends GetxController {
     }
 
     isLoadingMore.value = true;
-    page.value = currentPage.value + 1;
+    final nextPage = currentPage.value + 1;
+    page.value = nextPage;
 
     try {
       if (selectedFilters.isEmpty) {
@@ -177,6 +188,11 @@ class MotorLogsController extends GetxController {
       debugPrint('Error loading more data: $e');
       page.value = currentPage.value;
     } finally {
+      // Guarantee currentPage advances even when the API returns no pagination
+      // info — prevents the scroll listener from re-fetching the same page.
+      if (currentPage.value < nextPage) {
+        currentPage.value = nextPage;
+      }
       isLoadingMore.value = false;
     }
   }
@@ -307,11 +323,15 @@ class MotorLogsController extends GetxController {
       );
 
       if (response?.status == 200 || response?.status == 201) {
-        final data = response?.data?.records;
+        final data = response?.data?.records ?? [];
         if (append) {
-          logsData.addAll(data!);
+          // Deduplicate: only add records whose id is not already in the list
+          final existingIds = logsData.map((l) => l.id).toSet();
+          final newRecords =
+              data.where((r) => !existingIds.contains(r.id)).toList();
+          logsData.addAll(newRecords);
         } else {
-          logsData.assignAll(data!);
+          logsData.assignAll(data);
         }
 
         if (response?.data?.pagination != null) {
@@ -319,6 +339,11 @@ class MotorLogsController extends GetxController {
               response!.data!.pagination!.currentPage ?? page.value;
           totalPages.value = response.data!.pagination!.totalPages ?? 1;
           hasMoreData.value = currentPage.value < totalPages.value;
+        } else {
+          // Pagination info absent — infer from data count so hasMoreData
+          // is not left as true indefinitely (which would repeat page 1).
+          currentPage.value = page.value;
+          hasMoreData.value = data.length >= limit.value;
         }
       }
     } catch (e) {

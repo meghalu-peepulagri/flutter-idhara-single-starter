@@ -39,13 +39,20 @@ class ScheduleController extends GetxController {
         message = response.message;
         return response;
       } else {
-        message = response?.errors?.daysOfWeek ?? 'Failed to create schedule';
+        // Surface the backend's `message` field (e.g. 409 overlap detail).
+        // Fall through to validation-specific fields only if the API didn't
+        // send a message. No static fallback — empty/null means "no
+        // message to show" and the caller (dialog) handles that.
+        message = response?.message ?? response?.errors?.daysOfWeek;
         errorInstance = response?.toJson() ?? {};
         return null;
       }
     } catch (e) {
       isLoading.value = false;
-      message = 'Error: $e';
+      // Network / parsing failure has no backend message; leave null so
+      // the dialog doesn't show a banner. The dio interceptor still
+      // surfaces a snackbar for the user.
+      message = null;
       return null;
     }
   }
@@ -62,12 +69,13 @@ class ScheduleController extends GetxController {
         message = response.message;
         return response;
       } else {
-        message = response?.message ?? 'Failed to update schedule';
+        // Backend message only — no static fallback.
+        message = response?.message;
         return null;
       }
     } catch (e) {
       isLoading.value = false;
-      message = 'Error: $e';
+      message = null;
       return null;
     }
   }

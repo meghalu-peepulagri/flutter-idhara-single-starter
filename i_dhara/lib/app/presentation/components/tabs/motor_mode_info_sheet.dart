@@ -8,110 +8,131 @@ class MotorModeInfoSheet {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        return ConstrainedBox(
+          // Cap the sheet at ~55% of the viewport — enough room for the
+          // header plus a couple of cards visible at a time, and the rest
+          // scrolls. Keeps the sheet compact instead of pushing all the
+          // way to full height like before.
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.55,
           ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag handle
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Title
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: Color(0xFF004E7E), size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    'How Motor Modes Work',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E1E1E),
-                    ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle (fixed)
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F0),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: const Color(0xFFE0E0E0),
-                          width: 1,
+                ),
+                const SizedBox(height: 20),
+                // Title (fixed)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: Color(0xFF004E7E), size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      'How Motor Modes Work',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E1E1E),
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F0F0),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFFE0E0E0),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Color(0xFF6B7280),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Color(0xFF6B7280),
-                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Scrollable card list — Flexible lets the column shrink to
+                // header + visible cards while still allowing the inner
+                // scroll view to take whatever vertical space remains.
+                Flexible(
+                  child: SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Auto Mode
+                        _buildModeInfoCard(
+                          icon: Icons.autorenew_rounded,
+                          iconColor: const Color(0xFFFFA500),
+                          bgColor: const Color(0xFFFFF8E1),
+                          borderColor: const Color(0xFFFFE082),
+                          title: 'AUTO MODE',
+                          titleColor: const Color(0xFFFFA500),
+                          bullets: [
+                            'Auto ON/OFF with power.',
+                            'Power present → Motor ON',
+                            'Power lost → Motor OFF',
+                            'After a power cycle, it resumes Auto behavior.',
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Manual Mode
+                        _buildModeInfoCard(
+                          icon: Icons.touch_app_rounded,
+                          iconColor: const Color(0xFF2F80ED),
+                          bgColor: const Color(0xFFEBF3FE),
+                          borderColor: const Color(0xFFBBDEFB),
+                          title: 'MANUAL MODE',
+                          titleColor: const Color(0xFF2F80ED),
+                          bullets: [
+                            'Full control via app or buttons.',
+                            'Motor stays OFF until you turn it ON manually.',
+                            'After a power cycle, it remains OFF (no automatic start).',
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Schedule Mode
+                        _buildModeInfoCard(
+                          icon: Icons.schedule_rounded,
+                          iconColor: const Color(0xFF27AE60),
+                          bgColor: const Color(0xFFE8F5E9),
+                          borderColor: const Color(0xFFA5D6A7),
+                          title: 'SCHEDULE MODE',
+                          titleColor: const Color(0xFF27AE60),
+                          bullets: [
+                            'Motor follows your preset ON/OFF schedule.',
+                            'Set daily or weekly timings easily.',
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Auto Mode
-              _buildModeInfoCard(
-                icon: Icons.autorenew_rounded,
-                iconColor: const Color(0xFFFFA500),
-                bgColor: const Color(0xFFFFF8E1),
-                borderColor: const Color(0xFFFFE082),
-                title: 'AUTO MODE',
-                titleColor: const Color(0xFFFFA500),
-                bullets: [
-                  'Auto ON/OFF with power.',
-                  'Power present → Motor ON',
-                  'Power lost → Motor OFF',
-                  'After a power cycle, it resumes Auto behavior.',
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Manual Mode
-              _buildModeInfoCard(
-                icon: Icons.touch_app_rounded,
-                iconColor: const Color(0xFF2F80ED),
-                bgColor: const Color(0xFFEBF3FE),
-                borderColor: const Color(0xFFBBDEFB),
-                title: 'MANUAL MODE',
-                titleColor: const Color(0xFF2F80ED),
-                bullets: [
-                  'Full control via app or buttons.',
-                  'Motor stays OFF until you turn it ON manually.',
-                  'After a power cycle, it remains OFF (no automatic start).',
-                ],
-              ),
-              // const SizedBox(height: 12),
-              // Schedule Mode
-              // _buildModeInfoCard(
-              //   icon: Icons.schedule_rounded,
-              //   iconColor: const Color(0xFF27AE60),
-              //   bgColor: const Color(0xFFE8F5E9),
-              //   borderColor: const Color(0xFFA5D6A7),
-              //   title: 'SCHEDULE MODE',
-              //   titleColor: const Color(0xFF27AE60),
-              //   bullets: [
-              //     'Motor follows your preset ON/OFF schedule.',
-              //     'Set daily or weekly timings easily.',
-              //   ],
-              // ),
-              // const SizedBox(height: 16),
-            ],
+                ),
+              ],
+            ),
           ),
         );
       },

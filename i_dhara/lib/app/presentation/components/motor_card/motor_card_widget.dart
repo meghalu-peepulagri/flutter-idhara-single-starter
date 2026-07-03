@@ -11,8 +11,8 @@ import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_ro
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
 import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
@@ -364,8 +364,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   int? _getSimplifiedModeIndex(String motorMode) {
-    if (motorMode.toUpperCase().contains('MANUAL')) return 0;
-    if (motorMode.toUpperCase().contains('AUTO')) return 1;
+    final upper = motorMode.toUpperCase();
+    if (upper.contains('MANUAL')) return 0;
+    if (upper.contains('SCHEDULE')) return 2;
+    if (upper.contains('AUTO')) return 1;
     return 1;
   }
 
@@ -397,7 +399,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _startModeAckTimer(previousMode);
 
       try {
-        await widget.mqttService.publishModeCommand(motorId, confirmedMode);
+        // UI index 2 (Schedule) maps to device code 6 on the wire. The ACK
+        // path in MqttService translates D:6 back to modeIndex=2, so the
+        // _pendingModeValue comparison below stays in UI-index space.
+        final deviceCode = confirmedMode == 2 ? 6 : confirmedMode;
+        await widget.mqttService.publishModeCommand(motorId, deviceCode);
       } catch (e) {
         _modeAckTimer?.cancel();
         _localModeController.value = previousMode;
@@ -428,7 +434,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       return motorData.signalBars;
     }
     final signal = widget.motor.starter?.signalQuality;
-    if (signal == null || signal < 2 || signal > 31) return 0;
+    if (signal == null || signal < 2 || signal > 40) return 0;
     if (signal < 10) return 1;
     if (signal < 15) return 2;
     if (signal < 20) return 3;
@@ -546,16 +552,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     // Check if device has existing ACK data from API (starterParameters)
     final starterParams = widget.motor.starter?.starterParameters;
     if (starterParams != null && starterParams.isNotEmpty) {
-      // Device has previous ACK data from API, not a new device
+      // Device has previous calibration data from API, test run already done
       return false;
     }
 
-    // Check if device has MQTT data
-    if (motorData != null && motorData.hasReceivedData) {
-      return false; // Has MQTT data, not a new device
-    }
-
-    return true; // Truly new device without any prior data
+    return true; // New device — test run required
   }
 
   /// Determine if Test Run button should be enabled
@@ -639,24 +640,21 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
                     motor: widget.motor,
                     motorData: motorData,
                     onTap: _navigateToDetails,
-                    onTestRun: _navigateToTestRun,
-                    isTestRunEnabled: _shouldShowTestRun(motorData),
-                    showTestRun: _isNewDeviceWithoutAck(motorData),
                   ),
                   const Divider(
                       height: 0, thickness: 1.0, color: Color(0xFFECECEC)),
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: _navigateToDetails,
-                    child: AbsorbPointer(
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                            12.0, 0.0, 12.0, 0.0),
-                        child: VoltageCurrentValuesCard(
-                          motor: widget.motor,
-                          mqttService: widget.mqttService,
-                          isTestRunRequired: false,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                          12.0, 0.0, 12.0, 0.0),
+                      child: VoltageCurrentValuesCard(
+                        motor: widget.motor,
+                        mqttService: widget.mqttService,
+                        isTestRunRequired: false,
+                        showTestRun: _shouldShowTestRun(motorData),
+                        onTestRun: _navigateToTestRun,
                       ),
                     ),
                   ),

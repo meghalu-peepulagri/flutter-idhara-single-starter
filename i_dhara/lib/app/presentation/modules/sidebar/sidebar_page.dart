@@ -2,24 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/config/env.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_theme.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/data/repository/user_profile/user_profile_repo_impl.dart';
+import 'package:i_dhara/app/presentation/modules/user_profile/user_profile_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 export 'sidebar_controller.dart';
 
 // Sidebar Controller
 class SidebarController extends GetxController {
   var selectedRoute = '/dashboard'.obs;
+  final userName = ''.obs;
+  final appVersion = ''.obs;
 
   void setSelectedRoute(String route) {
     selectedRoute.value = route;
   }
 
   @override
-  onInit() {
+  void onInit() {
     super.onInit();
     setSelectedRoute(Get.currentRoute);
+    _fetchUserName();
+    _fetchAppVersion();
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final response = await UserProfileRepoImpl().getUserProfile();
+      if (response?.data?.fullName != null) {
+        userName.value = response!.data!.fullName!;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      appVersion.value = info.version;
+    } catch (_) {}
   }
 }
 
@@ -29,6 +53,65 @@ class SidebarWidget extends StatelessWidget {
   final ValueNotifier<bool> _isLoading = ValueNotifier<bool>(false);
   // Initialize the controller
   final SidebarController _controller = Get.put(SidebarController());
+
+  /// Reuses the profile-page logout flow: hits the logout API, disconnects
+  /// MQTT, clears SharedPreference, refreshes the FCM token, deletes all
+  /// GetX controllers, and navigates to the login screen.
+  Future<void> _onLogout() async {
+    if (_isLoading.value) return;
+    _isLoading.value = true;
+    try {
+      final ctrl = Get.isRegistered<UserProfileController>()
+          ? Get.find<UserProfileController>()
+          : Get.put(UserProfileController());
+      await ctrl.fetchFcmToken();
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  /// Small environment indicator shown next to the app version in the
+  /// sidebar footer. Dev → orange, staging → amber. Live builds skip
+  /// rendering this chip entirely (handled by the caller).
+  Widget _buildEnvChip(Environment env) {
+    final (Color bg, Color fg, String label) = switch (env) {
+      Environment.dev => (
+          const Color(0xFFFFEDD5), // orange-100
+          const Color(0xFFC2410C), // orange-700
+          'DEV',
+        ),
+      Environment.staging => (
+          const Color(0xFFFEF3C7), // amber-100
+          const Color(0xFFB45309), // amber-700
+          'STAGING',
+        ),
+      Environment.live => (
+          // Unreachable in practice — caller hides the chip for live.
+          // Keep a sane fallback so the compiler is happy.
+          const Color(0xFFDCFCE7),
+          const Color(0xFF15803D),
+          'LIVE',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.lato(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: fg,
+          letterSpacing: 0.4,
+          height: 1.2,
+        ),
+      ),
+    );
+  }
 
   // Helper method to build menu item
   Widget _buildMenuItem(
@@ -235,6 +318,108 @@ class SidebarWidget extends StatelessWidget {
                 ),
               ),
             ),
+            const Divider(color: Color(0xFFCCDEF5), thickness: 1, height: 1),
+            Obx(() => Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                          ),
+                        ),
+                        child: const Icon(Icons.person,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _controller.userName.value.isNotEmpty
+                                  ? _controller.userName.value
+                                  : '—',
+                              style: GoogleFonts.lato(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F0F0F),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_controller.appVersion.value.isNotEmpty)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'v${_controller.appVersion.value}',
+                                    style: GoogleFonts.lato(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w400,
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                  // Show an env pill only for non-live builds
+                                  // so QA / internal users can tell at a
+                                  // glance which backend the app is pointed
+                                  // at. Production builds stay unbranded.
+                                  if (AppEnvironment.environment !=
+                                      Environment.live) ...[
+                                    const SizedBox(width: 6),
+                                    _buildEnvChip(AppEnvironment.environment),
+                                  ],
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isLoading,
+                        builder: (_, busy, __) => Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: busy ? null : _onLogout,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFEBEE),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFFE53935)
+                                      .withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: busy
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFFE53935),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.logout_rounded,
+                                      size: 18,
+                                      color: Color(0xFFE53935),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
         ),
       ),

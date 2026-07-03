@@ -9,6 +9,7 @@ import 'package:i_dhara/app/presentation/components/motor_details_card.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_mode_tab.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_runtime_tab.dart';
+import 'package:i_dhara/app/presentation/components/tabs/motor_schedule_tab.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/motor_details_tab_bar.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
@@ -131,20 +132,74 @@ class MotorControlWidget extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.centerLeft,
-            child: Container(
-              decoration: const BoxDecoration(),
-              child: InkWell(
-                onTap: () {
-                  Get.offAllNamed(Routes.dashboard,
-                      arguments: {"refresh": true});
-                },
-                child: const Padding(
-                  padding: EdgeInsets.all(6.0),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Color(0xFF004E7E),
-                    size: 20.0,
+            child: InkWell(
+              onTap: () {
+                Get.offAllNamed(Routes.dashboard, arguments: {"refresh": true});
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.all(6.0),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: Color(0xFF004E7E),
+                  size: 20.0,
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () {
+                final starter = controller.motorDetails.value?.starter;
+                final motor = controller.motorDetails.value;
+                final alias = motor?.aliasName;
+                final displayName = (alias != null && alias.trim().isNotEmpty)
+                    ? alias
+                    : starter?.starterNumber;
+                Get.toNamed(Routes.deviceInfo, arguments: {
+                  'deviceName': displayName,
+                  'starterId': starter?.id,
+                  'starterNumber': starter?.starterNumber,
+                  'pcbNumber': starter?.pcbNumber,
+                  'simNumber': starter?.simNumber,
+                  'simRechargeExpiry': starter?.simRechargeexpiresDate,
+                  'deviceLocation': starter?.deviceInstalledLocation,
+                  'photoUrl': starter?.installationPhotoUrl,
+                  'testRunDate': motor?.testRunCompletedAt,
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF004E7E).withValues(alpha: 0.3),
+                    width: 1,
                   ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.devices_rounded,
+                        size: 14, color: Color(0xFF004E7E)),
+                    SizedBox(width: 5),
+                    Text(
+                      'Info',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF004E7E),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 13, color: Color(0xFF004E7E)),
+                  ],
                 ),
               ),
             ),
@@ -157,9 +212,24 @@ class MotorControlWidget extends StatelessWidget {
   Widget _buildTabContent(BuildContext context) {
     return switch (controller.selectedTabIndex.value) {
       0 => MotorModeTab(controller: controller),
-      1 => MotorRuntimeTab(controller: controller),
-      2 => MotorLogsTab(initialFilter: controller.logFilter.value),
+      1 => const MotorScheduleTab(),
+      2 => MotorRuntimeTab(controller: controller),
+      3 => _buildLogsTab(),
       _ => MotorRuntimeTab(controller: controller),
     };
+  }
+
+  /// Builds the logs tab and consumes the navigation filter exactly once.
+  /// After the first frame, [logFilter] is cleared so that subsequent
+  /// remounts (e.g. after pull-to-refresh loading cycle unmounts the tab)
+  /// start with no filter instead of re-applying the original navigation filter.
+  Widget _buildLogsTab() {
+    final filter = controller.logFilter.value;
+    if (filter != null && filter.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.logFilter.value = null;
+      });
+    }
+    return MotorLogsTab(initialFilter: filter);
   }
 }
