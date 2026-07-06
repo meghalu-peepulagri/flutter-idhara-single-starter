@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_list_model.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_dialogs.dart';
 import 'package:intl/intl.dart';
@@ -243,7 +244,7 @@ class ScheduleCard extends StatelessWidget {
                     // leftover space and truncates instead if the row is
                     // narrow.
                     Text(
-                      '${_formatTo12h(startTime)} → ${_formatTo12h(endTime)}',
+                      '${formatScheduleClockRaw(context, startTime)} → ${formatScheduleClockRaw(context, endTime)}',
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -854,24 +855,6 @@ class ScheduleCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatTo12h(String raw) {
-    String h, m;
-    if (raw.contains(':')) {
-      final parts = raw.split(':');
-      if (parts.length < 2) return raw;
-      h = parts[0].padLeft(2, '0');
-      m = parts[1].length >= 2
-          ? parts[1].substring(0, 2)
-          : parts[1].padLeft(2, '0');
-    } else if (raw.length >= 3) {
-      m = raw.substring(raw.length - 2);
-      h = raw.substring(0, raw.length - 2).padLeft(2, '0');
-    } else {
-      return raw;
-    }
-    return '$h:$m';
   }
 
   String _capitalize(String s) =>

@@ -529,8 +529,8 @@ class _SchedulePageState extends State<SchedulePage> {
     final items = forms.map((f) {
       return MultiScheduleDialogItem(
         typeLabel: f.cyclicMode ? 'Cyclic' : 'Time Based',
-        startTime: formatTime24h(f.startTime),
-        endTime: formatTime24h(f.endTime),
+        startTime: formatScheduleClock(context, f.startTime.hour, f.startTime.minute),
+        endTime: formatScheduleClock(context, f.endTime.hour, f.endTime.minute),
         duration: f.durationText,
         powerRecovery: f.powerLossRecovery ? 'ON' : 'OFF',
         isCyclic: f.cyclicMode,
@@ -579,8 +579,10 @@ class _SchedulePageState extends State<SchedulePage> {
         schedules: [
           MultiScheduleDialogItem(
             typeLabel: isCyclic ? 'Cyclic' : 'Time Based',
-            startTime: formatTime24h(form.startTime),
-            endTime: formatTime24h(form.endTime),
+            startTime: formatScheduleClock(
+                context, form.startTime.hour, form.startTime.minute),
+            endTime: formatScheduleClock(
+                context, form.endTime.hour, form.endTime.minute),
             duration: form.durationText,
             powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
             isCyclic: isCyclic,
@@ -597,8 +599,10 @@ class _SchedulePageState extends State<SchedulePage> {
         typeLabel: isCyclic ? 'Cyclic' : 'Time Based',
         startDate: _formatDateStr(form.startDate),
         endDate: _formatDateStr(form.endDate),
-        startTime: formatTime24h(form.startTime),
-        endTime: formatTime24h(form.endTime),
+        startTime: formatScheduleClock(
+            context, form.startTime.hour, form.startTime.minute),
+        endTime: formatScheduleClock(
+            context, form.endTime.hour, form.endTime.minute),
         duration: form.durationText,
         powerRecovery: form.powerLossRecovery ? 'ON' : 'OFF',
         isCyclic: isCyclic,
