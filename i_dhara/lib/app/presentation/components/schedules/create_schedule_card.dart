@@ -1,6 +1,7 @@
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widget.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_bottomsheets.dart';
 
@@ -876,11 +877,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   }
 
   Widget _buildCollapsedSummary(ScheduleFormState state) {
-    final sh = state.startHour.toString().padLeft(2, '0');
-    final sm = state.startMinute.toString().padLeft(2, '0');
-    final eh = state.endHour.toString().padLeft(2, '0');
-    final em = state.endMinute.toString().padLeft(2, '0');
-    final timeLine = '$sh:$sm → $eh:$em';
+    final timeLine =
+        '${formatScheduleClock(context, state.startHour, state.startMinute)} → '
+        '${formatScheduleClock(context, state.endHour, state.endMinute)}';
 
     final String detailLine;
     if (state.cyclicMode) {
@@ -1945,6 +1944,29 @@ class ScheduleFormState extends State<ScheduleForm> {
   }
 
   Widget _buildTimePicker(String label, int hour, int minute, bool isStart) {
+    // Follow the phone's system time format: 12h shows 1-12 + AM/PM, 24h 00-23.
+    final use24 = MediaQuery.of(context).alwaysUse24HourFormat;
+    final displayHour = use24
+        ? hour.toString().padLeft(2, '0')
+        : (hour % 12 == 0 ? 12 : hour % 12).toString();
+    final period = hour >= 12 ? 'PM' : 'AM';
+
+    Widget box(String text, {double fontSize = 22, Color? color}) =>
+        GestureDetector(
+          onTap: () => _openTimePicker(isStart),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+                color: const Color(0xFFEBF3FE),
+                borderRadius: BorderRadius.circular(6)),
+            child: Text(text,
+                style: GoogleFonts.dmSans(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w600,
+                    color: color ?? const Color(0xFF0F172A))),
+          ),
+        );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1958,20 +1980,7 @@ class ScheduleFormState extends State<ScheduleForm> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            GestureDetector(
-              onTap: () => _openTimePicker(isStart),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(6)),
-                child: Text(hour.toString().padLeft(2, '0'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF0F172A))),
-              ),
-            ),
+            box(displayHour),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3),
               child: Text(':',
@@ -1980,20 +1989,11 @@ class ScheduleFormState extends State<ScheduleForm> {
                       fontWeight: FontWeight.w800,
                       color: const Color(0xFF0F172A))),
             ),
-            GestureDetector(
-              onTap: () => _openTimePicker(isStart),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFEBF3FE),
-                    borderRadius: BorderRadius.circular(6)),
-                child: Text(minute.toString().padLeft(2, '0'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF0F172A))),
-              ),
-            ),
+            box(minute.toString().padLeft(2, '0')),
+            if (!use24) ...[
+              const SizedBox(width: 4),
+              box(period, fontSize: 13, color: const Color(0xFF004E7E)),
+            ],
           ],
         ),
       ],

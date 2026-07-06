@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/single_schedule_model.dart'
     as logs;
 import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
@@ -202,12 +203,10 @@ class _ScheduleRecordCard extends StatelessWidget {
   Color _statusColor(String? status) =>
       _statusColors[(status ?? '').toUpperCase()] ?? const Color(0xFF6B7280);
 
-  static String _formatTime(String? time) {
+  // Follows the phone's 12h/24h system setting via [formatScheduleClockRaw].
+  static String _formatTime(BuildContext context, String? time) {
     if (time == null || time.isEmpty) return '--';
-    final t = time.replaceAll(':', '');
-    if (t.length == 4) return '${t.substring(0, 2)}:${t.substring(2)}';
-    if (t.length == 3) return '${t.substring(0, 1)}:${t.substring(1)}';
-    return time;
+    return formatScheduleClockRaw(context, time);
   }
 
   /// Converts the backend's YYMMDD int (e.g. 260527 → 2026-05-27)
@@ -293,7 +292,7 @@ class _ScheduleRecordCard extends StatelessWidget {
                               size: 11, color: Color(0xFF64748B)),
                           const SizedBox(width: 3),
                           Text(
-                            '${_formatTime(data.startTime)} → ${_formatTime(data.endTime)}',
+                            '${_formatTime(context, data.startTime)} → ${_formatTime(context, data.endTime)}',
                             style: GoogleFonts.dmSans(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,

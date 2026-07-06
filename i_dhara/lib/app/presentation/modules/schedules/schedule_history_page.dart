@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
+import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
 import 'package:i_dhara/app/data/models/schedules/schedule_history_model.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_history_controller.dart';
 import 'package:intl/intl.dart';
@@ -364,12 +365,10 @@ class _HistoryRecordCard extends StatelessWidget {
   Color _statusColor(String? status) =>
       _statusColors[(status ?? '').toUpperCase()] ?? const Color(0xFF6B7280);
 
-  static String _formatTime(String? time) {
+  // Follows the phone's 12h/24h system setting via [formatScheduleClockRaw].
+  static String _formatTime(BuildContext context, String? time) {
     if (time == null || time.isEmpty) return '--';
-    final t = time.replaceAll(':', '');
-    if (t.length == 4) return '${t.substring(0, 2)}:${t.substring(2)}';
-    if (t.length == 3) return '${t.substring(0, 1)}:${t.substring(1)}';
-    return time;
+    return formatScheduleClockRaw(context, time);
   }
 
   @override
@@ -431,7 +430,7 @@ class _HistoryRecordCard extends StatelessWidget {
                               size: 13, color: Color(0xFF64748B)),
                           const SizedBox(width: 4),
                           Text(
-                            '${_formatTime(record.startTime)} → ${_formatTime(record.endTime)}',
+                            '${_formatTime(context, record.startTime)} → ${_formatTime(context, record.endTime)}',
                             style: GoogleFonts.dmSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
