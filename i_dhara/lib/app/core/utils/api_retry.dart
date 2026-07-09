@@ -9,11 +9,14 @@ import 'package:flutter/foundation.dart';
 /// Between attempts it waits [retryDelay] × attempt-number (linear back-off):
 ///   attempt 1 fails → wait 3 s → attempt 2 fails → wait 6 s → attempt 3.
 ///
+/// Defaults to a single attempt (no retry). Pass a higher [maxAttempts] at the
+/// call site when a specific request should retry.
+///
 /// Returns the first successful result, or `null` after all attempts fail.
 Future<T?> withRetry<T>({
   required Future<T?> Function() call,
   bool Function(T?)? isSuccess,
-  int maxAttempts = 3,
+  int maxAttempts = 1,
   Duration retryDelay = const Duration(seconds: 3),
 }) async {
   isSuccess ??= (r) => r != null;

@@ -2,6 +2,7 @@ import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/schedule_utils/schedule_utils.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/presentation/components/schedules/create_schedule_form_widget.dart';
 import 'package:i_dhara/app/presentation/modules/schedules/schedule_bottomsheets.dart';
 
@@ -392,7 +393,8 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
             onBack: widget.onBack ?? () {},
             onSave: _handleSavePressed,
             isEditMode: false,
-            saveEnabled: true,
+            saveEnabled: !scheduleStates.any(
+                (s) => s.isStartTimeInPast || s.isSingleDayCrossMidnight),
           ),
         ],
       ),
@@ -410,6 +412,23 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
         _showConflict = true;
       });
       return;
+    }
+    // Single date (start date == end date) can only span that one day, so a
+    // window whose end is at/before its start crosses midnight into the next
+    // date — which the user didn't select. `durationMinutes` wraps such a
+    // window to a positive value, so it slips past the duration check above;
+    // reject it explicitly here.
+    final isSingleDate = startDate.year == endDate.year &&
+        startDate.month == endDate.month &&
+        startDate.day == endDate.day;
+    if (isSingleDate) {
+      final crossesMidnight = states.any((s) =>
+          (s.endHour * 60 + s.endMinute) <= (s.startHour * 60 + s.startMinute));
+      if (crossesMidnight) {
+        geterrorSnackBar(
+            'End time must be after the start time for a single date. Pick two dates for an overnight schedule.');
+        return;
+      }
     }
     final conflict = _scheduleConflictMessage();
     if (conflict != null) {
@@ -1015,6 +1034,15 @@ class ScheduleFormState extends State<ScheduleForm> {
       startDate.month == endDate.month &&
       startDate.day == endDate.day;
 
+  bool get isStartTimeInPast {
+    if (!_isStartDateToday) return false;
+    final now = DateTime.now();
+    return (startHour * 60 + startMinute) < (now.hour * 60 + now.minute);
+  }
+
+  bool get isSingleDayCrossMidnight =>
+      _isSingleDay && (endHour * 60 + endMinute) <= (startHour * 60 + startMinute);
+
   ({int sh, int sm, int eh, int em}) _defaultsForDate(DateTime startD) {
     final now = DateTime.now();
     bool isToday(DateTime d) =>
@@ -1234,6 +1262,29 @@ class ScheduleFormState extends State<ScheduleForm> {
   }
 
   void _onTimePicked(TimeOfDay t, bool isStart) {
+    // A past start time (today) is still applied so the user sees what they
+    // picked; the error snackbar warns them and saveEnabled (isStartTimeInPast)
+    // disables the Save button until they pick a valid time.
+    final picked = t.hour * 60 + t.minute;
+    if (isStart && _isStartDateToday) {
+      final now = DateTime.now();
+      if (picked < now.hour * 60 + now.minute) {
+        geterrorSnackBar(
+            'Start time can\'t be in the past. Please pick a later time.');
+      }
+    }
+    // Single-day schedule (start date == end date) runs on one date, so the
+    // window can't cross midnight — end must be strictly after start. The
+    // pick is still applied (and shown) below; the warning plus
+    // isSingleDayCrossMidnight keep the Save button disabled until fixed.
+    if (_isSingleDay) {
+      if (isStart && picked >= endHour * 60 + endMinute) {
+        geterrorSnackBar('Start time must be before the end time.');
+      }
+      if (!isStart && picked <= startHour * 60 + startMinute) {
+        geterrorSnackBar('Overnight schedules require two dates.');
+      }
+    }
     setState(() {
       if (isStart) {
         startHour = t.hour;
@@ -1499,8 +1550,10 @@ class ScheduleFormState extends State<ScheduleForm> {
             // pair. In edit mode also require at least one actual change
             // from the loaded record — otherwise tapping Save fires a
             // pointless MQTT publish + PATCH for an unchanged schedule.
-            saveEnabled:
-                durationMinutes > 0 && (!widget.isEditMode || _isDirty),
+            saveEnabled: durationMinutes > 0 &&
+                !isStartTimeInPast &&
+                !isSingleDayCrossMidnight &&
+                (!widget.isEditMode || _isDirty),
           ),
         ],
       ),

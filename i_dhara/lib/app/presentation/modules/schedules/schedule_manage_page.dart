@@ -95,7 +95,10 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
       case _BulkScheduleAction.restart:
         return s == 'STOPPED';
       case _BulkScheduleAction.republish:
-        return s == 'PENDING';
+        // Beyond the device's rolling 3-day window the row is locked (see
+        // `_isResyncLocked`) — bulk Resync must exclude it the same way the
+        // per-card action does.
+        return s == 'PENDING' && !_isResyncLocked(record);
       case _BulkScheduleAction.delete:
         // Delete is allowed for every status the card itself lets the
         // user delete — including PENDING, since unsynced rows still
@@ -766,6 +769,9 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
                 record: record,
                 dateLabel: dateLabel.isEmpty ? null : dateLabel,
                 isFutureSchedule: isFutureSchedule,
+                // Beyond the device's rolling 3-day window → lock Resync until
+                // the earlier dates complete and the window rolls forward.
+                isResyncLocked: _isResyncLocked(record),
                 disableEditAction: inSelectionMode,
                 disableDeleteAction: inSelectionMode,
                 disableSyncAction: inSelectionMode,
@@ -872,6 +878,20 @@ class _ScheduleManagePageState extends State<ScheduleManagePage> {
     final dd = code % 100;
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
     return DateTime(2000 + yy, mm, dd);
+  }
+
+  /// The device only holds a rolling 3-day window — today, today+1, today+2.
+  /// A PENDING schedule dated beyond that window is "locked": it can't be
+  /// synced until the earlier dates complete and the window rolls forward.
+  /// The card uses this to disable the Resync action and show the locked note.
+  /// Mirrors `_isResyncLocked` in motor_schedule_tab.dart.
+  bool _isResyncLocked(Record record) {
+    final date = _yymmddToDate(record.scheduleStartDate);
+    if (date == null) return false;
+    final now = DateTime.now();
+    final windowEnd =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 2));
+    return date.isAfter(windowEnd);
   }
 
   Widget _buildBulkActionBar() {

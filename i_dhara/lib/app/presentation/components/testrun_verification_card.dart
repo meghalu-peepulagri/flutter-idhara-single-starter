@@ -102,6 +102,35 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   final ValueNotifier<int> _settingsCountdown = ValueNotifier(15);
   Timer? _settingsCountdownTimer;
 
+  // --- Smart Calibration (T:4 → T:34 ACK) retry state ---
+  // The calibration payload is computed once, then re-published on each retry
+  // so every attempt sends identical data. The device ACK's "D" is a result
+  // code (1 = success). Any error code re-publishes instead of failing, until
+  // a D:1 arrives or the attempts are exhausted.
+  Map<String, dynamic>? _settingsPayload;
+  int _settingsAttempt = 0;
+  static const int _maxSettingsAttempts = 3;
+
+  // T:34 ACK "D" result codes → user-understandable messages. D:1 is success
+  // (handled separately). Codes mirror the device firmware:
+  //   2 FLASH_PARSING_ERROR   3 FLASH_ERASING_ERROR   4 FLASH_WRITE_ERROR
+  //   5 FLASH_VERIFY_ERROR    6 FLASH_UPDATE_PENDING  7 FLASH_UPDATE_STARTED
+  //   8 PAYLOAD_TOO_LARGE_ERROR
+  static const Map<int, String> _calibrationErrorMessages = {
+    2: 'Device couldn\'t read the calibration data.',
+    3: 'Device couldn\'t prepare its storage for calibration.',
+    4: 'Device couldn\'t save the calibration.',
+    5: 'Device couldn\'t verify the saved calibration.',
+    6: 'Device is still applying a previous update.',
+    7: 'Device started applying the update but didn\'t confirm.',
+    8: 'Calibration data is too large for the device.',
+  };
+
+  String _calibrationErrorMessage(dynamic code) {
+    final c = code is int ? code : int.tryParse(code.toString());
+    return _calibrationErrorMessages[c] ?? 'Smart Calibration Failed';
+  }
+
   // --- Common state ---
   _TestRunPhase _phase = _TestRunPhase.preCheck;
   DashboardController? _controller;
@@ -900,117 +929,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         };
         _controller!.flc.value = flc;
 
-        // Start 15-second countdown for T:34 ACK displayed in saving dialog.
-        _settingsCountdownTimer?.cancel();
-        _settingsCountdown.value = 15;
-        _settingsCountdownTimer =
-            Timer.periodic(const Duration(seconds: 1), (t) {
-          if (_settingsCountdown.value > 0) {
-            _settingsCountdown.value--;
-          } else {
-            t.cancel();
-          }
-        });
-
-        // Set up timer and listener BEFORE publishing so the real device's
-        // immediate T=34 ACK is not missed. settingstream is a broadcast
-        // StreamController — events emitted before listen() is called are lost.
-        settingsAckTimer = Timer(const Duration(seconds: 15), () {
-          _settingsCountdownTimer?.cancel();
-          mqttStreamSubscription?.cancel();
-          if (mounted && !_ackInProgress) {
-            _resetPreCheckState();
-            setState(() {
-              isWaitingForAck = false;
-              _hasPendingSave = false;
-              _phase = _TestRunPhase.failure;
-              failureMessage = 'No acknowledgment received from device';
-            });
-            if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
-              _controller?.startTestRun(widget.motor.id!);
-            } else {
-              _controller?.completeTestRun(widget.motor.id!);
-            }
-            Future.delayed(const Duration(seconds: 4), () {
-              if (mounted) {
-                if (widget.route == Routes.dashboard) {
-                  Get.offAllNamed(widget.route, arguments: {'refresh': true});
-                } else {
-                  Get.offAllNamed(Routes.devices);
-                }
-              }
-            });
-          }
-        });
-
-        // Listen for ACK on settingstream
-        mqttStreamSubscription =
-            widget.mqttService.settingstream.listen((data) async {
-          final type = data["D"];
-          final topic = data["topic"];
-          if (topic != _controller!.pcbNumber.value &&
-              topic != _controller!.macAddress.value) return;
-          if (type == 1 && !_ackInProgress && _hasPendingSave) {
-            settingsAckTimer?.cancel();
-            _settingsCountdownTimer?.cancel();
-            _hasPendingSave = false;
-            _ackInProgress = true;
-            mqttStreamSubscription?.cancel();
-            _finalFLC = _overalCurrent.value;
-            _resetPreCheckState();
-            if (mounted) {
-              setState(() {
-                isWaitingForAck = false;
-                _phase = _TestRunPhase.success;
-              });
-            }
-            try {
-              _controller?.completeTestRun(widget.motor.id!);
-              _controller?.fetchupdateSettingsAck();
-            } finally {
-              Future.delayed(const Duration(seconds: 4), () {
-                if (mounted) {
-                  if (widget.route == Routes.dashboard) {
-                    Get.offAllNamed(widget.route, arguments: {'refresh': true});
-                  } else {
-                    Get.offAllNamed(Routes.devices);
-                  }
-                }
-              });
-            }
-          } else {
-            mqttStreamSubscription?.cancel();
-            _settingsCountdownTimer?.cancel();
-            if (mounted && !_ackInProgress) {
-              _resetPreCheckState();
-              setState(() {
-                isWaitingForAck = false;
-                _hasPendingSave = false;
-                _phase = _TestRunPhase.failure;
-                failureMessage = 'Smart Calibration Failed';
-              });
-              if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
-                _controller?.startTestRun(widget.motor.id!);
-              } else {
-                _controller?.completeTestRun(widget.motor.id!);
-              }
-              Future.delayed(const Duration(seconds: 4), () {
-                if (mounted) {
-                  if (widget.route == Routes.dashboard) {
-                    Get.offAllNamed(widget.route, arguments: {'refresh': true});
-                  } else {
-                    Get.offAllNamed(Routes.devices);
-                  }
-                }
-              });
-            }
-          }
-        });
-
-        // Publish AFTER listener is ready so the device's immediate ACK is caught.
-        await widget.mqttService
-            .publishUpdateSettings(_controller!.pcbNumber.value, payload);
-        _controller?.fetchupdateSettings();
+        // Compute the calibration payload once, then drive retries from
+        // _publishSettingsAttempt so every retry re-sends identical data.
+        _settingsPayload = payload;
+        _settingsAttempt = 0;
+        await _publishSettingsAttempt();
       }
     } catch (e) {
       print("Error publishing settings command: $e");
@@ -1023,6 +946,151 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         });
       }
     }
+  }
+
+  /// Publishes one calibration (T:4) attempt and waits for the T:34 ACK.
+  ///
+  /// Retry rule (driven here, not by the MQTT layer):
+  ///  • D:1                    → success, stop retrying.
+  ///  • error code (2–8)       → shows the code's message immediately, then
+  ///                             re-publishes the next attempt, up to
+  ///                             [_maxSettingsAttempts], without resetting
+  ///                             the 15s countdown — it keeps ticking down
+  ///                             across these quick retries. Only after the
+  ///                             last attempt still errors do we stop and
+  ///                             show the terminal failure.
+  ///  • no ACK within 15s      → the countdown reaching 0 is what starts a
+  ///                             fresh 15s attempt (or fails if exhausted).
+  Future<void> _publishSettingsAttempt({bool resetTimer = true}) async {
+    final payload = _settingsPayload;
+    if (payload == null || _controller == null) return;
+    _settingsAttempt++;
+
+    if (resetTimer) {
+      // (Re)start the 15s countdown shown in the saving dialog for this attempt.
+      _settingsCountdownTimer?.cancel();
+      _settingsCountdown.value = 15;
+      _settingsCountdownTimer =
+          Timer.periodic(const Duration(seconds: 1), (t) {
+        if (_settingsCountdown.value > 0) {
+          _settingsCountdown.value--;
+        } else {
+          t.cancel();
+        }
+      });
+
+      // No-ACK timeout for this attempt → retry or fail.
+      settingsAckTimer?.cancel();
+      settingsAckTimer = Timer(const Duration(seconds: 15), () {
+        _settingsCountdownTimer?.cancel();
+        mqttStreamSubscription?.cancel();
+        if (!mounted || _ackInProgress) return;
+        if (_settingsAttempt < _maxSettingsAttempts) {
+          _publishSettingsAttempt();
+        } else {
+          _failCalibration('No acknowledgment received from device');
+        }
+      });
+    }
+
+    // Listen for the T:34 ACK BEFORE publishing (broadcast stream — events
+    // emitted before listen() are lost).
+    mqttStreamSubscription?.cancel();
+    mqttStreamSubscription =
+        widget.mqttService.settingstream.listen((data) async {
+      final code = data["D"];
+      final topic = data["topic"];
+      if (topic != _controller!.pcbNumber.value &&
+          topic != _controller!.macAddress.value) return;
+
+      if (code == 1 && !_ackInProgress && _hasPendingSave) {
+        // Success — stop the card retries and the MQTT-layer retries.
+        settingsAckTimer?.cancel();
+        _settingsCountdownTimer?.cancel();
+        _hasPendingSave = false;
+        _ackInProgress = true;
+        mqttStreamSubscription?.cancel();
+        widget.mqttService.cancelPendingSettingsCommand();
+        _finalFLC = _overalCurrent.value;
+        _resetPreCheckState();
+        if (mounted) {
+          setState(() {
+            isWaitingForAck = false;
+            _phase = _TestRunPhase.success;
+          });
+        }
+        try {
+          _controller?.completeTestRun(widget.motor.id!);
+          _controller?.fetchupdateSettingsAck();
+        } finally {
+          Future.delayed(const Duration(seconds: 4), () {
+            if (mounted) {
+              if (widget.route == Routes.dashboard) {
+                Get.offAllNamed(widget.route, arguments: {'refresh': true});
+              } else {
+                Get.offAllNamed(Routes.devices);
+              }
+            }
+          });
+        }
+        return;
+      }
+
+      // Error code (2–8): this attempt failed. Don't give up yet — re-publish,
+      // unless the attempts are exhausted. The 15s countdown keeps running
+      // uninterrupted through these quick retries; only a full no-ACK
+      // timeout restarts it.
+      if (_ackInProgress) return;
+      if (_settingsAttempt < _maxSettingsAttempts) {
+        // Still retrying — show this attempt's error now; the terminal
+        // failure (below) shows its own message via _failCalibration.
+        geterrorSnackBar(_calibrationErrorMessage(code));
+        debugPrint(
+            '🔄 Calibration error code $code → retry ${_settingsAttempt + 1}/$_maxSettingsAttempts');
+        _publishSettingsAttempt(resetTimer: false);
+      } else {
+        settingsAckTimer?.cancel();
+        _settingsCountdownTimer?.cancel();
+        if (mounted) _failCalibration(_calibrationErrorMessage(code));
+      }
+    });
+
+    // Publish, then disable the MQTT-layer auto-retry so retries are driven
+    // solely from here (avoids double publishing).
+    await widget.mqttService
+        .publishUpdateSettings(_controller!.pcbNumber.value, payload);
+    widget.mqttService.cancelPendingSettingsCommand();
+    _controller?.fetchupdateSettings();
+  }
+
+  /// Terminal calibration failure — shown after retries are exhausted (error
+  /// codes) or no ACK arrives. Sets the failure phase with [message] and
+  /// navigates back after a short delay.
+  void _failCalibration(String message) {
+    _resetPreCheckState();
+    if (mounted) {
+      setState(() {
+        isWaitingForAck = false;
+        _hasPendingSave = false;
+        _phase = _TestRunPhase.failure;
+        failureMessage = message;
+      });
+      geterrorSnackBar(message);
+    }
+    if (widget.motor.testrunStatus?.toUpperCase() == "IN_TEST") {
+      _controller?.startTestRun(widget.motor.id!);
+    } else {
+      _controller?.completeTestRun(widget.motor.id!);
+    }
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        if (widget.route == Routes.dashboard) {
+          Get.offAllNamed(widget.route, arguments: {'refresh': true});
+        } else {
+          Get.offAllNamed(Routes.devices);
+        }
+      }
+    });
   }
 
   void _onCancel() {

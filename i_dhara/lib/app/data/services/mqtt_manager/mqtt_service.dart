@@ -1888,14 +1888,17 @@ class MqttService {
         return 'Schedule failed';
       case 2:
         return 'Waiting for next schedule';
-      case 4:
-        return 'Device flash issue';
+      case 3:
       case 5:
         return 'Index mismatch error';
+      case 4:
+        return 'Device flash issue';
       case 6:
         return 'JSON parsing error';
       case 7:
         return 'Count mismatch error';
+      case 8:
+        return 'The schedule time is invalid.';
       default:
         return 'Schedule failed (code $ackCode)';
     }
