@@ -393,8 +393,10 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
             onBack: widget.onBack ?? () {},
             onSave: _handleSavePressed,
             isEditMode: false,
-            saveEnabled: !scheduleStates.any(
-                (s) => s.isStartTimeInPast || s.isSingleDayCrossMidnight),
+            saveEnabled: !scheduleStates.any((s) =>
+                s.isStartTimeInPast ||
+                s.isSingleDayCrossMidnight ||
+                s.isCyclicDurationInvalid),
           ),
         ],
       ),
@@ -1043,6 +1045,9 @@ class ScheduleFormState extends State<ScheduleForm> {
   bool get isSingleDayCrossMidnight =>
       _isSingleDay && (endHour * 60 + endMinute) <= (startHour * 60 + startMinute);
 
+  bool get isCyclicDurationInvalid =>
+      cyclicMode && (cyclicOnMinutes + cyclicOffMinutes) > durationMinutes;
+
   ({int sh, int sm, int eh, int em}) _defaultsForDate(DateTime startD) {
     final now = DateTime.now();
     bool isToday(DateTime d) =>
@@ -1206,6 +1211,37 @@ class ScheduleFormState extends State<ScheduleForm> {
       cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
       cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
     }
+  }
+
+  void _onCyclicChanged(bool v) {
+    setState(() {
+      cyclicMode = v;
+      _cyclicController.value = v;
+      if (v) {
+        powerLossRecovery = false;
+        _powerLossController.value = false;
+        final total = durationMinutes;
+        if (cyclicOnMinutes + cyclicOffMinutes > total) {
+          cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
+          cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
+        }
+      } else {
+        cyclicOnMinutes = 20;
+        cyclicOffMinutes = 15;
+      }
+    });
+    // The 5-min floor on each side means cyclic mode needs at least a 10-min
+    // window (5 ON + 5 OFF) — a shorter schedule can't fit it. Flag it
+    // instead of silently saving an ON+OFF total that exceeds the duration.
+    if (isCyclicDurationInvalid) {
+      geterrorSnackBar('Cyclic ON + OFF time exceeds the schedule duration');
+    }
+    // Embedded in MultiScheduleForm (showBottomBar: false), the Save button
+    // lives in the PARENT's own bottom bar, computed from a scheduleStates
+    // snapshot taken at the parent's last build — a child-only setState()
+    // above doesn't rebuild it. Without this call, toggling cyclic mode here
+    // updates this card but leaves the parent's Save button on stale state.
+    widget.onChanged?.call();
   }
 
   Set<int> get _validDays {
@@ -1458,22 +1494,7 @@ class ScheduleFormState extends State<ScheduleForm> {
           cyclicOnMinutes: cyclicOnMinutes,
           cyclicOffMinutes: cyclicOffMinutes,
           cyclicController: _cyclicController,
-          onCyclicChanged: (v) => setState(() {
-            cyclicMode = v;
-            _cyclicController.value = v;
-            if (v) {
-              powerLossRecovery = false;
-              _powerLossController.value = false;
-              final total = durationMinutes;
-              if (cyclicOnMinutes + cyclicOffMinutes > total) {
-                cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-                cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
-              }
-            } else {
-              cyclicOnMinutes = 20;
-              cyclicOffMinutes = 15;
-            }
-          }),
+          onCyclicChanged: _onCyclicChanged,
           onOnDecrement: () => setState(() {
             if (cyclicOnMinutes > 5) cyclicOnMinutes -= 5;
           }),
@@ -1553,6 +1574,7 @@ class ScheduleFormState extends State<ScheduleForm> {
             saveEnabled: durationMinutes > 0 &&
                 !isStartTimeInPast &&
                 !isSingleDayCrossMidnight &&
+                !isCyclicDurationInvalid &&
                 (!widget.isEditMode || _isDirty),
           ),
         ],
