@@ -48,7 +48,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> get<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
+      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 60}) async {
     try {
       final response = await _dio.get<T>(path,
           queryParameters: queryParameters,
@@ -60,7 +60,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> post<T>(String path, Map<String, dynamic> queryParameters,
-      {dynamic data, int timeoutSeconds = 20}) async {
+      {dynamic data, int timeoutSeconds = 60}) async {
     try {
       final response = await _dio.post<T>(path,
           queryParameters: queryParameters,
@@ -73,7 +73,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> put<T>(String path,
-      {dynamic data, int timeoutSeconds = 10}) async {
+      {dynamic data, int timeoutSeconds = 60}) async {
     try {
       final response = await _dio.put<T>(path,
           data: data, options: _getRequestOptions(timeoutSeconds));
@@ -84,7 +84,7 @@ class NetworkManager {
   }
 
   Future<Response<T>> patch<T>(String path,
-      {dynamic data, int timeoutSeconds = 20}) async {
+      {dynamic data, int timeoutSeconds = 60}) async {
     try {
       final response = await _dio.patch<T>(path,
           data: data, options: _getRequestOptions(timeoutSeconds));
@@ -95,9 +95,12 @@ class NetworkManager {
   }
 
   Future<Response<T>> delete<T>(String path,
-      {Map<String, dynamic>? queryParameters, int timeoutSeconds = 20}) async {
+      {Map<String, dynamic>? queryParameters,
+      dynamic data,
+      int timeoutSeconds = 60}) async {
     try {
       final response = await _dio.delete<T>(path,
+          data: data,
           queryParameters: queryParameters,
           options: _getRequestOptions(timeoutSeconds));
       return response;

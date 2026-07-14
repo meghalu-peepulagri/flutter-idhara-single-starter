@@ -13,9 +13,9 @@ Widget scheduleSectionLabel(String text) => Text(
 
 //  Generic Toggle Row
 Widget buildScheduleToggle({
-  required IconData icon,
+  IconData? icon,
   required String title,
-  required String subtitle,
+  String? subtitle,
   required ValueNotifier<bool> controller,
   required ValueChanged<bool> onChanged,
   bool enabled = true,
@@ -23,7 +23,7 @@ Widget buildScheduleToggle({
   return Opacity(
     opacity: enabled ? 1.0 : 0.4,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -31,23 +31,27 @@ Widget buildScheduleToggle({
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF6B7280)),
-          const SizedBox(width: 10),
+          if (icon != null) ...[
+            Icon(icon, size: 18, color: const Color(0xFF6B7280)),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
                     style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: const Color(0xFF0F172A))),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF64748B))),
+                if (subtitle != null && subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF64748B))),
+                ],
               ],
             ),
           ),
@@ -104,7 +108,7 @@ class ScheduleCyclicCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -123,10 +127,10 @@ class ScheduleCyclicCard extends StatelessWidget {
                   children: [
                     Text('Cyclic Mode',
                         style: GoogleFonts.dmSans(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: const Color(0xFF0F172A))),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text('Motor alternates ON / OFF',
                         style: GoogleFonts.dmSans(
                             fontSize: 11,
@@ -154,9 +158,9 @@ class ScheduleCyclicCard extends StatelessWidget {
             child: cyclicMode
                 ? Column(
                     children: [
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -265,12 +269,18 @@ class ScheduleFormBottomBar extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onSave;
   final bool isEditMode;
+  // When false, the Save/Update button greys out and ignores taps. Driven
+  // by the form's durationMinutes — disables until the user picks valid
+  // start/end times.
+  final bool saveEnabled;
 
-  const ScheduleFormBottomBar(
-      {super.key,
-      required this.onBack,
-      required this.onSave,
-      this.isEditMode = false});
+  const ScheduleFormBottomBar({
+    super.key,
+    required this.onBack,
+    required this.onSave,
+    this.isEditMode = false,
+    this.saveEnabled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -310,23 +320,29 @@ class ScheduleFormBottomBar extends StatelessWidget {
             child: Container(
               height: 48,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight),
+                gradient: saveEnabled
+                    ? const LinearGradient(
+                        colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight)
+                    : null,
+                color: saveEnabled ? null : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                      color: const Color(0xFF004E7E).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4))
-                ],
+                boxShadow: saveEnabled
+                    ? [
+                        BoxShadow(
+                            color:
+                                const Color(0xFF004E7E).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4))
+                      ]
+                    : null,
               ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
-                  onTap: onSave,
+                  onTap: saveEnabled ? onSave : null,
                   child: Center(
                     child: Text(
                         isEditMode ? 'Update Schedule' : 'Save Schedule',

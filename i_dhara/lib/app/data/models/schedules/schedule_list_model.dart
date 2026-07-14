@@ -108,6 +108,8 @@ class Record {
   int? starterId;
   ScheduleType? scheduleType;
   int? scheduleId;
+  int? deviceScheduleId;
+  int? deviceScheduleStatus;
   int? bitWiseDays;
   int? scheduleStartDate;
   int? scheduleEndDate;
@@ -120,6 +122,9 @@ class Record {
   bool? powerLossRecovery;
   int? accumulatedOnSeconds;
   bool? manuallyStopped;
+  int? actualRunTime;
+  String? actualStartTime;
+  String? actualEndTime;
   int? repeat;
   bool? enabled;
   String? scheduleStatus;
@@ -140,12 +145,17 @@ class Record {
     this.starterId,
     this.scheduleType,
     this.scheduleId,
+    this.deviceScheduleId,
+    this.deviceScheduleStatus,
     this.bitWiseDays,
     this.scheduleStartDate,
     this.scheduleEndDate,
     this.daysOfWeek,
     this.startTime,
     this.endTime,
+    this.actualRunTime,
+    this.actualStartTime,
+    this.actualEndTime,
     this.runtimeMinutes,
     this.cycleOnMinutes,
     this.cycleOffMinutes,
@@ -173,6 +183,8 @@ class Record {
         starterId: json["starter_id"],
         scheduleType: scheduleTypeValues.map[json["schedule_type"]]!,
         scheduleId: json["schedule_id"],
+        deviceScheduleId: json["device_schedule_id"],
+        deviceScheduleStatus: json["device_schedule_status"],
         bitWiseDays: json["bit_wise_days"],
         scheduleStartDate: json["schedule_start_date"],
         scheduleEndDate: json["schedule_end_date"],
@@ -185,6 +197,9 @@ class Record {
         cycleOnMinutes: json["cycle_on_minutes"],
         cycleOffMinutes: json["cycle_off_minutes"],
         powerLossRecovery: json["power_loss_recovery"],
+        actualRunTime: json["actual_run_time"],
+        actualStartTime: json["actual_start_time"],
+        actualEndTime: json["actual_end_time"],
         accumulatedOnSeconds: json["accumulated_on_seconds"],
         manuallyStopped: json["manually_stopped"],
         repeat: json["repeat"],
@@ -210,12 +225,64 @@ class Record {
             : DateTime.parse(json["updated_at"]),
       );
 
+  Record copyWith({
+    int? runtimeMinutes,
+    String? startTime,
+    String? endTime,
+    int? accumulatedOnSeconds,
+    String? scheduleStatus,
+    int? actualRunTime,
+    String? actualStartTime,
+    String? actualEndTime,
+    int? deviceScheduleStatus,
+  }) =>
+      Record(
+        id: id,
+        motorId: motorId,
+        starterId: starterId,
+        scheduleType: scheduleType,
+        scheduleId: scheduleId,
+        deviceScheduleId: deviceScheduleId,
+        deviceScheduleStatus:
+            deviceScheduleStatus ?? this.deviceScheduleStatus,
+        bitWiseDays: bitWiseDays,
+        scheduleStartDate: scheduleStartDate,
+        scheduleEndDate: scheduleEndDate,
+        daysOfWeek: daysOfWeek,
+        startTime: startTime ?? this.startTime,
+        endTime: endTime ?? this.endTime,
+        actualRunTime: actualRunTime ?? this.actualRunTime,
+        actualStartTime: actualStartTime ?? this.actualStartTime,
+        actualEndTime: actualEndTime ?? this.actualEndTime,
+        runtimeMinutes: runtimeMinutes ?? this.runtimeMinutes,
+        cycleOnMinutes: cycleOnMinutes,
+        cycleOffMinutes: cycleOffMinutes,
+        powerLossRecovery: powerLossRecovery,
+        accumulatedOnSeconds: accumulatedOnSeconds ?? this.accumulatedOnSeconds,
+        manuallyStopped: manuallyStopped,
+        repeat: repeat,
+        enabled: enabled,
+        scheduleStatus: scheduleStatus ?? this.scheduleStatus,
+        acknowledgement: acknowledgement,
+        acknowledgedAt: acknowledgedAt,
+        lastStartedAt: lastStartedAt,
+        lastStoppedAt: lastStoppedAt,
+        createdBy: createdBy,
+        deletedBy: deletedBy,
+        status: status,
+        priority: priority,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
   Map<String, dynamic> toJson() => {
         "id": id,
         "motor_id": motorId,
         "starter_id": starterId,
         "schedule_type": scheduleTypeValues.reverse[scheduleType],
         "schedule_id": scheduleId,
+        "device_schedule_id": deviceScheduleId,
+        "device_schedule_status": deviceScheduleStatus,
         "bit_wise_days": bitWiseDays,
         "schedule_start_date": scheduleStartDate,
         "schedule_end_date": scheduleEndDate,
@@ -230,6 +297,9 @@ class Record {
         "power_loss_recovery": powerLossRecovery,
         "accumulated_on_seconds": accumulatedOnSeconds,
         "manually_stopped": manuallyStopped,
+        "actual_run_time": actualRunTime,
+        "actual_start_time": actualStartTime,
+        "actual_end_time": actualEndTime,
         "repeat": repeat,
         "enabled": enabled,
         "schedule_status": scheduleStatus,

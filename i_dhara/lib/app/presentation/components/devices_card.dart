@@ -612,7 +612,9 @@ class DevicesCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: (motor?.mode?.toUpperCase() == 'AUTO')
                 ? const Color(0xFFF59E0B)
-                : const Color(0xFF2F80ED),
+                : (motor?.mode?.toUpperCase() == 'SCHEDULE')
+                    ? const Color(0xFF2E7D32)
+                    : const Color(0xFF2F80ED),
             borderRadius: BorderRadius.circular(4.0),
           ),
           child: Padding(

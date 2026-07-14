@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
-import 'package:i_dhara/app/presentation/modules/motor_details/motor_details_controller.dart';
 
 class MotorCardDialogs {
   static String _formatMotorName(String? name) {
@@ -160,148 +161,49 @@ class MotorCardDialogs {
     );
   }
 
+  /// [isWaitingForModeAck] — when supplied, the dialog stays open after
+  /// Confirm, swaps the body for an indeterminate spinner + "Waiting
+  /// for Response..." caption, and (on success) transitions to a
+  /// "Mode updated successfully" state for 2 seconds before auto-
+  /// closing. When omitted (e.g. dashboard motor card, which uses a
+  /// plain `bool` for its waiting state), the dialog behaves like
+  /// before: pops immediately on Confirm and fires the callback in
+  /// fire-and-forget style.
+  ///
+  /// [onCancelWhileWaiting] — invoked when the user taps Cancel
+  /// during the wait. Caller should use this to stop the MQTT retry
+  /// loop and flip [isWaitingForModeAck] back to false (the dialog
+  /// pops itself afterwards). Ignored when [isWaitingForModeAck] is
+  /// null.
+  ///
+  /// [currentModeIndex] — controller's current mode rx. Used purely
+  /// to distinguish a real ACK from a timeout / device-error / cancel
+  /// when the wait resolves: ACK keeps the controller's optimistic
+  /// mode at `newModeIndex`, the failure paths revert it. The dialog
+  /// only shows the "Mode updated successfully" state when this rx
+  /// still reads `newModeIndex` after the wait flips. Omit to skip
+  /// success-detection (dialog will simply close on flip, no green
+  /// state).
   static Future<void> showModeChangeDialog(
     BuildContext context,
     String motorName,
     int newModeIndex,
-    Function(int) onConfirm,
-  ) {
-    final modeName = newModeIndex == 1 ? 'Auto' : 'Manual';
-    return showDialog(
+    Function(int) onConfirm, {
+    RxBool? isWaitingForModeAck,
+    VoidCallback? onCancelWhileWaiting,
+    Rx<int>? currentModeIndex,
+  }) {
+    return showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Are you sure you want to change the motor mode?',
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  color: const Color(0xFF6B7280),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEBF3FE),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          "Motor: ",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF004E7E),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            _formatMotorName(motorName),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: Colors.black,
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Text(
-                          "New Mode: ",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF004E7E),
-                          ),
-                        ),
-                        Text(
-                          modeName,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: newModeIndex == 1
-                                ? const Color(0xFFFFA500)
-                                : const Color(0xFF2F80ED),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.dmSans(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                onConfirm(newModeIndex);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF004E7E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Confirm',
-                style: GoogleFonts.dmSans(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Mode change dialog that stays open after Confirm and shows a loading
-  /// spinner in place of the Confirm button until the controller's mode ACK
-  /// resolves (either real ACK arrives or the ack timer expires). The dialog
-  /// auto-closes only after [AnalyticsController.isWaitingForModeAck] flips
-  /// back to false, so the user sees the wait state instead of a silent
-  /// revert.
-  static Future<void> showModeChangeDialogWithAck(
-    BuildContext context,
-    String motorName,
-    int newModeIndex,
-    AnalyticsController controller,
-  ) {
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return _ModeChangeAckDialog(
-          motorName: motorName,
-          newModeIndex: newModeIndex,
-          controller: controller,
-        );
-      },
+      builder: (_) => _ModeChangeDialog(
+        motorName: motorName,
+        newModeIndex: newModeIndex,
+        onConfirm: onConfirm,
+        isWaitingForModeAck: isWaitingForModeAck,
+        onCancelWhileWaiting: onCancelWhileWaiting,
+        currentModeIndex: currentModeIndex,
+      ),
     );
   }
 
@@ -516,8 +418,7 @@ class MotorCardDialogs {
                                   alias != null && alias.isNotEmpty;
                               final displayName = hasAlias
                                   ? _formatMotorName(alias.capitalizeFirst)
-                                  : _formatMotorName(motor
-                                      .starter?.starterNumber
+                                  : _formatMotorName(motor.starter?.name
                                       ?.trim()
                                       .capitalizeFirst);
                               return Text(
@@ -1033,175 +934,444 @@ class MotorCardDialogs {
   }
 }
 
-class _ModeChangeAckDialog extends StatefulWidget {
-  final String motorName;
-  final int newModeIndex;
-  final AnalyticsController controller;
-
-  const _ModeChangeAckDialog({
+/// Stateful dialog body for [MotorCardDialogs.showModeChangeDialog].
+/// Three phases:
+///   • idle       — confirmation question + motor/new-mode card
+///   • processing — indeterminate spinner + "Waiting for Response..."
+///   • success    — green check + "Mode updated successfully"
+///                  (auto-closes after 2s)
+///
+/// Cancel during processing still works the same — calls
+/// [onCancelWhileWaiting] and pops without showing the success state.
+class _ModeChangeDialog extends StatefulWidget {
+  const _ModeChangeDialog({
     required this.motorName,
     required this.newModeIndex,
-    required this.controller,
+    required this.onConfirm,
+    required this.isWaitingForModeAck,
+    required this.onCancelWhileWaiting,
+    required this.currentModeIndex,
   });
 
+  final String motorName;
+  final int newModeIndex;
+  final Function(int) onConfirm;
+  // Null = caller (e.g. dashboard motor card) doesn't expose a
+  // reactive waiting flag, so fall back to the legacy pop-and-fire
+  // behaviour. Non-null = stay open until the rx flips false.
+  final RxBool? isWaitingForModeAck;
+  // Invoked when the user taps Cancel during the wait. Caller is
+  // expected to stop the MQTT retry loop AND flip
+  // isWaitingForModeAck false; the dialog pops itself once the rx
+  // flips. Null = no cancel hook; the Cancel button still works but
+  // it only closes the dialog without stopping retries.
+  final VoidCallback? onCancelWhileWaiting;
+  // Controller's current mode rx. Read once the wait resolves to
+  // distinguish a real ACK (mode == newModeIndex) from timeout /
+  // device error / cancel (mode was reverted). Optional — when
+  // null, the dialog just pops on flip without a success state.
+  final Rx<int>? currentModeIndex;
+
   @override
-  State<_ModeChangeAckDialog> createState() => _ModeChangeAckDialogState();
+  State<_ModeChangeDialog> createState() => _ModeChangeDialogState();
 }
 
-class _ModeChangeAckDialogState extends State<_ModeChangeAckDialog> {
-  bool _isWaiting = false;
+class _ModeChangeDialogState extends State<_ModeChangeDialog> {
+  bool _isProcessing = false;
+  // Briefly true between the ACK landing and the dialog auto-popping
+  // 2 seconds later. Hides the buttons and renders the green
+  // confirmation body in their place.
+  bool _showSuccess = false;
   Worker? _ackWorker;
-  bool _popped = false;
+  Timer? _dotsTimer;
+  // Counts down 2s before popping in the success phase. Stored on
+  // the state so it can be cancelled if the widget tears down early.
+  Timer? _autoCloseTimer;
+  // Cycles '', '.', '..', '...' to animate the "Waiting for
+  // Response" caption.
+  String _dotPattern = '';
 
   @override
   void dispose() {
     _ackWorker?.dispose();
+    _dotsTimer?.cancel();
+    _autoCloseTimer?.cancel();
     super.dispose();
   }
 
-  void _closeOnce() {
-    if (_popped || !mounted) return;
-    _popped = true;
-    Navigator.of(context).pop();
-  }
+  void _handleConfirm() {
+    if (_isProcessing) return;
 
-  Future<void> _onConfirm() async {
-    setState(() => _isWaiting = true);
+    // Legacy path: no rx provided → close the dialog immediately and
+    // fire the callback in fire-and-forget style. Used by the
+    // dashboard motor card, which owns its own waiting flag and
+    // doesn't need the spinner-and-wait flow.
+    final ackRx = widget.isWaitingForModeAck;
+    if (ackRx == null) {
+      Navigator.of(context).pop();
+      widget.onConfirm(widget.newModeIndex);
+      return;
+    }
 
-    // Watch the controller's ack flag — when it flips back to false, either
-    // the device acknowledged the mode change or the ack timer expired and
-    // reverted. Either way, close the dialog so the user is unblocked.
-    _ackWorker = ever<bool>(widget.controller.isWaitingForModeAck, (waiting) {
-      if (!waiting) _closeOnce();
+    setState(() {
+      _isProcessing = true;
+      _dotPattern = '';
     });
 
-    await widget.controller.handleModeChange(widget.newModeIndex);
+    // Dots animation — cycles '' → '.' → '..' → '...' → '' so the
+    // user has a visible sign of life while the publish is in flight.
+    _dotsTimer?.cancel();
+    _dotsTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _dotPattern = _dotPattern.length >= 3 ? '' : '$_dotPattern.';
+      });
+    });
 
-    // If handleModeChange short-circuited (no motor id, already waiting), the
-    // ack flag never went true, so the watcher above will never fire. Close
-    // the dialog manually in that case.
-    if (mounted && !widget.controller.isWaitingForModeAck.value) {
-      _closeOnce();
+    // Subscribe BEFORE calling onConfirm so the very first
+    // false→true→false sequence isn't missed in the rare fast-ack
+    // case. The `waiting` callback skips the true edge and routes
+    // the false edge into success-detection.
+    _ackWorker = ever<bool>(ackRx, (waiting) {
+      if (waiting || !mounted) return;
+      _onAckResolved();
+    });
+
+    widget.onConfirm(widget.newModeIndex);
+
+    // handleModeChange has early-return paths (mqtt not initialised,
+    // motor id empty) that exit before flipping isWaitingForModeAck.
+    // In those cases the worker above will never fire and the dialog
+    // would stay stuck on the spinner. handleModeChange's pre-publish
+    // block runs synchronously, so re-reading the rx right after the
+    // call tells us whether the request actually started.
+    if (!ackRx.value && _ackWorker != null && mounted) {
+      _onAckResolved();
     }
+  }
+
+  // Wait has resolved (rx flipped false). Tear down the listeners
+  // first so we own the next state change, then decide between
+  // success-flash-then-close and immediate-close based on whether
+  // the controller's mode actually matches what we asked for.
+  void _onAckResolved() {
+    _ackWorker?.dispose();
+    _ackWorker = null;
+    _dotsTimer?.cancel();
+    _dotsTimer = null;
+
+    if (!mounted) return;
+
+    // ACK keeps the controller's optimistic localModeIndex at
+    // `newModeIndex`. Timeout / device-error / cancel paths all
+    // revert it. So a match here means the device confirmed the
+    // change; a mismatch (or a null rx) means we should close
+    // quietly instead of flashing a misleading success state.
+    final modeRx = widget.currentModeIndex;
+    final wasSuccess = modeRx != null && modeRx.value == widget.newModeIndex;
+
+    if (!wasSuccess) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() {
+      _isProcessing = false;
+      _showSuccess = true;
+    });
+
+    _autoCloseTimer?.cancel();
+    _autoCloseTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  // Cancel-while-waiting handler. Dispose the worker FIRST so the rx
+  // flip from `onCancelWhileWaiting` (which the callback is expected
+  // to perform inside the controller) doesn't trigger a duplicate
+  // pop via our `ever()` listener — we own the pop here. Then ask
+  // the controller to stop retries / revert state, and finally pop
+  // ourselves.
+  void _handleCancelWhileWaiting() {
+    _ackWorker?.dispose();
+    _ackWorker = null;
+    _dotsTimer?.cancel();
+    _dotsTimer = null;
+    _autoCloseTimer?.cancel();
+    _autoCloseTimer = null;
+    widget.onCancelWhileWaiting?.call();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final modeName = widget.newModeIndex == 1 ? 'Auto' : 'Manual';
+    // Mode index: 0 = Manual, 1 = Auto, 2 = Schedule.
+    final modeName = widget.newModeIndex == 1
+        ? 'Auto'
+        : widget.newModeIndex == 2
+            ? 'Schedule'
+            : 'Manual';
+    // Match the toggle's per-mode accent: orange (Auto), deep-blue
+    // (Schedule), light-blue (Manual).
     final modeColor = widget.newModeIndex == 1
         ? const Color(0xFFFFA500)
-        : const Color(0xFF2F80ED);
+        : widget.newModeIndex == 2
+            ? const Color(0xFF004E7E)
+            : const Color(0xFF2F80ED);
+
+    final Widget body;
+    if (_showSuccess) {
+      body = _buildSuccessBody();
+    } else if (_isProcessing) {
+      body = _buildProcessingBody();
+    } else {
+      body = _buildIdleBody(modeName, modeColor);
+    }
 
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _isWaiting
-                ? 'Waiting for device to acknowledge the mode change...'
-                : 'Are you sure you want to change the motor mode?',
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              color: const Color(0xFF6B7280),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEBF3FE),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Motor: ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        MotorCardDialogs._formatMotorName(widget.motorName),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      'New Mode: ',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF004E7E),
-                      ),
-                    ),
-                    Text(
-                      modeName,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: modeColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+      // Fixed width across all phases so the dialog never grows or
+      // shrinks horizontally. Vertical sizing follows the body's
+      // natural height — the idle layout (question + motor/mode
+      // card) used to pad out to a 150px minimum and that padding
+      // showed up as empty space between the card and the Cancel /
+      // Confirm row. Title slot is null across all three phases so
+      // the outer chrome stays identical.
+      content: SizedBox(
+        width: 260,
+        child: body,
       ),
-      actions: [
-        TextButton(
-          onPressed: _isWaiting ? null : () => Navigator.of(context).pop(),
-          child: Text(
-            'Cancel',
-            style: GoogleFonts.dmSans(
-              color: _isWaiting ? Colors.grey.shade400 : Colors.grey,
-              fontWeight: FontWeight.w600,
-            ),
+      actions: _showSuccess
+          ? null
+          : _isProcessing
+              ? [
+                  // Cancel is rendered but disabled (`onPressed: null`),
+                  // per request. The user can't dismiss mid-retry; the
+                  // dialog only closes on ACK / timeout / device error.
+                  // `_handleCancelWhileWaiting` is intentionally kept on
+                  // the state class so it stays available if Cancel is
+                  // re-enabled later.
+                  TextButton(
+                    onPressed: null,
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.grey.withValues(alpha: 0.4),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, right: 8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
+                      ),
+                    ),
+                  ),
+                ]
+              : [
+                  // Idle-phase Cancel is live — taps close the dialog
+                  // before any publish happens. Only the processing-
+                  // phase Cancel above is disabled.
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: _handleConfirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF004E7E),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Confirm',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+    );
+  }
+
+  // ── Phase bodies ────────────────────────────────────────────────
+
+  Widget _buildIdleBody(String modeName, Color modeColor) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Are you sure you want to change the motor mode?',
+          style: GoogleFonts.dmSans(
+            fontSize: 14,
+            color: const Color(0xFF6B7280),
           ),
         ),
-        ElevatedButton(
-          onPressed: _isWaiting ? null : _onConfirm,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF004E7E),
-            disabledBackgroundColor:
-                const Color(0xFF004E7E).withValues(alpha: 0.7),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEBF3FE),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: _isWaiting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text(
+                    "Motor: ",
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
+                    ),
                   ),
-                )
-              : Text(
-                  'Confirm',
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      MotorCardDialogs._formatMotorName(widget.motorName),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: Colors.black,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    "New Mode: ",
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF004E7E),
+                    ),
                   ),
+                  Text(
+                    modeName,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: modeColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProcessingBody() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'Changing Mode',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.dmSans(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Indeterminate spinner — no value/countdown, no attempt
+        // breadcrumb. Spins until the ACK lands (or the controller's
+        // own ACK timer fires + reverts).
+        const SizedBox(
+          width: 36,
+          height: 36,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF004E7E)),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // "Waiting for Response" stays put; only the dots animate.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Waiting for Response',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1A1A2E),
+              ),
+            ),
+            SizedBox(
+              width: 14,
+              child: Text(
+                _dotPattern,
+                textAlign: TextAlign.start,
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A1A2E),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccessBody() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: Color(0xFF22C55E),
+            size: 32,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Mode updated successfully',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.dmSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A1A2E),
+          ),
         ),
       ],
     );

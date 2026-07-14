@@ -75,13 +75,18 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
                   valueListenable: widget.modeController,
                   builder: (context, modeIndex, _) {
                     final isAuto = modeIndex == 1;
-                    final String modeText = isAuto ? 'Auto' : 'Manual';
+                    final isSchedule = modeIndex == 2;
+                    final String modeText =
+                        isSchedule ? 'Schedule' : (isAuto ? 'Auto' : 'Manual');
+                    final Color chipColor = isSchedule
+                        ? const Color(0xFF2E7D32)
+                        : (isAuto
+                            ? const Color(0xFFFFA500)
+                            : const Color(0xFF2F80ED));
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: isAuto
-                            ? const Color(0xFFFFA500).withValues(alpha: 0.8)
-                            : const Color(0xFF2F80ED).withValues(alpha: 0.8),
+                        color: chipColor.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(20.0),
                       ),
                       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -117,7 +122,25 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
           Expanded(
             child: _buildStatusInfo(),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          // GestureDetector(
+          //   onTap: widget.onScheduleTap ?? widget.onNavigateToDetails,
+          //   behavior: HitTestBehavior.opaque,
+          //   child: Container(
+          //     width: 30,
+          //     height: 30,
+          //     decoration: BoxDecoration(
+          //       color: const Color(0xFF2F80ED).withValues(alpha: 0.12),
+          //       borderRadius: BorderRadius.circular(8.0),
+          //     ),
+          //     child: const Icon(
+          //       Icons.schedule,
+          //       size: 18,
+          //       color: Color(0xFF2F80ED),
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(width: 12),
           ValueListenableBuilder(
             valueListenable: widget.modeController,
             builder: (context, modeIndex, _) {

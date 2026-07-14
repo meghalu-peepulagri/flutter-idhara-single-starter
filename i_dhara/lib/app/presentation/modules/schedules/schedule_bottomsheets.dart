@@ -164,12 +164,8 @@ void showTimeBottomSheet(
     minTotal = ((raw ~/ 5) + 1) * 5;
   }
 
-  bool isValid(int h, int m) {
-    if (minTotal == null) return true;
-    return h * 60 + m >= minTotal;
-  }
-
-  // Snap current to nearest 5-min step, clamp to minTotal if needed
+  // Snap current to nearest 5-min step, clamp to the minimum when provided —
+  // this only sets the wheels' starting position; scrolling is unrestricted.
   int selectedHour = current.hour;
   int selectedMinute = (current.minute ~/ 5) * 5;
 
@@ -178,14 +174,14 @@ void showTimeBottomSheet(
     selectedMinute = minTotal % 60;
   }
 
-  // Valid hours: hours that have at least one valid minute
-  List<int> validHours() => List.generate(24, (i) => i)
-      .where((h) => minuteSteps.any((m) => isValid(h, m)))
-      .toList();
+  // Full alarm-style ranges — the wheels loop over every value.
+  final allHours = List.generate(24, (i) => i); // 0..23
 
-  // Valid minutes for a given hour
-  List<int> validMinutes(int h) =>
-      minuteSteps.where((m) => isValid(h, m)).toList();
+  int to24(int hour12, bool pm) {
+    var h = hour12 % 12; // 12 -> 0
+    if (pm) h += 12;
+    return h;
+  }
 
   showModalBottomSheet(
     context: context,
@@ -194,16 +190,8 @@ void showTimeBottomSheet(
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setSheetState) {
-          final hours = validHours();
-          final minutes = validMinutes(selectedHour);
-
-          // Clamp selection if it became invalid after state changes
-          if (hours.isNotEmpty && !hours.contains(selectedHour)) {
-            selectedHour = hours.first;
-          }
-          if (minutes.isNotEmpty && !minutes.contains(selectedMinute)) {
-            selectedMinute = minutes.first;
-          }
+          // Follow the phone's system time format (12h AM/PM vs 24h).
+          final use24h = MediaQuery.of(ctx).alwaysUse24HourFormat;
 
           return Container(
             decoration: const BoxDecoration(
@@ -218,34 +206,69 @@ void showTimeBottomSheet(
                 const SizedBox(height: 16),
                 _buildTitle('Select Time'),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    buildScrollWheel(
-                      key: ValueKey('h_$selectedHour'),
-                      values: hours.isNotEmpty
-                          ? hours
-                          : List.generate(24, (i) => i),
-                      selected: selectedHour,
-                      onChanged: (v) => setSheetState(() {
-                        selectedHour = v;
-                        final mins = validMinutes(v);
-                        if (mins.isNotEmpty && !mins.contains(selectedMinute)) {
-                          selectedMinute = mins.first;
-                        }
-                      }),
-                      padZero: true,
-                    ),
-                    _buildColon(),
-                    buildScrollWheel(
-                      key: ValueKey('m_$selectedHour'),
-                      values: minutes.isNotEmpty ? minutes : minuteSteps,
-                      selected: selectedMinute,
-                      onChanged: (v) => setSheetState(() => selectedMinute = v),
-                      padZero: true,
-                    ),
-                  ],
-                ),
+                Builder(builder: (_) {
+                  final minuteWheel = buildScrollWheel(
+                    key: const ValueKey('minute'),
+                    values: minuteSteps,
+                    selected: selectedMinute,
+                    loop: true,
+                    onChanged: (v) => setSheetState(() => selectedMinute = v),
+                    padZero: true,
+                  );
+
+                  if (use24h) {
+                    // 24h → hour wheel loops 00..23..00.
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        buildScrollWheel(
+                          key: const ValueKey('h24'),
+                          values: allHours,
+                          selected: selectedHour,
+                          loop: true,
+                          onChanged: (v) =>
+                              setSheetState(() => selectedHour = v),
+                          padZero: true,
+                        ),
+                        _buildColon(),
+                        minuteWheel,
+                      ],
+                    );
+                  }
+
+                  // 12h → hour wheel loops the full 24h span but renders 12h
+                  // labels, so scrolling past 12 flips AM/PM automatically. A
+                  // separate AM/PM wheel mirrors it and can also toggle.
+                  final isPm = selectedHour >= 12;
+                  final cur12 = selectedHour % 12 == 0 ? 12 : selectedHour % 12;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      buildScrollWheel(
+                        key: const ValueKey('h12'),
+                        values: allHours,
+                        selected: selectedHour,
+                        loop: true,
+                        labelBuilder: (h) =>
+                            (h % 12 == 0 ? 12 : h % 12).toString(),
+                        onChanged: (v) =>
+                            setSheetState(() => selectedHour = v),
+                      ),
+                      _buildColon(),
+                      minuteWheel,
+                      const SizedBox(width: 8),
+                      buildStringScrollWheel(
+                        key: ValueKey('ampm_$isPm'),
+                        values: const ['AM', 'PM'],
+                        selectedIndex: isPm ? 1 : 0,
+                        onChanged: (i) => setSheetState(
+                            () => selectedHour = to24(cur12, i == 1)),
+                        width: 64,
+                        height: 88,
+                      ),
+                    ],
+                  );
+                }),
                 const SizedBox(height: 24),
                 _buildBottomSheetButtons(
                   ctx,

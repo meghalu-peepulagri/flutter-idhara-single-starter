@@ -8,6 +8,7 @@ import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/api_retry.dart';
 import 'package:i_dhara/app/core/utils/mqtt_utils.dart';
+import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
 import 'package:i_dhara/app/data/models/graphs/current_model.dart';
 import 'package:i_dhara/app/data/models/graphs/device_status_history_model.dart';
@@ -19,8 +20,10 @@ import 'package:i_dhara/app/data/models/graphs/voltage_model.dart';
 import 'package:i_dhara/app/data/models/motors/motor_details_model.dart';
 import 'package:i_dhara/app/data/repository/analytics/analytics_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
+import 'package:i_dhara/app/data/repository/schedules/schedule_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/tabs/motor_logs_controller.dart';
+import 'package:i_dhara/app/presentation/modules/motor_details/motor_schedule_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
@@ -28,6 +31,10 @@ part 'motor_details_controller.api.dart';
 part 'motor_details_controller.mqtt.dart';
 
 class AnalyticsController extends GetxController with ConnectivityMixin {
+  static const int modeTabIndex = 0;
+  static const int scheduleTabIndex = 1;
+  static const int analyticsTabIndex = 2;
+  static const int logsTabIndex = 3;
   // --- Data Variables ---
   var motorDetails = Rxn<MotorDetails>();
   var daterange = <DateTime?>[DateTime.now(), DateTime.now()].obs;
@@ -85,19 +92,24 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   // --- MQTT Protocol Variables ---
   late MqttService mqttService;
   bool mqttInitialized = false;
-  var localModeIndex = 1.obs; // 0 = Manual, 1 = Auto
+  var localModeIndex = 1.obs; // 0 = Manual, 1 = Auto, 2 = Schedule
   bool _hasPendingModeCommand = false;
   int? _pendingModeValue;
   Timer? _modeAckTimer;
-  // Snapshot of each relevant motorDataMap entry's modeIndex captured just
-  // before publishing a mode command. Used to tell a real ACK (a group's
-  // modeIndex transitions to the new mode after publish) apart from a stale
-  // entry that happened to already show the new mode (e.g. groups that
-  // never received their own ACK still carry the initial API-derived mode).
-  final Map<String, int?> _modeAckSnapshot = {};
+  StreamSubscription? _modeAckErrorSubscription;
   static const Duration _ackTimeout = Duration(seconds: 23);
+  // After a local mode change we briefly ignore stale `mode` values reported
+  // in live data (T:35/T:41) — the device sometimes keeps sending the old
+  // mode for a few packets before its reporting catches up to the T:32 ACK,
+  // which would otherwise flip the UI back to the old mode.
+  DateTime? _modeGuardUntil;
+  static const Duration _modeGuardDuration = Duration(seconds: 10);
   var isWaitingForModeAck = false.obs;
   var canChangeMode = false.obs;
+  // True when the schedule-list API returns at least one schedule for this
+  // motor (any status). Drives the Mode tab's Schedule segment: enabled when
+  // a schedule exists, disabled (with a hint on tap) otherwise.
+  var hasSchedule = false.obs;
   var signalQuality = 0.obs;
 
   final bool _isUsingExistingMqttInstance = false;
@@ -139,15 +151,15 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
 
   void onTabChanged(int newIndex) async {
     final previousIndex = selectedTabIndex.value;
-    if (newIndex == 0) {
+    if (newIndex == modeTabIndex) {
       await fetchMotorDetails(enableRetry: false);
     }
 
-    if (previousIndex == 1 && newIndex != 1) {
+    if (previousIndex == analyticsTabIndex && newIndex != analyticsTabIndex) {
       _clearAnalyticsData();
     }
 
-    if (newIndex == 1 && previousIndex != 1) {
+    if (newIndex == analyticsTabIndex && previousIndex != analyticsTabIndex) {
       resetDateToToday();
       clearAllData();
       fetchRuntime(daterange);
@@ -171,6 +183,7 @@ class AnalyticsController extends GetxController with ConnectivityMixin {
   @override
   void onClose() {
     _modeAckTimer?.cancel();
+    _modeAckErrorSubscription?.cancel();
     _mqttUpdateSubscription?.cancel();
     if (mqttInitialized) {
       mqttService.dataUpdateNotifier.removeListener(_onMqttDataUpdate);

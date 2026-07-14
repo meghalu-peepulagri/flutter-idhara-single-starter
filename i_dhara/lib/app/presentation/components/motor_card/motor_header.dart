@@ -189,14 +189,14 @@ class _SignalIcon extends StatelessWidget {
       final signalStrength = motor.starter?.signalQuality;
       if (signalStrength != null &&
           signalStrength >= 2 &&
-          signalStrength <= 31) {
+          signalStrength <= 40) {
         if (signalStrength >= 2 && signalStrength <= 9) {
           bars = 1;
         } else if (signalStrength >= 10 && signalStrength <= 14) {
           bars = 2;
         } else if (signalStrength >= 15 && signalStrength <= 19) {
           bars = 3;
-        } else if (signalStrength >= 20 && signalStrength <= 30) {
+        } else if (signalStrength >= 20 && signalStrength <= 40) {
           bars = 4;
         }
       }

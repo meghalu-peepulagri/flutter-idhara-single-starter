@@ -366,6 +366,10 @@ class SidebarWidget extends StatelessWidget {
                                       color: const Color(0xFF6B7280),
                                     ),
                                   ),
+                                  // Show an env pill only for non-live builds
+                                  // so QA / internal users can tell at a
+                                  // glance which backend the app is pointed
+                                  // at. Production builds stay unbranded.
                                   if (AppEnvironment.environment !=
                                       Environment.live) ...[
                                     const SizedBox(width: 6),

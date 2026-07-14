@@ -351,6 +351,13 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
         motors.refresh();
         allMotors.refresh();
+
+        // Pull-to-refresh now also asks every motor's device for a
+        // fresh live-data snapshot via a T:5 / D:1 publish. Mirrors
+        // the motor-details `handleLiveData` flow so the same payload
+        // shape ({"T":5, "S":<rand>, "D":1}) goes out. Fire-and-
+        // forget per motor — one failure won't kill the loop.
+        await _publishLiveDataRequest();
       } else {
         errorMessage.value = 'Failed to refresh motors';
       }
@@ -358,6 +365,41 @@ class DashboardController extends GetxController with ConnectivityMixin {
       errorMessage.value = 'Error: $e';
     } finally {
       isRefreshing.value = false;
+    }
+  }
+
+  /// Publishes a `{"T":5, "S":<rand>, "D":1}` ping per loaded motor.
+  /// Used by pull-to-refresh to nudge every device to send back its
+  /// latest state immediately instead of waiting for the next
+  /// scheduled push. Reuses `publishTestRunCommand(type:5, data:1)`
+  /// — the same helper the motor-details page already uses for the
+  /// equivalent live-data request, so payload shape, retry budget,
+  /// and ACK handling stay identical.
+  Future<void> _publishLiveDataRequest() async {
+    if (!mqttInitialized || !mqttService.isConnected) return;
+    for (final motor in allMotors) {
+      if (motor.starter == null) continue;
+      final deviceAlloc = motor.starter!.deviceAllocation ?? 'false';
+      final pcb = motor.starter!.pcbNumber?.trim() ?? '';
+      final mac = motor.starter!.macAddress?.trim() ?? '';
+      // device_allocation decides the topic identifier: prefer PCB, and
+      // fall back to MAC only when there is no PCB.
+      var identifier = getMotorIdentifier(deviceAlloc, pcb, mac);
+      if (identifier.isEmpty) identifier = pcb.isNotEmpty ? pcb : mac;
+      if (identifier.isEmpty) continue;
+      final motorId = '$identifier-${_getGroupIdForMotor(motor)}';
+      try {
+        await mqttService.publishTestRunCommand(
+          motorId,
+          5,
+          data: 1,
+          type: 5,
+        );
+      } catch (e) {
+        // Per-motor publish failure shouldn't stop the rest of the
+        // refresh ping loop.
+        debugPrint('Refresh ping failed for $motorId: $e');
+      }
     }
   }
 
@@ -766,7 +808,9 @@ class DashboardController extends GetxController with ConnectivityMixin {
     final motorId = '$identifier-$groupId';
 
     try {
-      await mqttService.publishModeCommand(motorId, modeIndex);
+      // Schedule UI index (2) → device code 6; Auto/Manual pass through.
+      final deviceCode = modeIndex == 2 ? 6 : modeIndex;
+      await mqttService.publishModeCommand(motorId, deviceCode);
       // Instantly refresh API data after mode change so description
       // updates immediately without waiting for the background timer.
       // fetchMotorsSilently();

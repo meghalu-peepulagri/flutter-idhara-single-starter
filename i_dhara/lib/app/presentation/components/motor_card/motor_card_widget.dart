@@ -11,8 +11,8 @@ import 'package:i_dhara/app/presentation/components/motor_card/motor_controls_ro
 import 'package:i_dhara/app/presentation/components/motor_card/motor_header.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/voltage_current_values_card.dart';
 import 'package:i_dhara/app/presentation/components/testrun_verification_card.dart';
-import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/modules/dashboard/dashboard_controller.dart';
+import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
@@ -364,8 +364,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   int? _getSimplifiedModeIndex(String motorMode) {
-    if (motorMode.toUpperCase().contains('MANUAL')) return 0;
-    if (motorMode.toUpperCase().contains('AUTO')) return 1;
+    final upper = motorMode.toUpperCase();
+    if (upper.contains('MANUAL')) return 0;
+    if (upper.contains('SCHEDULE')) return 2;
+    if (upper.contains('AUTO')) return 1;
     return 1;
   }
 
@@ -397,7 +399,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _startModeAckTimer(previousMode);
 
       try {
-        await widget.mqttService.publishModeCommand(motorId, confirmedMode);
+        // UI index 2 (Schedule) maps to device code 6 on the wire. The ACK
+        // path in MqttService translates D:6 back to modeIndex=2, so the
+        // _pendingModeValue comparison below stays in UI-index space.
+        final deviceCode = confirmedMode == 2 ? 6 : confirmedMode;
+        await widget.mqttService.publishModeCommand(motorId, deviceCode);
       } catch (e) {
         _modeAckTimer?.cancel();
         _localModeController.value = previousMode;
@@ -428,7 +434,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       return motorData.signalBars;
     }
     final signal = widget.motor.starter?.signalQuality;
-    if (signal == null || signal < 2 || signal > 31) return 0;
+    if (signal == null || signal < 2 || signal > 40) return 0;
     if (signal < 10) return 1;
     if (signal < 15) return 2;
     if (signal < 20) return 3;
@@ -454,7 +460,7 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
 
     Get.offAllNamed(Routes.motorDetails, arguments: {
       'motorId': widget.motor.id,
-      'tabIndex': 2,
+      'tabIndex': 3,
       'logFilter': 'Faults'
     });
   }
