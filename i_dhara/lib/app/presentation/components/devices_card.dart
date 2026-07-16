@@ -21,9 +21,15 @@ import '../../core/utils/mqtt_utils.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
+  final Motor? motor;
   final MqttService mqttService;
 
-  DevicesCard({super.key, required this.device, required this.mqttService});
+  DevicesCard({
+    super.key,
+    required this.device,
+    this.motor,
+    required this.mqttService,
+  });
 
   final DevicesController controller = Get.find<DevicesController>();
 
@@ -389,8 +395,8 @@ class DevicesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final motor =
-        device.motors?.isNotEmpty == true ? device.motors!.first : null;
+    final Motor? motor = this.motor ??
+        (device.motors?.isNotEmpty == true ? device.motors!.first : null);
 
     return ValueListenableBuilder(
       valueListenable: mqttService.dataUpdateNotifier,

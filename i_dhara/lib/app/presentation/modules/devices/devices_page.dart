@@ -203,6 +203,25 @@ class DevicesPage extends StatelessWidget {
                                 child: Center(child: NoStartersFound()),
                               );
                             }
+                            final motorCards = <Widget>[];
+                            for (final device in controller.devicesList) {
+                              final motors = device.motors;
+                              if (motors == null || motors.isEmpty) {
+                                motorCards.add(DevicesCard(
+                                  device: device,
+                                  motor: null,
+                                  mqttService: controller.mqttService,
+                                ));
+                              } else {
+                                for (final motor in motors) {
+                                  motorCards.add(DevicesCard(
+                                    device: device,
+                                    motor: motor,
+                                    mqttService: controller.mqttService,
+                                  ));
+                                }
+                              }
+                            }
                             return Column(
                               children: [
                                 Expanded(
@@ -215,17 +234,11 @@ class DevicesPage extends StatelessWidget {
                                         physics:
                                             const AlwaysScrollableScrollPhysics(),
                                         padding: EdgeInsets.zero,
-                                        itemCount:
-                                            controller.devicesList.length,
+                                        itemCount: motorCards.length,
                                         separatorBuilder: (context, index) =>
                                             const SizedBox(height: 12.0),
                                         itemBuilder: (context, index) {
-                                          final device =
-                                              controller.devicesList[index];
-                                          return DevicesCard(
-                                            device: device,
-                                            mqttService: controller.mqttService,
-                                          );
+                                          return motorCards[index];
                                         },
                                       ),
                                     ),

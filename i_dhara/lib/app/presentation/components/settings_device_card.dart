@@ -7,13 +7,14 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class SettingsDeviceCard extends StatelessWidget {
   final Devices device;
+  final Motor? motor;
 
-  const SettingsDeviceCard({super.key, required this.device});
+  const SettingsDeviceCard({super.key, required this.device, this.motor});
 
   @override
   Widget build(BuildContext context) {
-    final motor =
-        device.motors?.isNotEmpty == true ? device.motors!.first : null;
+    final motor = this.motor ??
+        (device.motors?.isNotEmpty == true ? device.motors!.first : null);
     final alias = motor?.aliasName;
     final pumpName = (alias != null && alias.trim().isNotEmpty)
         ? alias.replaceAll(RegExp(r'\s+'), ' ').trim()

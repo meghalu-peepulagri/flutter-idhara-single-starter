@@ -15,7 +15,7 @@ abstract class AppEnvironment {
   static Environment get environment => _environment;
 
   static void setup() {
-    const envString = String.fromEnvironment('ENV', defaultValue: 'live');
+    const envString = String.fromEnvironment('ENV', defaultValue: 'dev');
     switch (envString) {
       case 'staging':
         setupEnv(Environment.staging);
