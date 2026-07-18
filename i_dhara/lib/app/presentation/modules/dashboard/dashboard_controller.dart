@@ -623,13 +623,16 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
       MotorData? currentMotorData;
 
+      final ref = motor.motorReference;
+      final suffix = (ref != null && ref.isNotEmpty) ? '-$ref' : '';
+
       // Check all groups for MQTT data
       for (int i = 1; i <= 4; i++) {
         if (currentMotorData != null) break;
         final groupId = 'G0$i';
 
         if (mac != null && mac.isNotEmpty) {
-          final key = '$mac-$groupId';
+          final key = '$mac-$groupId$suffix';
           final data = mqttService.motorDataMap[key];
           if (data?.hasReceivedData == true) {
             currentMotorData = data;
@@ -638,7 +641,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
         }
 
         if (pcb != null && pcb.isNotEmpty) {
-          final key = '$pcb-$groupId';
+          final key = '$pcb-$groupId$suffix';
           final data = mqttService.motorDataMap[key];
           if (data?.hasReceivedData == true) {
             currentMotorData = data;

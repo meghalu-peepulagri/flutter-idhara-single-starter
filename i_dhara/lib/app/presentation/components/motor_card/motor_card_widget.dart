@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/data/models/devices/motor_control_model.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
@@ -196,9 +198,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     final pcb = widget.motor.starter!.pcbNumber;
     MotorData? bestData;
     DateTime? bestTime;
+    final ref = widget.motor.motorReference;
     for (var entry in widget.mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
+      if (ref != null && ref.isNotEmpty && data.motorReference != ref) continue;
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -333,6 +337,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   /// Send fault clear command with retry logic
   Future<void> _sendFaultClearCommand(String motorId) async {
     setState(() => _isWaitingForFaultClear = true);
+
+    if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS') {
+      await _clearMultiMotorFault();
+      return;
+    }
+
     try {
       await widget.mqttService.publishFaultClearCommand(motorId);
     } catch (e) {
@@ -344,6 +354,15 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     }
   }
 
+  Future<void> _clearMultiMotorFault() async {
+    _isWaitingForFaultClear = false;
+    if (mounted) setState(() {});
+    getsuccessSnackBar('Fault cleared successfully');
+    if (Get.isRegistered<DashboardController>()) {
+      await Get.find<DashboardController>().clearFaultAck(widget.motor);
+    }
+  }
+
   /// Execute the actual motor switch command
   Future<void> _executeSwitchCommand(String motorId, bool newValue) async {
     final previousValue = _localSwitchController.value;
@@ -351,6 +370,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _localSwitchController.value = newValue;
     _hasPendingSwitchCommand = true;
     _pendingSwitchValue = newValue;
+
+    if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS') {
+      await _executeMultiMotorSwitchCommand(previousValue, newValue);
+      return;
+    }
+
     _startSwitchAckTimer(previousValue);
     try {
       await widget.mqttService.publishMotorCommand(motorId, newValue ? 1 : 0);
@@ -361,6 +386,51 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _pendingSwitchValue = null;
       if (mounted) setState(() => _isWaitingForSwitchAck = false);
     }
+  }
+
+  Future<void> _executeMultiMotorSwitchCommand(
+      bool previousValue, bool newValue) async {
+    final starterId = widget.motor.starter?.id;
+    final numericMotorId = widget.motor.id;
+    if (starterId == null || numericMotorId == null) {
+      _revertMultiMotorSwitch(previousValue);
+      return;
+    }
+    try {
+      final response = await DevicesRepositoryImpl().controlMotors(
+        starterId,
+        MotorControlRequest(
+          motors: [
+            MotorControlItem(motorId: numericMotorId, state: newValue ? 1 : 0),
+          ],
+        ),
+      );
+      MotorControlResult? result;
+      for (final r in response?.results ?? <MotorControlResult>[]) {
+        if (r.motorId == numericMotorId) {
+          result = r;
+          break;
+        }
+      }
+      if (result?.acked == true) {
+        _hasPendingSwitchCommand = false;
+        _pendingSwitchValue = null;
+        if (mounted) setState(() => _isWaitingForSwitchAck = false);
+        final status = result?.ackStatus;
+        if (status != null && status.isNotEmpty) getsuccessSnackBar(status);
+      } else {
+        _revertMultiMotorSwitch(previousValue);
+      }
+    } catch (e) {
+      _revertMultiMotorSwitch(previousValue);
+    }
+  }
+
+  void _revertMultiMotorSwitch(bool previousValue) {
+    _localSwitchController.value = previousValue;
+    _hasPendingSwitchCommand = false;
+    _pendingSwitchValue = null;
+    if (mounted) setState(() => _isWaitingForSwitchAck = false);
   }
 
   int? _getSimplifiedModeIndex(String motorMode) {

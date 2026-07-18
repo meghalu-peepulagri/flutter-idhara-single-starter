@@ -63,6 +63,7 @@ class MotorData {
   String? macAddress;
   String? pcbNumber;
   String? groupId;
+  String? motorReference;
   String? title;
 
   bool hasReceivedLiveData = false;
@@ -1387,6 +1388,35 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  void _handleMultiMotorControlAck(
+      String identifier, Map<String, dynamic> payloadData) {
+    payloadData.forEach((motorKey, rawState) {
+      int? state;
+      if (rawState is int) {
+        state = rawState;
+      } else if (rawState is String) {
+        state = int.tryParse(rawState);
+      } else if (rawState is double) {
+        state = rawState.toInt();
+      }
+      final s = state;
+      if (s == null || (s != 0 && s != 1)) return;
+
+      for (final entry in _motorDataMap.entries) {
+        final md = entry.value;
+        if (md.motorReference == motorKey &&
+            (md.macAddress == identifier || md.pcbNumber == identifier)) {
+          if (md.state != s) md.stateChangedAt = DateTime.now();
+          md.state = s;
+          md.controller.value = (s == 1);
+          md.hasReceivedData = true;
+          _lastAckTimes[entry.key] = DateTime.now();
+        }
+      }
+    });
+    _dataUpdateNotifier.value++;
+  }
+
   /// Handle motor ON/OFF acknowledgment (type 31)
   void _handleMotorControlAck(String identifier, dynamic payloadData) {
     debugPrint('🔧 TYPE 31 received: identifier=$identifier');
@@ -1404,6 +1434,12 @@ class MqttService {
       return;
     }
     debugPrint('   ✓ Not in test run - processing normally');
+
+    if (payloadData is Map<String, dynamic> &&
+        (payloadData.containsKey('m1') || payloadData.containsKey('m2'))) {
+      _handleMultiMotorControlAck(identifier, payloadData);
+      return;
+    }
 
     // Parse state from various formats
     int? newState;
@@ -1676,6 +1712,12 @@ class MqttService {
       if (groupData == null)
         continue;
       else {}
+
+      if (_isMultiMotorGroup(groupData)) {
+        _handleMultiMotorGroup(identifier, groupId, groupData);
+        continue;
+      }
+
       final pwr = groupData["pwr"];
 
       final fullMotorId = '$identifier-$groupId';
@@ -1751,6 +1793,12 @@ class MqttService {
       if (groupData == null)
         continue;
       else {}
+
+      if (_isMultiMotorGroup(groupData)) {
+        _handleMultiMotorGroup(identifier, groupId, groupData);
+        continue;
+      }
+
       final pwr = groupData["pwr"];
 
       final fullMotorId = '$identifier-$groupId';
@@ -2179,6 +2227,59 @@ class MqttService {
       return 4;
     } else {
       return 0;
+    }
+  }
+
+  bool _isMultiMotorGroup(Map<String, dynamic> groupData) {
+    return groupData['m1'] is Map || groupData['m2'] is Map;
+  }
+
+  void _handleMultiMotorGroup(
+      String identifier, String groupId, Map<String, dynamic> groupData) {
+    final isG04 = groupId == 'G04';
+    final parseSch = groupId == 'G01' || groupId == 'G02';
+    for (final motorKey in const ['m1', 'm2']) {
+      final motorRaw = groupData[motorKey];
+      if (motorRaw is! Map<String, dynamic>) continue;
+
+      final fullMotorId = '$identifier-$groupId-$motorKey';
+
+      var motorData = _motorDataMap[fullMotorId];
+      if (motorData == null) {
+        for (var existingEntry in _motorDataMap.entries) {
+          final data = existingEntry.value;
+          if (data.motorReference == motorKey &&
+              data.groupId == groupId &&
+              (data.macAddress == identifier ||
+                  data.pcbNumber == identifier)) {
+            motorData = data;
+            _motorDataMap[fullMotorId] = motorData;
+            break;
+          }
+        }
+      }
+      motorData ??= MotorData(
+        macAddress: identifier,
+        pcbNumber: identifier,
+        groupId: groupId,
+        title: motorKey,
+        power: groupData['pwr'] ?? 0,
+      );
+      motorData.motorReference = motorKey;
+      _motorDataMap[fullMotorId] = motorData;
+
+      final merged = <String, dynamic>{
+        ...motorRaw,
+        if (groupData.containsKey('pwr')) 'pwr': groupData['pwr'],
+        if (groupData.containsKey('llv')) 'llv': groupData['llv'],
+        if (groupData.containsKey('ll_v')) 'll_v': groupData['ll_v'],
+      };
+      _updateMotorDataFromPayload(motorData, merged, isG04);
+      if (parseSch) _parseSchedule(motorData, motorRaw);
+
+      motorData.hasReceivedData = true;
+      motorData.hasReceivedLiveData = true;
+      _lastAckTimes[fullMotorId] = DateTime.now();
     }
   }
 
