@@ -466,6 +466,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _localModeController.value = confirmedMode;
       _hasPendingModeCommand = true;
       _pendingModeValue = confirmedMode;
+
+      if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS') {
+        await _executeMultiMotorModeCommand(previousMode, confirmedMode);
+        return;
+      }
+
       _startModeAckTimer(previousMode);
 
       try {
@@ -482,6 +488,62 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         if (mounted) setState(() => _isWaitingForModeAck = false);
       }
     });
+  }
+
+  String? _modeIndexToApiString(int modeIndex) {
+    switch (modeIndex) {
+      case 0:
+        return 'MANUAL';
+      case 1:
+        return 'AUTO';
+      case 2:
+        return 'SCHEDULE';
+    }
+    return null;
+  }
+
+  Future<void> _executeMultiMotorModeCommand(
+      int previousMode, int newMode) async {
+    final starterId = widget.motor.starter?.id;
+    final numericMotorId = widget.motor.id;
+    final modeStr = _modeIndexToApiString(newMode);
+    if (starterId == null || numericMotorId == null || modeStr == null) {
+      _revertMultiMotorMode(previousMode);
+      return;
+    }
+    try {
+      final response = await DevicesRepositoryImpl().changeMotorsMode(
+        starterId,
+        MotorModeRequest(
+          motors: [MotorModeItem(motorId: numericMotorId, mode: modeStr)],
+        ),
+      );
+      MotorModeResult? result;
+      for (final r in response?.results ?? <MotorModeResult>[]) {
+        if (r.motorId == numericMotorId) {
+          result = r;
+          break;
+        }
+      }
+      if (result?.acked == true) {
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+        if (mounted) setState(() => _isWaitingForModeAck = false);
+        final status = result?.ackStatus;
+        if (status != null && status.isNotEmpty) getsuccessSnackBar(status);
+      } else {
+        _revertMultiMotorMode(previousMode);
+      }
+    } catch (e) {
+      _revertMultiMotorMode(previousMode);
+    }
+  }
+
+  void _revertMultiMotorMode(int previousMode) {
+    _localModeController.value = previousMode;
+    _hasPendingModeCommand = false;
+    _pendingModeValue = null;
+    if (mounted) setState(() => _isWaitingForModeAck = false);
   }
 
   bool _canControlMotor(MotorData? motorData) {

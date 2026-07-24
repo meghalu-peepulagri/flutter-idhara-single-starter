@@ -64,6 +64,21 @@ class DevicesRepositoryImpl extends DevicesRepository {
     return null;
   }
 
+  Future<MotorModeResponse?> changeMotorsMode(
+      int starterId, MotorModeRequest request) async {
+    final response = await NetworkManager().post(
+      '/motors/starter/$starterId/mode',
+      {},
+      data: request.toJson(),
+    );
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 422) {
+      return MotorModeResponse.fromJson(response.data);
+    }
+    return null;
+  }
+
   @override
   Future<DeviceAssignResponse?> deviceassign(
     StarterCreateDto dto,

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:i_dhara/app/presentation/components/flc_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
+import 'package:i_dhara/app/presentation/components/timing_config_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class SettingsContent extends StatelessWidget {
   final GlobalKey<SettingsVoltageCardState> voltageCardKey;
   final GlobalKey<SettingsCurrentCardState> currentCardKey;
   final GlobalKey<FlcCardState> flcCardKey;
+  final GlobalKey<TimingConfigCardState>? timingCardKey;
 
   final bool isRefreshing;
 
@@ -19,6 +21,9 @@ class SettingsContent extends StatelessWidget {
   final double voltageInitialHigh;
   final double currentInitialLow;
   final double currentInitialHigh;
+  final int asDlyInitialValue;
+  final int asDlyMinValue;
+  final int asDlyMaxValue;
   final String motorName;
 
   // Callbacks
@@ -27,12 +32,15 @@ class SettingsContent extends StatelessWidget {
   final ValueChanged<bool> onFlcOutOfRange;
   final void Function(double low, double high) onVoltageChanged;
   final void Function(double low, double high) onCurrentChanged;
+  final ValueChanged<int>? onAsDlyChanged;
+  final ValueChanged<bool>? onAsDlyOutOfRange;
 
   const SettingsContent({
     super.key,
     required this.voltageCardKey,
     required this.currentCardKey,
     required this.flcCardKey,
+    this.timingCardKey,
     required this.isRefreshing,
     required this.flcInitialValue,
     required this.flcMinValue,
@@ -41,12 +49,17 @@ class SettingsContent extends StatelessWidget {
     required this.voltageInitialHigh,
     required this.currentInitialLow,
     required this.currentInitialHigh,
+    this.asDlyInitialValue = 0,
+    this.asDlyMinValue = 100,
+    this.asDlyMaxValue = 100,
     required this.motorName,
     required this.onRefresh,
     required this.onFlcChanged,
     required this.onFlcOutOfRange,
     required this.onVoltageChanged,
     required this.onCurrentChanged,
+    this.onAsDlyChanged,
+    this.onAsDlyOutOfRange,
   });
 
   @override
@@ -71,6 +84,15 @@ class SettingsContent extends StatelessWidget {
                 step: 0.01,
                 onValueChanged: onFlcChanged,
                 onOutOfRange: onFlcOutOfRange,
+              ),
+              const SizedBox(height: 7),
+              TimingConfigCard(
+                key: timingCardKey,
+                initialValue: asDlyInitialValue,
+                minValue: asDlyMinValue,
+                maxValue: asDlyMaxValue,
+                onChanged: onAsDlyChanged,
+                onOutOfRange: onAsDlyOutOfRange,
               ),
               const SizedBox(height: 7),
               SettingsVoltageCard(

@@ -87,6 +87,10 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     );
   }
 
+  bool get isMultiMotorDevice =>
+      motorDetails.value?.motorSupportType == 'MULTIPLE_MOTORS' ||
+      motorDetails.value?.starter?.motorSupportType == 'MULTIPLE_MOTORS';
+
   void _onMqttDataUpdate() {
     _updateFromMqttData();
   }
@@ -99,6 +103,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     final motorData = getMotorData();
     final mac = motorDetails.value?.starter?.macAddress;
     final pcb = motorDetails.value?.starter?.pcbNumber;
+    final isMultiMotor = isMultiMotorDevice;
 
     // True iff [entry] belongs to this motor — matches if either the
     // entry's macAddress or pcbNumber equals one of the motor's
@@ -132,7 +137,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     // and returns the first hasReceivedData==true entry; if the ACK
     // landed on a different key, scanning the full map is what makes
     // the detection group-/identifier-agnostic.
-    if (_hasPendingModeCommand) {
+    if (!isMultiMotor && _hasPendingModeCommand) {
       int? ackedMode;
       for (final entry in mqttService.motorDataMap.values) {
         if (!entry.hasReceivedData) continue;
@@ -179,6 +184,28 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       }
     }
 
+    if (isMultiMotor && _hasPendingModeCommand) {
+      final ref = motorDetails.value?.motorReference;
+      for (final entry in mqttService.motorDataMap.values) {
+        if (!entry.hasReceivedData) continue;
+        if (!entryBelongsToThisMotor(entry)) continue;
+        if (ref != null && ref.isNotEmpty && entry.motorReference != ref) {
+          continue;
+        }
+        final mIdx = entry.modeIndex;
+        if (mIdx != null && mIdx == _pendingModeValue) {
+          _modeAckTimer?.cancel();
+          _hasPendingModeCommand = false;
+          _pendingModeValue = null;
+          isWaitingForModeAck.value = false;
+          localModeIndex.value = mIdx;
+          motorMode.value = _labelForMode(mIdx);
+          ackProcessedThisCall = true;
+          break;
+        }
+      }
+    }
+
     if (motorData != null && motorData.hasReceivedData) {
       // Passive mode sync — mirror whatever the device's currently
       // active mode is. Skipped while a mode command is pending so
@@ -197,7 +224,7 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       // mode. Mirrors motor_card_widget._getMotorData on the
       // dashboard, which already uses the same lastAckTime
       // tiebreak.
-      if (!_hasPendingModeCommand && !ackProcessedThisCall) {
+      if (!isMultiMotor && !_hasPendingModeCommand && !ackProcessedThisCall) {
         int? freshestMode;
         DateTime? freshestTime;
         for (final entry in mqttService.motorDataMap.entries) {
@@ -494,6 +521,20 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     _hasPendingModeCommand = true;
     _pendingModeValue = newModeIndex;
 
+    if (isMultiMotorDevice) {
+      final ok = await _sendMultiMotorMode(newModeIndex);
+      if (ok) {
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+        isWaitingForModeAck.value = false;
+        localModeIndex.value = newModeIndex;
+        motorMode.value = _labelForMode(newModeIndex);
+      } else {
+        _revertMultiMotorModeChange(previousValue);
+      }
+      return;
+    }
+
     _startModeAckTimer(previousValue);
 
     try {
@@ -508,6 +549,47 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       _pendingModeValue = null;
       isWaitingForModeAck.value = false;
     }
+  }
+
+  String? _modeIndexToApiString(int modeIndex) {
+    if (modeIndex == 1) return 'AUTO';
+    if (modeIndex == MqttService.scheduleModeUiIndex) return 'SCHEDULE';
+    return 'MANUAL';
+  }
+
+  Future<bool> _sendMultiMotorMode(int newModeIndex) async {
+    final starterId = motorDetails.value?.starter?.id;
+    final numericMotorId = motorDetails.value?.id;
+    final modeStr = _modeIndexToApiString(newModeIndex);
+    if (starterId == null || numericMotorId == null || modeStr == null) {
+      return false;
+    }
+    try {
+      final response = await DevicesRepositoryImpl().changeMotorsMode(
+        starterId,
+        MotorModeRequest(
+          motors: [MotorModeItem(motorId: numericMotorId, mode: modeStr)],
+        ),
+      );
+      final results = response?.results ?? <MotorModeResult>[];
+      final acked = (response?.status?.toUpperCase() == 'ACKED') ||
+          results.any((r) => r.acked == true);
+      if (acked) {
+        final status = (results.isNotEmpty ? results.first : null)?.ackStatus;
+        if (status != null && status.isNotEmpty) getsuccessSnackBar(status);
+      }
+      return acked;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void _revertMultiMotorModeChange(int previousValue) {
+    localModeIndex.value = previousValue;
+    motorMode.value = _labelForMode(previousValue);
+    _hasPendingModeCommand = false;
+    _pendingModeValue = null;
+    isWaitingForModeAck.value = false;
   }
 
   void handleModeAckError(int code) {

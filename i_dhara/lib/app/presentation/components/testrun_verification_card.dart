@@ -779,10 +779,14 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     if (motordata == null) {
       final mac = widget.motor.starter?.macAddress;
       final pcb = widget.motor.starter?.pcbNumber;
+      final ref = widget.motor.motorReference;
       DateTime? bestTime;
       for (final entry in widget.mqttService.motorDataMap.entries) {
         final data = entry.value;
         if (!data.hasReceivedLiveData) continue;
+        if (ref != null && ref.isNotEmpty && data.motorReference != ref) {
+          continue;
+        }
         final matchesMac = mac != null &&
             mac.isNotEmpty &&
             (data.macAddress == mac || data.pcbNumber == mac);

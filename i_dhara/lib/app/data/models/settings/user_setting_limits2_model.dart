@@ -130,6 +130,7 @@ class UserSettings2 {
   int? smsEn;
   int? rmtEn;
   num? limit;
+  MultiMotorConfig? multiMotorConfig;
   DateTime? timeStamp;
   int? isNewConfigurationSaved;
   String? acknowledgement;
@@ -228,6 +229,7 @@ class UserSettings2 {
     this.smsEn,
     this.rmtEn,
     this.limit,
+    this.multiMotorConfig,
     this.timeStamp,
     this.isNewConfigurationSaved,
     this.acknowledgement,
@@ -329,6 +331,9 @@ class UserSettings2 {
         ivrsEn: json["ivrs_en"],
         smsEn: json["sms_en"],
         rmtEn: json["rmt_en"],
+        multiMotorConfig: json["multi_motor_config"] == null
+            ? null
+            : MultiMotorConfig.fromJson(json["multi_motor_config"]),
         timeStamp: json["time_stamp"] == null
             ? null
             : DateTime.parse(json["time_stamp"]),
@@ -437,6 +442,7 @@ class UserSettings2 {
         "ivrs_en": ivrsEn,
         "sms_en": smsEn,
         "rmt_en": rmtEn,
+        "multi_motor_config": multiMotorConfig?.toJson(),
         "time_stamp": timeStamp?.toIso8601String(),
         "is_new_configuration_saved": isNewConfigurationSaved,
         "acknowledgement": acknowledgement,
@@ -513,5 +519,116 @@ class SettingMotor {
         "name": name,
         "hp": hp,
         "alias_name": aliasName,
+      };
+}
+
+class MultiMotorConfig {
+  List<MotorSettingConfig>? motors;
+  num? sdTime;
+  int? vFltEn;
+
+  MultiMotorConfig({
+    this.motors,
+    this.sdTime,
+    this.vFltEn,
+  });
+
+  factory MultiMotorConfig.fromJson(Map<String, dynamic> json) =>
+      MultiMotorConfig(
+        motors: json["motors"] == null
+            ? []
+            : List<MotorSettingConfig>.from(
+                json["motors"]!.map((x) => MotorSettingConfig.fromJson(x))),
+        sdTime: json["sd_time"],
+        vFltEn: json["v_flt_en"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "motors": motors == null
+            ? []
+            : List<dynamic>.from(motors!.map((x) => x.toJson())),
+        "sd_time": sdTime,
+        "v_flt_en": vFltEn,
+      };
+}
+
+class MotorSettingConfig {
+  num? cif;
+  num? drf;
+  num? flc;
+  num? lrf;
+  num? olf;
+  num? opf;
+  num? igB;
+  num? igR;
+  num? igY;
+  num? ioB;
+  num? ioR;
+  num? ioY;
+  int? fltEn;
+  int? motorId;
+  int? motorIndex;
+  String? acknowledgement;
+  String? motorReference;
+
+  MotorSettingConfig({
+    this.cif,
+    this.drf,
+    this.flc,
+    this.lrf,
+    this.olf,
+    this.opf,
+    this.igB,
+    this.igR,
+    this.igY,
+    this.ioB,
+    this.ioR,
+    this.ioY,
+    this.fltEn,
+    this.motorId,
+    this.motorIndex,
+    this.acknowledgement,
+    this.motorReference,
+  });
+
+  factory MotorSettingConfig.fromJson(Map<String, dynamic> json) =>
+      MotorSettingConfig(
+        cif: json["cif"],
+        drf: json["drf"],
+        flc: json["flc"],
+        lrf: json["lrf"],
+        olf: json["olf"],
+        opf: json["opf"],
+        igB: json["ig_b"],
+        igR: json["ig_r"],
+        igY: json["ig_y"],
+        ioB: json["io_b"],
+        ioR: json["io_r"],
+        ioY: json["io_y"],
+        fltEn: json["flt_en"],
+        motorId: json["motor_id"],
+        motorIndex: json["motor_index"],
+        acknowledgement: json["acknowledgement"],
+        motorReference: json["motor_reference"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "cif": cif,
+        "drf": drf,
+        "flc": flc,
+        "lrf": lrf,
+        "olf": olf,
+        "opf": opf,
+        "ig_b": igB,
+        "ig_r": igR,
+        "ig_y": igY,
+        "io_b": ioB,
+        "io_r": ioR,
+        "io_y": ioY,
+        "flt_en": fltEn,
+        "motor_id": motorId,
+        "motor_index": motorIndex,
+        "acknowledgement": acknowledgement,
+        "motor_reference": motorReference,
       };
 }

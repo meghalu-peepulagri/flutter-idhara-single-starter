@@ -24,6 +24,9 @@ class SettingsDeviceCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         SharedPreference.setStarterId(device.id ?? 0);
+        if (motor?.id != null) {
+          SharedPreference.setMotorId(motor!.id!);
+        }
         Get.offNamed(Routes.usersettings,
             arguments: {'from': Routes.settingsDevices});
       },

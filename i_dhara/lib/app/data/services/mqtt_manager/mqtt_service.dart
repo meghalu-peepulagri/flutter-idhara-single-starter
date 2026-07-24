@@ -1417,6 +1417,38 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  void _handleMultiMotorModeAck(
+      String identifier, Map<String, dynamic> payloadData) {
+    payloadData.forEach((motorKey, rawMode) {
+      int? mode;
+      if (rawMode is int) {
+        mode = rawMode;
+      } else if (rawMode is String) {
+        mode = int.tryParse(rawMode);
+      } else if (rawMode is double) {
+        mode = rawMode.toInt();
+      }
+      var m = mode;
+      if (m == null) return;
+      if (m == scheduleModeDeviceCode) m = scheduleModeUiIndex;
+      if (m != 0 && m != 1 && m != 2) return;
+
+      for (final entry in _motorDataMap.entries) {
+        final md = entry.value;
+        if (md.motorReference == motorKey &&
+            (md.macAddress == identifier || md.pcbNumber == identifier)) {
+          md.modeIndex = m;
+          md.modeswitchcontroller.value = m;
+          md.motorMode = m == 1
+              ? 'AUTO'
+              : (m == scheduleModeUiIndex ? 'SCHEDULE' : 'MANUAL');
+          md.hasReceivedData = true;
+        }
+      }
+    });
+    _dataUpdateNotifier.value++;
+  }
+
   /// Handle motor ON/OFF acknowledgment (type 31)
   void _handleMotorControlAck(String identifier, dynamic payloadData) {
     debugPrint('🔧 TYPE 31 received: identifier=$identifier');
@@ -1543,6 +1575,12 @@ class MqttService {
       return; // EXIT - do NOTHING
     }
     debugPrint('   ✓ Not in test run - processing normally');
+
+    if (payloadData is Map<String, dynamic> &&
+        (payloadData.containsKey('m1') || payloadData.containsKey('m2'))) {
+      _handleMultiMotorModeAck(identifier, payloadData);
+      return;
+    }
 
     // Parse mode from various formats
     int? newMode;
@@ -1795,7 +1833,8 @@ class MqttService {
       else {}
 
       if (_isMultiMotorGroup(groupData)) {
-        _handleMultiMotorGroup(identifier, groupId, groupData);
+        _handleMultiMotorGroup(identifier, groupId, groupData,
+            isTestRunRequest: true);
         continue;
       }
 
@@ -2235,7 +2274,8 @@ class MqttService {
   }
 
   void _handleMultiMotorGroup(
-      String identifier, String groupId, Map<String, dynamic> groupData) {
+      String identifier, String groupId, Map<String, dynamic> groupData,
+      {bool isTestRunRequest = false}) {
     final isG04 = groupId == 'G04';
     final parseSch = groupId == 'G01' || groupId == 'G02';
     for (final motorKey in const ['m1', 'm2']) {
@@ -2276,6 +2316,13 @@ class MqttService {
       };
       _updateMotorDataFromPayload(motorData, merged, isG04);
       if (parseSch) _parseSchedule(motorData, motorRaw);
+
+      if (isTestRunRequest) {
+        motorData.testRunSignal = true;
+        motorData.testrunPowerSupply = true;
+        motorData.testrunVoltageRange = true;
+        motorData.updateSignalStrength(13);
+      }
 
       motorData.hasReceivedData = true;
       motorData.hasReceivedLiveData = true;

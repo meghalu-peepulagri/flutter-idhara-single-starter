@@ -11,6 +11,7 @@ import 'package:i_dhara/app/presentation/components/flc_card.dart';
 import 'package:i_dhara/app/presentation/components/popups/default_setting_popup.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
+import 'package:i_dhara/app/presentation/components/timing_config_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
@@ -43,6 +44,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   final GlobalKey<SettingsVoltageCardState> voltageCardKey = GlobalKey();
   final GlobalKey<SettingsCurrentCardState> currentCardKey = GlobalKey();
   final GlobalKey<FlcCardState> flcCardKey = GlobalKey();
+  final GlobalKey<TimingConfigCardState> timingCardKey = GlobalKey();
 
   bool _ackInProgress = false;
   bool isVoltageRange = false;
@@ -51,6 +53,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool isSnackbarShown = false;
   bool isbuttonActive = false;
   bool _isFlcOutOfRange = false;
+  bool _isAsDlyOutOfRange = false;
   bool _hasPendingSave = false;
 
   int _selectedTab = 0;
@@ -186,8 +189,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
     flcCardKey.currentState?.resetValue();
+    timingCardKey.currentState?.resetValue();
     controller.flc.value =
         controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+    controller.asDly.value = controller.userSettings2.value?.asDly ?? 0;
 
     if (mounted) {
       setState(() {
@@ -212,8 +217,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
     flcCardKey.currentState?.resetValue();
+    timingCardKey.currentState?.resetValue();
     controller.flc.value =
         controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+    controller.asDly.value = controller.userSettings2.value?.asDly ?? 0;
 
     setState(() {
       isbuttonActive = false;
@@ -239,8 +246,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
     flcCardKey.currentState?.resetValue();
+    timingCardKey.currentState?.resetValue();
     controller.flc.value =
         controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+    controller.asDly.value = controller.userSettings2.value?.asDly ?? 0;
 
     if (mounted) {
       setState(() {
@@ -265,11 +274,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     final currentCurrentLow = _currentCurrentLow ?? initialCurrentLow;
     final currentCurrentHigh = _currentCurrentHigh ?? initialCurrentHigh;
 
+    final initialAsDly = settings.asDly ?? 0;
+
     final hasChanges = (currentVoltageLow != initialVoltageLow) ||
         (currentVoltageHigh != initialVoltageHigh) ||
         (currentCurrentLow != initialCurrentLow) ||
         (currentCurrentHigh != initialCurrentHigh) ||
-        (controller.flc.value != initialFlc);
+        (controller.flc.value != initialFlc) ||
+        (controller.asDly.value != initialAsDly);
 
     if (isbuttonActive != hasChanges) {
       setState(() {
@@ -407,7 +419,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         updatedpayload['dvc_c']['olf'] = calculatedOlf;
       }
 
-      if (isVoltageRange || isCurrentRange || flcChanged) {
+      final initialAsDly = controller.userSettings2.value?.asDly ?? 0;
+      final asDlyChanged = controller.asDly.value != initialAsDly;
+      if (asDlyChanged) {
+        updatedpayload['dvc_c'] ??= <String, dynamic>{};
+        updatedpayload['dvc_c']['as_dly'] = controller.asDly.value;
+      }
+
+      if (isVoltageRange || isCurrentRange || flcChanged || asDlyChanged) {
         _handleSave(
           vmin,
           vmax,
@@ -473,6 +492,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         isSnackbarShown = false;
         _hasPendingSave = true;
         _saveAckCompleter = Completer<void>();
+        controller.wrapPayloadForMultiMotor(updatedpayload);
         await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
         await controller.fetchupdateSettings();
         _startAckTimer();
@@ -604,6 +624,20 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   voltageCardKey: voltageCardKey,
                                   currentCardKey: currentCardKey,
                                   flcCardKey: flcCardKey,
+                                  timingCardKey: timingCardKey,
+                                  asDlyInitialValue:
+                                      controller.userSettings2.value?.asDly ?? 0,
+                                  asDlyMinValue: 100,
+                                  asDlyMaxValue: 100,
+                                  onAsDlyChanged: (value) {
+                                    controller.asDly.value = value;
+                                    _checkForChanges();
+                                  },
+                                  onAsDlyOutOfRange: (isOutOfRange) {
+                                    setState(() {
+                                      _isAsDlyOutOfRange = isOutOfRange;
+                                    });
+                                  },
                                   isRefreshing: controller.isrefreshing.value,
                                   flcInitialValue: controller
                                           .userSettings2.value?.flc
@@ -679,7 +713,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         if (_selectedTab == 0 && isbuttonActive)
                           SettingsActionButtons(
                             isActive: isbuttonActive,
-                            isFlcOutOfRange: _isFlcOutOfRange,
+                            isFlcOutOfRange:
+                                _isFlcOutOfRange || _isAsDlyOutOfRange,
                             hasStarter: settings?.starter != null,
                             onCancel: _handleCancel,
                             onSave: _onSaveButtonPressed,

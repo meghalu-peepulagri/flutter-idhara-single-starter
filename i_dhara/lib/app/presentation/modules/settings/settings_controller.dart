@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
 import '../../../data/dto/device_setting_dto.dart';
@@ -44,6 +45,7 @@ class SettingsController extends GetxController with ConnectivityMixin {
   // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
   bool mqttInitialized = false;
   var flc = 0.0.obs;
+  var asDly = 0.obs;
 
   @override
   Future<void> onRetry() async {
@@ -113,6 +115,7 @@ class SettingsController extends GetxController with ConnectivityMixin {
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
+        asDly.value = userSettings2.value?.asDly ?? 0;
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
@@ -148,6 +151,31 @@ class SettingsController extends GetxController with ConnectivityMixin {
     final res = percentLow * flcVal;
     final newRes = double.parse(res.toStringAsFixed(2)) ?? 0.0;
     return newRes;
+  }
+
+  bool get isMultiMotor =>
+      (userSettings2.value?.multiMotorConfig?.motors?.isNotEmpty ?? false);
+
+  String? currentMotorReference() {
+    final motors = userSettings2.value?.multiMotorConfig?.motors;
+    if (motors == null || motors.isEmpty) return null;
+    final currentMotorId = SharedPreference.getMotorId();
+    for (final m in motors) {
+      if (m.motorId == currentMotorId) return m.motorReference;
+    }
+    return motors.first.motorReference;
+  }
+
+  void wrapPayloadForMultiMotor(Map<String, dynamic> payload) {
+    final ref = currentMotorReference();
+    if (ref == null || ref.isEmpty) return;
+    final dvc = payload["dvc_c"];
+    if (dvc is! Map<String, dynamic>) return;
+    final deviceLevel = <String, dynamic>{};
+    for (final k in const ['as_dly']) {
+      if (dvc.containsKey(k)) deviceLevel[k] = dvc.remove(k);
+    }
+    payload["dvc_c"] = {...deviceLevel, ref: dvc};
   }
 
   Future<void> fetchUserSettingsLimits() async {
@@ -209,6 +237,7 @@ class SettingsController extends GetxController with ConnectivityMixin {
         hvf.value = userSettings2.value?.hvf ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+        asDly.value = userSettings2.value?.asDly ?? 0;
         final data = userSettings2.value;
         final hvr = (data?.hvf?.toDouble() ?? 0) - 10;
         final lvr = (data?.lvf?.toDouble() ?? 0) + 10;
@@ -242,6 +271,8 @@ class SettingsController extends GetxController with ConnectivityMixin {
             "pr_flt_en": data.prFltEn ?? 0
           }
         };
+
+        wrapPayloadForMultiMotor(defaultSettingspayload);
 
         updateSettingDto.assignAll(res!.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>
