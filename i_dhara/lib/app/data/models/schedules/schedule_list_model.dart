@@ -138,6 +138,13 @@ class Record {
   int? priority;
   DateTime? createdAt;
   DateTime? updatedAt;
+  String? motorReference;
+  String? motorSupportType;
+
+  bool get isMultiMotorSchedule =>
+      (motorSupportType ?? '').toUpperCase().contains('MULTI');
+
+  String get motorKey => motorReference == 'm2' ? 'm2' : 'm1';
 
   Record({
     this.id,
@@ -175,6 +182,8 @@ class Record {
     this.priority,
     this.createdAt,
     this.updatedAt,
+    this.motorReference,
+    this.motorSupportType,
   });
 
   factory Record.fromJson(Map<String, dynamic> json) => Record(
@@ -223,6 +232,8 @@ class Record {
         updatedAt: json["updated_at"] == null
             ? null
             : DateTime.parse(json["updated_at"]),
+        motorReference: json["motor_reference"],
+        motorSupportType: json["motor_support_type"],
       );
 
   Record copyWith({
@@ -273,6 +284,8 @@ class Record {
         priority: priority,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        motorReference: motorReference,
+        motorSupportType: motorSupportType,
       );
 
   Map<String, dynamic> toJson() => {
@@ -313,6 +326,8 @@ class Record {
         "priority": priority,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
+        "motor_reference": motorReference,
+        "motor_support_type": motorSupportType,
       };
 }
 

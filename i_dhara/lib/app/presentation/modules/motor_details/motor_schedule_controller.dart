@@ -217,6 +217,8 @@ class MotorScheduleController extends GetxController {
         identifier: id,
         scheduleId: scheduleId,
         cmd: cmd,
+        motorReference: record.motorKey,
+        isMultiMotor: record.isMultiMotorSchedule,
       );
     } catch (e) {
       _pendingActions.remove(scheduleId);
@@ -317,12 +319,15 @@ class MotorScheduleController extends GetxController {
     for (final sid in scheduleIds) {
       _pendingActions[sid] = cmd;
     }
+    final first = records.first;
     try {
       await _mqttService.publishBulkScheduleActionCommand(
         identifier: id,
         scheduleIds: scheduleIds,
         cmd: cmd,
         trackExpectedAcks: true,
+        motorReference: first.motorKey,
+        isMultiMotor: first.isMultiMotorSchedule,
       );
     } catch (e) {
       for (final sid in scheduleIds) {

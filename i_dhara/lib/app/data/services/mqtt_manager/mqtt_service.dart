@@ -967,12 +967,16 @@ class MqttService {
     required int scheduleId,
     required int cmd,
     int? sequenceNumber,
+    String motorReference = 'm1',
+    bool isMultiMotor = false,
   }) async {
     await publishBulkScheduleActionCommand(
       identifier: identifier,
       scheduleIds: [scheduleId],
       cmd: cmd,
       sequenceNumber: sequenceNumber,
+      motorReference: motorReference,
+      isMultiMotor: isMultiMotor,
     );
   }
 
@@ -982,6 +986,8 @@ class MqttService {
     required int cmd,
     int? sequenceNumber,
     bool trackExpectedAcks = false,
+    String motorReference = 'm1',
+    bool isMultiMotor = false,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -1002,15 +1008,23 @@ class MqttService {
     // Compute combined bitmask for all scheduleIds
     final ids = scheduleIds.fold(0, (acc, id) => acc | (1 << (id - 1)));
 
+    final motorKey = motorReference == 'm2' ? 'm2' : 'm1';
     final payload = <String, dynamic>{
       'T': 24,
       'S': seq,
-      'D': {
-        'm1': {
-          'cmd': cmd,
-          'ids': ids,
-        },
-      },
+      'D': isMultiMotor
+          ? {
+              'cmd': cmd,
+              motorKey: {
+                'ids': ids,
+              },
+            }
+          : {
+              'm1': {
+                'cmd': cmd,
+                'ids': ids,
+              },
+            },
     };
 
     final commandKey = 'schedule_action_$identifier';
@@ -2111,8 +2125,17 @@ class MqttService {
       return;
     }
 
-    final idsRaw = payloadData['ids'];
-    final ackRaw = payloadData['ack'];
+    Map<String, dynamic> ackSource = payloadData;
+    for (final motorKey in const ['m1', 'm2']) {
+      final motorAck = payloadData[motorKey];
+      if (motorAck is Map<String, dynamic>) {
+        ackSource = motorAck;
+        break;
+      }
+    }
+
+    final idsRaw = ackSource['ids'];
+    final ackRaw = ackSource['ack'];
 
     final ids = idsRaw is int ? idsRaw : int.tryParse('$idsRaw');
     final ack = ackRaw is int ? ackRaw : int.tryParse('$ackRaw');
@@ -2149,8 +2172,12 @@ class MqttService {
     if (pending != null && pending.commandData is Map) {
       final d = (pending.commandData as Map)['D'];
       if (d is Map) {
-        final m1 = d['m1'];
-        if (m1 is Map) sentCmd = m1['cmd'] as int?;
+        if (d['cmd'] is int) {
+          sentCmd = d['cmd'] as int?;
+        } else {
+          final m1 = d['m1'];
+          if (m1 is Map) sentCmd = m1['cmd'] as int?;
+        }
       }
     }
     final isSuccess = sentCmd != null && ack == sentCmd;
