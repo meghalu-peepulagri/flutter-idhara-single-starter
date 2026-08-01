@@ -24,6 +24,7 @@ Future<void> showSettingsConfirmDialog(
   required String currentFlc,
   required Future<void> Function() onConfirm,
   Future<void> Function()? onCancel,
+  List<Map<String, String>>? currentMotorRows,
 }) {
   return showDialog(
     context: context,
@@ -97,7 +98,32 @@ Future<void> showSettingsConfirmDialog(
                     ),
                   if (isVoltageRange && isCurrentRange)
                     const SizedBox(height: 12),
-                  if (isCurrentRange)
+                  if (currentMotorRows != null &&
+                      currentMotorRows.isNotEmpty) ...[
+                    for (int i = 0; i < currentMotorRows.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 12),
+                      infoCard(
+                        bgColor: const Color(0xFFFFF3E8),
+                        iconBg: const Color(0xFFFF7A00),
+                        svg: 'assets/images/Current.svg',
+                        title:
+                            "Current Fault - ${currentMotorRows[i]['title'] ?? ''}",
+                        lowOld: currentMotorRows[i]['dryRunOld'] ??
+                            currentMotorRows[i]['dryRunNew'] ??
+                            '',
+                        lowNew: currentMotorRows[i]['dryRunNew'] ?? '',
+                        highOld: currentMotorRows[i]['overloadOld'] ??
+                            currentMotorRows[i]['overloadNew'] ??
+                            '',
+                        highNew: currentMotorRows[i]['overloadNew'] ?? '',
+                        valueColor: const Color(0xFFF97316),
+                        cmin: currentMotorRows[i]['dryRunChanged'] == 'true',
+                        cmax: currentMotorRows[i]['overloadChanged'] == 'true',
+                        lowLabel: 'Dry Run:',
+                        highLabel: 'Overload:',
+                      ),
+                    ],
+                  ] else if (isCurrentRange)
                     infoCard(
                       bgColor: const Color(0xFFFFF3E8),
                       iconBg: const Color(0xFFFF7A00),

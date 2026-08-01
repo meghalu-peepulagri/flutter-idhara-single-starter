@@ -23,12 +23,14 @@ class DevicesCard extends StatelessWidget {
   final Devices device;
   final Motor? motor;
   final MqttService mqttService;
+  final bool compact;
 
   DevicesCard({
     super.key,
     required this.device,
     this.motor,
     required this.mqttService,
+    this.compact = false,
   });
 
   final DevicesController controller = Get.find<DevicesController>();
@@ -403,6 +405,10 @@ class DevicesCard extends StatelessWidget {
       builder: (context, _, __) {
         final motorData = _getDeviceMotorData();
 
+        if (compact) {
+          return _buildCompactPanel(context, motor, motorData);
+        }
+
         return GestureDetector(
           onTap: () => _showDeviceOptionsBottomSheet(context, motor),
           child: Container(
@@ -494,6 +500,9 @@ class DevicesCard extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           SharedPreference.setStarterId(device.id ?? 0);
+                          SharedPreference.setStarterNumber(
+                              device.starterNumber ?? '');
+                          SharedPreference.setIsMultiMotor(device.isMultiMotor);
                           Get.offNamed(Routes.usersettings,
                               arguments: {'from': Routes.devices});
                         },
@@ -642,6 +651,126 @@ class DevicesCard extends StatelessWidget {
           ),
         )
       ].divide(const SizedBox(width: 8.0)),
+    );
+  }
+
+  Widget _buildCompactPanel(
+      BuildContext context, Motor? motor, MotorData? motorData) {
+    final displayName = _getMotorDisplayName(motor);
+    final bool powered = motorData?.hasReceivedData == true
+        ? motorData!.power == 1
+        : device.power == 1;
+    final bool running = motorData?.hasReceivedData == true
+        ? motorData!.state == 1
+        : motor?.state == 1;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showDeviceOptionsBottomSheet(context, motor),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayName.length > 10
+                        ? '${displayName.substring(0, 10)}...'
+                        : displayName,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          color: const Color(0xFF13120D),
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SvgPicture.asset(
+                  powered
+                      ? 'assets/images/power.svg'
+                      : 'assets/images/Power_red.svg',
+                  width: 17,
+                  height: 17,
+                  fit: BoxFit.cover,
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _showDeviceOptionsBottomSheet(context, motor),
+                  child: const Icon(
+                    Icons.more_vert,
+                    color: Color(0XFF464646),
+                    size: 20.0,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  '${motor?.hp ?? 'N/A'} HP',
+                  style: FlutterFlowTheme.of(context).bodyMedium.override(
+                        font: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        color: const Color(0xFF2E393D),
+                        fontSize: 12.0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(width: 8),
+                _buildMotorModeLetter(context, motor),
+                const Spacer(),
+                SvgPicture.asset(
+                  running
+                      ? 'assets/images/pump.svg'
+                      : 'assets/images/pump_off.svg',
+                  width: 34,
+                  height: 34,
+                  fit: BoxFit.cover,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMotorModeLetter(BuildContext context, Motor? motor) {
+    final mode = (motor?.mode ?? 'MANUAL').toUpperCase();
+    final letter = mode.isNotEmpty ? mode[0] : 'M';
+    final bgColor = mode == 'AUTO'
+        ? const Color(0xFFF59E0B)
+        : mode == 'SCHEDULE'
+            ? const Color(0xFF2E7D32)
+            : const Color(0xFF2F80ED);
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(7.0, 2.0, 7.0, 2.0),
+        child: Text(
+          letter,
+          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                font: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w600,
+                ),
+                color: Colors.white,
+                fontSize: 14.0,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ),
     );
   }
 

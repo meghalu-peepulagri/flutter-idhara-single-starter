@@ -8,6 +8,7 @@ class TimingConfigCard extends StatefulWidget {
   final int maxValue;
   final ValueChanged<int>? onChanged;
   final ValueChanged<bool>? onOutOfRange;
+  final bool hideHeading;
 
   const TimingConfigCard({
     super.key,
@@ -16,6 +17,7 @@ class TimingConfigCard extends StatefulWidget {
     this.maxValue = 100,
     this.onChanged,
     this.onOutOfRange,
+    this.hideHeading = false,
   });
 
   @override
@@ -104,17 +106,19 @@ class TimingConfigCardState extends State<TimingConfigCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Timing Configuration',
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF666666),
+          if (!widget.hideHeading) ...[
+            Text(
+              'Timing Configuration',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF666666),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFECECEC)),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFECECEC)),
+            const SizedBox(height: 12),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -122,7 +126,7 @@ class TimingConfigCardState extends State<TimingConfigCard> {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Auto Start Delay',
+                    'Start Delay',
                     style: GoogleFonts.dmSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,

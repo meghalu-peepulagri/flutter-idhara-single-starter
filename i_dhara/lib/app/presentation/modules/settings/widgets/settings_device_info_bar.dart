@@ -7,6 +7,7 @@ class SettingsDeviceInfoBar extends StatelessWidget {
   final String pumpHP;
   final VoidCallback onDefaultPressed;
   final bool showDefaultButton;
+  final bool showHp;
 
   const SettingsDeviceInfoBar({
     super.key,
@@ -14,6 +15,7 @@ class SettingsDeviceInfoBar extends StatelessWidget {
     required this.pumpHP,
     required this.onDefaultPressed,
     this.showDefaultButton = true,
+    this.showHp = true,
   });
 
   @override
@@ -40,15 +42,16 @@ class SettingsDeviceInfoBar extends StatelessWidget {
                       fontSize: 16.0,
                     ),
               ),
-              Text(
-                '$pumpHP HP',
-                style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      fontFamily: 'Manrope',
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF000000),
-                      fontSize: 12.0,
-                    ),
-              ),
+              if (showHp)
+                Text(
+                  '$pumpHP HP',
+                  style: FlutterFlowTheme.of(context).bodyMedium.override(
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF000000),
+                        fontSize: 12.0,
+                      ),
+                ),
             ],
           ),
           Visibility(

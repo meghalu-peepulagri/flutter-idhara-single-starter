@@ -32,6 +32,7 @@ int? parseInt(dynamic v) {
 
 class UserUpdateSettingsDto {
   int? starterId;
+  dynamic multiMotorConfig;
   int? allfltEn;
 
   /// 🔥 FIXED
@@ -137,6 +138,7 @@ class UserUpdateSettingsDto {
 
   UserUpdateSettingsDto({
     this.starterId,
+    this.multiMotorConfig,
     this.allfltEn,
     this.flc,
     this.asDly,
@@ -229,6 +231,7 @@ class UserUpdateSettingsDto {
   factory UserUpdateSettingsDto.fromJson(Map<String, dynamic> json) =>
       UserUpdateSettingsDto(
         starterId: parseInt(json["starter_id"]),
+        multiMotorConfig: json["multi_motor_config"],
         allfltEn: parseInt(json["allflt_en"]),
         flc: parseDouble(json["flc"]), // 🔥 FIXED
         asDly: parseInt(json["as_dly"]),
@@ -409,5 +412,8 @@ class UserUpdateSettingsDto {
         "ivrs_en": ivrsEn,
         "sms_en": smsEn,
         "rmt_en": rmtEn,
+        ...(multiMotorConfig == null
+            ? <String, dynamic>{}
+            : {"multi_motor_config": multiMotorConfig}),
       };
 }

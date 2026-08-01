@@ -47,7 +47,7 @@ class SettingsRepositoryImpl extends SettingsRepository {
   Future<UserSettingsLimitsResponse?> getSettingsLimits() async {
     final Map<String, dynamic> query = {
       "columns":
-          "drf_min,drf_max,olf_min,olf_max,flc_min,flc_max" // ✅ no spaces
+          "drf_min,drf_max,olf_min,olf_max,flc_min,flc_max,as_dly_min,as_dly_max" // ✅ no spaces
     };
     final id = SharedPreference.getStarterId();
     final response = await NetworkManager()

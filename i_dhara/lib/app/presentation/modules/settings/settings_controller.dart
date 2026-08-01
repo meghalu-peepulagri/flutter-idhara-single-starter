@@ -18,6 +18,9 @@ class SettingsController extends GetxController with ConnectivityMixin {
   final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
   Map<String, dynamic> defaultSettingspayload = {};
 
+  // Per-motor config to attach to the POST body for multi-motor saves.
+  Map<String, dynamic>? pendingMultiMotorConfig;
+
   var lvf = 0.obs;
   var hvf = 0.obs;
   var drf = 0.obs;
@@ -46,6 +49,25 @@ class SettingsController extends GetxController with ConnectivityMixin {
   bool mqttInitialized = false;
   var flc = 0.0.obs;
   var asDly = 0.obs;
+
+  // Per-motor FLC (multi-motor), keyed by motor_reference.
+  final RxMap<String, double> motorFlc = <String, double>{}.obs;
+
+  void initMotorFlc() {
+    motorFlc.clear();
+    for (final m in motorConfigsForUi()) {
+      final ref = m.motorReference ?? 'm${m.motorIndex ?? ''}';
+      if (ref.isNotEmpty) motorFlc[ref] = (m.flc ?? 0).toDouble();
+    }
+  }
+
+  double originalMotorFlc(String ref) {
+    for (final m in motorConfigsForUi()) {
+      final r = m.motorReference ?? 'm${m.motorIndex ?? ''}';
+      if (r == ref) return (m.flc ?? 0).toDouble();
+    }
+    return 0.0;
+  }
 
   @override
   Future<void> onRetry() async {
@@ -116,6 +138,14 @@ class SettingsController extends GetxController with ConnectivityMixin {
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         asDly.value = userSettings2.value?.asDly ?? 0;
+
+        initMotorFlc();
+        if (isMultiMotorDevice) {
+          final configs = motorConfigsForUi();
+          if (configs.isNotEmpty) {
+            flc.value = (configs.first.flc ?? 0).toDouble();
+          }
+        }
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
@@ -155,6 +185,57 @@ class SettingsController extends GetxController with ConnectivityMixin {
 
   bool get isMultiMotor =>
       (userSettings2.value?.multiMotorConfig?.motors?.isNotEmpty ?? false);
+
+  bool get isMultiMotorDevice =>
+      SharedPreference.getIsMultiMotor() || isMultiMotor;
+
+  String headerTitle() {
+    if (isMultiMotorDevice) {
+      final sn = SharedPreference.getStarterNumber();
+      if (sn.trim().isNotEmpty) return '#$sn';
+    }
+    return pumpName.value;
+  }
+
+  List<MotorSettingConfig> orderedMotorConfigs() {
+    final motors = List<MotorSettingConfig>.from(
+        userSettings2.value?.multiMotorConfig?.motors ?? const []);
+    motors.sort(
+        (a, b) => (a.motorIndex ?? 99).compareTo(b.motorIndex ?? 99));
+    return motors;
+  }
+
+  // One config per starter motor (the reliable motor list). Uses the real
+  // per-motor config when present, else falls back to the flat limits so a
+  // multi-motor device always shows every motor even if the settings API
+  // omits multi_motor_config for some motors.
+  List<MotorSettingConfig> motorConfigsForUi() {
+    final configs = orderedMotorConfigs();
+    final starterMotors = userSettings2.value?.starter?.motors ?? const [];
+
+    if (starterMotors.isEmpty) return configs;
+    if (configs.length >= starterMotors.length) return configs;
+
+    final byId = {for (final c in configs) c.motorId: c};
+    final result = <MotorSettingConfig>[];
+    for (var i = 0; i < starterMotors.length; i++) {
+      final sm = starterMotors[i];
+      final existing = byId[sm.id];
+      if (existing != null) {
+        result.add(existing);
+      } else {
+        result.add(MotorSettingConfig(
+          motorId: sm.id,
+          motorIndex: i + 1,
+          motorReference: 'm${i + 1}',
+          drf: drf.value,
+          olf: olf.value,
+          flc: flc.value,
+        ));
+      }
+    }
+    return result;
+  }
 
   String? currentMotorReference() {
     final motors = userSettings2.value?.multiMotorConfig?.motors;
@@ -213,6 +294,12 @@ class SettingsController extends GetxController with ConnectivityMixin {
       updateSettingDto['lvr'] = lvr.value;
       updateSettingDto['hvr'] = hvr.value;
       updateSettingDto['flc'] = flc.value;
+
+      if (isMultiMotorDevice && pendingMultiMotorConfig != null) {
+        updateSettingDto['multi_motor_config'] = pendingMultiMotorConfig;
+      } else {
+        updateSettingDto.remove('multi_motor_config');
+      }
 
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);

@@ -60,6 +60,21 @@ class FlcCardState extends State<FlcCard> {
     });
   }
 
+  @override
+  void didUpdateWidget(FlcCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue && !_focusNode.hasFocus) {
+      final value = widget.initialValue.clamp(widget.minValue, widget.maxValue);
+      if (value != _currentValue) {
+        setState(() {
+          _currentValue = value;
+          _textController.text = _formatValue(value);
+          _isOutOfRange = false;
+        });
+      }
+    }
+  }
+
   /// Resets the card back to the widget's current initialValue.
   /// Call this after updating the initialValue (e.g. after fetchUserSettings2).
   void resetValue() {

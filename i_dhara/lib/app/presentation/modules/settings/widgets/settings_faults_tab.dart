@@ -96,6 +96,21 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     _FaultDef('Current Imbalance', '', '', 128, isVisible: false, uiOrder: 99),
   ];
 
+  // Per-motor faults (multi-motor only): Dry Run(16), Over Current(32),
+  // Output Phase Failure(64) live in each motor's flt_en bitmask.
+  static const List<int> _perMotorDefIdx = [4, 5, 6];
+  static const Set<int> _perMotorBits = {16, 32, 64};
+
+  List<MotorSettingConfig> _motors = const [];
+  int _selectedMotorIdx = 0;
+  final Map<String, List<ValueNotifier<bool>>> _motorCtrls = {};
+  final Map<String, List<bool>> _motorInit = {};
+
+  bool get _isMulti => Get.find<SettingsController>().isMultiMotorDevice;
+
+  String _motorRef(MotorSettingConfig m, int i) =>
+      m.motorReference ?? 'm${m.motorIndex ?? (i + 1)}';
+
   late List<ValueNotifier<bool>> _controllers;
   late List<bool> _initialValues;
 
@@ -147,6 +162,11 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     for (final c in _controllers) {
       c.dispose();
     }
+    for (final list in _motorCtrls.values) {
+      for (final c in list) {
+        c.dispose();
+      }
+    }
     super.dispose();
   }
 
@@ -166,21 +186,87 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
       _defs.length,
       (i) => ValueNotifier<bool>(_initialValues[i]),
     );
-    _mergedSwitches = Listenable.merge(_controllers);
+
+    for (final list in _motorCtrls.values) {
+      for (final c in list) {
+        c.dispose();
+      }
+    }
+    _motorCtrls.clear();
+    _motorInit.clear();
+    if (_isMulti) {
+      _motors = Get.find<SettingsController>().motorConfigsForUi();
+      for (int i = 0; i < _motors.length; i++) {
+        final ref = _motorRef(_motors[i], i);
+        final fltEn = _motors[i].fltEn ?? 0;
+        final init = [
+          for (final idx in _perMotorDefIdx) (fltEn & _defs[idx].bit) != 0
+        ];
+        _motorInit[ref] = init;
+        _motorCtrls[ref] = [for (final v in init) ValueNotifier<bool>(v)];
+      }
+      if (_selectedMotorIdx >= _motors.length) _selectedMotorIdx = 0;
+    }
+
+    final all = <ValueNotifier<bool>>[..._controllers];
+    for (final list in _motorCtrls.values) {
+      all.addAll(list);
+    }
+    _mergedSwitches = Listenable.merge(all);
   }
 
   bool get _hasChanges {
     for (int i = 0; i < _controllers.length; i++) {
+      if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
       if (_controllers[i].value != _initialValues[i]) return true;
+    }
+    if (_isMulti) {
+      for (final ref in _motorCtrls.keys) {
+        final init = _motorInit[ref]!;
+        final ctrls = _motorCtrls[ref]!;
+        for (int j = 0; j < ctrls.length; j++) {
+          if (ctrls[j].value != init[j]) return true;
+        }
+      }
     }
     return false;
   }
 
   /// Compute the bitwise `pr_flt_en` value from the current toggle states.
+  /// For multi-motor the per-motor bits live in each motor's `flt_en`, so they
+  /// are excluded from the shared `pr_flt_en`.
   int _computePrFltEn() {
     int value = 0;
     for (int i = 0; i < _defs.length; i++) {
+      if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
       if (_controllers[i].value) value |= _defs[i].bit;
+    }
+    return value;
+  }
+
+  bool _motorFaultsChanged(String ref) {
+    final init = _motorInit[ref];
+    final ctrls = _motorCtrls[ref];
+    if (init == null || ctrls == null) return false;
+    for (int j = 0; j < ctrls.length; j++) {
+      if (ctrls[j].value != init[j]) return true;
+    }
+    return false;
+  }
+
+  /// Build a motor's `flt_en` by flipping only the per-motor bits on top of its
+  /// original value (preserving any other bits the device already had).
+  int _computeMotorFltEn(String ref, int origFltEn) {
+    int value = origFltEn;
+    final ctrls = _motorCtrls[ref];
+    if (ctrls == null) return value;
+    for (int j = 0; j < _perMotorDefIdx.length; j++) {
+      final bit = _defs[_perMotorDefIdx[j]].bit;
+      if (ctrls[j].value) {
+        value |= bit;
+      } else {
+        value &= ~bit;
+      }
     }
     return value;
   }
@@ -188,6 +274,13 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   void _handleCancel() {
     for (int i = 0; i < _controllers.length; i++) {
       _controllers[i].value = _initialValues[i];
+    }
+    for (final ref in _motorCtrls.keys) {
+      final init = _motorInit[ref]!;
+      final ctrls = _motorCtrls[ref]!;
+      for (int j = 0; j < ctrls.length; j++) {
+        ctrls[j].value = init[j];
+      }
     }
   }
 
@@ -248,11 +341,31 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
         _controllers[7].value ? 1 : 0;
     controller.updateSettingDto['pr_flt_en'] = prFltEn;
 
+    // Per-motor fault-enable config for the POST body (multi-motor only).
+    if (_isMulti) {
+      final motorsJson = <Map<String, dynamic>>[];
+      for (int i = 0; i < _motors.length; i++) {
+        final ref = _motorRef(_motors[i], i);
+        motorsJson.add({
+          'motor_id': _motors[i].motorId,
+          'motor_reference': ref,
+          'flt_en': _computeMotorFltEn(ref, _motors[i].fltEn ?? 0),
+        });
+      }
+      controller.pendingMultiMotorConfig = {
+        'v_flt_en': widget.settings?.multiMotorConfig?.vFltEn ?? 0,
+        'motors': motorsJson,
+      };
+    } else {
+      controller.pendingMultiMotorConfig = null;
+    }
+
     // ── Step 1: POST API (reuses existing controller method) ─────────────
     _isSnackbarShown = false;
     final priorErrorMessage = controller.errorMessage.value;
     try {
       await controller.fetchupdateSettings();
+      controller.pendingMultiMotorConfig = null;
     } catch (_) {
       _popDialog();
       if (!_isSnackbarShown) {
@@ -273,9 +386,16 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     }
 
     // ── Step 2: MQTT publish + wait for ack ───────────────────────────────
-    final payload = {
-      "dvc_c": {"pr_flt_en": prFltEn},
-    };
+    // Publish only the motor(s) whose faults actually changed.
+    final dvc = <String, dynamic>{"pr_flt_en": prFltEn};
+    if (_isMulti) {
+      for (int i = 0; i < _motors.length; i++) {
+        final ref = _motorRef(_motors[i], i);
+        if (!_motorFaultsChanged(ref)) continue;
+        dvc[ref] = {"flt_en": _computeMotorFltEn(ref, _motors[i].fltEn ?? 0)};
+      }
+    }
+    final payload = {"dvc_c": dvc};
 
     final completer = Completer<bool>();
     _ackCompleter = completer;
@@ -487,19 +607,174 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   List<Widget> _buildFaultCards() {
     final cards = <Widget>[];
 
+    if (_isMulti && _motors.isNotEmpty) {
+      cards.add(_buildMotorTopHeader());
+    }
+
     final indices = List.generate(_defs.length, (i) => i);
     indices.sort((a, b) => _defs[a].uiOrder.compareTo(_defs[b].uiOrder));
 
     for (int i in indices) {
-      if (_defs[i].isVisible) {
-        cards.add(_buildFaultCard(i));
-        cards.add(const SizedBox(height: 10));
+      if (!_defs[i].isVisible) continue;
+      // Per-motor faults render below the motor selector (multi-motor only).
+      if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
+      cards.add(_buildFaultCard(i));
+      cards.add(const SizedBox(height: 10));
+    }
+
+    if (_isMulti && _motors.isNotEmpty) {
+      if (_motors.length > 1) {
+        cards.add(_buildSelectMotor());
+        cards.add(const SizedBox(height: 14));
+      }
+
+      final ref = _motorRef(_motors[_selectedMotorIdx], _selectedMotorIdx);
+      final ctrls = _motorCtrls[ref];
+      if (ctrls != null) {
+        for (int j = 0; j < _perMotorDefIdx.length; j++) {
+          cards.add(KeyedSubtree(
+            key: ValueKey('motor_${ref}_fault_${_perMotorDefIdx[j]}'),
+            child:
+                _buildFaultCard(_perMotorDefIdx[j], controllerOverride: ctrls[j]),
+          ));
+          cards.add(const SizedBox(height: 10));
+        }
       }
     }
     return cards;
   }
 
-  Widget _buildFaultCard(int index) {
+  Widget _buildSelectMotor() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Motor Faults',
+            style: GoogleFonts.dmSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0A0A0A),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < _motors.length; i++) _motorRadio(i),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _motorHp(MotorSettingConfig m) {
+    final motors = widget.settings?.starter?.motors ?? const [];
+    for (final sm in motors) {
+      if (sm.id == m.motorId) return sm.hp?.toString().trim() ?? '';
+    }
+    return '';
+  }
+
+  Widget _buildMotorTopHeader() {
+    final m = _motors[_selectedMotorIdx];
+    final name = _motorDisplayName(m, _selectedMotorIdx);
+    final hp = _motorHp(m);
+    return Padding(
+      padding: const EdgeInsets.only(left: 2.0, bottom: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            name,
+            style: GoogleFonts.dmSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0A0A0A),
+            ),
+          ),
+          if (hp.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Text(
+              '$hp HP',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF62697D),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _motorRadio(int index) {
+    final ref = _motorRef(_motors[index], index).toUpperCase();
+    final selected = index == _selectedMotorIdx;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _selectedMotorIdx = index),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 20,
+              color: selected ? const Color(0xFF2F80ED) : Colors.grey,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              ref,
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0A0A0A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _motorDisplayName(MotorSettingConfig m, int i) {
+    final motors = widget.settings?.starter?.motors ?? const [];
+    String? alias;
+    String? name;
+    for (final sm in motors) {
+      if (sm.id == m.motorId) {
+        alias = sm.aliasName?.trim();
+        name = sm.name?.trim();
+        break;
+      }
+    }
+    if (alias != null && alias.isNotEmpty) return alias;
+    if (name != null && name.isNotEmpty) return name;
+    return 'Motor ${_motorRef(m, i).toUpperCase()}';
+  }
+
+
+  Widget _buildFaultCard(int index, {ValueNotifier<bool>? controllerOverride}) {
+    final ctrl = controllerOverride ?? _controllers[index];
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -553,7 +828,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                     ),
                     const SizedBox(width: 8),
                     ValueListenableBuilder<bool>(
-                      valueListenable: _controllers[index],
+                      valueListenable: ctrl,
                       builder: (context, isOn, _) {
                         return GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -571,7 +846,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                                 },
                               );
                               if (result == true) {
-                                _controllers[index].value = true;
+                                ctrl.value = true;
                               }
                             } else if (isOn &&
                                 _defs[index].offDescription.isNotEmpty) {
@@ -587,17 +862,17 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                                 },
                               );
                               if (result == true) {
-                                _controllers[index].value = false;
+                                ctrl.value = false;
                               }
                             } else {
-                              _controllers[index].value = !isOn;
+                              ctrl.value = !isOn;
                             }
                           },
                           child: AbsorbPointer(
                             absorbing: true,
                             child: AdvancedSwitch(
                               key: ValueKey('fault_switch_${index}_$isOn'),
-                              controller: _controllers[index],
+                              controller: ctrl,
                               initialValue: isOn,
                               activeColor: const Color(0xFF27AE60),
                               inactiveColor: const Color(0xFFBDBDBD),
