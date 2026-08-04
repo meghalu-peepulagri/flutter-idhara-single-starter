@@ -2032,6 +2032,9 @@ class MqttService {
     }
   }
 
+  /// Live-data request. Device-wide, so its D is never wrapped per motor.
+  static const int liveDataRequestType = 5;
+
   static const int scheduleModeDeviceCode = 6;
   static const int scheduleModeUiIndex = 2;
 
@@ -2620,11 +2623,14 @@ class MqttService {
 
     final topic = 'peepul/$identifier/cmd';
 
-    // Multi-motor: target a specific motor as D:{<ref>: value}; single stays flat.
-    final dynamic dPayload =
-        (motorReference != null && motorReference.isNotEmpty)
-            ? {motorReference: data}
-            : data;
+    // Multi-motor: control commands target a specific motor as D:{<ref>: value}.
+    // The live-data request (T:5) is device-wide — the reply carries every
+    // motor — so it stays flat in both single- and multi-motor mode.
+    final dynamic dPayload = (type != liveDataRequestType &&
+            motorReference != null &&
+            motorReference.isNotEmpty)
+        ? {motorReference: data}
+        : data;
     final payload = jsonEncode({"T": type, "S": seq, "D": dPayload});
     final builder = MqttClientPayloadBuilder()..addString(payload);
 

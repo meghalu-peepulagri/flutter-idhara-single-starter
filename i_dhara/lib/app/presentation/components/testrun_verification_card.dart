@@ -101,7 +101,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   DateTime? _motorOnCmdSentAt;
   bool _motorOnFailed = false;
   String _motorOnFailureMsg = '';
-  static const int _waitingTimerSeconds = 15;
+  static const int _waitingTimerSeconds = 20;
   int _motorOnCountdown = _waitingTimerSeconds;
   Timer? _motorOnCountdownTimer;
 
@@ -122,6 +122,18 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   Map<String, dynamic>? _settingsPayload;
   int _settingsAttempt = 0;
   static const int _maxSettingsAttempts = 3;
+
+  /// Calibration mirrors the MQTT layer's control-command ladder: publish,
+  /// retry after 10s, retry after 10s, then a 3s grace before giving up —
+  /// so attempts land at 0s/10s/20s and the window closes at 23s.
+  static const int _settingsRetryGapSeconds = 10;
+  static const Duration _settingsRetryGap =
+      Duration(seconds: _settingsRetryGapSeconds);
+  static const int _settingsFinalGraceSeconds = 3;
+  static const int _settingsWindowSeconds =
+      _settingsRetryGapSeconds * (_maxSettingsAttempts - 1) +
+          _settingsFinalGraceSeconds;
+  Timer? _settingsRetryTimer;
 
   // T:34 ACK "D" result codes → user-understandable messages. D:1 is success
   // (handled separately). Codes mirror the device firmware:
@@ -357,6 +369,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     _motorOnCountdownTimer?.cancel();
     _d0CountdownTimer?.cancel();
     _settingsCountdownTimer?.cancel();
+    _settingsRetryTimer?.cancel();
     settingsAckTimer?.cancel();
     mqttStreamSubscription?.cancel();
     widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOffAck);
@@ -448,6 +461,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     _motorOnCountdownTimer?.cancel();
     _d0CountdownTimer?.cancel();
     _settingsCountdownTimer?.cancel();
+    _settingsRetryTimer?.cancel();
     settingsAckTimer?.cancel();
     mqttStreamSubscription?.cancel();
     _avgCurrent.dispose();
@@ -891,6 +905,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     _motorOnCountdownTimer?.cancel();
     _d0CountdownTimer?.cancel();
     _settingsCountdownTimer?.cancel();
+    _settingsRetryTimer?.cancel();
     widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
     widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOffAck);
     widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOnAck);
@@ -1015,9 +1030,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     _settingsAttempt++;
 
     if (resetTimer) {
-      // (Re)start the 15s countdown shown in the saving dialog for this attempt.
+      // (Re)start the countdown shown in the saving dialog for this attempt.
       _settingsCountdownTimer?.cancel();
-      _settingsCountdown.value = 15;
+      _settingsCountdown.value = _settingsWindowSeconds;
       _settingsCountdownTimer =
           Timer.periodic(const Duration(seconds: 1), (t) {
         if (_settingsCountdown.value > 0) {
@@ -1027,10 +1042,28 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         }
       });
 
-      // No ACK within 15s → terminal. One window only; never restart it.
+      // Silence doesn't re-publish on its own — the MQTT-layer retry is
+      // cancelled right after each publish — so drive the re-sends here until
+      // the attempt budget is spent. The countdown keeps running through them.
+      _settingsRetryTimer?.cancel();
+      _settingsRetryTimer = Timer.periodic(_settingsRetryGap, (t) {
+        if (!mounted || _ackInProgress || !_hasPendingSave) {
+          t.cancel();
+          return;
+        }
+        if (_settingsAttempt >= _maxSettingsAttempts) {
+          t.cancel();
+          return;
+        }
+        _publishSettingsAttempt(resetTimer: false);
+      });
+
+      // No ACK within the window → terminal. One window only; never restart it.
       settingsAckTimer?.cancel();
-      settingsAckTimer = Timer(const Duration(seconds: 15), () {
+      settingsAckTimer =
+          Timer(const Duration(seconds: _settingsWindowSeconds), () {
         _settingsCountdownTimer?.cancel();
+        _settingsRetryTimer?.cancel();
         mqttStreamSubscription?.cancel();
         if (!mounted || _ackInProgress) return;
         _failCalibration('No acknowledgment received from device');
@@ -1056,6 +1089,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         // Success — stop the card retries and the MQTT-layer retries.
         settingsAckTimer?.cancel();
         _settingsCountdownTimer?.cancel();
+        _settingsRetryTimer?.cancel();
         _hasPendingSave = false;
         _ackInProgress = true;
         mqttStreamSubscription?.cancel();
@@ -1100,6 +1134,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       } else {
         settingsAckTimer?.cancel();
         _settingsCountdownTimer?.cancel();
+        _settingsRetryTimer?.cancel();
         if (mounted) _failCalibration(_calibrationErrorMessage(code));
       }
     });

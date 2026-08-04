@@ -666,11 +666,14 @@ class DevicesCard extends StatelessWidget {
         ? motorData!.state == 1
         : motor?.state == 1;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _showDeviceOptionsBottomSheet(context, motor),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+    // Padding sits OUTSIDE the tap target: the 8px inner edge of each card is
+    // no longer live, so the strip between the two motor cards is dead and a
+    // tap there can't open the wrong motor's sheet.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _showDeviceOptionsBottomSheet(context, motor),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
