@@ -41,6 +41,7 @@ class SettingsContent extends StatefulWidget {
   final void Function(double low, double high) onCurrentChanged;
   final ValueChanged<int>? onAsDlyChanged;
   final ValueChanged<bool>? onAsDlyOutOfRange;
+  final ValueChanged<int>? onStartTimeChanged;
   final VoidCallback? onMultiCurrentChanged;
 
   const SettingsContent({
@@ -70,6 +71,7 @@ class SettingsContent extends StatefulWidget {
     required this.onCurrentChanged,
     this.onAsDlyChanged,
     this.onAsDlyOutOfRange,
+    this.onStartTimeChanged,
     this.onMultiCurrentChanged,
   });
 
@@ -128,6 +130,30 @@ class _SettingsContentState extends State<SettingsContent> {
         onOutOfRange: widget.onFlcOutOfRange,
       );
 
+  /// Star-delta changeover time. Multi-motor starters only, and only when the
+  /// starter reports motor_starter_type STAR_DELTA. Hidden everywhere else.
+  Widget _startTimeCard() {
+    final controller = Get.find<SettingsController>();
+    if (!controller.isMultiMotorDevice || !controller.isStarDelta) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 7),
+      child: TimingConfigCard(
+        label: 'Start Time',
+        initialValue: controller.sdTime.value,
+        minValue: controller.sdTimeMin,
+        maxValue: controller.sdTimeMax,
+        onChanged: (v) {
+          controller.sdTime.value = v;
+          widget.onStartTimeChanged?.call(v);
+        },
+        onOutOfRange: widget.onAsDlyOutOfRange,
+        hideHeading: true,
+      ),
+    );
+  }
+
   Widget _voltageCard() => SettingsVoltageCard(
         key: widget.voltageCardKey,
         initialLowVoltage: widget.voltageInitialLow,
@@ -165,6 +191,7 @@ class _SettingsContentState extends State<SettingsContent> {
           maxValue: widget.asDlyMaxValue,
           onChanged: widget.onAsDlyChanged,
           onOutOfRange: widget.onAsDlyOutOfRange,
+          hideHeading: true,
         ),
         const SizedBox(height: 7),
         _voltageCard(),
@@ -184,10 +211,9 @@ class _SettingsContentState extends State<SettingsContent> {
   Widget _buildMulti() {
     final motors = Get.find<SettingsController>().motorConfigsForUi();
     _multiMotors = motors;
-    // No per-motor config available (e.g. after "Default" loads generic
-    // settings) — fall back to the single layout to avoid empty-list access.
-    if (motors.isEmpty) return _buildSingle();
-    if (_selectedMotorIdx >= motors.length) _selectedMotorIdx = 0;
+    if (motors.isNotEmpty && _selectedMotorIdx >= motors.length) {
+      _selectedMotorIdx = 0;
+    }
 
     return Column(
       children: [
@@ -201,6 +227,7 @@ class _SettingsContentState extends State<SettingsContent> {
           onOutOfRange: widget.onAsDlyOutOfRange,
           hideHeading: true,
         ),
+        _startTimeCard(),
         const SizedBox(height: 8),
         _voltageCard(),
         const SizedBox(height: 8),
@@ -211,14 +238,14 @@ class _SettingsContentState extends State<SettingsContent> {
         if (motors.isNotEmpty) ...[
           _buildMotorLabel(motors[_selectedMotorIdx]),
           const SizedBox(height: 8),
+          _multiFlcCard(),
+          const SizedBox(height: 8),
+          SettingsMultiMotorCurrentCard(
+            key: widget.multiCurrentCardKey,
+            onChanged: widget.onMultiCurrentChanged,
+            selectedIndex: _selectedMotorIdx,
+          ),
         ],
-        _multiFlcCard(),
-        const SizedBox(height: 8),
-        SettingsMultiMotorCurrentCard(
-          key: widget.multiCurrentCardKey,
-          onChanged: widget.onMultiCurrentChanged,
-          selectedIndex: _selectedMotorIdx,
-        ),
       ],
     );
   }

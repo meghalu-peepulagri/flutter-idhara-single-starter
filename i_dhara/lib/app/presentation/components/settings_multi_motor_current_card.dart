@@ -62,7 +62,7 @@ class SettingsMultiMotorCurrentCardState
         : (name != null && name.isNotEmpty)
             ? name
             : 'Motor ${m.motorIndex ?? ''}';
-    return '$display (${ref.toUpperCase()})';
+    return display;
   }
 
   void resetValues() {

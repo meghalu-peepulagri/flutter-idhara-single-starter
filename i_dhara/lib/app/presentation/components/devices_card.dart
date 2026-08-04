@@ -197,6 +197,7 @@ class DevicesCard extends StatelessWidget {
       state: motor.state,
       aliasName: motor.aliasName,
       testrunStatus: motor.testrunStatus,
+      motorReference: motor.motorReference,
       location: motor.location != null
           ? motor_model.Location(
               id: motor.location!.id,
@@ -268,7 +269,8 @@ class DevicesCard extends StatelessWidget {
     Future<void> sendTestRunCommand() async {
       if (commandSent || motorId.isEmpty) return;
       try {
-        await mqttService.publishTestRunCommand(motorId, 1, data: 1, type: 5);
+        await mqttService.publishTestRunCommand(motorId, 1,
+            data: 1, type: 5, motorReference: motorModelMotor.motorReference);
         commandSent = true;
       } catch (_) {}
     }

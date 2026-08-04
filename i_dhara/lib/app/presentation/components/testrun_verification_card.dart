@@ -81,6 +81,18 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   final ValueNotifier<double> _overalCurrent = ValueNotifier(0);
   String _mqttMotorId = '';
   double _finalFLC = 0.0;
+
+  /// 'm1'/'m2' on a multi-motor starter, null on a single-motor one. Null keeps
+  /// every published payload flat, exactly as single-motor has always sent them.
+  String? get _motorRef {
+    final ref = widget.motor.motorReference;
+    return (ref != null && ref.isNotEmpty) ? ref : null;
+  }
+
+  /// Live-data key for this motor: multi-motor entries are stored per motor as
+  /// '<identifier>-<groupId>-<motorReference>'; single-motor has no suffix.
+  String get _liveDataKey =>
+      _motorRef == null ? _mqttMotorId : '$_mqttMotorId-$_motorRef';
   // Timestamp of the last motor command (D:2 or D:0) so we can detect
   // whether a T:31 ACK belongs to the command we just sent.
   DateTime? _motorCmdSentAt;
@@ -508,19 +520,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
 
     if (_phase == _TestRunPhase.motorOnWaiting) {
       // D:2 retries exhausted — motor never confirmed ON.
-      _motorOnCountdownTimer?.cancel();
-      widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOnAck);
-      widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
-      widget.mqttService.commandStatusNotifier.removeListener(_onCommandStatus);
-      if (_mqttMotorId.isNotEmpty) {
-        widget.mqttService.removeTestRunMotor(_mqttMotorId);
-      }
-      if (mounted) {
-        setState(() {
-          _motorOnFailed = true;
-          _motorOnFailureMsg = message;
-        });
-      }
+      _handleMotorOnFailure(message);
     } else if (_phase == _TestRunPhase.measuring) {
       // D:2 retries exhausted — motor never confirmed ON, stop the run.
       _timer?.cancel();
@@ -599,6 +599,24 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     }
   }
 
+  /// Terminal "motor never confirmed ON" state — shown when the D:2 retries are
+  /// exhausted, or when the waiting countdown reaches 0 with no T:31 ACK.
+  void _handleMotorOnFailure(String message) {
+    _motorOnCountdownTimer?.cancel();
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOnAck);
+    widget.mqttService.dataUpdateNotifier.removeListener(_checkUpdates);
+    widget.mqttService.commandStatusNotifier.removeListener(_onCommandStatus);
+    if (_mqttMotorId.isNotEmpty) {
+      widget.mqttService.removeTestRunMotor(_mqttMotorId);
+    }
+    if (mounted) {
+      setState(() {
+        _motorOnFailed = true;
+        _motorOnFailureMsg = message;
+      });
+    }
+  }
+
   void _handleMotorOffFailure(String message) {
     _d0CountdownTimer?.cancel();
     widget.mqttService.dataUpdateNotifier.removeListener(_checkMotorOffAck);
@@ -648,8 +666,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       // motor OFF (T:1), so the two don't hit the device at the same instant.
       final offMotorId = _mqttMotorId;
       Future.delayed(const Duration(seconds: 5), () {
-        widget.mqttService
-            .publishTestRunCommand(offMotorId, 1, data: 0, type: 1);
+        widget.mqttService.publishTestRunCommand(offMotorId, 1,
+            data: 0, type: 1, motorReference: _motorRef);
       });
     } else {
       // No motor ID — skip D:0, go straight to completed.
@@ -704,8 +722,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
 
     // Publish D:2 (motor ON) with retry.
     if (mqttMotorId.isNotEmpty) {
-      widget.mqttService
-          .publishTestRunCommand(mqttMotorId, 1, data: 2, type: 1);
+      widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
+          data: 2, type: 1, motorReference: _motorRef);
     }
 
     // 15-second countdown shown in the waiting dialog.
@@ -720,6 +738,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         setState(() => _motorOnCountdown--);
       } else {
         timer.cancel();
+        if (_phase == _TestRunPhase.motorOnWaiting && !_motorOnFailed) {
+          _handleMotorOnFailure('No acknowledgment received from device');
+        }
       }
     });
   }
@@ -745,8 +766,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       final remaining = (_totalSeconds - elapsed).clamp(0, _totalSeconds);
 
       if (mqttMotorId.isNotEmpty && elapsed > 0 && elapsed % 10 == 0) {
-        widget.mqttService
-            .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+        widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
+            data: 1, type: 5, motorReference: _motorRef);
       }
 
       if (remaining > 0) {
@@ -770,7 +791,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     // correct entry regardless of which identifier the device uses on the wire.
     MotorData? motordata;
     if (_mqttMotorId.isNotEmpty) {
-      final direct = widget.mqttService.motorDataMap[_mqttMotorId];
+      final direct = widget.mqttService.motorDataMap[_liveDataKey];
       if (direct != null && direct.hasReceivedLiveData) {
         motordata = direct;
       }
@@ -801,8 +822,25 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
             motordata = data;
             bestTime = ackTime;
             // Fix _mqttMotorId so _completeTestRun's publishMotorOFF and
-            // future direct lookups use the correct key.
-            _mqttMotorId = entry.key;
+            // future direct lookups use the correct key. Multi-motor keys end
+            // in '-<motorReference>', which is not part of the command id — the
+            // publish topic is derived from it, so the suffix must be dropped.
+            final key = entry.key;
+            final dataRef = data.motorReference;
+            final commandId = (dataRef != null &&
+                    dataRef.isNotEmpty &&
+                    key.endsWith('-$dataRef'))
+                ? key.substring(0, key.length - dataRef.length - 1)
+                : key;
+            if (commandId != _mqttMotorId) {
+              // Re-register under the new id, otherwise the T:31 ACK is stamped
+              // on the old one and _checkMotorOffAck never sees it.
+              if (_mqttMotorId.isNotEmpty) {
+                widget.mqttService.removeTestRunMotor(_mqttMotorId);
+              }
+              _mqttMotorId = commandId;
+              widget.mqttService.addTestRunMotor(_mqttMotorId);
+            }
           }
         }
       }
@@ -871,7 +909,8 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     // Send stop command T=1, D=0
     if (mqttMotorId.isNotEmpty) {
       widget.mqttService
-          .publishTestRunCommand(mqttMotorId, 1, data: 0, type: 1)
+          .publishTestRunCommand(mqttMotorId, 1,
+              data: 0, type: 1, motorReference: _motorRef)
           .then((_) {
         if (widget.route == Routes.dashboard) {
           Get.offAllNamed(widget.route, arguments: {'refresh': true});
@@ -921,15 +960,19 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         final OLF5 = _calculatedFlc(_controller!.olf.value.toDouble(), avgFlc);
         final trimFlc = avgFlc.toStringAsFixed(2);
         final flc = double.parse(trimFlc);
+        final motorFields = {
+          "olr": OLR1,
+          "lrr": LRR3,
+          "lrf": LRF2,
+          "drf": DRF4,
+          "olf": OLF5,
+          'flc': flc
+        };
+        // Multi-motor nests the calibration under the motor reference
+        // (dvc_c:{m2:{...}}); single-motor keeps the flat dvc_c it always sent.
+        final ref = _motorRef;
         final payload = {
-          "dvc_c": {
-            "olr": OLR1,
-            "lrr": LRR3,
-            "lrf": LRF2,
-            "drf": DRF4,
-            "olf": OLF5,
-            'flc': flc
-          },
+          "dvc_c": ref == null ? motorFields : {ref: motorFields},
         };
         _controller!.flc.value = flc;
 
@@ -963,8 +1006,9 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   ///                             across these quick retries. Only after the
   ///                             last attempt still errors do we stop and
   ///                             show the terminal failure.
-  ///  • no ACK within 15s      → the countdown reaching 0 is what starts a
-  ///                             fresh 15s attempt (or fails if exhausted).
+  ///  • no ACK within 15s      → terminal failure. The device stayed silent,
+  ///                             so there is a single 15s window and it is
+  ///                             never restarted.
   Future<void> _publishSettingsAttempt({bool resetTimer = true}) async {
     final payload = _settingsPayload;
     if (payload == null || _controller == null) return;
@@ -983,17 +1027,13 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
         }
       });
 
-      // No-ACK timeout for this attempt → retry or fail.
+      // No ACK within 15s → terminal. One window only; never restart it.
       settingsAckTimer?.cancel();
       settingsAckTimer = Timer(const Duration(seconds: 15), () {
         _settingsCountdownTimer?.cancel();
         mqttStreamSubscription?.cancel();
         if (!mounted || _ackInProgress) return;
-        if (_settingsAttempt < _maxSettingsAttempts) {
-          _publishSettingsAttempt();
-        } else {
-          _failCalibration('No acknowledgment received from device');
-        }
+        _failCalibration('No acknowledgment received from device');
       });
     }
 
@@ -1006,6 +1046,11 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       final topic = data["topic"];
       if (topic != _controller!.pcbNumber.value &&
           topic != _controller!.macAddress.value) return;
+
+      // Multi-motor ACKs carry the reference (D:{"m2":1}) — ignore the other
+      // motor's ACK. Single-motor ACKs have no reference and always pass.
+      final ackRef = data["motor"] as String?;
+      if (ackRef != null && _motorRef != null && ackRef != _motorRef) return;
 
       if (code == 1 && !_ackInProgress && _hasPendingSave) {
         // Success — stop the card retries and the MQTT-layer retries.

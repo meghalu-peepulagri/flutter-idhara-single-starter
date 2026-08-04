@@ -50,6 +50,19 @@ class SettingsController extends GetxController with ConnectivityMixin {
   var flc = 0.0.obs;
   var asDly = 0.obs;
 
+  /// Star-delta changeover time (multi_motor_config.sd_time). Only meaningful
+  /// when the starter reports motor_starter_type STAR_DELTA.
+  var sdTime = 0.obs;
+
+  int get sdTimeMin => data.value?.startTimeMin ?? 0;
+  int get sdTimeMax => data.value?.startTimeMax ?? 0;
+
+  bool get isStarDelta =>
+      (userSettings2.value?.starter?.motorStarterType ?? '')
+          .toUpperCase()
+          .replaceAll(' ', '_') ==
+      'STAR_DELTA';
+
   // Per-motor FLC (multi-motor), keyed by motor_reference.
   final RxMap<String, double> motorFlc = <String, double>{}.obs;
 
@@ -138,6 +151,8 @@ class SettingsController extends GetxController with ConnectivityMixin {
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         asDly.value = userSettings2.value?.asDly ?? 0;
+        sdTime.value =
+            (userSettings2.value?.multiMotorConfig?.sdTime ?? 0).toInt();
 
         initMotorFlc();
         if (isMultiMotorDevice) {
@@ -294,6 +309,10 @@ class SettingsController extends GetxController with ConnectivityMixin {
       updateSettingDto['lvr'] = lvr.value;
       updateSettingDto['hvr'] = hvr.value;
       updateSettingDto['flc'] = flc.value;
+      updateSettingDto['as_dly'] = asDly.value;
+      if (isMultiMotorDevice && isStarDelta) {
+        updateSettingDto['start_time'] = sdTime.value;
+      }
 
       if (isMultiMotorDevice && pendingMultiMotorConfig != null) {
         updateSettingDto['multi_motor_config'] = pendingMultiMotorConfig;
@@ -318,7 +337,18 @@ class SettingsController extends GetxController with ConnectivityMixin {
       isLoading.value = true;
       final res = await SettingsRepositoryImpl().getDefaultSettings();
       if (res?.status == 200 || res?.status == 201) {
+        // Capture motor count before the generic default overwrites userSettings2.
+        final int motorCount = motorConfigsForUi().length;
+        final bool multi = isMultiMotorDevice;
+        final origConfig = userSettings2.value?.multiMotorConfig;
+        final origStarter = userSettings2.value?.starter;
         userSettings2.value = res?.data;
+        // The generic default has no per-motor config — keep the device's motor
+        // structure so the multi-motor UI keeps rendering after "Default".
+        if (multi) {
+          userSettings2.value?.multiMotorConfig = origConfig;
+          userSettings2.value?.starter = origStarter;
+        }
         macAddress.value = res?.data?.starter?.macAddress ?? '';
         lvf.value = userSettings2.value?.lvf ?? 0;
         hvf.value = userSettings2.value?.hvf ?? 0;
@@ -329,37 +359,79 @@ class SettingsController extends GetxController with ConnectivityMixin {
         final hvr = (data?.hvf?.toDouble() ?? 0) - 10;
         final lvr = (data?.lvf?.toDouble() ?? 0) + 10;
 
-        defaultSettingspayload = {
-          "dvc_c": {
-            "allflt_en": data?.allfltEn ?? 0,
+        if (multi) {
+          final flcVal = data?.flc?.toDouble() ?? 0;
+          final perMotor = <String, dynamic>{
+            "flt_en": data?.prFltEn ?? 0,
             "flc": data?.flc ?? 0,
-            "as_dly": data?.asDly,
-            "ipf": data?.ipf ?? 0,
-            "lvf": data?.lvf ?? 0,
-            "hvf": data?.hvf ?? 0,
-            "vif": data?.vif ?? 0,
-            "paminf": data?.paminf ?? 0,
-            "pamaxf": data?.pamaxf ?? 0,
-            "lvr": lvr ?? 0.0,
-            "hvr": hvr ?? 0.0,
-            "drf": calculatedFlc(
-                data?.drf?.toDouble() ?? 0, data!.flc!.toDouble()),
-            "olf":
-                calculatedFlc(data.olf?.toDouble() ?? 0, data.flc!.toDouble()),
-            "lrf":
-                calculatedFlc(data.lrf?.toDouble() ?? 0, data.flc!.toDouble()),
-            "opf": data.opf ?? 0,
-            "cif": data.cir ?? 0,
-            "olr":
-                calculatedFlc(data.olr?.toDouble() ?? 0, data.flc!.toDouble()),
-            "lrr":
-                calculatedFlc(data.lrr?.toDouble() ?? 0, data.flc!.toDouble()),
-            "cir": data.cir ?? 0,
-            "pr_flt_en": data.prFltEn ?? 0
-          }
-        };
+            "drf": calculatedFlc(data?.drf?.toDouble() ?? 0, flcVal),
+            "olf": calculatedFlc(data?.olf?.toDouble() ?? 0, flcVal),
+            "lrf": calculatedFlc(data?.lrf?.toDouble() ?? 0, flcVal),
+            "opf": data?.opf ?? 0,
+            "cif": data?.cif ?? 0,
+          };
+          defaultSettingspayload = {
+            "dvc_c": {
+              "allflt_en": data?.allfltEn ?? 0,
+              "n_mtr": motorCount,
+              "on_dly": data?.asDly,
+              "ipf": data?.ipf ?? 0,
+              "lvf": data?.lvf ?? 0,
+              "hvf": data?.hvf ?? 0,
+              "vif": data?.vif ?? 0,
+              "m1": perMotor,
+              "m2": Map<String, dynamic>.from(perMotor),
+            }
+          };
 
-        wrapPayloadForMultiMotor(defaultSettingspayload);
+          // Reflect the same default values in each motor of the UI list so the
+          // screen matches the published payload (drf/olf stored as amps).
+          final uiMotors = userSettings2.value?.multiMotorConfig?.motors;
+          if (uiMotors != null) {
+            for (final m in uiMotors) {
+              m.flc = data?.flc;
+              m.drf = perMotor['drf'] as num?;
+              m.olf = perMotor['olf'] as num?;
+              m.lrf = perMotor['lrf'] as num?;
+              m.opf = data?.opf;
+              m.cif = data?.cif;
+              m.fltEn = data?.prFltEn;
+            }
+          }
+          initMotorFlc();
+        } else {
+          defaultSettingspayload = {
+            "dvc_c": {
+              "allflt_en": data?.allfltEn ?? 0,
+              "flc": data?.flc ?? 0,
+              "as_dly": data?.asDly,
+              "ipf": data?.ipf ?? 0,
+              "lvf": data?.lvf ?? 0,
+              "hvf": data?.hvf ?? 0,
+              "vif": data?.vif ?? 0,
+              "paminf": data?.paminf ?? 0,
+              "pamaxf": data?.pamaxf ?? 0,
+              "lvr": lvr ?? 0.0,
+              "hvr": hvr ?? 0.0,
+              "drf": calculatedFlc(
+                  data?.drf?.toDouble() ?? 0, data!.flc!.toDouble()),
+              "olf": calculatedFlc(
+                  data.olf?.toDouble() ?? 0, data.flc!.toDouble()),
+              "lrf": calculatedFlc(
+                  data.lrf?.toDouble() ?? 0, data.flc!.toDouble()),
+              "opf": data.opf ?? 0,
+              "cif": data.cir ?? 0,
+              "olr": calculatedFlc(
+                  data.olr?.toDouble() ?? 0, data.flc!.toDouble()),
+              "lrr": calculatedFlc(
+                  data.lrr?.toDouble() ?? 0, data.flc!.toDouble()),
+              "cir": data.cir ?? 0,
+              "pr_flt_en": data.prFltEn ?? 0
+            }
+          };
+
+          wrapPayloadForMultiMotor(defaultSettingspayload);
+        }
 
         updateSettingDto.assignAll(res!.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>

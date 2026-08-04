@@ -401,6 +401,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
           5,
           data: 1,
           type: 5,
+          motorReference: motor.motorReference,
         );
       } catch (e) {
         // Per-motor publish failure shouldn't stop the rest of the

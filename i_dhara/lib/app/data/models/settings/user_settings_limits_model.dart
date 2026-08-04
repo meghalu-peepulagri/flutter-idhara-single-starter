@@ -57,6 +57,8 @@ class UserSettingsLimits {
   num? flcMax;
   int? asDlyMin;
   int? asDlyMax;
+  int? startTimeMin;
+  int? startTimeMax;
 
   UserSettingsLimits(
       {this.id,
@@ -73,7 +75,9 @@ class UserSettingsLimits {
       this.flcMin,
       this.flcMax,
       this.asDlyMin,
-      this.asDlyMax});
+      this.asDlyMax,
+      this.startTimeMin,
+      this.startTimeMax});
 
   factory UserSettingsLimits.fromJson(Map<String, dynamic> json) =>
       UserSettingsLimits(
@@ -91,6 +95,8 @@ class UserSettingsLimits {
         flcMax: json["flc_max"],
         asDlyMin: json["as_dly_min"],
         asDlyMax: json["as_dly_max"],
+        startTimeMin: json["start_time_min"],
+        startTimeMax: json["start_time_max"],
         createdAt: json["created_at"] == null
             ? null
             : DateTime.parse(json["created_at"]),
@@ -112,5 +118,7 @@ class UserSettingsLimits {
         'flc_max': flcMax,
         'as_dly_min': asDlyMin,
         'as_dly_max': asDlyMax,
+        'start_time_min': startTimeMin,
+        'start_time_max': startTimeMax,
       };
 }

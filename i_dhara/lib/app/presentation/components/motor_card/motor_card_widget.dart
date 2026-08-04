@@ -620,8 +620,8 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
 
-        await widget.mqttService
-            .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+        await widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
+            data: 1, type: 5, motorReference: widget.motor.motorReference);
       }
     } catch (e) {
       // ignore

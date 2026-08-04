@@ -9,6 +9,7 @@ class TimingConfigCard extends StatefulWidget {
   final ValueChanged<int>? onChanged;
   final ValueChanged<bool>? onOutOfRange;
   final bool hideHeading;
+  final String label;
 
   const TimingConfigCard({
     super.key,
@@ -18,6 +19,7 @@ class TimingConfigCard extends StatefulWidget {
     this.onChanged,
     this.onOutOfRange,
     this.hideHeading = false,
+    this.label = 'Start Delay',
   });
 
   @override
@@ -126,7 +128,7 @@ class TimingConfigCardState extends State<TimingConfigCard> {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Start Delay',
+                    widget.label,
                     style: GoogleFonts.dmSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,

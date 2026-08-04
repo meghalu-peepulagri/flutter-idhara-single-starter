@@ -426,7 +426,8 @@ extension AnalyticsControllerMqtt on AnalyticsController {
     final mId = _getMotorId();
     if (mId.isEmpty) return;
     try {
-      await mqttService.publishTestRunCommand(mId, 5, data: 1, type: 5);
+      await mqttService.publishTestRunCommand(mId, 5,
+          data: 1, type: 5, motorReference: motorDetails.value?.motorReference);
     } catch (e) {
       // ignore
     }

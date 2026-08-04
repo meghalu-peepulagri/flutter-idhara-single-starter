@@ -25,6 +25,12 @@ Future<void> showSettingsConfirmDialog(
   required Future<void> Function() onConfirm,
   Future<void> Function()? onCancel,
   List<Map<String, String>>? currentMotorRows,
+  bool startDelayChanged = false,
+  String startDelayOld = '',
+  String startDelayNew = '',
+  bool startTimeChanged = false,
+  String startTimeOld = '',
+  String startTimeNew = '',
 }) {
   return showDialog(
     context: context,
@@ -71,6 +77,27 @@ Future<void> showSettingsConfirmDialog(
                     ),
                   ),
                   SizedBox(height: verticalPadding),
+                  if (startDelayChanged) ...[
+                    _startDelayCard(
+                      title: 'Start Delay',
+                      oldValue: startDelayOld,
+                      newValue: startDelayNew,
+                    ),
+                    if (startTimeChanged ||
+                        flcChanged ||
+                        isVoltageRange ||
+                        isCurrentRange)
+                      const SizedBox(height: 12),
+                  ],
+                  if (startTimeChanged) ...[
+                    _startDelayCard(
+                      title: 'Start Time',
+                      oldValue: startTimeOld,
+                      newValue: startTimeNew,
+                    ),
+                    if (flcChanged || isVoltageRange || isCurrentRange)
+                      const SizedBox(height: 12),
+                  ],
                   if (flcChanged)
                     _flcCard(
                       oldFlc: originalFlc,
@@ -117,6 +144,10 @@ Future<void> showSettingsConfirmDialog(
                             '',
                         highNew: currentMotorRows[i]['overloadNew'] ?? '',
                         valueColor: const Color(0xFFF97316),
+                        showFlc: currentMotorRows[i]['flcChanged'] == 'true',
+                        flcOld: currentMotorRows[i]['flcOld'] ?? '',
+                        flcNew: currentMotorRows[i]['flcNew'] ?? '',
+                        flcLabel: 'FLC:',
                         cmin: currentMotorRows[i]['dryRunChanged'] == 'true',
                         cmax: currentMotorRows[i]['overloadChanged'] == 'true',
                         lowLabel: 'Dry Run:',
@@ -222,6 +253,58 @@ Future<void> showSettingsConfirmDialog(
 }
 
 /// Compact single-line FLC card shown at the top of the confirm dialog.
+Widget _startDelayCard({
+  required String title,
+  required String oldValue,
+  required String newValue,
+}) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF3FF),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2563EB),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                '$oldValue Sec',
+                style: const TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.arrow_right_alt,
+                    size: 18, color: Colors.black45),
+              ),
+              Text(
+                '$newValue Sec',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 Widget _flcCard({required String oldFlc, required String newFlc}) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

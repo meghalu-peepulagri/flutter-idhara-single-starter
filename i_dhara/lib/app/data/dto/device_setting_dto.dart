@@ -39,6 +39,7 @@ class UserUpdateSettingsDto {
   double? flc;
 
   int? asDly;
+  int? startTime;
   int? prFltEn;
   int? tpf;
   int? vEn;
@@ -142,6 +143,7 @@ class UserUpdateSettingsDto {
     this.allfltEn,
     this.flc,
     this.asDly,
+    this.startTime,
     this.prFltEn,
     this.tpf,
     this.vEn,
@@ -235,6 +237,7 @@ class UserUpdateSettingsDto {
         allfltEn: parseInt(json["allflt_en"]),
         flc: parseDouble(json["flc"]), // 🔥 FIXED
         asDly: parseInt(json["as_dly"]),
+        startTime: parseInt(json["start_time"]),
         prFltEn: parseInt(json["pr_flt_en"]),
         tpf: parseInt(json["tpf"]),
         vEn: parseInt(json["v_en"]),
@@ -328,6 +331,7 @@ class UserUpdateSettingsDto {
         "allflt_en": allfltEn,
         "flc": flc,
         "as_dly": asDly,
+        "start_time": startTime,
         "pr_flt_en": prFltEn,
         "tpf": tpf,
         "v_en": vEn,

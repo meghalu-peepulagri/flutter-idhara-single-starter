@@ -1097,8 +1097,8 @@ class ScheduleFormState extends State<ScheduleForm> {
       endMinute = widget.initialEndMinute ?? 0;
     }
     cyclicMode = widget.initialCyclicMode ?? false;
-    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
-    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
+    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? _defaultCyclicMinutes;
+    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? _defaultCyclicMinutes;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
     selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
@@ -1205,11 +1205,14 @@ class ScheduleFormState extends State<ScheduleForm> {
     return counts;
   }
 
+  /// ON/OFF always fall back to this fixed value — never a split of the
+  /// schedule duration, which produced uneven pairs like 7min / 8min.
+  static const int _defaultCyclicMinutes = 5;
+
   void _clampCyclicDurations() {
-    final total = durationMinutes;
-    if (cyclicOnMinutes + cyclicOffMinutes > total) {
-      cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-      cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
+    if (cyclicOnMinutes + cyclicOffMinutes > durationMinutes) {
+      cyclicOnMinutes = _defaultCyclicMinutes;
+      cyclicOffMinutes = _defaultCyclicMinutes;
     }
   }
 
@@ -1220,14 +1223,10 @@ class ScheduleFormState extends State<ScheduleForm> {
       if (v) {
         powerLossRecovery = false;
         _powerLossController.value = false;
-        final total = durationMinutes;
-        if (cyclicOnMinutes + cyclicOffMinutes > total) {
-          cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-          cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
-        }
+        _clampCyclicDurations();
       } else {
-        cyclicOnMinutes = 20;
-        cyclicOffMinutes = 15;
+        cyclicOnMinutes = _defaultCyclicMinutes;
+        cyclicOffMinutes = _defaultCyclicMinutes;
       }
     });
     // The 5-min floor on each side means cyclic mode needs at least a 10-min

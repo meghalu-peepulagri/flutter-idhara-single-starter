@@ -36,12 +36,19 @@ class VoltageCurrentValuesCard extends StatelessWidget {
     MotorData? latestData;
     DateTime? latestTimestamp;
 
+    // Multi-motor: keys carry a '-<motor_reference>' suffix (e.g. MAC-G01-m2);
+    // single-motor has no suffix.
+    final ref = motor.motorReference;
+    final suffix = (ref != null && ref.isNotEmpty) ? '-$ref' : '';
+
     for (int i = 1; i <= 4; i++) {
       final groupId = 'G0$i';
 
       // Try both MAC and PCB identifiers
-      final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
-      final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
+      final macMotorId =
+          mac != null && mac.isNotEmpty ? '$mac-$groupId$suffix' : null;
+      final pcbMotorId =
+          pcb != null && pcb.isNotEmpty ? '$pcb-$groupId$suffix' : null;
 
       // Check MAC address
       if (macMotorId != null) {

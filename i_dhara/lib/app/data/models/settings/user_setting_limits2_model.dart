@@ -459,6 +459,7 @@ class SettingStarter {
   String? pcbNumber;
   String? macAddress;
   String? deviceAllocation;
+  String? motorStarterType;
 
   List<SettingMotor>? motors;
 
@@ -468,6 +469,7 @@ class SettingStarter {
       this.pcbNumber,
       this.macAddress,
       this.motors,
+      this.motorStarterType,
       this.deviceAllocation});
 
   factory SettingStarter.fromJson(Map<String, dynamic> json) => SettingStarter(
@@ -476,6 +478,7 @@ class SettingStarter {
         pcbNumber: json["pcb_number"],
         macAddress: json["mac_address"],
         deviceAllocation: json["device_allocation"],
+        motorStarterType: json["motor_starter_type"],
         motors: json["motors"] == null
             ? []
             : List<SettingMotor>.from(
@@ -488,6 +491,7 @@ class SettingStarter {
         "pcb_number": pcbNumber,
         "mac_address": macAddress,
         "device_allocation": deviceAllocation,
+        "motor_starter_type": motorStarterType,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),
