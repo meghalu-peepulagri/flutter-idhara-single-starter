@@ -818,7 +818,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                         SettingsDeviceInfoBar(
                           pumpName: controller.headerTitle(),
                           pumpHP: controller.pumpHP.value,
-                          showHp: !controller.isMultiMotorDevice,
+                          showHp: !controller.hasMultipleMotors,
                           showDefaultButton: _selectedTab == 0,
                           onDefaultPressed: () =>
                               _defaultSettingsPopUp(context),
@@ -843,7 +843,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   flcCardKey: flcCardKey,
                                   timingCardKey: timingCardKey,
                                   multiCurrentCardKey: multiCurrentCardKey,
-                                  isMultiMotor: controller.isMultiMotorDevice,
+                                  isMultiMotor: controller.hasMultipleMotors,
                                   onMultiCurrentChanged: () {
                                     _multiCurrentChanged = true;
                                     if (!isbuttonActive) {

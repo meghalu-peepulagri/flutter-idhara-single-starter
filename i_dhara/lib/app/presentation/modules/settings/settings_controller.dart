@@ -6,6 +6,7 @@ import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
 import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 
@@ -204,6 +205,12 @@ class SettingsController extends GetxController with ConnectivityMixin {
   bool get isMultiMotorDevice =>
       SharedPreference.getIsMultiMotor() || isMultiMotor;
 
+  /// Layout only. A payload-version 2.0 single-motor starter also returns a
+  /// multi_motor_config (one entry), so [isMultiMotorDevice] is true for it and
+  /// the save/POST correctly takes the multi path — but the screen must stay
+  /// the single-motor one. Motor count, not protocol, decides what is drawn.
+  bool get hasMultipleMotors => motorConfigsForUi().length > 1;
+
   String headerTitle() {
     if (isMultiMotorDevice) {
       final sn = SharedPreference.getStarterNumber();
@@ -254,7 +261,14 @@ class SettingsController extends GetxController with ConnectivityMixin {
 
   String? currentMotorReference() {
     final motors = userSettings2.value?.multiMotorConfig?.motors;
-    if (motors == null || motors.isEmpty) return null;
+    if (motors == null || motors.isEmpty) {
+      // A payload-version 2.0 single-motor starter has no per-motor config but
+      // still expects dvc_c scoped under m1, exactly like a dual-motor one.
+      // 1.x returns null here and keeps publishing the flat payload.
+      return userSettings2.value?.starter?.usesObjectPayload == true
+          ? MqttService.defaultMotorReference
+          : null;
+    }
     final currentMotorId = SharedPreference.getMotorId();
     for (final m in motors) {
       if (m.motorId == currentMotorId) return m.motorReference;
@@ -262,14 +276,30 @@ class SettingsController extends GetxController with ConnectivityMixin {
     return motors.first.motorReference;
   }
 
+  /// Keys that stay at device level; everything else nests under the motor.
+  /// Mirrors how the dual-motor save splits them: voltage + timing are shared,
+  /// current/FLC are per motor.
+  static const List<String> _deviceLevelSettingKeys = [
+    'as_dly',
+    'sd_time',
+    'lvf',
+    'hvf',
+    'lvr',
+    'hvr',
+  ];
+
   void wrapPayloadForMultiMotor(Map<String, dynamic> payload) {
     final ref = currentMotorReference();
     if (ref == null || ref.isEmpty) return;
     final dvc = payload["dvc_c"];
     if (dvc is! Map<String, dynamic>) return;
     final deviceLevel = <String, dynamic>{};
-    for (final k in const ['as_dly']) {
+    for (final k in _deviceLevelSettingKeys) {
       if (dvc.containsKey(k)) deviceLevel[k] = dvc.remove(k);
+    }
+    if (dvc.isEmpty) {
+      payload["dvc_c"] = deviceLevel;
+      return;
     }
     payload["dvc_c"] = {...deviceLevel, ref: dvc};
   }
@@ -348,6 +378,12 @@ class SettingsController extends GetxController with ConnectivityMixin {
         if (multi) {
           userSettings2.value?.multiMotorConfig = origConfig;
           userSettings2.value?.starter = origStarter;
+        } else {
+          // The generic default carries no starter, so payload_version would be
+          // lost here — and wrapPayloadForMultiMotor below needs it to know a
+          // 2.0 single-motor starter wants dvc_c scoped under m1. Restore it
+          // only when the response didn't bring its own.
+          userSettings2.value?.starter ??= origStarter;
         }
         macAddress.value = res?.data?.starter?.macAddress ?? '';
         lvf.value = userSettings2.value?.lvf ?? 0;

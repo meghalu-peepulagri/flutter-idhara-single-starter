@@ -460,6 +460,15 @@ class SettingStarter {
   String? macAddress;
   String? deviceAllocation;
   String? motorStarterType;
+  String? payloadVersion;
+
+  /// From payload version 2.0 the starter expects motor-scoped payloads even
+  /// with a single motor. 1.x, or an absent/unparseable version, stays flat.
+  bool get usesObjectPayload {
+    final major =
+        int.tryParse((payloadVersion ?? '').split('.').first.trim());
+    return (major ?? 1) >= 2;
+  }
 
   List<SettingMotor>? motors;
 
@@ -470,6 +479,7 @@ class SettingStarter {
       this.macAddress,
       this.motors,
       this.motorStarterType,
+      this.payloadVersion,
       this.deviceAllocation});
 
   factory SettingStarter.fromJson(Map<String, dynamic> json) => SettingStarter(
@@ -479,6 +489,7 @@ class SettingStarter {
         macAddress: json["mac_address"],
         deviceAllocation: json["device_allocation"],
         motorStarterType: json["motor_starter_type"],
+        payloadVersion: json["payload_version"]?.toString(),
         motors: json["motors"] == null
             ? []
             : List<SettingMotor>.from(
@@ -492,6 +503,7 @@ class SettingStarter {
         "mac_address": macAddress,
         "device_allocation": deviceAllocation,
         "motor_starter_type": motorStarterType,
+        "payload_version": payloadVersion,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),

@@ -213,6 +213,8 @@ class DevicesCard extends StatelessWidget {
         signalQuality: device.signalQuality,
         power: device.power,
         networkType: device.networkType,
+        motorSupportType: device.motorSupportType,
+        payloadVersion: device.payloadVersion,
       ),
     );
 

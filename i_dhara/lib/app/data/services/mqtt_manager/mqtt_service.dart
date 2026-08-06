@@ -1235,6 +1235,22 @@ class MqttService {
         _motorDataMap[key]!.power = motor.starter!.power!;
       }
 
+      // A payload-version 2.0 single-motor starter talks in motor-scoped
+      // objects (D:{"m1":…}) exactly like a dual-motor one, so its MotorData
+      // needs the reference for the multi-motor live-data and ACK paths to
+      // resolve to THIS entry — the one the UI reads — instead of matching
+      // nothing (or building a parallel entry). Use the API's motor_reference
+      // when present and fall back to 'm1' when it isn't.
+      // Scoped to single-motor starters: dual-motor is left exactly as it was,
+      // and 1.x never reaches here because it publishes flat payloads.
+      final starterSupport =
+          (motor.starter?.motorSupportType ?? '').toUpperCase();
+      if (!starterSupport.contains('MULTI') &&
+          motor.starter?.usesObjectPayload == true) {
+        _motorDataMap[key]!.motorReference =
+            motor.motorReference ?? defaultMotorReference;
+      }
+
       debugPrint(
           '   Added: $key (identifier=$identifier, groupId=$groupId, mac=${motor.starter?.macAddress}, pcb=${motor.starter?.pcbNumber})');
     }
@@ -1433,6 +1449,8 @@ class MqttService {
           md.controller.value = (s == 1);
           md.hasReceivedData = true;
           _lastAckTimes[entry.key] = DateTime.now();
+          // Stop the retry ladder, same as the flat single-motor path.
+          _clearPendingCommand(entry.key, 1);
         }
       }
     });
@@ -1465,6 +1483,10 @@ class MqttService {
               ? 'AUTO'
               : (m == scheduleModeUiIndex ? 'SCHEDULE' : 'MANUAL');
           md.hasReceivedData = true;
+          // Resolve the command the same way the flat path does, so the UI
+          // stops waiting and the retry ladder doesn't re-publish after ACK.
+          _lastAckTimes[entry.key] = DateTime.now();
+          _clearPendingCommand(entry.key, 2);
         }
       }
     });
@@ -2034,6 +2056,24 @@ class MqttService {
 
   /// Live-data request. Device-wide, so its D is never wrapped per motor.
   static const int liveDataRequestType = 5;
+
+  /// The motor a payload-version 2.0 single-motor starter answers to.
+  static const String defaultMotorReference = 'm1';
+
+  /// True when the starter behind [identifier] (its MAC or PCB) runs a payload
+  /// version that expects motor-scoped objects. Resolved from the motor list
+  /// the screens push in via [updateMotors]; unknown devices stay flat.
+  bool _usesObjectPayload(String identifier) {
+    for (final motor in _motors.values) {
+      final starter = motor.starter;
+      if (starter == null) continue;
+      if (starter.macAddress == identifier ||
+          starter.pcbNumber == identifier) {
+        return starter.usesObjectPayload;
+      }
+    }
+    return false;
+  }
 
   static const int scheduleModeDeviceCode = 6;
   static const int scheduleModeUiIndex = 2;
@@ -2623,14 +2663,21 @@ class MqttService {
 
     final topic = 'peepul/$identifier/cmd';
 
-    // Multi-motor: control commands target a specific motor as D:{<ref>: value}.
-    // The live-data request (T:5) is device-wide — the reply carries every
-    // motor — so it stays flat in both single- and multi-motor mode.
-    final dynamic dPayload = (type != liveDataRequestType &&
-            motorReference != null &&
-            motorReference.isNotEmpty)
-        ? {motorReference: data}
-        : data;
+    // The payload version decides the shape, not the motor count: from 2.0 a
+    // control command targets a motor as D:{<ref>: value} — the starter's own
+    // reference on a dual-motor device, 'm1' on a single-motor one. 1.x stays
+    // flat either way. The live-data request (T:5) is device-wide — the reply
+    // carries every motor — so it stays flat on every version.
+    final String? effectiveRef = _usesObjectPayload(identifier)
+        ? ((motorReference != null && motorReference.isNotEmpty)
+            ? motorReference
+            : defaultMotorReference)
+        : null;
+
+    final dynamic dPayload =
+        (type != liveDataRequestType && effectiveRef != null)
+            ? {effectiveRef: data}
+            : data;
     final payload = jsonEncode({"T": type, "S": seq, "D": dPayload});
     final builder = MqttClientPayloadBuilder()..addString(payload);
 

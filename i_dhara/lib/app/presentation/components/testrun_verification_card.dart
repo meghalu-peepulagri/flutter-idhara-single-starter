@@ -82,11 +82,16 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
   String _mqttMotorId = '';
   double _finalFLC = 0.0;
 
-  /// 'm1'/'m2' on a multi-motor starter, null on a single-motor one. Null keeps
-  /// every published payload flat, exactly as single-motor has always sent them.
+  /// The motor scope for this run's payloads, decided by the payload version:
+  /// from 2.0 it is the starter's own reference ('m1'/'m2' on a dual-motor
+  /// device, 'm1' when single-motor has none). On 1.x it is null, which keeps
+  /// every payload flat exactly as they have always been sent.
   String? get _motorRef {
+    if (widget.motor.starter?.usesObjectPayload != true) return null;
     final ref = widget.motor.motorReference;
-    return (ref != null && ref.isNotEmpty) ? ref : null;
+    return (ref != null && ref.isNotEmpty)
+        ? ref
+        : MqttService.defaultMotorReference;
   }
 
   /// Live-data key for this motor: multi-motor entries are stored per motor as

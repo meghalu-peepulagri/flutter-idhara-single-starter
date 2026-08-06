@@ -118,6 +118,7 @@ class Devices {
   String? installationPhotoKey;
   String? installationPhotoUrl;
   String? motorSupportType;
+  String? payloadVersion;
   String? starterType;
   List<Motor>? motors;
 
@@ -141,6 +142,7 @@ class Devices {
       this.installationPhotoKey,
       this.installationPhotoUrl,
       this.motorSupportType,
+      this.payloadVersion,
       this.starterType});
 
   factory Devices.fromJson(Map<String, dynamic> json) => Devices(
@@ -159,6 +161,7 @@ class Devices {
         installationPhotoKey: json["installation_photo_key"],
         installationPhotoUrl: json["installation_photo_url"],
         motorSupportType: json["motor_support_type"],
+        payloadVersion: json["payload_version"]?.toString(),
         starterType: json["starter_type"],
         motors: json["motors"] == null
             ? []
@@ -181,6 +184,7 @@ class Devices {
         "installation_photo_key": installationPhotoKey,
         "installation_photo_url": installationPhotoUrl,
         "motor_support_type": motorSupportType,
+        "payload_version": payloadVersion,
         "starter_type": starterType,
         "motors": motors == null
             ? []

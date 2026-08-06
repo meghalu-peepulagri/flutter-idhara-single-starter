@@ -217,7 +217,17 @@ class Starter {
   String? starterNumber;
   String? deviceAllocation;
   String? motorSupportType;
+  String? payloadVersion;
   List<StarterParameter>? starterParameters;
+
+  /// Firmware payload contract. From 2.0 the device expects motor-scoped
+  /// objects (D:{"m1":…}) even on a single-motor starter; 1.x and anything
+  /// unparseable stay flat.
+  bool get usesObjectPayload {
+    final major =
+        int.tryParse((payloadVersion ?? '').split('.').first.trim());
+    return (major ?? 1) >= 2;
+  }
 
   Starter(
       {this.id,
@@ -231,6 +241,7 @@ class Starter {
       this.starterParameters,
       this.deviceAllocation,
       this.motorSupportType,
+      this.payloadVersion,
       this.starterNumber});
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
@@ -244,6 +255,7 @@ class Starter {
         power: json["power"],
         deviceAllocation: json["device_allocation"],
         motorSupportType: json["motor_support_type"],
+        payloadVersion: json["payload_version"]?.toString(),
         networkType: json["network_type"],
         starterParameters: json["starterParameters"] == null
             ? []
@@ -263,6 +275,7 @@ class Starter {
         "network_type": networkType,
         "device_allocation": deviceAllocation,
         "motor_support_type": motorSupportType,
+        "payload_version": payloadVersion,
         "starterParameters": starterParameters == null
             ? []
             : List<dynamic>.from(starterParameters!.map((x) => x.toJson())),
