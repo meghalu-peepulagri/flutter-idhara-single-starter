@@ -106,10 +106,33 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   final Map<String, List<ValueNotifier<bool>>> _motorCtrls = {};
   final Map<String, List<bool>> _motorInit = {};
 
-  bool get _isMulti => Get.find<SettingsController>().isMultiMotorDevice;
+  /// Per-motor fault handling: the per-motor bits move out of the shared
+  /// `pr_flt_en` and into each motor's `flt_en`. A payload-version 2.0 starter
+  /// uses that split even with one motor, so the version enables it too —
+  /// but only when there is a motor config to attach the bits to, otherwise
+  /// those toggles would have nowhere to render and nowhere to publish.
+  bool get _isMulti {
+    final controller = Get.find<SettingsController>();
+    if (controller.isMultiMotorDevice) return true;
+    return controller.userSettings2.value?.starter?.usesObjectPayload == true &&
+        controller.motorConfigsForUi().isNotEmpty;
+  }
+
+  /// True only when the device really has a per-motor config the API stores
+  /// and returns. A payload-version 2.0 single-motor starter splits its faults
+  /// on the wire (m1.flt_en) but the API still keeps one flat pr_flt_en, so the
+  /// per-motor bits must stay in pr_flt_en for it — otherwise they are stripped
+  /// on save and read back as OFF.
+  bool get _hasPerMotorConfig =>
+      Get.find<SettingsController>().isMultiMotorDevice;
 
   String _motorRef(MotorSettingConfig m, int i) =>
       m.motorReference ?? 'm${m.motorIndex ?? (i + 1)}';
+
+  /// Base value the per-motor bits are flipped on top of. Falls back to the
+  /// device-level pr_flt_en when there is no stored per-motor flt_en.
+  int _motorBaseFltEn(int i) =>
+      _motors[i].fltEn ?? widget.settings?.prFltEn ?? 0;
 
   late List<ValueNotifier<bool>> _controllers;
   late List<bool> _initialValues;
@@ -198,7 +221,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
       _motors = Get.find<SettingsController>().motorConfigsForUi();
       for (int i = 0; i < _motors.length; i++) {
         final ref = _motorRef(_motors[i], i);
-        final fltEn = _motors[i].fltEn ?? 0;
+        final fltEn = _motorBaseFltEn(i);
         final init = [
           for (final idx in _perMotorDefIdx) (fltEn & _defs[idx].bit) != 0
         ];
@@ -238,8 +261,23 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   int _computePrFltEn() {
     int value = 0;
     for (int i = 0; i < _defs.length; i++) {
+      // While the per-motor UI is showing, these switches are not rendered and
+      // still hold their hydrated values — never the user's edits.
       if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
       if (_controllers[i].value) value |= _defs[i].bit;
+    }
+
+    // A payload-version 2.0 single-motor starter splits its faults on the wire
+    // (m1.flt_en) but has no multi_motor_config for the API to store them in,
+    // so they have to ride along in pr_flt_en — read from the per-motor
+    // switches the user actually toggled, not the hidden shared ones.
+    if (_isMulti && !_hasPerMotorConfig && _motors.isNotEmpty) {
+      final ctrls = _motorCtrls[_motorRef(_motors.first, 0)];
+      if (ctrls != null) {
+        for (int j = 0; j < _perMotorDefIdx.length; j++) {
+          if (ctrls[j].value) value |= _defs[_perMotorDefIdx[j]].bit;
+        }
+      }
     }
     return value;
   }
@@ -342,14 +380,14 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     controller.updateSettingDto['pr_flt_en'] = prFltEn;
 
     // Per-motor fault-enable config for the POST body (multi-motor only).
-    if (_isMulti) {
+    if (_hasPerMotorConfig) {
       final motorsJson = <Map<String, dynamic>>[];
       for (int i = 0; i < _motors.length; i++) {
         final ref = _motorRef(_motors[i], i);
         motorsJson.add({
           'motor_id': _motors[i].motorId,
           'motor_reference': ref,
-          'flt_en': _computeMotorFltEn(ref, _motors[i].fltEn ?? 0),
+          'flt_en': _computeMotorFltEn(ref, _motorBaseFltEn(i)),
         });
       }
       controller.pendingMultiMotorConfig = {
@@ -392,7 +430,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
       for (int i = 0; i < _motors.length; i++) {
         final ref = _motorRef(_motors[i], i);
         if (!_motorFaultsChanged(ref)) continue;
-        dvc[ref] = {"flt_en": _computeMotorFltEn(ref, _motors[i].fltEn ?? 0)};
+        dvc[ref] = {"flt_en": _computeMotorFltEn(ref, _motorBaseFltEn(i))};
       }
     }
     final payload = {"dvc_c": dvc};

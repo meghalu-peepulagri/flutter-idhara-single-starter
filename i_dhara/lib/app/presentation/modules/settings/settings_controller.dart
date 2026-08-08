@@ -395,7 +395,13 @@ class SettingsController extends GetxController with ConnectivityMixin {
         final hvr = (data?.hvf?.toDouble() ?? 0) - 10;
         final lvr = (data?.lvf?.toDouble() ?? 0) + 10;
 
-        if (multi) {
+        // Payload version 2.0 uses this motor-scoped shape whether the starter
+        // drives one motor or two — a single-motor 2.0 device just gets m1 and
+        // n_mtr 1. Only 1.x falls through to the flat payload below.
+        final bool objectPayload =
+            multi || userSettings2.value?.starter?.usesObjectPayload == true;
+
+        if (objectPayload) {
           final flcVal = data?.flc?.toDouble() ?? 0;
           final perMotor = <String, dynamic>{
             "flt_en": data?.prFltEn ?? 0,
@@ -409,14 +415,14 @@ class SettingsController extends GetxController with ConnectivityMixin {
           defaultSettingspayload = {
             "dvc_c": {
               "allflt_en": data?.allfltEn ?? 0,
-              "n_mtr": motorCount,
+              "n_mtr": motorCount > 0 ? motorCount : 1,
               "on_dly": data?.asDly,
               "ipf": data?.ipf ?? 0,
               "lvf": data?.lvf ?? 0,
               "hvf": data?.hvf ?? 0,
               "vif": data?.vif ?? 0,
               "m1": perMotor,
-              "m2": Map<String, dynamic>.from(perMotor),
+              if (multi) "m2": Map<String, dynamic>.from(perMotor),
             }
           };
 
