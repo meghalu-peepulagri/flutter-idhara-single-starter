@@ -140,7 +140,7 @@ class _SettingsContentState extends State<SettingsContent> {
     return Padding(
       padding: const EdgeInsets.only(top: 7),
       child: TimingConfigCard(
-        label: 'Start Time',
+        label: 'Star Time',
         initialValue: controller.sdTime.value,
         minValue: controller.sdTimeMin,
         maxValue: controller.sdTimeMax,
@@ -182,8 +182,6 @@ class _SettingsContentState extends State<SettingsContent> {
     return Column(
       children: [
         const SizedBox(height: 10),
-        _flcCard(),
-        const SizedBox(height: 7),
         TimingConfigCard(
           key: widget.timingCardKey,
           initialValue: widget.asDlyInitialValue,
@@ -195,6 +193,9 @@ class _SettingsContentState extends State<SettingsContent> {
         ),
         const SizedBox(height: 7),
         _voltageCard(),
+        const SizedBox(height: 8),
+        // FLC sits directly above Current Protection, mirroring _buildMulti.
+        _flcCard(),
         const SizedBox(height: 8),
         SettingsCurrentCard(
           key: widget.currentCardKey,

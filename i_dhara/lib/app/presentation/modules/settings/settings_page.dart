@@ -461,7 +461,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       final asDlyChanged = controller.asDly.value != initialAsDly;
       if (asDlyChanged) {
         updatedpayload['dvc_c'] ??= <String, dynamic>{};
-        updatedpayload['dvc_c']['as_dly'] = controller.asDly.value;
+        updatedpayload['dvc_c'][controller.startDelayKey] =
+            controller.asDly.value;
       }
 
       if (isVoltageRange || isCurrentRange || flcChanged || asDlyChanged) {
@@ -519,7 +520,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
     final initAsDly = controller.userSettings2.value?.asDly ?? 0;
     final asDlyChanged = controller.asDly.value != initAsDly;
-    if (asDlyChanged) dvc['as_dly'] = controller.asDly.value;
+    if (asDlyChanged) dvc[controller.startDelayKey] = controller.asDly.value;
 
     final initSdTime = _initialSdTime();
     final sdTimeChanged =

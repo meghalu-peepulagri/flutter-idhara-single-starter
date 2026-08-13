@@ -786,7 +786,7 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
 
       if (mqttMotorId.isNotEmpty && elapsed > 0 && elapsed % 10 == 0) {
         widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
-            data: 1, type: 5, motorReference: _motorRef);
+            data: 1, type: MqttService.topicLiveDataRequest, motorReference: _motorRef);
       }
 
       if (remaining > 0) {

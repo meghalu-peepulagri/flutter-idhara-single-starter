@@ -211,6 +211,13 @@ class SettingsController extends GetxController with ConnectivityMixin {
   /// the single-motor one. Motor count, not protocol, decides what is drawn.
   bool get hasMultipleMotors => motorConfigsForUi().length > 1;
 
+  /// Payload version 2.0 renamed the start-delay key in dvc_c. 1.x keeps the
+  /// old name, so old single-motor starters are unaffected.
+  bool get usesObjectPayload =>
+      userSettings2.value?.starter?.usesObjectPayload == true;
+
+  String get startDelayKey => usesObjectPayload ? 'on_dly' : 'as_dly';
+
   String headerTitle() {
     if (isMultiMotorDevice) {
       final sn = SharedPreference.getStarterNumber();
@@ -280,6 +287,7 @@ class SettingsController extends GetxController with ConnectivityMixin {
   /// Mirrors how the dual-motor save splits them: voltage + timing are shared,
   /// current/FLC are per motor.
   static const List<String> _deviceLevelSettingKeys = [
+    'on_dly',
     'as_dly',
     'sd_time',
     'lvf',

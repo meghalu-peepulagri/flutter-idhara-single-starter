@@ -60,9 +60,8 @@ class UserProfileController extends GetxController with ConnectivityMixin {
   Future<void> fetchFcmToken() async {
     final response = await AuthRepositoryImpl().fetchlogout();
     if (response?.status == 200 || response?.status == 201) {
-      // Disconnect MQTT before clearing state so the broker connection is
-      // closed cleanly and the singleton is reset for the next login session.
       MqttService().disconnectOnly();
+      DashboardController.clearMotorCache();
       await SharedPreference.clear();
       FirebaseMessaging.instance.getToken().then((value) {
         SharedPreference.setFcmToken(value!);

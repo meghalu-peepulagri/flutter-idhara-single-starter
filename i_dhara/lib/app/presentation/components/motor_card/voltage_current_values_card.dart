@@ -81,6 +81,37 @@ class VoltageCurrentValuesCard extends StatelessWidget {
       }
     }
 
+    // Exact-key lookup misses when the live-data key carries a motor suffix the
+    // motor record doesn't know about — a payload-version 2.0 single-motor
+    // starter stores its data under '<id>-<group>-m1' while motor_reference on
+    // the API record is null. Fall back to the same scan the motor card uses so
+    // both resolve to the one MotorData. Only reached when nothing matched, so
+    // dual-motor and 1.x keep hitting their exact key first.
+    if (latestData == null) {
+      for (final entry in mqttService.motorDataMap.entries) {
+        final data = entry.value;
+        if (!data.hasReceivedData) continue;
+        if (ref != null && ref.isNotEmpty && data.motorReference != ref) {
+          continue;
+        }
+        final matches = (mac != null &&
+                mac.isNotEmpty &&
+                (data.macAddress == mac || data.pcbNumber == mac)) ||
+            (pcb != null &&
+                pcb.isNotEmpty &&
+                (data.macAddress == pcb || data.pcbNumber == pcb));
+        if (!matches) continue;
+        final ackTime = mqttService.getLastAckTime(entry.key);
+        if (latestData == null ||
+            (ackTime != null &&
+                (latestTimestamp == null ||
+                    ackTime.isAfter(latestTimestamp)))) {
+          latestData = data;
+          latestTimestamp = ackTime;
+        }
+      }
+    }
+
     return latestData;
   }
 

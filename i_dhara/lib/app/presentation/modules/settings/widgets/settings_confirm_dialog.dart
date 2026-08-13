@@ -91,7 +91,7 @@ Future<void> showSettingsConfirmDialog(
                   ],
                   if (startTimeChanged) ...[
                     _startDelayCard(
-                      title: 'Start Time',
+                      title: 'Star Time',
                       oldValue: startTimeOld,
                       newValue: startTimeNew,
                     ),

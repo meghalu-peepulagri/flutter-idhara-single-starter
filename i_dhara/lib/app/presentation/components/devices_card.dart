@@ -272,7 +272,7 @@ class DevicesCard extends StatelessWidget {
       if (commandSent || motorId.isEmpty) return;
       try {
         await mqttService.publishTestRunCommand(motorId, 1,
-            data: 1, type: 5, motorReference: motorModelMotor.motorReference);
+            data: 1, type: MqttService.topicLiveDataRequest, motorReference: motorModelMotor.motorReference);
         commandSent = true;
       } catch (_) {}
     }
