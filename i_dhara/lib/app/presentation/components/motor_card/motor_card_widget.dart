@@ -76,12 +76,26 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _onFaultClearResult() async {
-    final clearedMotorId = widget.mqttService.faultClearResultNotifier.value;
-    if (clearedMotorId == null || !mounted) return;
+    final raw = widget.mqttService.faultClearResultNotifier.value;
+    if (raw == null || !mounted) return;
+
+    // Value is '<motorId>|<motorReference>' — every card in a
+    // MULTIPLE_MOTORS group resolves to the same motorId (see _getMotorId),
+    // so the reference tells m1 and m2 apart when only one of them was
+    // actually cleared.
+    final sep = raw.indexOf('|');
+    final clearedMotorId = sep >= 0 ? raw.substring(0, sep) : raw;
+    final clearedRef = sep >= 0 ? raw.substring(sep + 1) : '';
 
     // Check if this ACK is for our motor
     final ourMotorId = _getMotorId();
     if (clearedMotorId != ourMotorId) return;
+
+    if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS' &&
+        clearedRef.isNotEmpty) {
+      final myRef = widget.motor.motorReference ?? 'm1';
+      if (clearedRef != myRef) return;
+    }
 
     _isWaitingForFaultClear = false;
     setState(() {});
@@ -334,32 +348,22 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
-  /// Send fault clear command with retry logic
+  /// Send fault clear command with retry logic. Waits for the real device
+  /// ACK (via faultClearResultNotifier / _onFaultClearResult) before
+  /// treating the fault as cleared — for single- and multi-motor starters
+  /// alike.
   Future<void> _sendFaultClearCommand(String motorId) async {
     setState(() => _isWaitingForFaultClear = true);
 
-    if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS') {
-      await _clearMultiMotorFault();
-      return;
-    }
-
     try {
-      await widget.mqttService.publishFaultClearCommand(motorId);
+      await widget.mqttService.publishFaultClearCommand(motorId,
+          motorReference: widget.motor.motorReference);
     } catch (e) {
       if (mounted) {
         setState(() => _isWaitingForFaultClear = false);
         errorSnackBar(
             context, 'Failed to send fault clear command. Please try again.');
       }
-    }
-  }
-
-  Future<void> _clearMultiMotorFault() async {
-    _isWaitingForFaultClear = false;
-    if (mounted) setState(() {});
-    getsuccessSnackBar('Fault cleared successfully');
-    if (Get.isRegistered<DashboardController>()) {
-      await Get.find<DashboardController>().clearFaultAck(widget.motor);
     }
   }
 
@@ -621,7 +625,9 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         final mqttMotorId = '$identifier-$groupId';
 
         await widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
-            data: 1, type: MqttService.topicLiveDataRequest, motorReference: widget.motor.motorReference);
+            data: 1,
+            type: MqttService.topicLiveDataRequest,
+            motorReference: widget.motor.motorReference);
       }
     } catch (e) {
       // ignore
