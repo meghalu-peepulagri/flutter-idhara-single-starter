@@ -2921,11 +2921,10 @@ class MqttService {
 
     final topic = 'peepul/$identifier/cmd';
 
-    // The payload version decides the shape, not the motor count: from 2.0 a
-    // control command targets a motor as D:{<ref>: value} — the starter's own
-    // reference on a dual-motor device, 'm1' on a single-motor one. 1.x stays
-    // flat either way. The live-data request (T:5) is device-wide — the reply
-    // carries every motor — so it stays flat on every version.
+    // The payload version decides the shape, not the motor count: from 2.0
+    // every command — live-data request included — targets a motor as
+    // D:{<ref>: value}, the starter's own reference on a dual-motor device,
+    // 'm1' on a single-motor one. 1.x stays flat either way.
     final String? effectiveRef = _usesObjectPayload(identifier)
         ? ((motorReference != null && motorReference.isNotEmpty)
             ? motorReference
@@ -2933,9 +2932,7 @@ class MqttService {
         : null;
 
     final dynamic dPayload =
-        (type != liveDataRequestType && effectiveRef != null)
-            ? {effectiveRef: data}
-            : data;
+        effectiveRef != null ? {effectiveRef: data} : data;
     // v1.0 firmware answers live-data-request on its own older wire number.
     final wireType =
         type == liveDataRequestType ? _wireType(identifier, type) : type;

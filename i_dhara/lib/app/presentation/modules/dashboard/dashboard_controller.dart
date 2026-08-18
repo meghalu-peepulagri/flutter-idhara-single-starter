@@ -160,8 +160,15 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
   @override
   Future<void> onRetry() async {
-    Get.log('DashboardController: Retrying API calls after reconnection');
-    await refreshDashboard();
+    // ConnectivityMixin calls this on every reconnect event, but
+    // connectivity_plus fires those on plain wifi/mobile handoffs and DHCP
+    // renewals too — not just real outages — which was reloading the whole
+    // dashboard (loading skeleton and all) without the user ever pulling to
+    // refresh. Live data keeps arriving over the existing MQTT connection
+    // regardless, so there's nothing to recover here; only an explicit
+    // pull-to-refresh should reload the dashboard now.
+    Get.log(
+        'DashboardController: Connectivity restored — skipping auto-refresh');
   }
 
   Future<void> clearFaultAck(Motor motor) async {
@@ -184,44 +191,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
       isLoading.value = false;
     }
   }
-
-  // Future<void> fetchMotorsSilently() async {
-  //   try {
-  //     final response = await MotorsRepositoryImpl().getMotors(1, limit.value);
-
-  //     if (response != null && response.data != null) {
-  //       this.response = response.data;
-  //       final fetchedMotors = response.data!.records ?? [];
-  //       allMotors.value = fetchedMotors;
-
-  //       if (selectedLocationId.value != null) {
-  //         motors.value = allMotors
-  //             .where((m) => m.location?.id == selectedLocationId.value)
-  //             .toList();
-  //       } else {
-  //         motors.value = allMotors.toList();
-  //       }
-
-  //       currentPage.value = response.data!.paginationInfo!.currentPage!.toInt();
-  //       totalPages.value = response.data!.paginationInfo!.totalPages!.toInt();
-
-  //       // Rebuild motor map and sync MQTT
-  //       if (mqttInitialized) {
-  //         final motorMap = _buildMotorMap(allMotors);
-  //         mqttService.updateMotors(motorMap);
-  //         await mqttService.resubscribeToTopics();
-  //         await Future.delayed(const Duration(milliseconds: 300));
-  //         _onMqttUpdate();
-  //       }
-
-  //       motors.refresh();
-  //       allMotors.refresh();
-  //       debugPrint('fetchMotorsSilently: UI refreshed silently.');
-  //     }
-  //   } catch (e) {
-  //     debugPrint('Error in fetchMotorsSilently: $e');
-  //   }
-  // }
 
   Future<void> fetchupdateSettingsAck() async {
     try {
@@ -555,12 +524,18 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
         if (mqttService.isConnected) {
           debugPrint('DASHBOARD: MQTT already connected — reusing connection');
-          if (motorMap.isNotEmpty) _onMqttUpdate();
+          if (motorMap.isNotEmpty) {
+            _onMqttUpdate();
+            await _publishLiveDataRequest();
+          }
         } else {
           debugPrint('DASHBOARD: Initializing MQTT client...');
-          mqttService.initializeMqttClient().then((_) {
+          mqttService.initializeMqttClient().then((_) async {
             debugPrint('DASHBOARD: MQTT client initialized successfully');
-            if (motorMap.isNotEmpty) _onMqttUpdate();
+            if (motorMap.isNotEmpty) {
+              _onMqttUpdate();
+              await _publishLiveDataRequest();
+            }
           }).catchError((e) {
             debugPrint('DASHBOARD: MQTT initialization failed: $e');
           });

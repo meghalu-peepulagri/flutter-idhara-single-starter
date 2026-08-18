@@ -22,9 +22,11 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
   late final List<DateTime> _dateRange;
   final ScrollController _dateScrollController = ScrollController();
 
-  // Inline cap-reached label visibility. Only flips to true on FAB tap when
-  // the per-date schedule cap is hit, then auto-hides after ~1.5s.
+  // Inline disabled-FAB label visibility (cap reached, or a past date is
+  // selected). Only flips to true on FAB tap while disabled, then
+  // auto-hides after ~1.5s.
   bool _showCapMessage = false;
+  String _capMessage = '';
   Timer? _capMessageTimer;
 
   static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -199,12 +201,16 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
     return _controller.republishSchedulesViaApi([record]);
   }
 
-  /// Briefly surface the "Max 4 reached" label next to the FAB. Each tap
-  /// resets the timer so consecutive taps keep the label visible without
-  /// stacking it. Auto-hides after 1.5s.
-  void _flashCapMessage() {
+  /// Briefly surface a label next to the FAB explaining why it's disabled
+  /// (cap reached, or a past date selected). Each tap resets the timer so
+  /// consecutive taps keep the label visible without stacking it. Auto-hides
+  /// after 1.5s.
+  void _flashDisabledMessage(String message) {
     _capMessageTimer?.cancel();
-    setState(() => _showCapMessage = true);
+    setState(() {
+      _capMessage = message;
+      _showCapMessage = true;
+    });
     _capMessageTimer = Timer(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
       setState(() => _showCapMessage = false);
@@ -462,17 +468,30 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                 final _ = _controller.schedules.length;
                 final isCapReached = _controller.activeScheduleCount >=
                     MotorScheduleController.kMaxSchedulesPerDate;
+
+                // A date that's already passed can't take a new schedule —
+                // the device has nothing left to run it against.
+                final today = DateTime.now();
+                final todayNorm = DateTime(today.year, today.month, today.day);
+                final isPastDate =
+                    _controller.selectedDate.value.isBefore(todayNorm);
+
+                final isDisabled = isCapReached || isPastDate;
+                final disabledMessage = isPastDate
+                    ? "Can't create a schedule for a past date"
+                    : 'Max ${MotorScheduleController.kMaxSchedulesPerDate} schedules per date reached';
+
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Inline cap label — only visible for ~1.5s after the
-                    // user taps the FAB while the cap is reached.
+                    // Inline disabled-reason label — only visible for ~1.5s
+                    // after the user taps the FAB while it's disabled.
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       transitionBuilder: (child, anim) =>
                           FadeTransition(opacity: anim, child: child),
-                      child: (isCapReached && _showCapMessage)
+                      child: (isDisabled && _showCapMessage)
                           ? Padding(
                               key: const ValueKey('cap-msg'),
                               padding: const EdgeInsets.only(right: 8),
@@ -494,7 +513,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                                   ],
                                 ),
                                 child: Text(
-                                  'Max ${MotorScheduleController.kMaxSchedulesPerDate} schedules per date reached',
+                                  _capMessage,
                                   style: GoogleFonts.dmSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -514,7 +533,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: isCapReached
+                          colors: isDisabled
                               ? const [
                                   Color(0xFFB0B8C4),
                                   Color(0xFF94A3B8),
@@ -527,7 +546,7 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black
-                                .withValues(alpha: isCapReached ? 0.12 : 0.25),
+                                .withValues(alpha: isDisabled ? 0.12 : 0.25),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -535,8 +554,8 @@ class _MotorScheduleTabState extends State<MotorScheduleTab> {
                       ),
                       child: FloatingActionButton(
                         heroTag: 'schedule_fab',
-                        onPressed: isCapReached
-                            ? _flashCapMessage
+                        onPressed: isDisabled
+                            ? () => _flashDisabledMessage(disabledMessage)
                             : _controller.navigateToCreateSchedule,
                         backgroundColor: Colors.transparent,
                         elevation: 0,

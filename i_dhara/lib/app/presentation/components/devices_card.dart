@@ -93,7 +93,16 @@ class DevicesCard extends StatelessWidget {
           hasLocation: hasLocation,
           onRename: () {
             Navigator.pop(context);
-            _showRenameBottomSheet(context, motor);
+            if (device.isMultiMotor) {
+              // The bottom sheet we just popped is on its way out — reusing
+              // its context to open another sheet (let alone a third one,
+              // after the picker itself closes) can hit a torn-down Element.
+              // Get.context is the app's live navigator context instead.
+              _showMotorPickerBottomSheet(
+                  Get.context!, _showRenameBottomSheet);
+            } else {
+              _showRenameBottomSheet(context, motor);
+            }
           },
           onReplace: () {
             Navigator.pop(context);
@@ -105,8 +114,114 @@ class DevicesCard extends StatelessWidget {
           },
           onTestRun: () {
             Navigator.pop(context);
-            _navigateToTestRun(motor);
+            if (device.isMultiMotor) {
+              _showMotorPickerBottomSheet(
+                  Get.context!, (ctx, m) => _navigateToTestRun(m));
+            } else {
+              _navigateToTestRun(motor);
+            }
           },
+        );
+      },
+    );
+  }
+
+  /// "Motor 1" / "Motor 2" from a motor's position/reference on a dual-motor
+  /// starter — used to label the picker rows below.
+  String _motorSlotLabel(Motor motor, int fallbackIndex) {
+    if (motor.motorReference == 'm2') return 'Motor 2';
+    if (motor.motorReference == 'm1') return 'Motor 1';
+    if (motor.motorIndex == 2) return 'Motor 2';
+    if (motor.motorIndex == 1) return 'Motor 1';
+    return 'Motor $fallbackIndex';
+  }
+
+  /// For a MULTIPLE_MOTORS starter, Rename/Test Run open this picker first
+  /// so the user explicitly chooses Motor 1 or Motor 2 before the actual
+  /// action sheet/dialog opens — instead of guessing from whichever slot was
+  /// tapped.
+  void _showMotorPickerBottomSheet(
+      BuildContext context, void Function(BuildContext, Motor) onSelected) {
+    final motors = List<Motor>.from(device.motors ?? const [])
+      ..sort((a, b) => (a.motorIndex ?? 99).compareTo(b.motorIndex ?? 99));
+    if (motors.isEmpty) return;
+    if (motors.length == 1) {
+      onSelected(context, motors.first);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0E0E0),
+                  borderRadius: BorderRadius.circular(2.0),
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Select Motor',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF13120D),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4.0),
+              for (var i = 0; i < motors.length; i++)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    child: Text(
+                      '${i + 1}',
+                      style: const TextStyle(
+                        color: Color(0xFF2F80ED),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    _motorSlotLabel(motors[i], i + 1),
+                    style: const TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF13120D),
+                    ),
+                  ),
+                  subtitle: _getMotorDisplayName(motors[i]) != 'No Motor'
+                      ? Text(_getMotorDisplayName(motors[i]))
+                      : null,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    // By the time this fires the picker (and the sheet
+                    // before it) have both finished closing, so `context`
+                    // captured at picker-open time is stale — use the live
+                    // navigator context instead.
+                    onSelected(Get.context!, motors[i]);
+                  },
+                ),
+              const SizedBox(height: 4.0),
+            ],
+          ),
         );
       },
     );
