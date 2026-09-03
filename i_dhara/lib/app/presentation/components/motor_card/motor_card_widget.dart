@@ -156,6 +156,37 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     return formatted;
   }
 
+  /// Shows the same red "No response from device" banner the single-motor
+  /// MQTT retry ladder shows, for the MULTIPLE_MOTORS REST path — which has
+  /// no retry ladder of its own and previously reverted silently when the
+  /// backend reported the command wasn't acked.
+  void _showNoResponseSnackBar() {
+    if (!mounted) return;
+    final motorName = _formatMotorName(widget.motor.aliasName ?? 'Motor');
+    showTopSnackBar(
+      Overlay.of(context),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0XFFDB3B2A),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          '$motorName: No response from device',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            decoration: TextDecoration.none,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      displayDuration: const Duration(seconds: 4),
+    );
+  }
+
   void _onCommandStatusChanged() {
     final message = widget.mqttService.commandStatusNotifier.value;
     if (message != null && mounted) {
@@ -420,13 +451,13 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         _hasPendingSwitchCommand = false;
         _pendingSwitchValue = null;
         if (mounted) setState(() => _isWaitingForSwitchAck = false);
-        final status = result?.ackStatus;
-        if (status != null && status.isNotEmpty) getsuccessSnackBar(status);
       } else {
         _revertMultiMotorSwitch(previousValue);
+        _showNoResponseSnackBar();
       }
     } catch (e) {
       _revertMultiMotorSwitch(previousValue);
+      _showNoResponseSnackBar();
     }
   }
 
@@ -537,9 +568,11 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         if (status != null && status.isNotEmpty) getsuccessSnackBar(status);
       } else {
         _revertMultiMotorMode(previousMode);
+        _showNoResponseSnackBar();
       }
     } catch (e) {
       _revertMultiMotorMode(previousMode);
+      _showNoResponseSnackBar();
     }
   }
 

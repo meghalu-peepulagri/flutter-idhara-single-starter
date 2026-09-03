@@ -440,21 +440,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       if (flcChanged) {
         updatedpayload['dvc_c'] ??= <String, dynamic>{};
         updatedpayload['dvc_c']['flc'] = controller.flc.value;
-        final calculatedLrf = controller.calculatedFlc(
-            controller.lrf.value, controller.flc.value);
-        final calculatedOlr = controller.calculatedFlc(
-            controller.olr.value, controller.flc.value);
-        final calculatedLRR = controller.calculatedFlc(
-            controller.lrr.value, controller.flc.value);
-        final calculatedDrf = controller.calculatedFlc(
-            controller.drf.value.toDouble(), controller.flc.value);
-        final calculatedOlf = controller.calculatedFlc(
-            controller.olf.value.toDouble(), controller.flc.value);
-        updatedpayload["dvc_c"]['lrf'] = calculatedLrf;
-        updatedpayload['dvc_c']['olr'] = calculatedOlr;
-        updatedpayload['dvc_c']['lrr'] = calculatedLRR;
-        updatedpayload['dvc_c']['drf'] = calculatedDrf;
-        updatedpayload['dvc_c']['olf'] = calculatedOlf;
       }
 
       final initialAsDly = controller.userSettings2.value?.asDly ?? 0;
@@ -536,10 +521,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       final calcLow = mm['calcLow'] as double?;
       final calcHigh = mm['calcHigh'] as double?;
       final entry = <String, dynamic>{};
-      if (calcLow != null) {
+      if (mm['lowChanged'] == true && calcLow != null) {
         entry['drf'] = double.parse(calcLow.toStringAsFixed(2));
       }
-      if (calcHigh != null) {
+      if (mm['highChanged'] == true && calcHigh != null) {
         entry['olf'] = double.parse(calcHigh.toStringAsFixed(2));
       }
       if (mm['flcChanged'] == true) {

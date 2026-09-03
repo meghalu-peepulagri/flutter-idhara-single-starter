@@ -67,21 +67,27 @@ class SettingsController extends GetxController with ConnectivityMixin {
   // Per-motor FLC (multi-motor), keyed by motor_reference.
   final RxMap<String, double> motorFlc = <String, double>{}.obs;
 
+  // Frozen at load time, before any edits. motorConfigsForUi() falls back to
+  // the shared flc.value for motors the API omits from multi_motor_config,
+  // and flc.value is mutated on every edit/tab switch — reading the
+  // "original" straight from motorConfigsForUi() at save time would then
+  // report whatever motor was last edited instead of this motor's true
+  // original.
+  final Map<String, double> _originalMotorFlc = {};
+
   void initMotorFlc() {
     motorFlc.clear();
+    _originalMotorFlc.clear();
     for (final m in motorConfigsForUi()) {
       final ref = m.motorReference ?? 'm${m.motorIndex ?? ''}';
-      if (ref.isNotEmpty) motorFlc[ref] = (m.flc ?? 0).toDouble();
+      if (ref.isEmpty) continue;
+      final val = (m.flc ?? 0).toDouble();
+      motorFlc[ref] = val;
+      _originalMotorFlc[ref] = val;
     }
   }
 
-  double originalMotorFlc(String ref) {
-    for (final m in motorConfigsForUi()) {
-      final r = m.motorReference ?? 'm${m.motorIndex ?? ''}';
-      if (r == ref) return (m.flc ?? 0).toDouble();
-    }
-    return 0.0;
-  }
+  double originalMotorFlc(String ref) => _originalMotorFlc[ref] ?? 0.0;
 
   @override
   Future<void> onRetry() async {

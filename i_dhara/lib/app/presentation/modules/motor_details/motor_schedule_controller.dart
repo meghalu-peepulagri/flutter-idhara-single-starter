@@ -725,17 +725,22 @@ class MotorScheduleController extends GetxController {
       final scheduleId = data['scheduleId'] as int?;
       if (scheduleId == null) return;
 
+      final idx = schedules.indexWhere((r) => _deviceSlot(r) == scheduleId);
+
       final ss = data['scheduleStatus'] as int?;
       if (ss != null && _lastScheduleStatus[scheduleId] != ss) {
         _lastScheduleStatus[scheduleId] = ss;
+        final isCompleted = idx != -1 &&
+            schedules[idx].scheduleStatus?.toLowerCase() == 'completed';
         final msg = switch (ss) {
-          0 => 'Schedule window expired',
+          0 => isCompleted
+              ? 'Schedule ran successfully'
+              : 'Schedule window expired',
           _ => null,
         };
         if (msg != null) getsuccessSnackBar(msg);
       }
 
-      final idx = schedules.indexWhere((r) => _deviceSlot(r) == scheduleId);
       if (idx == -1) return;
 
       final stEpoch = data['startEpoch'] as int?;

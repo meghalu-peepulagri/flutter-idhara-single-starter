@@ -526,7 +526,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
           debugPrint('DASHBOARD: MQTT already connected — reusing connection');
           if (motorMap.isNotEmpty) {
             _onMqttUpdate();
-            await _publishLiveDataRequest();
           }
         } else {
           debugPrint('DASHBOARD: Initializing MQTT client...');
@@ -534,7 +533,6 @@ class DashboardController extends GetxController with ConnectivityMixin {
             debugPrint('DASHBOARD: MQTT client initialized successfully');
             if (motorMap.isNotEmpty) {
               _onMqttUpdate();
-              await _publishLiveDataRequest();
             }
           }).catchError((e) {
             debugPrint('DASHBOARD: MQTT initialization failed: $e');

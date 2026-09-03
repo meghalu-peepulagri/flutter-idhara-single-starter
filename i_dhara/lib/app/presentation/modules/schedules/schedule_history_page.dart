@@ -492,7 +492,7 @@ class _HistoryRecordCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        status == 'COMPLETED' ? 'ENDED' : status,
+                        status,
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,

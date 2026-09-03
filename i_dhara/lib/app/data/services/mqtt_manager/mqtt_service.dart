@@ -1539,6 +1539,7 @@ class MqttService {
       final s = state;
       if (s == null || (s != 0 && s != 1)) return;
 
+      bool matched = false;
       for (final entry in _motorDataMap.entries) {
         final md = entry.value;
         if (md.motorReference == motorKey &&
@@ -1550,7 +1551,28 @@ class MqttService {
           _lastAckTimes[entry.key] = DateTime.now();
           // Stop the retry ladder, same as the flat single-motor path.
           _clearPendingCommand(entry.key, 1);
+          matched = true;
         }
+      }
+
+      // No entry carries this motorReference yet — this motor's first-ever
+      // live data hasn't arrived, so the UI (pump icon) reads nothing for it
+      // and stays on the stale API state until the next refresh. Create the
+      // entry now, the same way the first live-data group would, so the ack
+      // is reflected immediately.
+      if (!matched) {
+        final fallbackKey = '$identifier-G01-$motorKey';
+        _motorDataMap[fallbackKey] = MotorData(
+          macAddress: identifier,
+          pcbNumber: identifier,
+          groupId: 'G01',
+          title: motorKey,
+        )
+          ..motorReference = motorKey
+          ..state = s
+          ..controller.value = (s == 1)
+          ..hasReceivedData = true;
+        _lastAckTimes[fallbackKey] = DateTime.now();
       }
     });
     _dataUpdateNotifier.value++;
@@ -2922,14 +2944,17 @@ class MqttService {
     final topic = 'peepul/$identifier/cmd';
 
     // The payload version decides the shape, not the motor count: from 2.0
-    // every command — live-data request included — targets a motor as
-    // D:{<ref>: value}, the starter's own reference on a dual-motor device,
-    // 'm1' on a single-motor one. 1.x stays flat either way.
-    final String? effectiveRef = _usesObjectPayload(identifier)
-        ? ((motorReference != null && motorReference.isNotEmpty)
-            ? motorReference
-            : defaultMotorReference)
-        : null;
+    // every command targets a motor as D:{<ref>: value}, the starter's own
+    // reference on a dual-motor device, 'm1' on a single-motor one. 1.x
+    // stays flat either way. Live-data requests are the exception — the ack
+    // already returns every motor's data keyed by group, so D stays flat
+    // (1) regardless of payload version or motor count.
+    final String? effectiveRef =
+        (_usesObjectPayload(identifier) && type != topicLiveDataRequest)
+            ? ((motorReference != null && motorReference.isNotEmpty)
+                ? motorReference
+                : defaultMotorReference)
+            : null;
 
     final dynamic dPayload =
         effectiveRef != null ? {effectiveRef: data} : data;
@@ -3132,7 +3157,12 @@ class MqttService {
               ? '${rawMotorName.substring(0, 16)}...'
               : rawMotorName;
 
-          if (command.commandType != 5) {
+          // Live-data-request retries are a best-effort background refresh
+          // ping (see _publishLiveDataRequest), not a user-initiated control
+          // command — a device that doesn't answer it shouldn't surface the
+          // same alarming error banner as a failed switch/mode command.
+          if (command.commandType != 5 &&
+              command.commandType != topicLiveDataRequest) {
             command.onMaxRetriesReached('$motorName: No response from device');
           }
         }
