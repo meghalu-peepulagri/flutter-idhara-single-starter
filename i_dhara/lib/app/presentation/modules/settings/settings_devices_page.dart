@@ -157,23 +157,10 @@ class SettingsDevicesPage extends StatelessWidget {
                                 child: Center(child: NoStartersFound()),
                               );
                             }
-                            final motorCards = <Widget>[];
-                            for (final device in controller.devicesList) {
-                              final motors = device.motors;
-                              if (motors == null || motors.isEmpty) {
-                                motorCards.add(SettingsDeviceCard(
-                                  device: device,
-                                  motor: null,
-                                ));
-                              } else {
-                                for (final motor in motors) {
-                                  motorCards.add(SettingsDeviceCard(
-                                    device: device,
-                                    motor: motor,
-                                  ));
-                                }
-                              }
-                            }
+                            final motorCards = <Widget>[
+                              for (final device in controller.devicesList)
+                                SettingsDeviceCard(device: device),
+                            ];
                             return Column(
                               children: [
                                 Expanded(

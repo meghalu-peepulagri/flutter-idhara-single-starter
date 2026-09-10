@@ -91,7 +91,10 @@ class VoltageCurrentValuesCard extends StatelessWidget {
       for (final entry in mqttService.motorDataMap.entries) {
         final data = entry.value;
         if (!data.hasReceivedData) continue;
-        if (ref != null && ref.isNotEmpty && data.motorReference != ref) {
+        if (ref != null &&
+            ref.isNotEmpty &&
+            data.motorReference != null &&
+            data.motorReference != ref) {
           continue;
         }
         final matches = (mac != null &&

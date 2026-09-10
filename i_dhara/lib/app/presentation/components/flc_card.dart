@@ -16,6 +16,13 @@ class FlcCard extends StatefulWidget {
   final double maxValue;
   final double step;
   final int decimalPlaces;
+  // When true (default, existing behavior everywhere), a below-minimum
+  // initialValue is silently displayed AS minValue instead of its real
+  // number — e.g. a genuinely-stored 0 shows as "2.00" with no visual sign
+  // it was clamped. Set false to show the real fetched value even when it's
+  // below minValue, so bad/invalid stored data stays visibly wrong instead
+  // of looking like a normal, valid reading.
+  final bool clampInitialValue;
 
   const FlcCard({
     super.key,
@@ -31,6 +38,7 @@ class FlcCard extends StatefulWidget {
     this.maxValue = 45,
     this.step = 0.1,
     this.decimalPlaces = 1,
+    this.clampInitialValue = true,
   });
 
   @override
@@ -47,7 +55,9 @@ class FlcCardState extends State<FlcCard> {
   @override
   void initState() {
     super.initState();
-    _currentValue = widget.initialValue.clamp(widget.minValue, widget.maxValue);
+    _currentValue = widget.clampInitialValue
+        ? widget.initialValue.clamp(widget.minValue, widget.maxValue)
+        : widget.initialValue;
     _textController = TextEditingController(text: _formatValue(_currentValue));
 
     _focusNode.addListener(() {
@@ -64,7 +74,9 @@ class FlcCardState extends State<FlcCard> {
   void didUpdateWidget(FlcCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialValue != widget.initialValue && !_focusNode.hasFocus) {
-      final value = widget.initialValue.clamp(widget.minValue, widget.maxValue);
+      final value = widget.clampInitialValue
+          ? widget.initialValue.clamp(widget.minValue, widget.maxValue)
+          : widget.initialValue;
       if (value != _currentValue) {
         setState(() {
           _currentValue = value;
@@ -78,8 +90,9 @@ class FlcCardState extends State<FlcCard> {
   /// Resets the card back to the widget's current initialValue.
   /// Call this after updating the initialValue (e.g. after fetchUserSettings2).
   void resetValue() {
-    final value =
-        widget.initialValue.clamp(widget.minValue, widget.maxValue);
+    final value = widget.clampInitialValue
+        ? widget.initialValue.clamp(widget.minValue, widget.maxValue)
+        : widget.initialValue;
     setState(() {
       _currentValue = value;
       _textController.text = _formatValue(value);

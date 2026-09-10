@@ -1135,8 +1135,10 @@ class MqttService {
   /// Payload version 1.0: T:7, S:seq, D:1 (flat, unchanged).
   /// Payload version 2.0 — single AND dual motor starters: T:7, S:seq,
   /// D:{"<motorReference>":1}, scoped to just the motor being cleared.
+  /// Pass [clearAllMotors] on a dual-motor starter to clear both in one
+  /// message instead: T:7, S:seq, D:{"m1":1,"m2":1}.
   Future<void> publishFaultClearCommand(String motorId,
-      {String? motorReference}) async {
+      {String? motorReference, bool clearAllMotors = false}) async {
     if (_mqttClient == null || !isConnected) {
       debugPrint('✗ Cannot publish fault clear: MQTT not connected');
       statusMessage = 'MQTT not connected';
@@ -1155,7 +1157,9 @@ class MqttService {
 
     final motorKey = motorReference == 'm2' ? 'm2' : 'm1';
     final usesObjectPayload = _usesObjectPayload(identifier);
-    final dynamic data = usesObjectPayload ? {motorKey: 1} : 1;
+    final dynamic data = usesObjectPayload
+        ? (clearAllMotors ? {'m1': 1, 'm2': 1} : {motorKey: 1})
+        : 1;
 
     try {
       await _publishFaultClear(identifier, data, seq);
@@ -1163,10 +1167,13 @@ class MqttService {
       // The device's fault-clear ACK is flat (D:1) — it never echoes back
       // which motor it cleared — so remember the motor we actually asked
       // for here; _handleFaultClearAck scopes the local fault-flag update
-      // to this instead of trusting the ACK payload.
+      // to this instead of trusting the ACK payload. A dual clear leaves
+      // this null so the ack's fallback path (see applyFaultClear) clears
+      // every motor for this identifier instead of just one.
       _registerPendingCommand(
           motorId, MqttService.topicDeviceFaultsClear, data, seq,
-          motorReference: usesObjectPayload ? motorKey : null);
+          motorReference:
+              (usesObjectPayload && !clearAllMotors) ? motorKey : null);
     } catch (e) {
       debugPrint('✗ Failed to publish fault clear command: $e');
       statusMessage = 'Failed to publish fault clear: $e';
@@ -1179,8 +1186,10 @@ class MqttService {
   Future<void> _publishFaultClear(
       String identifier, dynamic data, int seq) async {
     final topic = 'peepul/$identifier/cmd';
-    final payload = jsonEncode(
-        {'T': MqttService.topicDeviceFaultsClear, 'S': seq, 'D': data});
+    // v1.0 firmware answers fault-clear on its own older wire number (21/52
+    // instead of 7/37) — see _wireType/_internalType.
+    final wireType = _wireType(identifier, MqttService.topicDeviceFaultsClear);
+    final payload = jsonEncode({'T': wireType, 'S': seq, 'D': data});
     final builder = MqttClientPayloadBuilder()..addString(payload);
     _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
     debugPrint('✓ Published Fault Clear -> $topic: $payload');
@@ -2248,6 +2257,8 @@ class MqttService {
   static const int _topicLiveDataRequestAckV1 = 35;
   static const int _topicLiveDataV1 = 41;
   static const int _topicHeartBeatV1 = 40;
+  static const int _topicDeviceFaultsClearV1 = 21;
+  static const int _topicFaultsClearAckV1 = 52;
 
   /// Outbound: internal command id -> the wire "T" this specific [identifier]
   /// actually expects. v2.0 devices already use the internal id as their wire
@@ -2261,6 +2272,8 @@ class MqttService {
         return _topicScheduleUpdateV1;
       case topicLiveDataRequest:
         return _topicLiveDataRequestV1;
+      case topicDeviceFaultsClear:
+        return _topicDeviceFaultsClearV1;
       default:
         return internalType;
     }
@@ -2285,6 +2298,8 @@ class MqttService {
         return topicLiveData;
       case _topicHeartBeatV1:
         return topicHeartBeat;
+      case _topicFaultsClearAckV1:
+        return topicFaultsClearAck;
       default:
         return wireType;
     }

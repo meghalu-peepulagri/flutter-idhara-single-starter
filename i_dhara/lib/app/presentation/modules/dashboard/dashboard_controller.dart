@@ -326,6 +326,12 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
   Future<void> _publishLiveDataRequest() async {
     if (!mqttInitialized || !mqttService.isConnected) return;
+    // Live-data-request is device-wide, not per-motor — the ack returns
+    // every motor's data keyed by group regardless of which motor asked
+    // (see MqttService.publishTestRunCommand). A dual-motor starter has two
+    // Motor entries sharing the same identifier, so without this guard the
+    // exact same ping got published twice to the exact same MQTT topic.
+    final pingedIdentifiers = <String>{};
     for (final motor in allMotors) {
       if (motor.starter == null) continue;
       final deviceAlloc = motor.starter!.deviceAllocation ?? 'false';
@@ -334,6 +340,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
       var identifier = getMotorIdentifier(deviceAlloc, pcb, mac);
       if (identifier.isEmpty) identifier = pcb.isNotEmpty ? pcb : mac;
       if (identifier.isEmpty) continue;
+      if (!pingedIdentifiers.add(identifier)) continue;
       final motorId = '$identifier-${_getGroupIdForMotor(motor)}';
       try {
         await mqttService.publishTestRunCommand(
@@ -445,6 +452,15 @@ class DashboardController extends GetxController with ConnectivityMixin {
   Future<void> fetchupdateSettings() async {
     try {
       updateSettingDto['flc'] = flc.value;
+      // Only flc was ever sent here — drf/olf/lrf/olr/lrr (and, for
+      // payload-2.0 motors, multi_motor_config) are set directly on
+      // updateSettingDto by the caller (test-run's _sendSettings) before
+      // this runs, same as flc.
+      updateSettingDto['drf'] = drf.value.round();
+      updateSettingDto['olf'] = olf.value.round();
+      updateSettingDto['lrf'] = lrf.value.round();
+      updateSettingDto['olr'] = olr.value.round();
+      updateSettingDto['lrr'] = lrr.value.round();
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);
       final response = await SettingsRepositoryImpl().updateSettings(dto);
@@ -527,6 +543,13 @@ class DashboardController extends GetxController with ConnectivityMixin {
           if (motorMap.isNotEmpty) {
             _onMqttUpdate();
           }
+          // The cached live-data (mode/state/current) can be stale relative
+          // to this fresh API response — e.g. the device's mode was changed
+          // while this screen wasn't listening. A card trusts cached live
+          // data over the API value once it has any, so ping the device for
+          // a fresh reading now instead of waiting for the user to
+          // pull-to-refresh (refreshMotors already does this same ping).
+          await _publishLiveDataRequest();
         } else {
           debugPrint('DASHBOARD: Initializing MQTT client...');
           mqttService.initializeMqttClient().then((_) async {
@@ -534,6 +557,7 @@ class DashboardController extends GetxController with ConnectivityMixin {
             if (motorMap.isNotEmpty) {
               _onMqttUpdate();
             }
+            await _publishLiveDataRequest();
           }).catchError((e) {
             debugPrint('DASHBOARD: MQTT initialization failed: $e');
           });

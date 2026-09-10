@@ -273,6 +273,10 @@ class ScheduleFormBottomBar extends StatelessWidget {
   // by the form's durationMinutes — disables until the user picks valid
   // start/end times.
   final bool saveEnabled;
+  // Fired when the user taps the Save/Update button while it's disabled, so
+  // the caller can surface why (e.g. the picked start time has since ticked
+  // into the past) instead of the tap silently doing nothing.
+  final VoidCallback? onDisabledTap;
 
   const ScheduleFormBottomBar({
     super.key,
@@ -280,6 +284,7 @@ class ScheduleFormBottomBar extends StatelessWidget {
     required this.onSave,
     this.isEditMode = false,
     this.saveEnabled = true,
+    this.onDisabledTap,
   });
 
   @override
@@ -342,7 +347,7 @@ class ScheduleFormBottomBar extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
-                  onTap: saveEnabled ? onSave : null,
+                  onTap: saveEnabled ? onSave : onDisabledTap,
                   child: Center(
                     child: Text(
                         isEditMode ? 'Update Schedule' : 'Save Schedule',

@@ -515,12 +515,14 @@ class SettingMotor {
   String? name;
   dynamic hp; // Changed to dynamic to handle both int, double, and String
   String? aliasName;
+  MotorFaultInfo? fault;
 
   SettingMotor({
     this.id,
     this.name,
     this.hp,
     this.aliasName,
+    this.fault,
   });
 
   factory SettingMotor.fromJson(Map<String, dynamic> json) => SettingMotor(
@@ -528,6 +530,9 @@ class SettingMotor {
         name: json["name"],
         hp: json["hp"], // Will accept any type
         aliasName: json["alias_name"],
+        fault: json["fault"] == null
+            ? null
+            : MotorFaultInfo.fromJson(json["fault"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -535,6 +540,31 @@ class SettingMotor {
         "name": name,
         "hp": hp,
         "alias_name": aliasName,
+        "fault": fault?.toJson(),
+      };
+}
+
+class MotorFaultInfo {
+  bool? isFaulted;
+  int? faultCode;
+  String? faultDescription;
+
+  MotorFaultInfo({
+    this.isFaulted,
+    this.faultCode,
+    this.faultDescription,
+  });
+
+  factory MotorFaultInfo.fromJson(Map<String, dynamic> json) => MotorFaultInfo(
+        isFaulted: json["is_faulted"],
+        faultCode: json["fault_code"],
+        faultDescription: json["fault_description"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "is_faulted": isFaulted,
+        "fault_code": faultCode,
+        "fault_description": faultDescription,
       };
 }
 

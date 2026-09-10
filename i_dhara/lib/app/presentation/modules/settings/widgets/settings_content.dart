@@ -108,6 +108,10 @@ class _SettingsContentState extends State<SettingsContent> {
       maxValue: widget.flcMaxValue,
       decimalPlaces: 2,
       step: 0.01,
+      // Show this motor's real stored FLC even if it's below minValue (e.g.
+      // a bad 0 from a failed test run) instead of silently displaying it
+      // as minValue, which made a broken/invalid calibration look normal.
+      clampInitialValue: false,
       onValueChanged: (v) {
         controller.motorFlc[ref] = v;
         controller.flc.value = v;

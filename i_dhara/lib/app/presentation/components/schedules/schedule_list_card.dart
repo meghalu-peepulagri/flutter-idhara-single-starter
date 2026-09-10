@@ -138,7 +138,11 @@ class ScheduleCard extends StatelessWidget {
       noticeBg = const Color(0xFFFFF7ED);
       noticeFg = const Color(0xFFC2410C);
     } else if (isMissed) {
-      noticeMessage = 'Schedule didn\'t reach the device in time';
+      // The device did receive/acknowledge this schedule — it just never
+      // started it when the trigger time came (offline, power loss, manual
+      // override, a local fault, etc.), so this is never a sync failure.
+      noticeMessage =
+          'The device received this schedule but didn\'t start it at the scheduled time';
       noticeBg = const Color(0xFFFEF3C7);
       noticeFg = const Color(0xFFB45309);
     } else if (isFailed) {

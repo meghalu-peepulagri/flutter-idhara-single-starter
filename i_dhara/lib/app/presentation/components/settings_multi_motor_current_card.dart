@@ -27,6 +27,14 @@ class SettingsMultiMotorCurrentCardState
   final Map<String, GlobalKey<SettingsDualSliderState>> _sliderKeys = {};
   final Map<String, double> _low = {};
   final Map<String, double> _high = {};
+  // The percent the slider showed the FIRST time it rendered for this motor
+  // in this Settings visit — i.e. exactly what the "DRY RUN LIMIT" /
+  // "OVERLOAD LIMIT" chip showed before any dragging. Set once via
+  // putIfAbsent and never overwritten, so the confirm dialog's "old" value
+  // stays pinned to what the user actually saw, even when the raw drf/olf
+  // field is itself stale/inconsistent with the motor's current FLC.
+  final Map<String, double> _sessionOrigLow = {};
+  final Map<String, double> _sessionOrigHigh = {};
 
   List<MotorSettingConfig> get _motors => controller.motorConfigsForUi();
 
@@ -69,6 +77,16 @@ class SettingsMultiMotorCurrentCardState
     setState(() {
       _low.clear();
       _high.clear();
+      // _revertLocal() also resets controller.flc right after calling this,
+      // which fires the slider's own FLC-change listener — that redraws
+      // using whatever percent it still has cached from the user's drag,
+      // racing the initialLowValue/initialHighValue prop-diff reset below.
+      // Forcing a fresh GlobalKey remounts the slider from scratch (a new
+      // initState reading the just-cleared _low/_high above) instead of
+      // relying on that ordering to land correctly.
+      _sliderKeys.clear();
+      _sessionOrigLow.clear();
+      _sessionOrigHigh.clear();
     });
   }
 
@@ -80,8 +98,12 @@ class SettingsMultiMotorCurrentCardState
       final flcVal = controller.motorFlc[ref] ?? (m.flc ?? 0).toDouble();
       final origFlc = controller.originalMotorFlc(ref);
       final flcChanged = flcVal != origFlc;
-      final origLow = _mapLow(_pctFromAmps(m.drf, origFlc));
-      final origHigh = _mapHigh(_pctFromAmps(m.olf, origFlc));
+      // Fall back to a fresh computation only if this motor's slider was
+      // never actually built this visit (e.g. the other motor was selected
+      // the whole time) — otherwise reuse the pinned session snapshot.
+      final origLow = _sessionOrigLow[ref] ?? _mapLow(_pctFromAmps(m.drf, origFlc));
+      final origHigh =
+          _sessionOrigHigh[ref] ?? _mapHigh(_pctFromAmps(m.olf, origFlc));
       final curLow = _low[ref] ?? origLow;
       final curHigh = _high[ref] ?? origHigh;
       final lowChanged = curLow.round() != origLow.round();
@@ -96,10 +118,22 @@ class SettingsMultiMotorCurrentCardState
         'flcChanged': flcChanged,
         'low': curLow,
         'high': curHigh,
-        'calcLow': curLow / 100 * flcVal,
-        'calcHigh': curHigh / 100 * flcVal,
-        'origCalcLow': (m.drf ?? 0).toDouble(),
-        'origCalcHigh': (m.olf ?? 0).toDouble(),
+        // Truncate to the whole percent the slider chip actually displays
+        // (e.g. "37%") before converting to amps — curLow/curHigh are the
+        // raw, un-truncated drag position, so using them directly here
+        // published a slightly different amp value than what was shown on
+        // screen (e.g. 1.87 A published for a chip that read "1.85 A").
+        'calcLow': curLow.toInt() / 100 * flcVal,
+        'calcHigh': curHigh.toInt() / 100 * flcVal,
+        // The confirm dialog's "old" amount must match what the slider chip
+        // actually showed as the current value — the pinned session percent
+        // converted through origFlc — not the raw drf/olf field. Raw
+        // drf/olf can be stale/inconsistent with the motor's current FLC
+        // (e.g. left over from before FLC was last changed), which made the
+        // old amp-based display show numbers with no relation to the screen
+        // (e.g. "49.00 A" for a motor the screen showed as "2.00 A").
+        'origCalcLow': origLow.toInt() / 100 * origFlc,
+        'origCalcHigh': origHigh.toInt() / 100 * origFlc,
         'flc': flcVal,
       });
     }
@@ -139,11 +173,20 @@ class SettingsMultiMotorCurrentCardState
 
     final flcVal = controller.motorFlc[ref] ?? (m.flc ?? 0).toDouble();
     final origFlc = controller.originalMotorFlc(ref);
-    double low =
-        (_low[ref] ?? _mapLow(_pctFromAmps(m.drf, origFlc))).clamp(lowMin, lowMax);
-    double high = (_high[ref] ?? _mapHigh(_pctFromAmps(m.olf, origFlc)))
-        .clamp(highMin, highMax);
+    final rawOrigLow = _mapLow(_pctFromAmps(m.drf, origFlc));
+    final rawOrigHigh = _mapHigh(_pctFromAmps(m.olf, origFlc));
+    double low = (_low[ref] ?? rawOrigLow).clamp(lowMin, lowMax);
+    double high = (_high[ref] ?? rawOrigHigh).clamp(highMin, highMax);
     if (high <= low) high = low + 1.0;
+    // Snapshot AFTER the lowMin/lowMax (resp. highMin/highMax) clamp above —
+    // _mapHigh only enforces a floor (never below 101%), it has no ceiling,
+    // so an extreme raw olf (e.g. 3025% from a stale/inconsistent stored
+    // value) sails through _mapHigh unclamped and only gets capped here,
+    // against the backend's olf_max. Snapshotting the pre-clamp value left
+    // the dialog's "old" amount reconstructing that same extreme raw number
+    // instead of the capped percent the slider actually starts at.
+    _sessionOrigLow.putIfAbsent(ref, () => low);
+    _sessionOrigHigh.putIfAbsent(ref, () => high);
 
     return SettingsDualSlider(
       key: key,
@@ -165,6 +208,8 @@ class SettingsMultiMotorCurrentCardState
       cardType: 'current',
       flcOverride: flcVal,
       alignValuesRight: true,
+      initialLowAmount: (m.drf ?? 0).toDouble(),
+      initialHighAmount: (m.olf ?? 0).toDouble(),
       onChanged: (lowVal, highVal) {
         _low[ref] = lowVal;
         _high[ref] = highVal;

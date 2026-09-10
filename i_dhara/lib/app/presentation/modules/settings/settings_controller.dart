@@ -224,6 +224,13 @@ class SettingsController extends GetxController with ConnectivityMixin {
 
   String get startDelayKey => usesObjectPayload ? 'on_dly' : 'as_dly';
 
+  /// True when any motor on this starter is currently reporting an active
+  /// fault (`starter.motors[].fault.is_faulted`). Drives whether the header
+  /// "Fault" button is shown at all.
+  bool get hasActiveFault =>
+      (userSettings2.value?.starter?.motors ?? const [])
+          .any((m) => m.fault?.isFaulted == true);
+
   String headerTitle() {
     if (isMultiMotorDevice) {
       final sn = SharedPreference.getStarterNumber();

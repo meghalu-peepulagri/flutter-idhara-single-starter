@@ -247,7 +247,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     for (var entry in widget.mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
-      if (ref != null && ref.isNotEmpty && data.motorReference != ref) continue;
+      if (ref != null &&
+          ref.isNotEmpty &&
+          data.motorReference != null &&
+          data.motorReference != ref) continue;
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -742,11 +745,17 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       valueListenable: widget.mqttService.dataUpdateNotifier,
       builder: (context, _, __) {
         final motorData = _getMotorData();
-        final canControl = _canControlMotor(motorData);
-        final canChangeMode =
-            (!_isMotorAvailable() || _getSignalBars(motorData) == 0)
-                ? false
-                : true;
+        // Bypass means the starter's own protection is manually overridden —
+        // the dashboard card is view-only while that's active, no remote
+        // switch/mode control.
+        final isBypassMode =
+            (widget.motor.mode ?? '').toUpperCase() == 'BYPASS';
+        final canControl = _canControlMotor(motorData) && !isBypassMode;
+        final canChangeMode = (!_isMotorAvailable() ||
+                _getSignalBars(motorData) == 0 ||
+                isBypassMode)
+            ? false
+            : true;
 
         if (motorData?.hasReceivedData == true) {
           // Sync Switch

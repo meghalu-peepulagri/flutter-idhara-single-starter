@@ -196,6 +196,13 @@ class SettingsDualSlider extends StatefulWidget {
   final String cardType;
   final double? flcOverride;
   final bool alignValuesRight;
+  // Raw stored amp values (e.g. drf/olf straight from the backend) to show
+  // in the chip on first render, instead of the amount recomputed from the
+  // whole-percent-truncated slider position — the two can diverge whenever
+  // the stored amount isn't an exact whole percent of FLC. Null preserves
+  // the original percent-derived display.
+  final double? initialLowAmount;
+  final double? initialHighAmount;
 
   const SettingsDualSlider({
     super.key,
@@ -221,6 +228,8 @@ class SettingsDualSlider extends StatefulWidget {
     this.cardType = 'voltage',
     this.flcOverride,
     this.alignValuesRight = false,
+    this.initialLowAmount,
+    this.initialHighAmount,
   });
 
   @override
@@ -288,11 +297,10 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
 
     // Calculate initial FLC values without setState (for initState)
     if (widget.unit.contains("A")) {
-      final percentLow = lowValue.toInt() / 100;
-      calculatedLow = percentLow * _flcValue;
-
-      final percentHigh = highValue.toInt() / 100;
-      calculatedHigh = percentHigh * _flcValue;
+      calculatedLow = widget.initialLowAmount ??
+          (lowValue.toInt() / 100 * _flcValue);
+      calculatedHigh = widget.initialHighAmount ??
+          (highValue.toInt() / 100 * _flcValue);
     } else {
       calculatedLow = lowValue;
       calculatedHigh = highValue;

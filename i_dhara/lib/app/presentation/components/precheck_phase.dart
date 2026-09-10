@@ -260,7 +260,10 @@ class _PreCheckPhaseState extends State<PreCheckPhase> {
     for (var entry in widget.mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
-      if (ref != null && ref.isNotEmpty && data.motorReference != ref) continue;
+      if (ref != null &&
+          ref.isNotEmpty &&
+          data.motorReference != null &&
+          data.motorReference != ref) continue;
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||

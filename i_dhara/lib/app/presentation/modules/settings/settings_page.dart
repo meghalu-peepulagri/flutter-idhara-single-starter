@@ -48,6 +48,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       GlobalKey();
   final GlobalKey<FlcCardState> flcCardKey = GlobalKey();
   final GlobalKey<TimingConfigCardState> timingCardKey = GlobalKey();
+  final GlobalKey<SettingsFaultsTabState> faultsTabKey = GlobalKey();
 
   bool _ackInProgress = false;
   bool isVoltageRange = false;
@@ -520,14 +521,19 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       if (ref.isEmpty) continue;
       final calcLow = mm['calcLow'] as double?;
       final calcHigh = mm['calcHigh'] as double?;
+      final flcChanged = mm['flcChanged'] == true;
       final entry = <String, dynamic>{};
-      if (mm['lowChanged'] == true && calcLow != null) {
+      // drf/olf are stored as amps = percent × FLC, so an FLC-only edit
+      // (the Dry Run/Overload sliders never touched) still shifts what
+      // amps those percentages represent — publish the recalculated amps
+      // alongside the new FLC, not just the FLC.
+      if ((mm['lowChanged'] == true || flcChanged) && calcLow != null) {
         entry['drf'] = double.parse(calcLow.toStringAsFixed(2));
       }
-      if (mm['highChanged'] == true && calcHigh != null) {
+      if ((mm['highChanged'] == true || flcChanged) && calcHigh != null) {
         entry['olf'] = double.parse(calcHigh.toStringAsFixed(2));
       }
-      if (mm['flcChanged'] == true) {
+      if (flcChanged) {
         entry['flc'] = mm['flc'];
       }
       if (entry.isEmpty) continue;
@@ -808,6 +814,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                           showDefaultButton: _selectedTab == 0,
                           onDefaultPressed: () =>
                               _defaultSettingsPopUp(context),
+                          showFaultButton:
+                              _selectedTab == 1 && controller.hasActiveFault,
+                          onFaultPressed: () =>
+                              faultsTabKey.currentState?.clearFault(),
                         ),
                         Padding(
                           padding:
@@ -920,6 +930,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   },
                                 )
                               : SettingsFaultsTab(
+                                  key: faultsTabKey,
                                   settings: settings,
                                   motorName: controller.pumpName.value,
                                   motorHp: controller.pumpHP.value,

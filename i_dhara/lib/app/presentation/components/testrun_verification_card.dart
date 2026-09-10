@@ -770,7 +770,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     _flcData.clear();
     _overalCurrent.value = 0.0;
     _testStartTime = DateTime.now();
-    final mqttMotorId = _mqttMotorId;
 
     if (mounted) {
       setState(() {
@@ -783,11 +782,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final elapsed = DateTime.now().difference(_testStartTime!).inSeconds;
       final remaining = (_totalSeconds - elapsed).clamp(0, _totalSeconds);
-
-      if (mqttMotorId.isNotEmpty && elapsed > 0 && elapsed % 10 == 0) {
-        widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
-            data: 1, type: MqttService.topicLiveDataRequest, motorReference: _motorRef);
-      }
 
       if (remaining > 0) {
         if (mounted) setState(() => _remainingSeconds = remaining);
@@ -824,7 +818,10 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
       for (final entry in widget.mqttService.motorDataMap.entries) {
         final data = entry.value;
         if (!data.hasReceivedLiveData) continue;
-        if (ref != null && ref.isNotEmpty && data.motorReference != ref) {
+        if (ref != null &&
+            ref.isNotEmpty &&
+            data.motorReference != null &&
+            data.motorReference != ref) {
           continue;
         }
         final matchesMac = mac != null &&
@@ -995,6 +992,56 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
           "dvc_c": ref == null ? motorFields : {ref: motorFields},
         };
         _controller!.flc.value = flc;
+        // fetchupdateSettings() (called at the end of _publishSettingsAttempt)
+        // only ever fed it flc — drf/olf never made it into that PATCH, so
+        // the backend's own settings record silently kept the pre-test-run
+        // values even though the device confirmed the new ones. DRF4/OLF5
+        // are in amps (motor-scoped wire convention); the flat DTO fields
+        // are a percent of FLC (same convention the Settings page's own
+        // flat single-motor save uses), so convert back before storing.
+        _controller!.drf.value = flc > 0 ? (DRF4 / flc * 100) : 0;
+        _controller!.olf.value = flc > 0 ? (OLF5 / flc * 100) : 0;
+        // lrf/olr/lrr follow the same flat percent-of-FLC convention as
+        // drf/olf — same conversion, same reason they were never persisted.
+        _controller!.lrf.value = flc > 0 ? (LRF2 / flc * 100) : 0;
+        _controller!.olr.value = flc > 0 ? (OLR1 / flc * 100) : 0;
+        _controller!.lrr.value = flc > 0 ? (LRR3 / flc * 100) : 0;
+        // Payload-2.0 (single- or dual-motor, ref != null) additionally
+        // needs its own motor's entry inside multi_motor_config patched —
+        // the flat drf/olf/lrf fields above don't address a specific motor
+        // there, same as the Settings page's own multi-motor save path.
+        // olr/lrr have no per-motor field anywhere in MotorSettingConfig —
+        // only lrf does — so they stay on the shared/flat fields above
+        // regardless of motor count, same as v_flt_en does for faults.
+        if (ref != null) {
+          final existingRaw =
+              _controller!.updateSettingDto['multi_motor_config'];
+          final motors = (existingRaw is Map && existingRaw['motors'] is List)
+              ? List<Map<String, dynamic>>.from(
+                  (existingRaw['motors'] as List)
+                      .map((m) => Map<String, dynamic>.from(m as Map)))
+              : <Map<String, dynamic>>[];
+          final idx = motors.indexWhere((m) => m['motor_reference'] == ref);
+          final updatedEntry = {
+            ...(idx >= 0 ? motors[idx] : <String, dynamic>{
+                'motor_reference': ref,
+              }),
+            'drf': DRF4,
+            'olf': OLF5,
+            'flc': flc,
+            'lrf': LRF2,
+          };
+          if (idx >= 0) {
+            motors[idx] = updatedEntry;
+          } else {
+            motors.add(updatedEntry);
+          }
+          _controller!.updateSettingDto['multi_motor_config'] = {
+            'motors': motors,
+            'sd_time': existingRaw is Map ? existingRaw['sd_time'] : 0,
+            'v_flt_en': existingRaw is Map ? existingRaw['v_flt_en'] : 0,
+          };
+        }
 
         // Compute the calibration payload once, then drive retries from
         // _publishSettingsAttempt so every retry re-sends identical data.
@@ -1671,15 +1718,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Text(
-                            '$_motorOnCountdown s',
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF0F6B8A),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
                           const Text(
                             'Waiting for device acknowledgment',
                             style: TextStyle(
@@ -2163,15 +2201,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
                           ),
                           const SizedBox(height: 12),
                           if (!_savingIsSendingSettings) ...[
-                            Text(
-                              '$_d0Countdown s',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF0F6B8A),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
                             const Text(
                               'Waiting for device acknowledgment',
                               style: TextStyle(
@@ -2180,20 +2209,6 @@ class _ConfirmTestRunScreenState extends State<ConfirmTestRunScreen>
                               ),
                             ),
                           ] else ...[
-                            ValueListenableBuilder<int>(
-                              valueListenable: _settingsCountdown,
-                              builder: (context, countdown, _) {
-                                return Text(
-                                  '$countdown s',
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF0F6B8A),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 6),
                             const Text(
                               'Sending calibration to device',
                               style: TextStyle(

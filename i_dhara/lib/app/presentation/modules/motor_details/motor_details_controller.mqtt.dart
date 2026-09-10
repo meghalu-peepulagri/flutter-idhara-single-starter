@@ -363,9 +363,17 @@ extension AnalyticsControllerMqtt on AnalyticsController {
       return;
     }
 
+    // Bypass means the starter's own protection is manually overridden —
+    // block remote mode changes while that's active, same as the dashboard
+    // card.
+    final isBypassMode =
+        (motorDetails.value?.mode ?? '').toUpperCase() == 'BYPASS';
+
     final motorData = getMotorData();
     final signalBars = _getSignalBars(motorData);
-    canChangeMode.value = ConnectivityService.to.isConnected && signalBars > 0;
+    canChangeMode.value = ConnectivityService.to.isConnected &&
+        signalBars > 0 &&
+        !isBypassMode;
   }
 
   int _getSignalBars(MotorData? motorData) {

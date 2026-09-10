@@ -425,7 +425,8 @@ class DevicesCard extends StatelessWidget {
       builder: (context) => ValueListenableBuilder(
           valueListenable: mqttService.dataUpdateNotifier,
           builder: (context, _, __) {
-            final motorData = _getMotorData();
+            final motorData = _getMotorData(
+                motorReference: motorModelMotor.motorReference);
             return ConfirmTestRunScreen(
               motorData: motorData,
               motor: motorModelMotor,
@@ -482,7 +483,15 @@ class DevicesCard extends StatelessWidget {
     return bestData;
   }
 
-  MotorData? _getMotorData() {
+  // [motorReference] disambiguates a MULTIPLE_MOTORS starter, where m1 and
+  // m2 share the same mac/pcb — without it, this returns whichever motor's
+  // data happened to update most recently, not necessarily the one the
+  // caller actually means (e.g. the test-run dialog was reading whichever
+  // sibling motor's live data arrived first, including its mode, instead of
+  // the specific motor picked for test run). Null preserves the original
+  // mac/pcb-only matching for every existing caller — single-motor starters
+  // never have this ambiguity since only one motor ever shares that mac/pcb.
+  MotorData? _getMotorData({String? motorReference}) {
     if (device.motors == null) return null;
     final mac = device.macAddress;
     final pcb = device.pcbNumber;
@@ -491,6 +500,12 @@ class DevicesCard extends StatelessWidget {
     for (var entry in mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
+      if (motorReference != null &&
+          motorReference.isNotEmpty &&
+          data.motorReference != null &&
+          data.motorReference != motorReference) {
+        continue;
+      }
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -748,7 +763,9 @@ class DevicesCard extends StatelessWidget {
                 ? const Color(0xFFF59E0B)
                 : (motor?.mode?.toUpperCase() == 'SCHEDULE')
                     ? const Color(0xFF2E7D32)
-                    : const Color(0xFF2F80ED),
+                    : (motor?.mode?.toUpperCase() == 'BYPASS')
+                        ? const Color(0xFFDB3B2A)
+                        : const Color(0xFF2F80ED),
             borderRadius: BorderRadius.circular(4.0),
           ),
           child: Padding(
@@ -873,7 +890,9 @@ class DevicesCard extends StatelessWidget {
         ? const Color(0xFFF59E0B)
         : mode == 'SCHEDULE'
             ? const Color(0xFF2E7D32)
-            : const Color(0xFF2F80ED);
+            : mode == 'BYPASS'
+                ? const Color(0xFFDB3B2A)
+                : const Color(0xFF2F80ED);
     return Container(
       decoration: BoxDecoration(
         color: bgColor,

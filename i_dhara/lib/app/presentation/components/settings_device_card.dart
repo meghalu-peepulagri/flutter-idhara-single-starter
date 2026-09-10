@@ -7,18 +7,26 @@ import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 
 class SettingsDeviceCard extends StatelessWidget {
   final Devices device;
-  final Motor? motor;
 
-  const SettingsDeviceCard({super.key, required this.device, this.motor});
+  const SettingsDeviceCard({super.key, required this.device});
+
+  static String _motorLabel(Motor motor) {
+    final alias = motor.aliasName;
+    final name = (alias != null && alias.trim().isNotEmpty)
+        ? alias
+        : (motor.name ?? 'Motor');
+    return name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final motor = this.motor ??
-        (device.motors?.isNotEmpty == true ? device.motors!.first : null);
-    final alias = motor?.aliasName;
-    final pumpName = (alias != null && alias.trim().isNotEmpty)
-        ? alias.replaceAll(RegExp(r'\s+'), ' ').trim()
-        : (motor?.name ?? 'No Motor').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final motors = device.motors ?? const <Motor>[];
+    // Same starter, same serial number — both motors belong on one card
+    // (see SharedPreference.setIsMultiMotor below), not one card each.
+    final primaryMotor = motors.isNotEmpty ? motors.first : null;
+    final pumpName = motors.isEmpty
+        ? 'No Motor'
+        : motors.map(_motorLabel).join(' & ');
     final serialNumber = device.starterNumber ?? 'N/A';
 
     return GestureDetector(
@@ -26,8 +34,8 @@ class SettingsDeviceCard extends StatelessWidget {
         SharedPreference.setStarterId(device.id ?? 0);
         SharedPreference.setStarterNumber(device.starterNumber ?? '');
         SharedPreference.setIsMultiMotor(device.isMultiMotor);
-        if (motor?.id != null) {
-          SharedPreference.setMotorId(motor!.id!);
+        if (primaryMotor?.id != null) {
+          SharedPreference.setMotorId(primaryMotor!.id!);
         }
         Get.offNamed(Routes.usersettings,
             arguments: {'from': Routes.settingsDevices});
