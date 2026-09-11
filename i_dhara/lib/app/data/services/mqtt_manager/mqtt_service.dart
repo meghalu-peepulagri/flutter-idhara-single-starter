@@ -1363,8 +1363,10 @@ class MqttService {
   }
 
   int? _getModeIndex(String mode) {
-    if (mode.toUpperCase().contains('AUTO')) return 1;
-    if (mode.toUpperCase().contains('MANUAL')) return 0;
+    final upper = mode.toUpperCase();
+    if (upper.contains('SCHEDULE')) return scheduleModeUiIndex;
+    if (upper.contains('AUTO')) return 1;
+    if (upper.contains('MANUAL')) return 0;
     return null;
   }
 
