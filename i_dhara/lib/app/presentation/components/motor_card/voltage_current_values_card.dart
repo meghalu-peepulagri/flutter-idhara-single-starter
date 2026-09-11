@@ -36,12 +36,19 @@ class VoltageCurrentValuesCard extends StatelessWidget {
     MotorData? latestData;
     DateTime? latestTimestamp;
 
+    // Multi-motor: keys carry a '-<motor_reference>' suffix (e.g. MAC-G01-m2);
+    // single-motor has no suffix.
+    final ref = motor.motorReference;
+    final suffix = (ref != null && ref.isNotEmpty) ? '-$ref' : '';
+
     for (int i = 1; i <= 4; i++) {
       final groupId = 'G0$i';
 
       // Try both MAC and PCB identifiers
-      final macMotorId = mac != null && mac.isNotEmpty ? '$mac-$groupId' : null;
-      final pcbMotorId = pcb != null && pcb.isNotEmpty ? '$pcb-$groupId' : null;
+      final macMotorId =
+          mac != null && mac.isNotEmpty ? '$mac-$groupId$suffix' : null;
+      final pcbMotorId =
+          pcb != null && pcb.isNotEmpty ? '$pcb-$groupId$suffix' : null;
 
       // Check MAC address
       if (macMotorId != null) {
@@ -70,6 +77,40 @@ class VoltageCurrentValuesCard extends StatelessWidget {
             latestData = data;
             latestTimestamp = dataTimestamp;
           }
+        }
+      }
+    }
+
+    // Exact-key lookup misses when the live-data key carries a motor suffix the
+    // motor record doesn't know about — a payload-version 2.0 single-motor
+    // starter stores its data under '<id>-<group>-m1' while motor_reference on
+    // the API record is null. Fall back to the same scan the motor card uses so
+    // both resolve to the one MotorData. Only reached when nothing matched, so
+    // dual-motor and 1.x keep hitting their exact key first.
+    if (latestData == null) {
+      for (final entry in mqttService.motorDataMap.entries) {
+        final data = entry.value;
+        if (!data.hasReceivedData) continue;
+        if (ref != null &&
+            ref.isNotEmpty &&
+            data.motorReference != null &&
+            data.motorReference != ref) {
+          continue;
+        }
+        final matches = (mac != null &&
+                mac.isNotEmpty &&
+                (data.macAddress == mac || data.pcbNumber == mac)) ||
+            (pcb != null &&
+                pcb.isNotEmpty &&
+                (data.macAddress == pcb || data.pcbNumber == pcb));
+        if (!matches) continue;
+        final ackTime = mqttService.getLastAckTime(entry.key);
+        if (latestData == null ||
+            (ackTime != null &&
+                (latestTimestamp == null ||
+                    ackTime.isAfter(latestTimestamp)))) {
+          latestData = data;
+          latestTimestamp = ackTime;
         }
       }
     }

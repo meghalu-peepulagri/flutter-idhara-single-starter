@@ -63,6 +63,7 @@ class MotorData {
   String? macAddress;
   String? pcbNumber;
   String? groupId;
+  String? motorReference;
   String? title;
 
   bool hasReceivedLiveData = false;
@@ -142,7 +143,7 @@ class ScheduleInfo {
 class PendingCommand {
   final String motorId;
   final int
-      commandType; // 1 = motor control, 2 = mode change, 4 = settings, 21 = fault clear
+      commandType; // see MqttService topic* constants
   final dynamic commandData;
   final int sequenceNumber;
   final String? pcbnumber; // For settings commands (type 4)
@@ -165,6 +166,10 @@ class PendingCommand {
   /// [expectedScheduleIds] satisfies the whole batch.
   final List<Map<String, dynamic>>? batchedPayloads;
 
+  /// Multi-motor: when set, control/test-run (T:1) payloads wrap D per motor
+  /// as D:{<motorReference>: value}. Null for single-motor (flat D).
+  final String? motorReference;
+
   PendingCommand({
     required this.motorId,
     required this.commandType,
@@ -175,6 +180,7 @@ class PendingCommand {
     this.pcbnumber,
     this.expectedScheduleIds,
     this.batchedPayloads,
+    this.motorReference,
   });
 
   void cancelTimer() {
@@ -293,6 +299,10 @@ class MqttService {
     _motors = newMotors;
     _buildMotorDataMap();
     _dataUpdateNotifier.value++;
+  }
+
+  void restoreMotorRegistry(Map<String, Motor> newMotors) {
+    _motors = newMotors;
   }
 
   /// Get last ack time for a motor
@@ -468,6 +478,7 @@ class MqttService {
     int state, {
     int data = 2,
     int type = 1,
+    String? motorReference,
   }) async {
     if (_mqttClient == null || !isConnected) {
       debugPrint('Cannot publish test run: MQTT not connected');
@@ -481,9 +492,11 @@ class MqttService {
     final seq = _random.nextInt(251);
 
     try {
-      await _publishCommand(motorId, type, data, seq);
+      await _publishCommand(motorId, type, data, seq,
+          motorReference: motorReference);
       statusMessage = 'Test run command sent';
-      _registerPendingCommand(motorId, type, data, seq);
+      _registerPendingCommand(motorId, type, data, seq,
+          motorReference: motorReference);
 
       debugPrint(
           'Test run command published for $motorId (state=$state) - No retries');
@@ -543,7 +556,8 @@ class MqttService {
         sequenceNumber: seq,
       );
       statusMessage = 'Device Settings command sent successfully';
-      _registerPendingCommand('', 4, payload, seq, pcbnumber: pcb);
+      _registerPendingCommand('', topicCalibration, payload, seq,
+          pcbnumber: pcb);
     } catch (e) {
       statusMessage = 'Failed to publish Device Settings command: $e';
       // _lastCommandTimes.remove();
@@ -563,7 +577,11 @@ class MqttService {
 
     final seq = sequenceNumber ?? _random.nextInt(251);
 
-    final payload = {"T": 4, "S": seq, "D": commandData};
+    final payload = {
+      "T": _wireType(pcbnumber, topicCalibration),
+      "S": seq,
+      "D": commandData
+    };
 
     final message = jsonEncode(payload);
     final builder = MqttClientPayloadBuilder();
@@ -586,7 +604,7 @@ class MqttService {
 
   /// Cancel any pending settings command retries.
   void cancelPendingSettingsCommand() {
-    const key = '_4';
+    const key = '_$topicCalibration';
     final command = _pendingCommands[key];
     if (command != null) {
       command.cancelTimer();
@@ -694,7 +712,7 @@ class MqttService {
     );
     _registerPendingCommand(
       commandKey,
-      23, // both create and edit use type 23
+      scheduleCreateCommandType, // both create and edit share this key
       payload,
       seq,
       pcbnumber: identifier,
@@ -765,7 +783,7 @@ class MqttService {
     );
     _registerPendingCommand(
       commandKey,
-      23,
+      scheduleCreateCommandType,
       payload,
       seq,
       pcbnumber: identifier,
@@ -940,7 +958,7 @@ class MqttService {
 
       _registerPendingCommand(
         commandKey,
-        23,
+        scheduleCreateCommandType,
         // Use the first payload as the "anchor" commandData; retries iterate
         // batchedPayloads instead. This keeps existing code paths that read
         // commandData (e.g. legacy ACK handling) working.
@@ -966,12 +984,16 @@ class MqttService {
     required int scheduleId,
     required int cmd,
     int? sequenceNumber,
+    String motorReference = 'm1',
+    bool isMultiMotor = false,
   }) async {
     await publishBulkScheduleActionCommand(
       identifier: identifier,
       scheduleIds: [scheduleId],
       cmd: cmd,
       sequenceNumber: sequenceNumber,
+      motorReference: motorReference,
+      isMultiMotor: isMultiMotor,
     );
   }
 
@@ -981,6 +1003,8 @@ class MqttService {
     required int cmd,
     int? sequenceNumber,
     bool trackExpectedAcks = false,
+    String motorReference = 'm1',
+    bool isMultiMotor = false,
   }) async {
     if (_mqttClient == null || !isConnected) {
       statusMessage = 'MQTT not connected';
@@ -1001,19 +1025,28 @@ class MqttService {
     // Compute combined bitmask for all scheduleIds
     final ids = scheduleIds.fold(0, (acc, id) => acc | (1 << (id - 1)));
 
+    final motorKey = motorReference == 'm2' ? 'm2' : 'm1';
     final payload = <String, dynamic>{
-      'T': 24,
+      'T': _wireType(identifier, topicScheduleUpdate),
       'S': seq,
-      'D': {
-        'm1': {
-          'cmd': cmd,
-          'ids': ids,
-        },
-      },
+      'D': isMultiMotor
+          ? {
+              'cmd': cmd,
+              motorKey: {
+                'ids': ids,
+              },
+            }
+          : {
+              'm1': {
+                'cmd': cmd,
+                'ids': ids,
+              },
+            },
     };
 
     final commandKey = 'schedule_action_$identifier';
-    final alreadyInFlight = _pendingCommands.containsKey('${commandKey}_24');
+    final alreadyInFlight =
+        _pendingCommands.containsKey('${commandKey}_$topicScheduleUpdate');
     _lastAckTimes.remove(commandKey);
     // Clear expired status so a fresh command's ACK is accepted
     _expiredActionKeys.remove(commandKey);
@@ -1021,7 +1054,7 @@ class MqttService {
     if (!alreadyInFlight) {
       _registerPendingCommand(
         commandKey,
-        24,
+        topicScheduleUpdate,
         payload,
         seq,
         pcbnumber: identifier,
@@ -1034,7 +1067,7 @@ class MqttService {
           sequenceNumber: seq,
         );
       } catch (e) {
-        _clearPendingCommand(commandKey, 24);
+        _clearPendingCommand(commandKey, topicScheduleUpdate);
         rethrow;
       }
     } else {
@@ -1098,8 +1131,14 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
-  /// Publish fault clear command (T:21, S:seq, D:1)
-  Future<void> publishFaultClearCommand(String motorId) async {
+  /// Publish fault clear command.
+  /// Payload version 1.0: T:7, S:seq, D:1 (flat, unchanged).
+  /// Payload version 2.0 — single AND dual motor starters: T:7, S:seq,
+  /// D:{"<motorReference>":1}, scoped to just the motor being cleared.
+  /// Pass [clearAllMotors] on a dual-motor starter to clear both in one
+  /// message instead: T:7, S:seq, D:{"m1":1,"m2":1}.
+  Future<void> publishFaultClearCommand(String motorId,
+      {String? motorReference, bool clearAllMotors = false}) async {
     if (_mqttClient == null || !isConnected) {
       debugPrint('✗ Cannot publish fault clear: MQTT not connected');
       statusMessage = 'MQTT not connected';
@@ -1107,13 +1146,34 @@ class MqttService {
       throw Exception('MQTT not connected');
     }
 
+    final lastDashIndex = motorId.lastIndexOf('-');
+    if (lastDashIndex <= 0) {
+      throw Exception('Invalid motorId format: $motorId');
+    }
+    final identifier = motorId.substring(0, lastDashIndex);
+
     _lastAckTimes.remove(motorId);
     final seq = _random.nextInt(251);
 
+    final motorKey = motorReference == 'm2' ? 'm2' : 'm1';
+    final usesObjectPayload = _usesObjectPayload(identifier);
+    final dynamic data = usesObjectPayload
+        ? (clearAllMotors ? {'m1': 1, 'm2': 1} : {motorKey: 1})
+        : 1;
+
     try {
-      await _publishCommand(motorId, 21, 1, seq);
+      await _publishFaultClear(identifier, data, seq);
       statusMessage = 'Fault clear command sent';
-      _registerPendingCommand(motorId, 21, 1, seq);
+      // The device's fault-clear ACK is flat (D:1) — it never echoes back
+      // which motor it cleared — so remember the motor we actually asked
+      // for here; _handleFaultClearAck scopes the local fault-flag update
+      // to this instead of trusting the ACK payload. A dual clear leaves
+      // this null so the ack's fallback path (see applyFaultClear) clears
+      // every motor for this identifier instead of just one.
+      _registerPendingCommand(
+          motorId, MqttService.topicDeviceFaultsClear, data, seq,
+          motorReference:
+              (usesObjectPayload && !clearAllMotors) ? motorKey : null);
     } catch (e) {
       debugPrint('✗ Failed to publish fault clear command: $e');
       statusMessage = 'Failed to publish fault clear: $e';
@@ -1121,6 +1181,18 @@ class MqttService {
       rethrow;
     }
     _dataUpdateNotifier.value++;
+  }
+
+  Future<void> _publishFaultClear(
+      String identifier, dynamic data, int seq) async {
+    final topic = 'peepul/$identifier/cmd';
+    // v1.0 firmware answers fault-clear on its own older wire number (21/52
+    // instead of 7/37) — see _wireType/_internalType.
+    final wireType = _wireType(identifier, MqttService.topicDeviceFaultsClear);
+    final payload = jsonEncode({'T': wireType, 'S': seq, 'D': data});
+    final builder = MqttClientPayloadBuilder()..addString(payload);
+    _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    debugPrint('✓ Published Fault Clear -> $topic: $payload');
   }
 
   /// Get motor data filtered by location
@@ -1160,6 +1232,13 @@ class MqttService {
 
   /// Build motor data map from motors
   void _buildMotorDataMap() {
+    // A dashboard/motor-details refresh rebuilds this map from the freshly
+    // fetched API records, whose starterParameters hold the LAST-STORED
+    // (past) voltages/currents — not what the device is publishing right now.
+    // Snapshot whatever live values MQTT already delivered so they survive
+    // the rebuild; otherwise the UI falls back to the API values and visibly
+    // jumps back to the present reading only when the next T:35/41 arrives.
+    final previous = Map<String, MotorData>.from(_motorDataMap);
     _motorDataMap.clear();
     debugPrint('=== Building motorDataMap from ${_motors.length} entries ===');
 
@@ -1212,17 +1291,82 @@ class MqttService {
         _motorDataMap[key]!.power = motor.starter!.power!;
       }
 
+      // A payload-version 2.0 single-motor starter talks in motor-scoped
+      // objects (D:{"m1":…}) exactly like a dual-motor one, so its MotorData
+      // needs the reference for the multi-motor live-data and ACK paths to
+      // resolve to THIS entry — the one the UI reads — instead of matching
+      // nothing (or building a parallel entry). Use the API's motor_reference
+      // when present and fall back to 'm1' when it isn't.
+      // Scoped to single-motor starters: dual-motor is left exactly as it was,
+      // and 1.x never reaches here because it publishes flat payloads.
+      final starterSupport =
+          (motor.starter?.motorSupportType ?? '').toUpperCase();
+      if (!starterSupport.contains('MULTI') &&
+          motor.starter?.usesObjectPayload == true) {
+        _motorDataMap[key]!.motorReference =
+            motor.motorReference ?? defaultMotorReference;
+      }
+
+      _carryOverLiveValues(_motorDataMap[key]!, previous[key]);
+
       debugPrint(
           '   Added: $key (identifier=$identifier, groupId=$groupId, mac=${motor.starter?.macAddress}, pcb=${motor.starter?.pcbNumber})');
+    }
+
+    // Live data may live under a motor-scoped key ('<id>-G01-m1') that the
+    // registry itself never builds. Keep those rows when their base key is
+    // still present so the multi-motor / payload-2.0 lookups keep resolving
+    // to real readings after a refresh.
+    for (final entry in previous.entries) {
+      if (_motorDataMap.containsKey(entry.key)) continue;
+      if (!entry.value.hasReceivedLiveData) continue;
+      final lastDash = entry.key.lastIndexOf('-');
+      if (lastDash <= 0) continue;
+      final baseKey = entry.key.substring(0, lastDash);
+      if (_motorDataMap.containsKey(baseKey)) {
+        _motorDataMap[entry.key] = entry.value;
+      }
     }
 
     debugPrint('=== motorDataMap built: ${_motorDataMap.length} entries ===');
     _dataUpdateNotifier.value++;
   }
 
+  void _carryOverLiveValues(MotorData fresh, MotorData? prior) {
+    if (prior == null || !prior.hasReceivedData) return;
+
+    fresh.hasReceivedData = true;
+    fresh.signalStrength = prior.signalStrength;
+    fresh.signalBars = prior.signalBars;
+    fresh.lastSignalUpdate = prior.lastSignalUpdate;
+    fresh.schedules
+      ..clear()
+      ..addAll(prior.schedules);
+
+    if (!prior.hasReceivedLiveData) return;
+
+    fresh.hasReceivedLiveData = true;
+    fresh.voltageRed = prior.voltageRed;
+    fresh.voltageYellow = prior.voltageYellow;
+    fresh.voltageBlue = prior.voltageBlue;
+    fresh.currentRed = prior.currentRed;
+    fresh.currentYellow = prior.currentYellow;
+    fresh.currentBlue = prior.currentBlue;
+    fresh.power = prior.power;
+    fresh.state = prior.state;
+    fresh.motorMode = prior.motorMode;
+    fresh.modeIndex = prior.modeIndex;
+    fresh.runTime = prior.runTime;
+    fresh.stateChangedAt = prior.stateChangedAt;
+    fresh.controller.value = prior.state == 1;
+    fresh.modeswitchcontroller.value = prior.modeIndex;
+  }
+
   int? _getModeIndex(String mode) {
-    if (mode.toUpperCase().contains('AUTO')) return 1;
-    if (mode.toUpperCase().contains('MANUAL')) return 0;
+    final upper = mode.toUpperCase();
+    if (upper.contains('SCHEDULE')) return scheduleModeUiIndex;
+    if (upper.contains('AUTO')) return 1;
+    if (upper.contains('MANUAL')) return 0;
     return null;
   }
 
@@ -1345,34 +1489,39 @@ class MqttService {
 
         final identifier = topicParts[1];
 
-        debugPrint(
-            '📩 MQTT Message: topic=$topic, type=$type, identifier=$identifier');
+        // v1.0 firmware answers calibration/schedule-action/live-data(-request)
+        // and heartbeat on its own older wire numbers — translate those back
+        // to the internal ids the switch below dispatches on. No-op for v2.0.
+        final effectiveType = _internalType(identifier, type);
 
-        switch (type) {
-          case 31:
+        debugPrint(
+            '📩 MQTT Message: topic=$topic, type=$type (effective=$effectiveType), identifier=$identifier');
+
+        switch (effectiveType) {
+          case topicMotorControlAck:
             _handleMotorControlAck(identifier, payloadData);
             break;
-          case 32:
+          case topicModeChangeAck:
             _handleModeChangeAck(identifier, payloadData);
             break;
-          case 34:
+          case topicCalibrationAck:
             handleDefaultSettings(identifier, payloadData);
             break;
-          case 35:
+          case topicLiveDataRequestAck:
             _handleLiveDataRequest(identifier, payloadData);
-          case 41:
+          case topicLiveData:
             _handleLiveData(identifier, payloadData);
             break;
-          case 40:
+          case topicHeartBeat:
             _handleHeartbeat(identifier, payloadData);
             break;
-          case 33:
+          case topicSchedulingCreateAck:
             _handleScheduleAck(identifier, data as Map<String, dynamic>);
             break;
-          case 54:
+          case topicScheduleUpdateAck:
             _handleScheduleActionAck(identifier, payloadData);
             break;
-          case 52:
+          case topicFaultsClearAck:
             _handleFaultClearAck(identifier, payloadData);
             break;
           default:
@@ -1387,9 +1536,151 @@ class MqttService {
     _dataUpdateNotifier.value++;
   }
 
+  void _handleMultiMotorControlAck(
+      String identifier, Map<String, dynamic> payloadData) {
+    payloadData.forEach((motorKey, rawState) {
+      int? state;
+      if (rawState is int) {
+        state = rawState;
+      } else if (rawState is String) {
+        state = int.tryParse(rawState);
+      } else if (rawState is double) {
+        state = rawState.toInt();
+      }
+      final s = state;
+      if (s == null || (s != 0 && s != 1)) return;
+
+      bool matched = false;
+      for (final entry in _motorDataMap.entries) {
+        final md = entry.value;
+        if (md.motorReference == motorKey &&
+            (md.macAddress == identifier || md.pcbNumber == identifier)) {
+          if (md.state != s) md.stateChangedAt = DateTime.now();
+          md.state = s;
+          md.controller.value = (s == 1);
+          md.hasReceivedData = true;
+          _lastAckTimes[entry.key] = DateTime.now();
+          // Stop the retry ladder, same as the flat single-motor path.
+          _clearPendingCommand(entry.key, 1);
+          matched = true;
+        }
+      }
+
+      // No entry carries this motorReference yet — this motor's first-ever
+      // live data hasn't arrived, so the UI (pump icon) reads nothing for it
+      // and stays on the stale API state until the next refresh. Create the
+      // entry now, the same way the first live-data group would, so the ack
+      // is reflected immediately.
+      if (!matched) {
+        final fallbackKey = '$identifier-G01-$motorKey';
+        _motorDataMap[fallbackKey] = MotorData(
+          macAddress: identifier,
+          pcbNumber: identifier,
+          groupId: 'G01',
+          title: motorKey,
+        )
+          ..motorReference = motorKey
+          ..state = s
+          ..controller.value = (s == 1)
+          ..hasReceivedData = true;
+        _lastAckTimes[fallbackKey] = DateTime.now();
+      }
+    });
+    _dataUpdateNotifier.value++;
+  }
+
+  void _handleMultiMotorModeAck(
+      String identifier, Map<String, dynamic> payloadData) {
+    payloadData.forEach((motorKey, rawMode) {
+      int? mode;
+      if (rawMode is int) {
+        mode = rawMode;
+      } else if (rawMode is String) {
+        mode = int.tryParse(rawMode);
+      } else if (rawMode is double) {
+        mode = rawMode.toInt();
+      }
+      var m = mode;
+      if (m == null) return;
+      if (m == scheduleModeDeviceCode) m = scheduleModeUiIndex;
+      if (m != 0 && m != 1 && m != 2) return;
+
+      for (final entry in _motorDataMap.entries) {
+        final md = entry.value;
+        if (md.motorReference == motorKey &&
+            (md.macAddress == identifier || md.pcbNumber == identifier)) {
+          md.modeIndex = m;
+          md.modeswitchcontroller.value = m;
+          md.motorMode = m == 1
+              ? 'AUTO'
+              : (m == scheduleModeUiIndex ? 'SCHEDULE' : 'MANUAL');
+          md.hasReceivedData = true;
+          // Resolve the command the same way the flat path does, so the UI
+          // stops waiting and the retry ladder doesn't re-publish after ACK.
+          _lastAckTimes[entry.key] = DateTime.now();
+          _clearPendingCommand(entry.key, 2);
+        }
+      }
+    });
+    _dataUpdateNotifier.value++;
+  }
+
+  /// Reads the motor reference out of a multi-motor `D` object, e.g.
+  /// `{"m2": 1}` -> `'m2'`. Returns null for a flat single-motor `D`, which
+  /// keeps every single-motor payload on its original code path.
+  String? multiMotorAckReference(dynamic payloadData) {
+    if (payloadData is! Map) return null;
+    for (final motorKey in const ['m1', 'm2']) {
+      if (payloadData[motorKey] is num) return motorKey;
+    }
+    return null;
+  }
+
+  /// True when [motorId] ('<identifier>-<groupId>') and the topic [identifier]
+  /// are the same physical starter. They differ whenever commands are addressed
+  /// by MAC but the device publishes on its PCB number (or the reverse), so
+  /// resolve the pairing through any MotorData carrying both.
+  bool _isSameStarter(String motorId, String identifier) {
+    final dash = motorId.lastIndexOf('-');
+    final motorIdentifier =
+        dash > 0 ? motorId.substring(0, dash) : motorId;
+    if (motorIdentifier == identifier) return true;
+    for (final motorData in _motorDataMap.values) {
+      final mac = motorData.macAddress;
+      final pcb = motorData.pcbNumber;
+      if (mac != motorIdentifier && pcb != motorIdentifier) continue;
+      if (mac == identifier || pcb == identifier) return true;
+    }
+    return false;
+  }
+
+  /// Multi-motor T:31 for a motor under test. The card registers its command id
+  /// ('<identifier>-<groupId>', never suffixed) via [addTestRunMotor] and polls
+  /// [getLastAckTime] with that same id, so the ACK is stamped there.
+  /// Returns false when no test-run motor claims this ACK.
+  bool _handleMultiMotorTestRunAck(String identifier, String ackRef) {
+    for (final motorId in _testRunMotors) {
+      if (!_isSameStarter(motorId, identifier)) continue;
+      final pendingRef = _pendingCommands['${motorId}_1']?.motorReference;
+      if (pendingRef != null && pendingRef != ackRef) continue;
+      debugPrint(
+          '   ✅ T:31 ($ackRef) for test run motor $motorId — clearing retry, skipping state update');
+      _lastAckTimes[motorId] = DateTime.now();
+      _clearPendingCommand(motorId, 1);
+      _dataUpdateNotifier.value++;
+      return true;
+    }
+    return false;
+  }
+
   /// Handle motor ON/OFF acknowledgment (type 31)
   void _handleMotorControlAck(String identifier, dynamic payloadData) {
     debugPrint('🔧 TYPE 31 received: identifier=$identifier');
+
+    final ackRef = multiMotorAckReference(payloadData);
+    if (ackRef != null && _handleMultiMotorTestRunAck(identifier, ackRef)) {
+      return;
+    }
 
     if (isIdentifierInTestRun(identifier)) {
       debugPrint(
@@ -1404,6 +1695,12 @@ class MqttService {
       return;
     }
     debugPrint('   ✓ Not in test run - processing normally');
+
+    if (payloadData is Map<String, dynamic> &&
+        (payloadData.containsKey('m1') || payloadData.containsKey('m2'))) {
+      _handleMultiMotorControlAck(identifier, payloadData);
+      return;
+    }
 
     // Parse state from various formats
     int? newState;
@@ -1507,6 +1804,12 @@ class MqttService {
       return; // EXIT - do NOTHING
     }
     debugPrint('   ✓ Not in test run - processing normally');
+
+    if (payloadData is Map<String, dynamic> &&
+        (payloadData.containsKey('m1') || payloadData.containsKey('m2'))) {
+      _handleMultiMotorModeAck(identifier, payloadData);
+      return;
+    }
 
     // Parse mode from various formats
     int? newMode;
@@ -1618,38 +1921,74 @@ class MqttService {
   }
 
   /// Handle fault clear acknowledgment (type 52)
-  /// ACK payload: {"T": 52, "S": 89, "D": 1, "ct": "2025/12/30,13:42:30"}
+  /// ACK payload: {"T": 37, "S": 89, "D": 1, "ct": "2025/12/30,13:42:30"}
+  /// The ACK is flat (D:1) even on payload 2.0 — it never echoes back which
+  /// motor was cleared — so scoping to the acked motor must come from the
+  /// motorReference the pending command was published with, not the ACK.
   void _handleFaultClearAck(String identifier, dynamic payloadData) {
     debugPrint('🔧 TYPE 52 (Fault Clear ACK) received: identifier=$identifier');
 
-    // Find motor with pending fault clear command (type 21)
-    final motorId = _findMotorWithPendingCommand(identifier, 21);
-
-    if (motorId != null) {
-      final motorData = _motorDataMap[motorId];
-      if (motorData != null) {
+    void applyFaultClear(String? motorRef) {
+      // For a MULTIPLE_MOTORS group, live data lives under motor-scoped keys
+      // ('<id>-<groupId>-m1'/'-m2'). A null motorRef here means either a
+      // flat 1.0 device (single entry, no motorReference set) or an unknown
+      // scope (fallback path) — narrow to motorRef whenever it's known.
+      for (final motorData in _motorDataMap.values) {
+        if (motorData.macAddress != identifier &&
+            motorData.pcbNumber != identifier) {
+          continue;
+        }
+        if (motorRef != null && motorData.motorReference != motorRef) {
+          continue;
+        }
         motorData.fault = 0;
         motorData.hasReceivedData = true;
-        _lastAckTimes[motorId] = DateTime.now();
-        debugPrint('   ✓ Fault Clear ACK processed: $motorId -> fault cleared');
       }
-      _clearPendingCommand(motorId, 21);
+    }
+
+    // Find motor with pending fault clear command (type 21)
+    final motorId =
+        _findMotorWithPendingCommand(identifier, topicDeviceFaultsClear);
+
+    if (motorId != null) {
+      final pendingRef =
+          _pendingCommands['${motorId}_$topicDeviceFaultsClear']
+              ?.motorReference;
+      applyFaultClear(pendingRef);
+      _lastAckTimes[motorId] = DateTime.now();
+      debugPrint('   ✓ Fault Clear ACK processed: $motorId -> fault cleared'
+          '${pendingRef != null ? ' ($pendingRef)' : ''}');
+      _clearPendingCommand(motorId, topicDeviceFaultsClear);
+      // v1.0 (flat D:1) always has pendingRef == null, so this stays the
+      // original bare motorId — untouched. Payload 2.0 tags it
+      // '<motorId>|<motorReference>' so every card for a MULTIPLE_MOTORS
+      // group (which all resolve to the SAME motorId — see _getMotorId)
+      // can tell whether this ACK was actually for its own motor.
       faultClearResultNotifier.value = null; // reset first
-      faultClearResultNotifier.value = motorId;
+      faultClearResultNotifier.value =
+          pendingRef != null ? '$motorId|$pendingRef' : motorId;
     } else {
-      // No pending command — update any matching motor
+      // No pending command to tell us which motor — best effort using
+      // whatever the ACK payload itself carries (usually nothing on a flat
+      // ACK, in which case every motor for this identifier is cleared).
+      final ackRef = multiMotorAckReference(payloadData);
+      applyFaultClear(ackRef);
       final fallbackId = _findAnyMotorWithIdentifier(identifier);
       if (fallbackId != null) {
-        final motorData = _motorDataMap[fallbackId];
-        if (motorData != null) {
-          motorData.fault = 0;
-          motorData.hasReceivedData = true;
-          _lastAckTimes[fallbackId] = DateTime.now();
-          debugPrint(
-              '   ✓ Fault Clear ACK processed (fallback): $fallbackId -> fault cleared');
-        }
+        _lastAckTimes[fallbackId] = DateTime.now();
+        debugPrint(
+            '   ✓ Fault Clear ACK processed (fallback): $fallbackId -> fault cleared');
+        // Strip the '-m1'/'-m2' suffix so this matches the unsuffixed
+        // '<id>-<groupId>' motorId the card listens for (see _getMotorId).
+        final dash = fallbackId.lastIndexOf('-');
+        final suffix = dash > 0 ? fallbackId.substring(dash + 1) : '';
+        final baseId =
+            (suffix == 'm1' || suffix == 'm2')
+                ? fallbackId.substring(0, dash)
+                : fallbackId;
         faultClearResultNotifier.value = null;
-        faultClearResultNotifier.value = fallbackId;
+        faultClearResultNotifier.value =
+            ackRef != null ? '$baseId|$ackRef' : baseId;
       } else {
         debugPrint(
             '   ⚠️ Could not find motor for fault clear identifier=$identifier');
@@ -1676,6 +2015,12 @@ class MqttService {
       if (groupData == null)
         continue;
       else {}
+
+      if (_isMultiMotorGroup(groupData)) {
+        _handleMultiMotorGroup(identifier, groupId, groupData);
+        continue;
+      }
+
       final pwr = groupData["pwr"];
 
       final fullMotorId = '$identifier-$groupId';
@@ -1751,6 +2096,13 @@ class MqttService {
       if (groupData == null)
         continue;
       else {}
+
+      if (_isMultiMotorGroup(groupData)) {
+        _handleMultiMotorGroup(identifier, groupId, groupData,
+            isTestRunRequest: true);
+        continue;
+      }
+
       final pwr = groupData["pwr"];
 
       final fullMotorId = '$identifier-$groupId';
@@ -1836,18 +2188,28 @@ class MqttService {
 
   void handleDefaultSettings(String identifier, dynamic payloadData) {
     try {
-      final type = payloadData as int;
-      final map = {"D": type, "topic": identifier};
+      // Multi-motor replies D:{"m2":1}; single-motor stays a flat int and takes
+      // the original path untouched. The reference is forwarded as "motor" so
+      // the test-run card can ignore an ACK for the other motor.
+      final motorReference = multiMotorAckReference(payloadData);
+      final int type = motorReference != null
+          ? (payloadData[motorReference] as num).toInt()
+          : payloadData as int;
+      final map = {
+        "D": type,
+        "topic": identifier,
+        if (motorReference != null) "motor": motorReference,
+      };
 
       // Clear any "No response from device" message since ACK was received
       commandStatusNotifier.value = null;
 
       // Clear pending settings command to stop retries immediately upon ACK
-      final command = _pendingCommands['_4'];
+      final command = _pendingCommands['_$topicCalibration'];
       if (command != null) {
         // Cancel the retry timer and remove the pending command
         command.cancelTimer();
-        _clearPendingCommand('', 4);
+        _clearPendingCommand('', topicCalibration);
         debugPrint(
             '✓ Settings ACK received from $identifier: $type (Retries stopped)');
       } else {
@@ -1858,6 +2220,116 @@ class MqttService {
     } catch (e) {
       // ignore
     }
+  }
+
+  // ── Device topic IDs ───────────────────────────────────────────────────────
+  // Outbound "T" values and the ACK the device answers with. Pending-command
+  // bookkeeping is keyed on the same number, so a retry re-publishes with the
+  // correct type.
+  static const int topicMotorControl = 1;
+  static const int topicModeChange = 2;
+  static const int topicSchedulingCreate = 3;
+  static const int topicScheduleUpdate = 4;
+  static const int topicCalibration = 5; // device settings (dvc_c)
+  static const int topicDeviceFaultsClear = 7;
+  static const int topicLiveDataRequest = 9;
+
+  static const int topicMotorControlAck = 31;
+  static const int topicModeChangeAck = 32;
+  static const int topicSchedulingCreateAck = 33;
+  static const int topicScheduleUpdateAck = 34;
+  static const int topicCalibrationAck = 35;
+  static const int topicFaultsClearAck = 37;
+  static const int topicLiveDataRequestAck = 39;
+  static const int topicHeartBeat = 46;
+  static const int topicLiveData = 47;
+
+  // ── Legacy (payload v1.0) wire numbers ─────────────────────────────────────
+  // v1.0 firmware still speaks the ORIGINAL tag ids for these five commands —
+  // only v2.0 firmware (single or dual motor) answers on the numbers above.
+  // Everywhere else in the file keeps using the topic* constants above as the
+  // single internal id for bookkeeping (pending-command keys, retry-loop
+  // branches); [_wireType]/[_internalType] are the only places that convert
+  // to/from these v1.0 numbers, based on the specific device's own version.
+  static const int _topicCalibrationV1 = 4;
+  static const int _topicCalibrationAckV1 = 34;
+  static const int _topicScheduleUpdateV1 = 24;
+  static const int _topicScheduleUpdateAckV1 = 54;
+  static const int _topicLiveDataRequestV1 = 5;
+  static const int _topicLiveDataRequestAckV1 = 35;
+  static const int _topicLiveDataV1 = 41;
+  static const int _topicHeartBeatV1 = 40;
+  static const int _topicDeviceFaultsClearV1 = 21;
+  static const int _topicFaultsClearAckV1 = 52;
+
+  /// Outbound: internal command id -> the wire "T" this specific [identifier]
+  /// actually expects. v2.0 devices already use the internal id as their wire
+  /// number, so this is only ever non-identity for a v1.0 identifier.
+  int _wireType(String identifier, int internalType) {
+    if (_usesObjectPayload(identifier)) return internalType;
+    switch (internalType) {
+      case topicCalibration:
+        return _topicCalibrationV1;
+      case topicScheduleUpdate:
+        return _topicScheduleUpdateV1;
+      case topicLiveDataRequest:
+        return _topicLiveDataRequestV1;
+      case topicDeviceFaultsClear:
+        return _topicDeviceFaultsClearV1;
+      default:
+        return internalType;
+    }
+  }
+
+  /// Inbound: the wire "T" a message from [identifier] arrived with -> the
+  /// internal command id the rest of the file dispatches on. Identity for
+  /// v2.0 devices; for v1.0 it undoes [_wireType] (plus the ack-only numbers
+  /// that have no outbound counterpart: heartbeat and live data).
+  int _internalType(String identifier, int wireType) {
+    if (_usesObjectPayload(identifier)) return wireType;
+    switch (wireType) {
+      case _topicCalibrationAckV1:
+        return topicCalibrationAck;
+      case _topicScheduleUpdateAckV1:
+        return topicScheduleUpdateAck;
+      case _topicLiveDataRequestV1:
+        return topicLiveDataRequest;
+      case _topicLiveDataRequestAckV1:
+        return topicLiveDataRequestAck;
+      case _topicLiveDataV1:
+        return topicLiveData;
+      case _topicHeartBeatV1:
+        return topicHeartBeat;
+      case _topicFaultsClearAckV1:
+        return topicFaultsClearAck;
+      default:
+        return wireType;
+    }
+  }
+
+  /// Internal key for the schedule-create pending command. Creates publish on
+  /// [topicSchedulingCreate] but are tracked apart from schedule updates.
+  static const int scheduleCreateCommandType = 23;
+
+  /// Live-data request. Device-wide, so its D is never wrapped per motor.
+  static const int liveDataRequestType = topicLiveDataRequest;
+
+  /// The motor a payload-version 2.0 single-motor starter answers to.
+  static const String defaultMotorReference = 'm1';
+
+  /// True when the starter behind [identifier] (its MAC or PCB) runs a payload
+  /// version that expects motor-scoped objects. Resolved from the motor list
+  /// the screens push in via [updateMotors]; unknown devices stay flat.
+  bool _usesObjectPayload(String identifier) {
+    for (final motor in _motors.values) {
+      final starter = motor.starter;
+      if (starter == null) continue;
+      if (starter.macAddress == identifier ||
+          starter.pcbNumber == identifier) {
+        return starter.usesObjectPayload;
+      }
+    }
+    return false;
   }
 
   static const int scheduleModeDeviceCode = 6;
@@ -1976,7 +2448,7 @@ class MqttService {
         pending!.ackedScheduleIds.addAll(ackedScheduleIds);
         final allCovered = expected.every(pending.ackedScheduleIds.contains);
         if (allCovered) {
-          _clearPendingCommand(scheduleCommandKey, 23);
+          _clearPendingCommand(scheduleCommandKey, scheduleCreateCommandType);
           emitFinal = true;
           finalSuccess = true;
         } else {
@@ -1984,13 +2456,13 @@ class MqttService {
               '⏳ Partial schedule ACK: ${pending.ackedScheduleIds.toList()} of $expected — keeping retry alive');
         }
       } else {
-        _clearPendingCommand(scheduleCommandKey, 23);
+        _clearPendingCommand(scheduleCommandKey, scheduleCreateCommandType);
         _expiredScheduleKeys.add(scheduleCommandKey);
         emitFinal = true;
         finalSuccess = false;
       }
     } else {
-      _clearPendingCommand(scheduleCommandKey, 23);
+      _clearPendingCommand(scheduleCommandKey, scheduleCreateCommandType);
       if (!isSuccess) {
         _expiredScheduleKeys.add(scheduleCommandKey);
       }
@@ -2024,8 +2496,17 @@ class MqttService {
       return;
     }
 
-    final idsRaw = payloadData['ids'];
-    final ackRaw = payloadData['ack'];
+    Map<String, dynamic> ackSource = payloadData;
+    for (final motorKey in const ['m1', 'm2']) {
+      final motorAck = payloadData[motorKey];
+      if (motorAck is Map<String, dynamic>) {
+        ackSource = motorAck;
+        break;
+      }
+    }
+
+    final idsRaw = ackSource['ids'];
+    final ackRaw = ackSource['ack'];
 
     final ids = idsRaw is int ? idsRaw : int.tryParse('$idsRaw');
     final ack = ackRaw is int ? ackRaw : int.tryParse('$ackRaw');
@@ -2055,15 +2536,19 @@ class MqttService {
 
     // Pull the in-flight pending action so we can: (a) accumulate partial
     // acks across retries, (b) compare ack code against the cmd we sent.
-    final pendingKey = '${commandKey}_24';
+    final pendingKey = '${commandKey}_$topicScheduleUpdate';
     final pending = _pendingCommands[pendingKey];
     final expected = pending?.expectedScheduleIds;
     int? sentCmd;
     if (pending != null && pending.commandData is Map) {
       final d = (pending.commandData as Map)['D'];
       if (d is Map) {
-        final m1 = d['m1'];
-        if (m1 is Map) sentCmd = m1['cmd'] as int?;
+        if (d['cmd'] is int) {
+          sentCmd = d['cmd'] as int?;
+        } else {
+          final m1 = d['m1'];
+          if (m1 is Map) sentCmd = m1['cmd'] as int?;
+        }
       }
     }
     final isSuccess = sentCmd != null && ack == sentCmd;
@@ -2076,7 +2561,7 @@ class MqttService {
         pending!.ackedScheduleIds.addAll(ackedScheduleIds);
         final allCovered = expected.every(pending.ackedScheduleIds.contains);
         if (allCovered) {
-          _clearPendingCommand(commandKey, 24);
+          _clearPendingCommand(commandKey, topicScheduleUpdate);
           _expiredActionKeys.add(commandKey);
           emitFinal = true;
           finalSuccess = true;
@@ -2086,14 +2571,14 @@ class MqttService {
         }
       } else {
         // Device-side error code — retrying won't help, stop now.
-        _clearPendingCommand(commandKey, 24);
+        _clearPendingCommand(commandKey, topicScheduleUpdate);
         _expiredActionKeys.add(commandKey);
         emitFinal = true;
         finalSuccess = false;
       }
     } else {
       // Untracked (single-action path): legacy behaviour.
-      _clearPendingCommand(commandKey, 24);
+      _clearPendingCommand(commandKey, topicScheduleUpdate);
     }
 
     // Note: success is `ack == cmd` (the controller knows the cmd it sent).
@@ -2157,6 +2642,22 @@ class MqttService {
       }
     }
 
+    // The fields above hold whichever identifier the API reported. When the
+    // device publishes on its other one (MAC vs PCB) nothing matches, so fall
+    // back to the map key — live-data entries are keyed '<identifier>-<group>'.
+    if (!found) {
+      for (var entry in _motorDataMap.entries) {
+        if (!entry.key.startsWith('$identifier-')) continue;
+        final motorData = entry.value;
+        motorData.updateSignalStrength(signalQuality);
+        motorData.testRunSignal = true;
+        motorData.hasReceivedData = true;
+        found = true;
+        debugPrint(
+            '   ✓ Updated signal by key for ${entry.key}: bars=${motorData.signalBars}');
+      }
+    }
+
     if (!found) {
       debugPrint('   ⚠️ No motor found for identifier=$identifier');
     }
@@ -2179,6 +2680,67 @@ class MqttService {
       return 4;
     } else {
       return 0;
+    }
+  }
+
+  bool _isMultiMotorGroup(Map<String, dynamic> groupData) {
+    return groupData['m1'] is Map || groupData['m2'] is Map;
+  }
+
+  void _handleMultiMotorGroup(
+      String identifier, String groupId, Map<String, dynamic> groupData,
+      {bool isTestRunRequest = false}) {
+    final isG04 = groupId == 'G04';
+    final parseSch = groupId == 'G01' || groupId == 'G02';
+    for (final motorKey in const ['m1', 'm2']) {
+      final motorRaw = groupData[motorKey];
+      if (motorRaw is! Map<String, dynamic>) continue;
+
+      final fullMotorId = '$identifier-$groupId-$motorKey';
+
+      var motorData = _motorDataMap[fullMotorId];
+      if (motorData == null) {
+        for (var existingEntry in _motorDataMap.entries) {
+          final data = existingEntry.value;
+          if (data.motorReference == motorKey &&
+              data.groupId == groupId &&
+              (data.macAddress == identifier ||
+                  data.pcbNumber == identifier)) {
+            motorData = data;
+            _motorDataMap[fullMotorId] = motorData;
+            break;
+          }
+        }
+      }
+      motorData ??= MotorData(
+        macAddress: identifier,
+        pcbNumber: identifier,
+        groupId: groupId,
+        title: motorKey,
+        power: groupData['pwr'] ?? 0,
+      );
+      motorData.motorReference = motorKey;
+      _motorDataMap[fullMotorId] = motorData;
+
+      final merged = <String, dynamic>{
+        ...motorRaw,
+        if (groupData.containsKey('pwr')) 'pwr': groupData['pwr'],
+        if (groupData.containsKey('llv')) 'llv': groupData['llv'],
+        if (groupData.containsKey('ll_v')) 'll_v': groupData['ll_v'],
+      };
+      _updateMotorDataFromPayload(motorData, merged, isG04);
+      if (parseSch) _parseSchedule(motorData, motorRaw);
+
+      if (isTestRunRequest) {
+        motorData.testRunSignal = true;
+        motorData.testrunPowerSupply = true;
+        motorData.testrunVoltageRange = true;
+        motorData.updateSignalStrength(13);
+      }
+
+      motorData.hasReceivedData = true;
+      motorData.hasReceivedLiveData = true;
+      _lastAckTimes[fullMotorId] = DateTime.now();
     }
   }
 
@@ -2317,8 +2879,16 @@ class MqttService {
         '   ✓ Schedule[$scheduleId] updated: rt=${schRaw['rt']}, fr=${schRaw['fr']}, st=${schRaw['st']}, et=${schRaw['et']}, fe=${schRaw['fe']}, ss=${schRaw['ss']}');
   }
 
-  /// Find motor with pending command of given type for the identifier
+  /// Find motor with pending command of given type for the identifier.
+  /// Matches against the pending command's own motorId (via [_isSameStarter])
+  /// instead of joining through _motorDataMap keys — those are suffixed with
+  /// '-m1'/'-m2' for MULTIPLE_MOTORS groups while a pending command's motorId
+  /// (e.g. fault clear, registered as '<id>-<groupId>') never is, so the old
+  /// key-join always missed and fell through to the fallback lookup.
   String? _findMotorWithPendingCommand(String identifier, int commandType) {
+    // Original v1.0 / single-motor lookup — unchanged. entry.key equals the
+    // registered motorId exactly for these (never suffixed), so this always
+    // finds the match and the fallback below never runs for them.
     for (var entry in _motorDataMap.entries) {
       final motorData = entry.value;
       final matchesMac = motorData.macAddress == identifier;
@@ -2333,6 +2903,22 @@ class MqttService {
         }
       }
     }
+
+    // Payload 2.0 MULTIPLE_MOTORS groups register the pending command under
+    // the unsuffixed '<id>-<groupId>' motorId while their MotorData entries
+    // are keyed '<id>-<groupId>-m1'/'-m2', so the join above can't match
+    // there. Fall back to matching the pending command's own motorId
+    // directly — this only ever engages for that grouped case.
+    for (final entry in _pendingCommands.entries) {
+      final command = entry.value;
+      if (command.commandType != commandType) continue;
+      if (_isSameStarter(command.motorId, identifier)) {
+        debugPrint(
+            '   Found pending command match (grouped): ${command.motorId}');
+        return command.motorId;
+      }
+    }
+
     debugPrint(
         '   No pending command found for identifier=$identifier, type=$commandType');
     return null;
@@ -2360,7 +2946,8 @@ class MqttService {
 
   /// Publish a command to MQTT
   Future<void> _publishCommand(
-      String motorId, int type, int data, int seq) async {
+      String motorId, int type, int data, int seq,
+      {String? motorReference}) async {
     final lastDashIndex = motorId.lastIndexOf('-');
     if (lastDashIndex <= 0) {
       throw Exception('Invalid motorId format: $motorId');
@@ -2373,7 +2960,25 @@ class MqttService {
 
     final topic = 'peepul/$identifier/cmd';
 
-    final payload = jsonEncode({"T": type, "S": seq, "D": data});
+    // The payload version decides the shape, not the motor count: from 2.0
+    // every command targets a motor as D:{<ref>: value}, the starter's own
+    // reference on a dual-motor device, 'm1' on a single-motor one. 1.x
+    // stays flat either way. Live-data requests are the exception — the ack
+    // already returns every motor's data keyed by group, so D stays flat
+    // (1) regardless of payload version or motor count.
+    final String? effectiveRef =
+        (_usesObjectPayload(identifier) && type != topicLiveDataRequest)
+            ? ((motorReference != null && motorReference.isNotEmpty)
+                ? motorReference
+                : defaultMotorReference)
+            : null;
+
+    final dynamic dPayload =
+        effectiveRef != null ? {effectiveRef: data} : data;
+    // v1.0 firmware answers live-data-request on its own older wire number.
+    final wireType =
+        type == liveDataRequestType ? _wireType(identifier, type) : type;
+    final payload = jsonEncode({"T": wireType, "S": seq, "D": dPayload});
     final builder = MqttClientPayloadBuilder()..addString(payload);
 
     _mqttClient!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
@@ -2385,7 +2990,8 @@ class MqttService {
   void _registerPendingCommand(String motorId, int type, dynamic data, int seq,
       {String? pcbnumber,
       List<int>? expectedScheduleIds,
-      List<Map<String, dynamic>>? batchedPayloads}) {
+      List<Map<String, dynamic>>? batchedPayloads,
+      String? motorReference}) {
     final key = '${motorId}_$type';
 
     // Cancel any existing timer for this key to prevent duplicate retries.
@@ -2403,6 +3009,7 @@ class MqttService {
       pcbnumber: pcbnumber,
       expectedScheduleIds: expectedScheduleIds,
       batchedPayloads: batchedPayloads,
+      motorReference: motorReference,
     );
 
     _scheduleRetry(command);
@@ -2428,7 +3035,8 @@ class MqttService {
         command.retryCount++;
 
         try {
-          if (command.commandType == 4 && command.pcbnumber != null) {
+          if (command.commandType == topicCalibration &&
+              command.pcbnumber != null) {
             // Settings command
             await _publishDefaultSettingCommandInternal(
               command.commandData,
@@ -2438,7 +3046,8 @@ class MqttService {
             );
             debugPrint(
                 '🔄 Retry ${command.retryCount}: Settings (${command.pcbnumber})');
-          } else if ((command.commandType == 23 || command.commandType == 24) &&
+          } else if ((command.commandType == scheduleCreateCommandType ||
+                  command.commandType == topicScheduleUpdate) &&
               command.pcbnumber != null) {
             // Schedule create (23) or schedule action (24) command
             if (command.batchedPayloads != null) {
@@ -2469,13 +3078,25 @@ class MqttService {
               debugPrint(
                   '🔄 Retry ${command.retryCount}: Schedule (${command.pcbnumber})');
             }
+          } else if (command.commandType == topicDeviceFaultsClear &&
+              command.commandData is Map) {
+            // Fault clear (payload 2.0): commandData is {"m1":1,"m2":1},
+            // not an int — publish it directly instead of via _publishCommand.
+            final lastDashIndex = command.motorId.lastIndexOf('-');
+            final identifier = lastDashIndex > 0
+                ? command.motorId.substring(0, lastDashIndex)
+                : command.motorId;
+            await _publishFaultClear(
+                identifier, command.commandData, command.sequenceNumber);
+            debugPrint('🔄 Retry ${command.retryCount}: Fault Clear (${command.motorId})');
           } else {
-            // Motor control or mode change command
+            // Motor control, mode change, or test-run command
             await _publishCommand(
               command.motorId,
               command.commandType,
               command.commandData as int,
               command.sequenceNumber,
+              motorReference: command.motorReference,
             );
             debugPrint('🔄 Retry ${command.retryCount}: ${command.motorId}');
           }
@@ -2488,7 +3109,7 @@ class MqttService {
         // Max retries reached
         _pendingCommands.remove(key);
 
-        if (command.commandType == 23) {
+        if (command.commandType == scheduleCreateCommandType) {
           // Mark schedule create command as expired so late ACKs are ignored
           _expiredScheduleKeys.add(command.motorId);
           // Drop tracked publish-ids — there's no surviving ACK to consume them
@@ -2513,7 +3134,7 @@ class MqttService {
             scheduleAckTimeoutController
                 .add(command.pcbnumber ?? command.motorId);
           }
-        } else if (command.commandType == 24) {
+        } else if (command.commandType == topicScheduleUpdate) {
           // Mark schedule action command as expired so late ACKs are ignored
           _expiredActionKeys.add(command.motorId);
           command
@@ -2536,7 +3157,7 @@ class MqttService {
               'success': false,
             });
           }
-        } else if (command.commandType == 4) {
+        } else if (command.commandType == topicCalibration) {
           command
               .onMaxRetriesReached('Device Settings: No response from device');
         } else {
@@ -2553,7 +3174,12 @@ class MqttService {
               ? '${rawMotorName.substring(0, 16)}...'
               : rawMotorName;
 
-          if (command.commandType != 5) {
+          // Live-data-request retries are a best-effort background refresh
+          // ping (see _publishLiveDataRequest), not a user-initiated control
+          // command — a device that doesn't answer it shouldn't surface the
+          // same alarming error banner as a failed switch/mode command.
+          if (command.commandType != 5 &&
+              command.commandType != topicLiveDataRequest) {
             command.onMaxRetriesReached('$motorName: No response from device');
           }
         }
@@ -2578,7 +3204,7 @@ class MqttService {
   void cancelScheduleActionRetries(String identifier) {
     if (identifier.trim().isEmpty) return;
     final commandKey = 'schedule_action_$identifier';
-    _clearPendingCommand(commandKey, 24);
+    _clearPendingCommand(commandKey, topicScheduleUpdate);
     _expiredActionKeys.add(commandKey);
     commandStatusNotifier.value = null;
     debugPrint('✓ Cancelled schedule action retries for $identifier');
@@ -2591,7 +3217,7 @@ class MqttService {
   void cancelScheduleCreateRetries(String identifier) {
     if (identifier.trim().isEmpty) return;
     final commandKey = 'schedule_$identifier';
-    _clearPendingCommand(commandKey, 23);
+    _clearPendingCommand(commandKey, scheduleCreateCommandType);
     _expiredScheduleKeys.add(commandKey);
     _publishedScheduleIds.remove(commandKey);
     commandStatusNotifier.value = null;

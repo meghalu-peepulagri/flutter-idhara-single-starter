@@ -126,9 +126,16 @@ class AllLogsWidget extends StatelessWidget {
   }
 
   Widget _buildAlertCard(LogResponse log) {
-    final String text =
+    final String rawText =
         (log.message?.isNotEmpty == true ? log.message : log.description) ??
             'No description';
+    // Starter-wide logs (power on, faults) carry no motor_name — only the
+    // per-motor ones do — so a dual-motor device's log list otherwise gives
+    // no way to tell which motor a "Pump turned ON" entry is about.
+    final motorName = log.motorName?.trim();
+    final String text = (motorName != null && motorName.isNotEmpty)
+        ? '$motorName: $rawText'
+        : rawText;
     final DateTime? timestamp = log.timestamp;
     final style = _getLogTypeStyle(log.logType, log.message.toString());
 

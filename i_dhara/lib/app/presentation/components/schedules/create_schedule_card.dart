@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -112,6 +114,12 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   final List<_ScheduleEntry> _schedules = [];
   int _nextId = 1;
   final _scrollController = ScrollController();
+  // Re-evaluates saveEnabled (isStartTimeInPast) against the live clock
+  // every second, without requiring the user to touch anything else first —
+  // otherwise a picked start time that ticks into the past only gets caught
+  // on the next unrelated rebuild (e.g. tapping a field), letting a stale
+  // Save go through.
+  Timer? _liveClockTimer;
 
   // Banner stays hidden until the user taps Save with an invalid or
   // overlapping schedule. The message is captured at that moment so the banner
@@ -171,6 +179,7 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
 
   @override
   void dispose() {
+    _liveClockTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -178,6 +187,9 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
   @override
   void initState() {
     super.initState();
+    _liveClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
     final now = DateTime.now();
 
     final todayNorm = DateTime(now.year, now.month, now.day);
@@ -397,10 +409,37 @@ class MultiScheduleFormState extends State<MultiScheduleForm> {
                 s.isStartTimeInPast ||
                 s.isSingleDayCrossMidnight ||
                 s.isCyclicDurationInvalid),
+            onDisabledTap: _showMultiSaveDisabledReason,
           ),
         ],
       ),
     );
+  }
+
+  /// Tapping the greyed-out Save button previously did nothing — a schedule's
+  /// picked start time can tick into the past while the form just sits open
+  /// (no user action needed), so silence left no way to tell why. Names the
+  /// exact "Schedule N" card at fault (same numbering the cards show) instead
+  /// of a vague "one of your schedules" the user has to go hunting for.
+  void _showMultiSaveDisabledReason() {
+    for (int i = 0; i < _schedules.length; i++) {
+      final state = _schedules[i].formKey.currentState;
+      if (state == null) continue;
+      final label = 'Schedule ${i + 1}';
+      if (state.isStartTimeInPast) {
+        geterrorSnackBar('$label: start time is in the past — pick a later time.');
+        return;
+      }
+      if (state.isSingleDayCrossMidnight) {
+        geterrorSnackBar('$label: start time must be before the end time.');
+        return;
+      }
+      if (state.isCyclicDurationInvalid) {
+        geterrorSnackBar(
+            '$label: Cyclic ON + OFF time exceeds the schedule duration.');
+        return;
+      }
+    }
   }
 
   void _handleSavePressed() {
@@ -1008,6 +1047,11 @@ class ScheduleFormState extends State<ScheduleForm> {
 
   late final ValueNotifier<bool> _cyclicController;
   late final ValueNotifier<bool> _powerLossController;
+  // Re-evaluates isStartTimeInPast against the live clock every second,
+  // without requiring the user to touch anything else first — otherwise a
+  // picked start time that ticks into the past only gets caught on the next
+  // unrelated rebuild, letting a stale Save go through until then.
+  Timer? _liveClockTimer;
 
   static const _months = [
     'Jan',
@@ -1076,6 +1120,9 @@ class ScheduleFormState extends State<ScheduleForm> {
   @override
   void initState() {
     super.initState();
+    _liveClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
     final now = DateTime.now();
     final todayNorm = DateTime(now.year, now.month, now.day);
     startDate = widget.initialStartDate ?? todayNorm;
@@ -1097,8 +1144,8 @@ class ScheduleFormState extends State<ScheduleForm> {
       endMinute = widget.initialEndMinute ?? 0;
     }
     cyclicMode = widget.initialCyclicMode ?? false;
-    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? 20;
-    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? 15;
+    cyclicOnMinutes = widget.initialCyclicOnMinutes ?? _defaultCyclicMinutes;
+    cyclicOffMinutes = widget.initialCyclicOffMinutes ?? _defaultCyclicMinutes;
     powerLossRecovery = widget.initialPowerLossRecovery ?? false;
     selectedDays = widget.initialSelectedDays?.toSet() ?? {};
     _cyclicController = ValueNotifier(cyclicMode);
@@ -1176,6 +1223,7 @@ class ScheduleFormState extends State<ScheduleForm> {
 
   @override
   void dispose() {
+    _liveClockTimer?.cancel();
     _cyclicController.dispose();
     _powerLossController.dispose();
     super.dispose();
@@ -1205,11 +1253,14 @@ class ScheduleFormState extends State<ScheduleForm> {
     return counts;
   }
 
+  /// ON/OFF always fall back to this fixed value — never a split of the
+  /// schedule duration, which produced uneven pairs like 7min / 8min.
+  static const int _defaultCyclicMinutes = 5;
+
   void _clampCyclicDurations() {
-    final total = durationMinutes;
-    if (cyclicOnMinutes + cyclicOffMinutes > total) {
-      cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-      cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
+    if (cyclicOnMinutes + cyclicOffMinutes > durationMinutes) {
+      cyclicOnMinutes = _defaultCyclicMinutes;
+      cyclicOffMinutes = _defaultCyclicMinutes;
     }
   }
 
@@ -1220,14 +1271,10 @@ class ScheduleFormState extends State<ScheduleForm> {
       if (v) {
         powerLossRecovery = false;
         _powerLossController.value = false;
-        final total = durationMinutes;
-        if (cyclicOnMinutes + cyclicOffMinutes > total) {
-          cyclicOnMinutes = (total ~/ 2).clamp(5, 120);
-          cyclicOffMinutes = (total - cyclicOnMinutes).clamp(5, 120);
-        }
+        _clampCyclicDurations();
       } else {
-        cyclicOnMinutes = 20;
-        cyclicOffMinutes = 15;
+        cyclicOnMinutes = _defaultCyclicMinutes;
+        cyclicOffMinutes = _defaultCyclicMinutes;
       }
     });
     // The 5-min floor on each side means cyclic mode needs at least a 10-min
@@ -1540,6 +1587,24 @@ class ScheduleFormState extends State<ScheduleForm> {
     );
   }
 
+  /// Tapping the greyed-out Save button previously did nothing — the button
+  /// can go from enabled to disabled with no user action at all (the picked
+  /// start time ticking into the past while the form just sits open), so
+  /// silence left no way to tell why. Mirrors saveEnabled's condition order.
+  void _showSaveDisabledReason() {
+    if (isStartTimeInPast) {
+      geterrorSnackBar('Start time can\'t be in the past. Please pick a later time.');
+    } else if (isSingleDayCrossMidnight) {
+      geterrorSnackBar('Start time must be before the end time.');
+    } else if (isCyclicDurationInvalid) {
+      geterrorSnackBar('Cyclic ON + OFF time exceeds the schedule duration');
+    } else if (durationMinutes <= 0) {
+      geterrorSnackBar('Please set a valid start and end time.');
+    } else if (widget.isEditMode && !_isDirty) {
+      geterrorSnackBar('Change something before saving.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Embedded inside MultiScheduleForm — no Expanded, no bottom bar
@@ -1576,6 +1641,7 @@ class ScheduleFormState extends State<ScheduleForm> {
                 !isSingleDayCrossMidnight &&
                 !isCyclicDurationInvalid &&
                 (!widget.isEditMode || _isDirty),
+            onDisabledTap: _showSaveDisabledReason,
           ),
         ],
       ),

@@ -48,6 +48,8 @@ class MotorDetails {
   int? createdBy;
   String? aliasName;
   String? testRunCompletedAt;
+  String? motorSupportType;
+  String? motorReference;
   Location? location;
   Starter? starter;
 
@@ -60,6 +62,8 @@ class MotorDetails {
     this.createdBy,
     this.aliasName,
     this.testRunCompletedAt,
+    this.motorSupportType,
+    this.motorReference,
     this.location,
     this.starter,
   });
@@ -73,6 +77,8 @@ class MotorDetails {
         createdBy: json["created_by"],
         aliasName: json["alias_name"],
         testRunCompletedAt: json["test_run_completed_at"],
+        motorSupportType: json["motor_support_type"],
+        motorReference: json["motor_reference"],
         location: json["location"] == null
             ? null
             : Location.fromJson(json["location"]),
@@ -88,6 +94,8 @@ class MotorDetails {
         "mode": mode,
         "created_by": createdBy,
         "alias_name": aliasName,
+        "motor_support_type": motorSupportType,
+        "motor_reference": motorReference,
         "location": location?.toJson(),
         "starter": starter?.toJson(),
       };
@@ -128,6 +136,7 @@ class Starter {
   String? simNumber;
   String? deviceInstalledLocation;
   String? installationPhotoUrl;
+  String? motorSupportType;
 
   List<StarterParameter>? starterParameters;
 
@@ -146,7 +155,8 @@ class Starter {
       this.simRechargeexpiresDate,
       this.simNumber,
       this.deviceInstalledLocation,
-      this.installationPhotoUrl});
+      this.installationPhotoUrl,
+      this.motorSupportType});
 
   factory Starter.fromJson(Map<String, dynamic> json) => Starter(
         id: json["id"],
@@ -159,6 +169,7 @@ class Starter {
         power: json["power"],
         networkType: json["network_type"],
         deviceAllocation: json["device_allocation"],
+        motorSupportType: json["motor_support_type"],
         simRechargeexpiresDate: json["sim_recharge_expires_at"],
         simNumber: json["device_mobile_number"],
         deviceInstalledLocation: json["device_installed_location"],
@@ -180,6 +191,7 @@ class Starter {
         "power": power,
         "network_type": networkType,
         "device_allocation": deviceAllocation,
+        "motor_support_type": motorSupportType,
         "sim_recharge_expires_at": simRechargeexpiresDate,
         "device_mobile_number": simNumber,
         "starterParameters": starterParameters == null

@@ -138,6 +138,21 @@ class Record {
   int? priority;
   DateTime? createdAt;
   DateTime? updatedAt;
+  String? motorReference;
+  String? motorSupportType;
+  String? payloadVersion;
+
+  /// Schedule-action (T:24) payload shape. From payload version 2.0 a starter
+  /// uses the motor-scoped form even with a single motor, so the version
+  /// decides — falling back to the motor count for records that predate it.
+  bool get isMultiMotorSchedule {
+    final major =
+        int.tryParse((payloadVersion ?? '').split('.').first.trim());
+    if (major != null) return major >= 2;
+    return (motorSupportType ?? '').toUpperCase().contains('MULTI');
+  }
+
+  String get motorKey => motorReference == 'm2' ? 'm2' : 'm1';
 
   Record({
     this.id,
@@ -175,6 +190,9 @@ class Record {
     this.priority,
     this.createdAt,
     this.updatedAt,
+    this.motorReference,
+    this.motorSupportType,
+    this.payloadVersion,
   });
 
   factory Record.fromJson(Map<String, dynamic> json) => Record(
@@ -223,6 +241,9 @@ class Record {
         updatedAt: json["updated_at"] == null
             ? null
             : DateTime.parse(json["updated_at"]),
+        motorReference: json["motor_reference"],
+        motorSupportType: json["motor_support_type"],
+        payloadVersion: json["payload_version"]?.toString(),
       );
 
   Record copyWith({
@@ -273,6 +294,9 @@ class Record {
         priority: priority,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        motorReference: motorReference,
+        motorSupportType: motorSupportType,
+        payloadVersion: payloadVersion,
       );
 
   Map<String, dynamic> toJson() => {
@@ -313,6 +337,9 @@ class Record {
         "priority": priority,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
+        "motor_reference": motorReference,
+        "motor_support_type": motorSupportType,
+        "payload_version": payloadVersion,
       };
 }
 

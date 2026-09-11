@@ -111,6 +111,7 @@ class LogResponse {
   String? description;
   int? performedBy;
   DateTime? timestamp;
+  String? motorName;
 
   LogResponse({
     this.id,
@@ -121,6 +122,7 @@ class LogResponse {
     this.description,
     this.performedBy,
     this.timestamp,
+    this.motorName,
   });
 
   factory LogResponse.fromJson(Map<String, dynamic> json) => LogResponse(
@@ -134,6 +136,7 @@ class LogResponse {
         timestamp: json["timestamp"] == null
             ? null
             : DateTime.parse(json["timestamp"]),
+        motorName: json["motor_name"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -145,5 +148,6 @@ class LogResponse {
         "description": description,
         "performed_by": performedBy,
         "timestamp": timestamp?.toIso8601String(),
+        "motor_name": motorName,
       };
 }

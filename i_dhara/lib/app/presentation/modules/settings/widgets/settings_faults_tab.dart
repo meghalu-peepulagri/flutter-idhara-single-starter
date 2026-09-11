@@ -8,6 +8,7 @@ import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
 import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/data/models/settings/user_setting_limits2_model.dart';
+import 'package:i_dhara/app/data/repository/motors/motor_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/popups/default_setting_popup.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
@@ -49,10 +50,10 @@ class SettingsFaultsTab extends StatefulWidget {
   });
 
   @override
-  State<SettingsFaultsTab> createState() => _SettingsFaultsTabState();
+  State<SettingsFaultsTab> createState() => SettingsFaultsTabState();
 }
 
-class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
+class SettingsFaultsTabState extends State<SettingsFaultsTab> {
   // Order here is the order shown on screen.
   // Bit values match the device contract for `pr_flt_en`.
   static const List<_FaultDef> _defs = [
@@ -96,6 +97,44 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     _FaultDef('Current Imbalance', '', '', 128, isVisible: false, uiOrder: 99),
   ];
 
+  // Per-motor faults (multi-motor only): Dry Run(16), Over Current(32),
+  // Output Phase Failure(64) live in each motor's flt_en bitmask.
+  static const List<int> _perMotorDefIdx = [4, 5, 6];
+  static const Set<int> _perMotorBits = {16, 32, 64};
+
+  List<MotorSettingConfig> _motors = const [];
+  int _selectedMotorIdx = 0;
+  final Map<String, List<ValueNotifier<bool>>> _motorCtrls = {};
+  final Map<String, List<bool>> _motorInit = {};
+
+  /// Per-motor fault handling: the per-motor bits move out of the shared
+  /// `pr_flt_en` and into each motor's `flt_en`. A payload-version 2.0 starter
+  /// uses that split even with one motor, so the version enables it too —
+  /// but only when there is a motor config to attach the bits to, otherwise
+  /// those toggles would have nowhere to render and nowhere to publish.
+  bool get _isMulti {
+    final controller = Get.find<SettingsController>();
+    if (controller.isMultiMotorDevice) return true;
+    return controller.userSettings2.value?.starter?.usesObjectPayload == true &&
+        controller.motorConfigsForUi().isNotEmpty;
+  }
+
+  /// True only when the device really has a per-motor config the API stores
+  /// and returns. A payload-version 2.0 single-motor starter splits its faults
+  /// on the wire (m1.flt_en) but the API still keeps one flat pr_flt_en, so the
+  /// per-motor bits must stay in pr_flt_en for it — otherwise they are stripped
+  /// on save and read back as OFF.
+  bool get _hasPerMotorConfig =>
+      Get.find<SettingsController>().isMultiMotorDevice;
+
+  String _motorRef(MotorSettingConfig m, int i) =>
+      m.motorReference ?? 'm${m.motorIndex ?? (i + 1)}';
+
+  /// Base value the per-motor bits are flipped on top of. Falls back to the
+  /// device-level pr_flt_en when there is no stored per-motor flt_en.
+  int _motorBaseFltEn(int i) =>
+      _motors[i].fltEn ?? widget.settings?.prFltEn ?? 0;
+
   late List<ValueNotifier<bool>> _controllers;
   late List<bool> _initialValues;
 
@@ -111,6 +150,13 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
 
   bool _isDialogShowing = false;
   bool _isCancelled = false;
+
+  // ─── Fault clear ────────────────────────────────────────────────────────
+  VoidCallback? _faultClearListener;
+  Completer<bool>? _faultClearCompleter;
+  Timer? _faultClearAckTimer;
+  bool _isFaultClearDialogShowing = false;
+  bool _isFaultClearCancelled = false;
 
   @override
   void initState() {
@@ -144,8 +190,22 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     _mqttStreamSubscription?.cancel();
     widget.mqttService.commandStatusNotifier
         .removeListener(_onCommandStatusChanged);
+
+    _removeFaultClearListener();
+    final faultClearCompleter = _faultClearCompleter;
+    if (faultClearCompleter != null && !faultClearCompleter.isCompleted) {
+      faultClearCompleter.complete(false);
+    }
+    _faultClearCompleter = null;
+    _faultClearAckTimer?.cancel();
+
     for (final c in _controllers) {
       c.dispose();
+    }
+    for (final list in _motorCtrls.values) {
+      for (final c in list) {
+        c.dispose();
+      }
     }
     super.dispose();
   }
@@ -166,21 +226,112 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
       _defs.length,
       (i) => ValueNotifier<bool>(_initialValues[i]),
     );
-    _mergedSwitches = Listenable.merge(_controllers);
+
+    for (final list in _motorCtrls.values) {
+      for (final c in list) {
+        c.dispose();
+      }
+    }
+    _motorCtrls.clear();
+    _motorInit.clear();
+    if (_isMulti) {
+      _motors = Get.find<SettingsController>().motorConfigsForUi();
+      for (int i = 0; i < _motors.length; i++) {
+        final ref = _motorRef(_motors[i], i);
+        final fltEn = _motorBaseFltEn(i);
+        final init = [
+          for (final idx in _perMotorDefIdx) (fltEn & _defs[idx].bit) != 0
+        ];
+        _motorInit[ref] = init;
+        _motorCtrls[ref] = [for (final v in init) ValueNotifier<bool>(v)];
+      }
+      if (_selectedMotorIdx >= _motors.length) _selectedMotorIdx = 0;
+    }
+
+    final all = <ValueNotifier<bool>>[..._controllers];
+    for (final list in _motorCtrls.values) {
+      all.addAll(list);
+    }
+    _mergedSwitches = Listenable.merge(all);
   }
 
   bool get _hasChanges {
+    if (_sharedFaultsChanged) return true;
+    if (_isMulti) {
+      for (final ref in _motorCtrls.keys) {
+        final init = _motorInit[ref]!;
+        final ctrls = _motorCtrls[ref]!;
+        for (int j = 0; j < ctrls.length; j++) {
+          if (ctrls[j].value != init[j]) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// True when any of the shared (non-per-motor) toggles actually changed.
+  /// Drives whether v_flt_en/pr_flt_en is included in the MQTT publish —
+  /// a device with true per-motor config (m1/m2 own their flt_en) shouldn't
+  /// have the shared bitmask re-sent just because the user only touched one
+  /// motor's Dry Run/Over Current/Output Phase Failure toggle.
+  bool get _sharedFaultsChanged {
     for (int i = 0; i < _controllers.length; i++) {
+      if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
       if (_controllers[i].value != _initialValues[i]) return true;
     }
     return false;
   }
 
   /// Compute the bitwise `pr_flt_en` value from the current toggle states.
+  /// For multi-motor the per-motor bits live in each motor's `flt_en`, so they
+  /// are excluded from the shared `pr_flt_en`.
   int _computePrFltEn() {
     int value = 0;
     for (int i = 0; i < _defs.length; i++) {
+      // While the per-motor UI is showing, these switches are not rendered and
+      // still hold their hydrated values — never the user's edits.
+      if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
       if (_controllers[i].value) value |= _defs[i].bit;
+    }
+
+    // A payload-version 2.0 single-motor starter splits its faults on the wire
+    // (m1.flt_en) but has no multi_motor_config for the API to store them in,
+    // so they have to ride along in pr_flt_en — read from the per-motor
+    // switches the user actually toggled, not the hidden shared ones.
+    if (_isMulti && !_hasPerMotorConfig && _motors.isNotEmpty) {
+      final ctrls = _motorCtrls[_motorRef(_motors.first, 0)];
+      if (ctrls != null) {
+        for (int j = 0; j < _perMotorDefIdx.length; j++) {
+          if (ctrls[j].value) value |= _defs[_perMotorDefIdx[j]].bit;
+        }
+      }
+    }
+    return value;
+  }
+
+  bool _motorFaultsChanged(String ref) {
+    final init = _motorInit[ref];
+    final ctrls = _motorCtrls[ref];
+    if (init == null || ctrls == null) return false;
+    for (int j = 0; j < ctrls.length; j++) {
+      if (ctrls[j].value != init[j]) return true;
+    }
+    return false;
+  }
+
+  /// Build a motor's `flt_en` by flipping only the per-motor bits on top of its
+  /// original value (preserving any other bits the device already had).
+  int _computeMotorFltEn(String ref, int origFltEn) {
+    int value = origFltEn;
+    final ctrls = _motorCtrls[ref];
+    if (ctrls == null) return value;
+    for (int j = 0; j < _perMotorDefIdx.length; j++) {
+      final bit = _defs[_perMotorDefIdx[j]].bit;
+      if (ctrls[j].value) {
+        value |= bit;
+      } else {
+        value &= ~bit;
+      }
     }
     return value;
   }
@@ -188,6 +339,13 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
   void _handleCancel() {
     for (int i = 0; i < _controllers.length; i++) {
       _controllers[i].value = _initialValues[i];
+    }
+    for (final ref in _motorCtrls.keys) {
+      final init = _motorInit[ref]!;
+      final ctrls = _motorCtrls[ref]!;
+      for (int j = 0; j < ctrls.length; j++) {
+        ctrls[j].value = init[j];
+      }
     }
   }
 
@@ -248,11 +406,31 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
         _controllers[7].value ? 1 : 0;
     controller.updateSettingDto['pr_flt_en'] = prFltEn;
 
+    // Per-motor fault-enable config for the POST body (multi-motor only).
+    if (_hasPerMotorConfig) {
+      final motorsJson = <Map<String, dynamic>>[];
+      for (int i = 0; i < _motors.length; i++) {
+        final ref = _motorRef(_motors[i], i);
+        motorsJson.add({
+          'motor_id': _motors[i].motorId,
+          'motor_reference': ref,
+          'flt_en': _computeMotorFltEn(ref, _motorBaseFltEn(i)),
+        });
+      }
+      controller.pendingMultiMotorConfig = {
+        'v_flt_en': widget.settings?.multiMotorConfig?.vFltEn ?? 0,
+        'motors': motorsJson,
+      };
+    } else {
+      controller.pendingMultiMotorConfig = null;
+    }
+
     // ── Step 1: POST API (reuses existing controller method) ─────────────
     _isSnackbarShown = false;
     final priorErrorMessage = controller.errorMessage.value;
     try {
       await controller.fetchupdateSettings();
+      controller.pendingMultiMotorConfig = null;
     } catch (_) {
       _popDialog();
       if (!_isSnackbarShown) {
@@ -273,9 +451,26 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     }
 
     // ── Step 2: MQTT publish + wait for ack ───────────────────────────────
-    final payload = {
-      "dvc_c": {"pr_flt_en": prFltEn},
-    };
+    // Publish only the motor(s) whose faults actually changed.
+    // Dual-motor starters key the shared voltage-fault bitmask as
+    // v_flt_en (matches multi_motor_config.v_flt_en) — pr_flt_en is the
+    // single-motor/flat field name.
+    final dvc = <String, dynamic>{};
+    // Only include the shared bitmask when it actually changed. When there's
+    // no true per-motor config (_hasPerMotorConfig false), the per-motor
+    // toggles ride along inside this same field (see _computePrFltEn), so it
+    // must always be sent in that case — it's the only place those bits live.
+    if (!_hasPerMotorConfig || _sharedFaultsChanged) {
+      dvc[_isMulti ? "v_flt_en" : "pr_flt_en"] = prFltEn;
+    }
+    if (_isMulti) {
+      for (int i = 0; i < _motors.length; i++) {
+        final ref = _motorRef(_motors[i], i);
+        if (!_motorFaultsChanged(ref)) continue;
+        dvc[ref] = {"flt_en": _computeMotorFltEn(ref, _motorBaseFltEn(i))};
+      }
+    }
+    final payload = {"dvc_c": dvc};
 
     final completer = Completer<bool>();
     _ackCompleter = completer;
@@ -388,6 +583,122 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     _resolveAck(false);
   }
 
+  // ─── Fault clear ────────────────────────────────────────────────────────
+
+  void _removeFaultClearListener() {
+    final listener = _faultClearListener;
+    if (listener != null) {
+      widget.mqttService.faultClearResultNotifier.removeListener(listener);
+      _faultClearListener = null;
+    }
+  }
+
+  void _popFaultClearDialog() {
+    if (!mounted || !_isFaultClearDialogShowing) return;
+    _isFaultClearDialogShowing = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) navigator.pop();
+  }
+
+  /// Triggered from the header's "Fault" button (see [SettingsDeviceInfoBar]),
+  /// via the [GlobalKey] settings_page.dart holds on this state.
+  void clearFault() async {
+    final pcb = widget.pcbNumber;
+    if (pcb.isEmpty) {
+      geterrorSnackBar('Device not available');
+      return;
+    }
+
+    // Fault clear is a device-level command (T:7) — it clears the whole
+    // starter, not a single named motor, for both single- and dual-motor
+    // devices alike, so the message doesn't name a specific motor.
+    final isDualMotor = _isMulti && _motors.isNotEmpty;
+    const message = 'Clear the current faults on this device?';
+
+    _isFaultClearCancelled = false;
+    _isFaultClearDialogShowing = true;
+
+    await showDeviceSettingConfirmDialog(
+      context,
+      title: 'Clear Fault',
+      message: message,
+      yesText: 'Clear Fault',
+      showIcon: false,
+      onConfirm: () => _publishFaultClear(pcb, clearAllMotors: isDualMotor),
+    );
+    _isFaultClearDialogShowing = false;
+
+    // Cancel tapped while the ack wait was still in flight.
+    final completer = _faultClearCompleter;
+    if (completer != null && !completer.isCompleted) {
+      _isFaultClearCancelled = true;
+      completer.complete(false);
+    }
+  }
+
+  Future<void> _publishFaultClear(String pcb, {bool clearAllMotors = false}) async {
+    // publishFaultClearCommand only needs a dash to split off the identifier
+    // it publishes to — the group suffix itself is never read back.
+    final motorId = '$pcb-G01';
+    final completer = Completer<bool>();
+    _faultClearCompleter = completer;
+
+    void listener() {
+      final raw = widget.mqttService.faultClearResultNotifier.value;
+      if (raw == null) return;
+      final sep = raw.indexOf('|');
+      final clearedId = sep >= 0 ? raw.substring(0, sep) : raw;
+      if (clearedId != motorId) return;
+      if (!completer.isCompleted) completer.complete(true);
+    }
+
+    _faultClearListener = listener;
+    widget.mqttService.faultClearResultNotifier.addListener(listener);
+
+    try {
+      await widget.mqttService.publishFaultClearCommand(motorId,
+          clearAllMotors: clearAllMotors);
+    } catch (_) {
+      _removeFaultClearListener();
+      _faultClearCompleter = null;
+      _popFaultClearDialog();
+      if (mounted) geterrorSnackBar('Failed to send fault clear command');
+      return;
+    }
+
+    _faultClearAckTimer?.cancel();
+    _faultClearAckTimer = Timer(const Duration(seconds: 15), () {
+      if (!completer.isCompleted) completer.complete(false);
+    });
+
+    final success = await completer.future;
+    _faultClearAckTimer?.cancel();
+    _removeFaultClearListener();
+    _faultClearCompleter = null;
+
+    if (_isFaultClearCancelled) return;
+    _popFaultClearDialog();
+    if (!mounted) return;
+
+    if (success) {
+      getsuccessSnackBar('Fault cleared successfully');
+      try {
+        await MotorsRepositoryImpl().clearFault();
+      } catch (_) {
+        // Device-side clear already succeeded; server persistence is
+        // best-effort here.
+      }
+      if (mounted) setState(() => _isReloading = true);
+      try {
+        await widget.onRefresh();
+      } finally {
+        if (mounted) setState(() => _isReloading = false);
+      }
+    } else {
+      geterrorSnackBar('Device not responding');
+    }
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -491,15 +802,109 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
     indices.sort((a, b) => _defs[a].uiOrder.compareTo(_defs[b].uiOrder));
 
     for (int i in indices) {
-      if (_defs[i].isVisible) {
-        cards.add(_buildFaultCard(i));
-        cards.add(const SizedBox(height: 10));
+      if (!_defs[i].isVisible) continue;
+      // Per-motor faults render below the motor selector (multi-motor only).
+      if (_isMulti && _perMotorBits.contains(_defs[i].bit)) continue;
+      cards.add(_buildFaultCard(i));
+      cards.add(const SizedBox(height: 10));
+    }
+
+    if (_isMulti && _motors.isNotEmpty) {
+      if (_motors.length > 1) {
+        cards.add(_buildSelectMotor());
+        cards.add(const SizedBox(height: 14));
+      }
+
+      final ref = _motorRef(_motors[_selectedMotorIdx], _selectedMotorIdx);
+      final ctrls = _motorCtrls[ref];
+      if (ctrls != null) {
+        for (int j = 0; j < _perMotorDefIdx.length; j++) {
+          cards.add(KeyedSubtree(
+            key: ValueKey('motor_${ref}_fault_${_perMotorDefIdx[j]}'),
+            child:
+                _buildFaultCard(_perMotorDefIdx[j], controllerOverride: ctrls[j]),
+          ));
+          cards.add(const SizedBox(height: 10));
+        }
       }
     }
+
     return cards;
   }
 
-  Widget _buildFaultCard(int index) {
+  Widget _buildSelectMotor() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Motor Faults',
+            style: GoogleFonts.dmSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0A0A0A),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < _motors.length; i++) _motorRadio(i),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _motorRadio(int index) {
+    final ref = _motorRef(_motors[index], index).toUpperCase();
+    final selected = index == _selectedMotorIdx;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _selectedMotorIdx = index),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 20,
+              color: selected ? const Color(0xFF2F80ED) : Colors.grey,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              ref,
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0A0A0A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildFaultCard(int index, {ValueNotifier<bool>? controllerOverride}) {
+    final ctrl = controllerOverride ?? _controllers[index];
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -553,7 +958,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                     ),
                     const SizedBox(width: 8),
                     ValueListenableBuilder<bool>(
-                      valueListenable: _controllers[index],
+                      valueListenable: ctrl,
                       builder: (context, isOn, _) {
                         return GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -571,7 +976,7 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                                 },
                               );
                               if (result == true) {
-                                _controllers[index].value = true;
+                                ctrl.value = true;
                               }
                             } else if (isOn &&
                                 _defs[index].offDescription.isNotEmpty) {
@@ -587,17 +992,17 @@ class _SettingsFaultsTabState extends State<SettingsFaultsTab> {
                                 },
                               );
                               if (result == true) {
-                                _controllers[index].value = false;
+                                ctrl.value = false;
                               }
                             } else {
-                              _controllers[index].value = !isOn;
+                              ctrl.value = !isOn;
                             }
                           },
                           child: AbsorbPointer(
                             absorbing: true,
                             child: AdvancedSwitch(
                               key: ValueKey('fault_switch_${index}_$isOn'),
-                              controller: _controllers[index],
+                              controller: ctrl,
                               initialValue: isOn,
                               activeColor: const Color(0xFF27AE60),
                               inactiveColor: const Color(0xFFBDBDBD),

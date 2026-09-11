@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/core/flutter_flow/flutter_flow_util.dart';
+import 'package:i_dhara/app/data/models/devices/motor_control_model.dart';
 import 'package:i_dhara/app/data/models/devices/motor_model.dart';
+import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 import 'package:i_dhara/app/presentation/components/motor_card/motor_card_dialogs.dart';
@@ -74,12 +76,26 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
   }
 
   void _onFaultClearResult() async {
-    final clearedMotorId = widget.mqttService.faultClearResultNotifier.value;
-    if (clearedMotorId == null || !mounted) return;
+    final raw = widget.mqttService.faultClearResultNotifier.value;
+    if (raw == null || !mounted) return;
+
+    // Value is '<motorId>|<motorReference>' — every card in a
+    // MULTIPLE_MOTORS group resolves to the same motorId (see _getMotorId),
+    // so the reference tells m1 and m2 apart when only one of them was
+    // actually cleared.
+    final sep = raw.indexOf('|');
+    final clearedMotorId = sep >= 0 ? raw.substring(0, sep) : raw;
+    final clearedRef = sep >= 0 ? raw.substring(sep + 1) : '';
 
     // Check if this ACK is for our motor
     final ourMotorId = _getMotorId();
     if (clearedMotorId != ourMotorId) return;
+
+    if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS' &&
+        clearedRef.isNotEmpty) {
+      final myRef = widget.motor.motorReference ?? 'm1';
+      if (clearedRef != myRef) return;
+    }
 
     _isWaitingForFaultClear = false;
     setState(() {});
@@ -140,6 +156,37 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     return formatted;
   }
 
+  /// Shows the same red "No response from device" banner the single-motor
+  /// MQTT retry ladder shows, for the MULTIPLE_MOTORS REST path — which has
+  /// no retry ladder of its own and previously reverted silently when the
+  /// backend reported the command wasn't acked.
+  void _showNoResponseSnackBar() {
+    if (!mounted) return;
+    final motorName = _formatMotorName(widget.motor.aliasName ?? 'Motor');
+    showTopSnackBar(
+      Overlay.of(context),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0XFFDB3B2A),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          '$motorName: No response from device',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            decoration: TextDecoration.none,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      displayDuration: const Duration(seconds: 4),
+    );
+  }
+
   void _onCommandStatusChanged() {
     final message = widget.mqttService.commandStatusNotifier.value;
     if (message != null && mounted) {
@@ -196,9 +243,14 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     final pcb = widget.motor.starter!.pcbNumber;
     MotorData? bestData;
     DateTime? bestTime;
+    final ref = widget.motor.motorReference;
     for (var entry in widget.mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
+      if (ref != null &&
+          ref.isNotEmpty &&
+          data.motorReference != null &&
+          data.motorReference != ref) continue;
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -330,11 +382,16 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     );
   }
 
-  /// Send fault clear command with retry logic
+  /// Send fault clear command with retry logic. Waits for the real device
+  /// ACK (via faultClearResultNotifier / _onFaultClearResult) before
+  /// treating the fault as cleared — for single- and multi-motor starters
+  /// alike.
   Future<void> _sendFaultClearCommand(String motorId) async {
     setState(() => _isWaitingForFaultClear = true);
+
     try {
-      await widget.mqttService.publishFaultClearCommand(motorId);
+      await widget.mqttService.publishFaultClearCommand(motorId,
+          motorReference: widget.motor.motorReference);
     } catch (e) {
       if (mounted) {
         setState(() => _isWaitingForFaultClear = false);
@@ -351,6 +408,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
     _localSwitchController.value = newValue;
     _hasPendingSwitchCommand = true;
     _pendingSwitchValue = newValue;
+
+    if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS') {
+      await _executeMultiMotorSwitchCommand(previousValue, newValue);
+      return;
+    }
+
     _startSwitchAckTimer(previousValue);
     try {
       await widget.mqttService.publishMotorCommand(motorId, newValue ? 1 : 0);
@@ -361,6 +424,51 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _pendingSwitchValue = null;
       if (mounted) setState(() => _isWaitingForSwitchAck = false);
     }
+  }
+
+  Future<void> _executeMultiMotorSwitchCommand(
+      bool previousValue, bool newValue) async {
+    final starterId = widget.motor.starter?.id;
+    final numericMotorId = widget.motor.id;
+    if (starterId == null || numericMotorId == null) {
+      _revertMultiMotorSwitch(previousValue);
+      return;
+    }
+    try {
+      final response = await DevicesRepositoryImpl().controlMotors(
+        starterId,
+        MotorControlRequest(
+          motors: [
+            MotorControlItem(motorId: numericMotorId, state: newValue ? 1 : 0),
+          ],
+        ),
+      );
+      MotorControlResult? result;
+      for (final r in response?.results ?? <MotorControlResult>[]) {
+        if (r.motorId == numericMotorId) {
+          result = r;
+          break;
+        }
+      }
+      if (result?.acked == true) {
+        _hasPendingSwitchCommand = false;
+        _pendingSwitchValue = null;
+        if (mounted) setState(() => _isWaitingForSwitchAck = false);
+      } else {
+        _revertMultiMotorSwitch(previousValue);
+        _showNoResponseSnackBar();
+      }
+    } catch (e) {
+      _revertMultiMotorSwitch(previousValue);
+      _showNoResponseSnackBar();
+    }
+  }
+
+  void _revertMultiMotorSwitch(bool previousValue) {
+    _localSwitchController.value = previousValue;
+    _hasPendingSwitchCommand = false;
+    _pendingSwitchValue = null;
+    if (mounted) setState(() => _isWaitingForSwitchAck = false);
   }
 
   int? _getSimplifiedModeIndex(String motorMode) {
@@ -396,6 +504,12 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       _localModeController.value = confirmedMode;
       _hasPendingModeCommand = true;
       _pendingModeValue = confirmedMode;
+
+      if (widget.motor.starter?.motorSupportType == 'MULTIPLE_MOTORS') {
+        await _executeMultiMotorModeCommand(previousMode, confirmedMode);
+        return;
+      }
+
       _startModeAckTimer(previousMode);
 
       try {
@@ -412,6 +526,64 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         if (mounted) setState(() => _isWaitingForModeAck = false);
       }
     });
+  }
+
+  String? _modeIndexToApiString(int modeIndex) {
+    switch (modeIndex) {
+      case 0:
+        return 'MANUAL';
+      case 1:
+        return 'AUTO';
+      case 2:
+        return 'SCHEDULE';
+    }
+    return null;
+  }
+
+  Future<void> _executeMultiMotorModeCommand(
+      int previousMode, int newMode) async {
+    final starterId = widget.motor.starter?.id;
+    final numericMotorId = widget.motor.id;
+    final modeStr = _modeIndexToApiString(newMode);
+    if (starterId == null || numericMotorId == null || modeStr == null) {
+      _revertMultiMotorMode(previousMode);
+      return;
+    }
+    try {
+      final response = await DevicesRepositoryImpl().changeMotorsMode(
+        starterId,
+        MotorModeRequest(
+          motors: [MotorModeItem(motorId: numericMotorId, mode: modeStr)],
+        ),
+      );
+      MotorModeResult? result;
+      for (final r in response?.results ?? <MotorModeResult>[]) {
+        if (r.motorId == numericMotorId) {
+          result = r;
+          break;
+        }
+      }
+      if (result?.acked == true) {
+        _hasPendingModeCommand = false;
+        _pendingModeValue = null;
+        if (mounted) setState(() => _isWaitingForModeAck = false);
+        final status = result?.ackStatus;
+        if (status != null && status.isNotEmpty) getsuccessSnackBar(status);
+      } else {
+        _revertMultiMotorMode(previousMode);
+        _showNoResponseSnackBar();
+      }
+    } catch (e) {
+      _revertMultiMotorMode(previousMode);
+      _showNoResponseSnackBar();
+    }
+  }
+
+  void _revertMultiMotorMode(int previousMode) {
+    _localModeController.value = previousMode;
+    _hasPendingModeCommand = false;
+    _pendingModeValue = null;
+    if (mounted) setState(() => _isWaitingForModeAck = false);
   }
 
   bool _canControlMotor(MotorData? motorData) {
@@ -488,8 +660,10 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
         final groupId = _getMotorGroupId(identifier);
         final mqttMotorId = '$identifier-$groupId';
 
-        await widget.mqttService
-            .publishTestRunCommand(mqttMotorId, 1, data: 1, type: 5);
+        await widget.mqttService.publishTestRunCommand(mqttMotorId, 1,
+            data: 1,
+            type: MqttService.topicLiveDataRequest,
+            motorReference: widget.motor.motorReference);
       }
     } catch (e) {
       // ignore
@@ -571,11 +745,17 @@ class _MotorCardWidgetState extends State<MotorCardWidget> {
       valueListenable: widget.mqttService.dataUpdateNotifier,
       builder: (context, _, __) {
         final motorData = _getMotorData();
-        final canControl = _canControlMotor(motorData);
-        final canChangeMode =
-            (!_isMotorAvailable() || _getSignalBars(motorData) == 0)
-                ? false
-                : true;
+        // Bypass means the starter's own protection is manually overridden —
+        // the dashboard card is view-only while that's active, no remote
+        // switch/mode control.
+        final isBypassMode =
+            (widget.motor.mode ?? '').toUpperCase() == 'BYPASS';
+        final canControl = _canControlMotor(motorData) && !isBypassMode;
+        final canChangeMode = (!_isMotorAvailable() ||
+                _getSignalBars(motorData) == 0 ||
+                isBypassMode)
+            ? false
+            : true;
 
         if (motorData?.hasReceivedData == true) {
           // Sync Switch

@@ -74,15 +74,24 @@ class _MotorControlsRowState extends State<MotorControlsRow> {
                 ValueListenableBuilder<int>(
                   valueListenable: widget.modeController,
                   builder: (context, modeIndex, _) {
+                    // Bypass has no slot in modeController's 0/1/2 (Manual/
+                    // Auto/Schedule) index, so it silently fell back to
+                    // Auto — hiding that the motor's protection is bypassed.
+                    // Check the raw mode string first so it always shows.
+                    final isBypass =
+                        (widget.motor.mode ?? '').toUpperCase() == 'BYPASS';
                     final isAuto = modeIndex == 1;
                     final isSchedule = modeIndex == 2;
-                    final String modeText =
-                        isSchedule ? 'Schedule' : (isAuto ? 'Auto' : 'Manual');
-                    final Color chipColor = isSchedule
-                        ? const Color(0xFF2E7D32)
-                        : (isAuto
-                            ? const Color(0xFFFFA500)
-                            : const Color(0xFF2F80ED));
+                    final String modeText = isBypass
+                        ? 'Bypass'
+                        : (isSchedule ? 'Schedule' : (isAuto ? 'Auto' : 'Manual'));
+                    final Color chipColor = isBypass
+                        ? const Color(0xFFDB3B2A)
+                        : (isSchedule
+                            ? const Color(0xFF2E7D32)
+                            : (isAuto
+                                ? const Color(0xFFFFA500)
+                                : const Color(0xFF2F80ED)));
 
                     return Container(
                       decoration: BoxDecoration(

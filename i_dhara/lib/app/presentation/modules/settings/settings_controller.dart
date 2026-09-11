@@ -3,8 +3,10 @@ import 'package:get/get.dart';
 import 'package:i_dhara/app/core/mixins/connectivity_mixin.dart';
 import 'package:i_dhara/app/data/models/settings/user_settings_limits_model.dart';
 import 'package:i_dhara/app/data/repository/settings/settings_repo_impl.dart';
+import 'package:i_dhara/app/data/services/storages/shared_preference.dart';
 
 import '../../../core/utils/mqtt_utils.dart';
+import '../../../data/services/mqtt_manager/mqtt_service.dart';
 import '../../../data/dto/device_setting_dto.dart';
 import '../../../data/models/settings/user_setting_limits2_model.dart';
 
@@ -16,6 +18,9 @@ class SettingsController extends GetxController with ConnectivityMixin {
   // ✅ Typed reactive map
   final RxMap<String, dynamic> updateSettingDto = <String, dynamic>{}.obs;
   Map<String, dynamic> defaultSettingspayload = {};
+
+  // Per-motor config to attach to the POST body for multi-motor saves.
+  Map<String, dynamic>? pendingMultiMotorConfig;
 
   var lvf = 0.obs;
   var hvf = 0.obs;
@@ -44,6 +49,45 @@ class SettingsController extends GetxController with ConnectivityMixin {
   // Removed local connectivity logic, handled by ConnectivityMixin and ConnectivityService
   bool mqttInitialized = false;
   var flc = 0.0.obs;
+  var asDly = 0.obs;
+
+  /// Star-delta changeover time (multi_motor_config.sd_time). Only meaningful
+  /// when the starter reports motor_starter_type STAR_DELTA.
+  var sdTime = 0.obs;
+
+  int get sdTimeMin => data.value?.startTimeMin ?? 0;
+  int get sdTimeMax => data.value?.startTimeMax ?? 0;
+
+  bool get isStarDelta =>
+      (userSettings2.value?.starter?.motorStarterType ?? '')
+          .toUpperCase()
+          .replaceAll(' ', '_') ==
+      'STAR_DELTA';
+
+  // Per-motor FLC (multi-motor), keyed by motor_reference.
+  final RxMap<String, double> motorFlc = <String, double>{}.obs;
+
+  // Frozen at load time, before any edits. motorConfigsForUi() falls back to
+  // the shared flc.value for motors the API omits from multi_motor_config,
+  // and flc.value is mutated on every edit/tab switch — reading the
+  // "original" straight from motorConfigsForUi() at save time would then
+  // report whatever motor was last edited instead of this motor's true
+  // original.
+  final Map<String, double> _originalMotorFlc = {};
+
+  void initMotorFlc() {
+    motorFlc.clear();
+    _originalMotorFlc.clear();
+    for (final m in motorConfigsForUi()) {
+      final ref = m.motorReference ?? 'm${m.motorIndex ?? ''}';
+      if (ref.isEmpty) continue;
+      final val = (m.flc ?? 0).toDouble();
+      motorFlc[ref] = val;
+      _originalMotorFlc[ref] = val;
+    }
+  }
+
+  double originalMotorFlc(String ref) => _originalMotorFlc[ref] ?? 0.0;
 
   @override
   Future<void> onRetry() async {
@@ -113,6 +157,17 @@ class SettingsController extends GetxController with ConnectivityMixin {
         macAddress.value = response.data?.starter?.macAddress ?? '';
         flc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
         orignolFlc.value = userSettings2.value?.flc?.toDouble() ?? 0.0;
+        asDly.value = userSettings2.value?.asDly ?? 0;
+        sdTime.value =
+            (userSettings2.value?.multiMotorConfig?.sdTime ?? 0).toInt();
+
+        initMotorFlc();
+        if (isMultiMotorDevice) {
+          final configs = motorConfigsForUi();
+          if (configs.isNotEmpty) {
+            flc.value = (configs.first.flc ?? 0).toDouble();
+          }
+        }
         lvf.value = userSettings2.value?.lvf?.toInt() ?? 0;
         hvf.value = userSettings2.value?.hvf?.toInt() ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
@@ -150,6 +205,126 @@ class SettingsController extends GetxController with ConnectivityMixin {
     return newRes;
   }
 
+  bool get isMultiMotor =>
+      (userSettings2.value?.multiMotorConfig?.motors?.isNotEmpty ?? false);
+
+  bool get isMultiMotorDevice =>
+      SharedPreference.getIsMultiMotor() || isMultiMotor;
+
+  /// Layout only. A payload-version 2.0 single-motor starter also returns a
+  /// multi_motor_config (one entry), so [isMultiMotorDevice] is true for it and
+  /// the save/POST correctly takes the multi path — but the screen must stay
+  /// the single-motor one. Motor count, not protocol, decides what is drawn.
+  bool get hasMultipleMotors => motorConfigsForUi().length > 1;
+
+  /// Payload version 2.0 renamed the start-delay key in dvc_c. 1.x keeps the
+  /// old name, so old single-motor starters are unaffected.
+  bool get usesObjectPayload =>
+      userSettings2.value?.starter?.usesObjectPayload == true;
+
+  String get startDelayKey => usesObjectPayload ? 'on_dly' : 'as_dly';
+
+  /// True when any motor on this starter is currently reporting an active
+  /// fault (`starter.motors[].fault.is_faulted`). Drives whether the header
+  /// "Fault" button is shown at all.
+  bool get hasActiveFault =>
+      (userSettings2.value?.starter?.motors ?? const [])
+          .any((m) => m.fault?.isFaulted == true);
+
+  String headerTitle() {
+    if (isMultiMotorDevice) {
+      final sn = SharedPreference.getStarterNumber();
+      if (sn.trim().isNotEmpty) return '#$sn';
+    }
+    return pumpName.value;
+  }
+
+  List<MotorSettingConfig> orderedMotorConfigs() {
+    final motors = List<MotorSettingConfig>.from(
+        userSettings2.value?.multiMotorConfig?.motors ?? const []);
+    motors.sort(
+        (a, b) => (a.motorIndex ?? 99).compareTo(b.motorIndex ?? 99));
+    return motors;
+  }
+
+  // One config per starter motor (the reliable motor list). Uses the real
+  // per-motor config when present, else falls back to the flat limits so a
+  // multi-motor device always shows every motor even if the settings API
+  // omits multi_motor_config for some motors.
+  List<MotorSettingConfig> motorConfigsForUi() {
+    final configs = orderedMotorConfigs();
+    final starterMotors = userSettings2.value?.starter?.motors ?? const [];
+
+    if (starterMotors.isEmpty) return configs;
+    if (configs.length >= starterMotors.length) return configs;
+
+    final byId = {for (final c in configs) c.motorId: c};
+    final result = <MotorSettingConfig>[];
+    for (var i = 0; i < starterMotors.length; i++) {
+      final sm = starterMotors[i];
+      final existing = byId[sm.id];
+      if (existing != null) {
+        result.add(existing);
+      } else {
+        result.add(MotorSettingConfig(
+          motorId: sm.id,
+          motorIndex: i + 1,
+          motorReference: 'm${i + 1}',
+          drf: drf.value,
+          olf: olf.value,
+          flc: flc.value,
+        ));
+      }
+    }
+    return result;
+  }
+
+  String? currentMotorReference() {
+    final motors = userSettings2.value?.multiMotorConfig?.motors;
+    if (motors == null || motors.isEmpty) {
+      // A payload-version 2.0 single-motor starter has no per-motor config but
+      // still expects dvc_c scoped under m1, exactly like a dual-motor one.
+      // 1.x returns null here and keeps publishing the flat payload.
+      return userSettings2.value?.starter?.usesObjectPayload == true
+          ? MqttService.defaultMotorReference
+          : null;
+    }
+    final currentMotorId = SharedPreference.getMotorId();
+    for (final m in motors) {
+      if (m.motorId == currentMotorId) return m.motorReference;
+    }
+    return motors.first.motorReference;
+  }
+
+  /// Keys that stay at device level; everything else nests under the motor.
+  /// Mirrors how the dual-motor save splits them: voltage + timing are shared,
+  /// current/FLC are per motor.
+  static const List<String> _deviceLevelSettingKeys = [
+    'on_dly',
+    'as_dly',
+    'sd_time',
+    'lvf',
+    'hvf',
+    'lvr',
+    'hvr',
+  ];
+
+  void wrapPayloadForMultiMotor(Map<String, dynamic> payload) {
+    final ref = currentMotorReference();
+    if (ref == null || ref.isEmpty) return;
+    final dvc = payload["dvc_c"];
+    if (dvc is! Map<String, dynamic>) return;
+    final deviceLevel = <String, dynamic>{};
+    for (final k in _deviceLevelSettingKeys) {
+      if (dvc.containsKey(k)) deviceLevel[k] = dvc.remove(k);
+    }
+    if (dvc.isEmpty) {
+      payload["dvc_c"] = deviceLevel;
+      return;
+    }
+    payload["dvc_c"] = {...deviceLevel, ref: dvc};
+  }
+
   Future<void> fetchUserSettingsLimits() async {
     try {
       final response = await SettingsRepositoryImpl().getSettingsLimits();
@@ -185,6 +360,16 @@ class SettingsController extends GetxController with ConnectivityMixin {
       updateSettingDto['lvr'] = lvr.value;
       updateSettingDto['hvr'] = hvr.value;
       updateSettingDto['flc'] = flc.value;
+      updateSettingDto['as_dly'] = asDly.value;
+      if (isMultiMotorDevice && isStarDelta) {
+        updateSettingDto['start_time'] = sdTime.value;
+      }
+
+      if (isMultiMotorDevice && pendingMultiMotorConfig != null) {
+        updateSettingDto['multi_motor_config'] = pendingMultiMotorConfig;
+      } else {
+        updateSettingDto.remove('multi_motor_config');
+      }
 
       UserUpdateSettingsDto dto =
           UserUpdateSettingsDto.fromJson(updateSettingDto);
@@ -203,45 +388,113 @@ class SettingsController extends GetxController with ConnectivityMixin {
       isLoading.value = true;
       final res = await SettingsRepositoryImpl().getDefaultSettings();
       if (res?.status == 200 || res?.status == 201) {
+        // Capture motor count before the generic default overwrites userSettings2.
+        final int motorCount = motorConfigsForUi().length;
+        final bool multi = isMultiMotorDevice;
+        final origConfig = userSettings2.value?.multiMotorConfig;
+        final origStarter = userSettings2.value?.starter;
         userSettings2.value = res?.data;
+        // The generic default has no per-motor config — keep the device's motor
+        // structure so the multi-motor UI keeps rendering after "Default".
+        if (multi) {
+          userSettings2.value?.multiMotorConfig = origConfig;
+          userSettings2.value?.starter = origStarter;
+        } else {
+          // The generic default carries no starter, so payload_version would be
+          // lost here — and wrapPayloadForMultiMotor below needs it to know a
+          // 2.0 single-motor starter wants dvc_c scoped under m1. Restore it
+          // only when the response didn't bring its own.
+          userSettings2.value?.starter ??= origStarter;
+        }
         macAddress.value = res?.data?.starter?.macAddress ?? '';
         lvf.value = userSettings2.value?.lvf ?? 0;
         hvf.value = userSettings2.value?.hvf ?? 0;
         drf.value = userSettings2.value?.drf?.toInt() ?? 0;
         olf.value = userSettings2.value?.olf?.toInt() ?? 0;
+        asDly.value = userSettings2.value?.asDly ?? 0;
         final data = userSettings2.value;
         final hvr = (data?.hvf?.toDouble() ?? 0) - 10;
         final lvr = (data?.lvf?.toDouble() ?? 0) + 10;
 
-        defaultSettingspayload = {
-          "dvc_c": {
-            "allflt_en": data?.allfltEn ?? 0,
+        // Payload version 2.0 uses this motor-scoped shape whether the starter
+        // drives one motor or two — a single-motor 2.0 device just gets m1 and
+        // n_mtr 1. Only 1.x falls through to the flat payload below.
+        final bool objectPayload =
+            multi || userSettings2.value?.starter?.usesObjectPayload == true;
+
+        if (objectPayload) {
+          final flcVal = data?.flc?.toDouble() ?? 0;
+          final perMotor = <String, dynamic>{
+            "flt_en": data?.prFltEn ?? 0,
             "flc": data?.flc ?? 0,
-            "as_dly": data?.asDly,
-            "ipf": data?.ipf ?? 0,
-            "lvf": data?.lvf ?? 0,
-            "hvf": data?.hvf ?? 0,
-            "vif": data?.vif ?? 0,
-            "paminf": data?.paminf ?? 0,
-            "pamaxf": data?.pamaxf ?? 0,
-            "lvr": lvr ?? 0.0,
-            "hvr": hvr ?? 0.0,
-            "drf": calculatedFlc(
-                data?.drf?.toDouble() ?? 0, data!.flc!.toDouble()),
-            "olf":
-                calculatedFlc(data.olf?.toDouble() ?? 0, data.flc!.toDouble()),
-            "lrf":
-                calculatedFlc(data.lrf?.toDouble() ?? 0, data.flc!.toDouble()),
-            "opf": data.opf ?? 0,
-            "cif": data.cir ?? 0,
-            "olr":
-                calculatedFlc(data.olr?.toDouble() ?? 0, data.flc!.toDouble()),
-            "lrr":
-                calculatedFlc(data.lrr?.toDouble() ?? 0, data.flc!.toDouble()),
-            "cir": data.cir ?? 0,
-            "pr_flt_en": data.prFltEn ?? 0
+            "drf": calculatedFlc(data?.drf?.toDouble() ?? 0, flcVal),
+            "olf": calculatedFlc(data?.olf?.toDouble() ?? 0, flcVal),
+            "lrf": calculatedFlc(data?.lrf?.toDouble() ?? 0, flcVal),
+            "opf": data?.opf ?? 0,
+            "cif": data?.cif ?? 0,
+          };
+          defaultSettingspayload = {
+            "dvc_c": {
+              "allflt_en": data?.allfltEn ?? 0,
+              "n_mtr": motorCount > 0 ? motorCount : 1,
+              "on_dly": data?.asDly,
+              "ipf": data?.ipf ?? 0,
+              "lvf": data?.lvf ?? 0,
+              "hvf": data?.hvf ?? 0,
+              "vif": data?.vif ?? 0,
+              "m1": perMotor,
+              if (multi) "m2": Map<String, dynamic>.from(perMotor),
+            }
+          };
+
+          // Reflect the same default values in each motor of the UI list so the
+          // screen matches the published payload (drf/olf stored as amps).
+          final uiMotors = userSettings2.value?.multiMotorConfig?.motors;
+          if (uiMotors != null) {
+            for (final m in uiMotors) {
+              m.flc = data?.flc;
+              m.drf = perMotor['drf'] as num?;
+              m.olf = perMotor['olf'] as num?;
+              m.lrf = perMotor['lrf'] as num?;
+              m.opf = data?.opf;
+              m.cif = data?.cif;
+              m.fltEn = data?.prFltEn;
+            }
           }
-        };
+          initMotorFlc();
+        } else {
+          defaultSettingspayload = {
+            "dvc_c": {
+              "allflt_en": data?.allfltEn ?? 0,
+              "flc": data?.flc ?? 0,
+              "as_dly": data?.asDly,
+              "ipf": data?.ipf ?? 0,
+              "lvf": data?.lvf ?? 0,
+              "hvf": data?.hvf ?? 0,
+              "vif": data?.vif ?? 0,
+              "paminf": data?.paminf ?? 0,
+              "pamaxf": data?.pamaxf ?? 0,
+              "lvr": lvr ?? 0.0,
+              "hvr": hvr ?? 0.0,
+              "drf": calculatedFlc(
+                  data?.drf?.toDouble() ?? 0, data!.flc!.toDouble()),
+              "olf": calculatedFlc(
+                  data.olf?.toDouble() ?? 0, data.flc!.toDouble()),
+              "lrf": calculatedFlc(
+                  data.lrf?.toDouble() ?? 0, data.flc!.toDouble()),
+              "opf": data.opf ?? 0,
+              "cif": data.cir ?? 0,
+              "olr": calculatedFlc(
+                  data.olr?.toDouble() ?? 0, data.flc!.toDouble()),
+              "lrr": calculatedFlc(
+                  data.lrr?.toDouble() ?? 0, data.flc!.toDouble()),
+              "cir": data.cir ?? 0,
+              "pr_flt_en": data.prFltEn ?? 0
+            }
+          };
+
+          wrapPayloadForMultiMotor(defaultSettingspayload);
+        }
 
         updateSettingDto.assignAll(res!.data!.toJson());
         updateSettingDto.removeWhere((key, value) =>

@@ -117,7 +117,13 @@ class Devices {
   String? deviceInstalledLocation;
   String? installationPhotoKey;
   String? installationPhotoUrl;
+  String? motorSupportType;
+  String? payloadVersion;
+  String? starterType;
   List<Motor>? motors;
+
+  bool get isMultiMotor =>
+      (motorSupportType ?? '').toUpperCase().contains('MULTI');
 
   Devices(
       {this.id,
@@ -134,7 +140,10 @@ class Devices {
       this.simRechargeExpire,
       this.deviceInstalledLocation,
       this.installationPhotoKey,
-      this.installationPhotoUrl});
+      this.installationPhotoUrl,
+      this.motorSupportType,
+      this.payloadVersion,
+      this.starterType});
 
   factory Devices.fromJson(Map<String, dynamic> json) => Devices(
         id: json["id"],
@@ -151,6 +160,9 @@ class Devices {
         deviceInstalledLocation: json["device_installed_location"],
         installationPhotoKey: json["installation_photo_key"],
         installationPhotoUrl: json["installation_photo_url"],
+        motorSupportType: json["motor_support_type"],
+        payloadVersion: json["payload_version"]?.toString(),
+        starterType: json["starter_type"],
         motors: json["motors"] == null
             ? []
             : List<Motor>.from(json["motors"]!.map((x) => Motor.fromJson(x))),
@@ -171,6 +183,9 @@ class Devices {
         "device_installed_location": deviceInstalledLocation,
         "installation_photo_key": installationPhotoKey,
         "installation_photo_url": installationPhotoUrl,
+        "motor_support_type": motorSupportType,
+        "payload_version": payloadVersion,
+        "starter_type": starterType,
         "motors": motors == null
             ? []
             : List<dynamic>.from(motors!.map((x) => x.toJson())),
@@ -187,6 +202,8 @@ class Motor {
   Location? location;
   String? testrunStatus;
   String? testRunCompletedAt;
+  int? motorIndex;
+  String? motorReference;
 
   Motor({
     this.id,
@@ -198,6 +215,8 @@ class Motor {
     this.location,
     this.testrunStatus,
     this.testRunCompletedAt,
+    this.motorIndex,
+    this.motorReference,
   });
 
   factory Motor.fromJson(Map<String, dynamic> json) => Motor(
@@ -212,6 +231,8 @@ class Motor {
             : Location.fromJson(json["location"]),
         testrunStatus: json["test_run_status"],
         testRunCompletedAt: json["test_run_completed_at"],
+        motorIndex: json["motor_index"],
+        motorReference: json["motor_reference"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -224,6 +245,8 @@ class Motor {
         "location": location?.toJson(),
         "test_run_status": testrunStatus,
         "test_run_completed_at": testRunCompletedAt,
+        "motor_index": motorIndex,
+        "motor_reference": motorReference,
       };
 }
 

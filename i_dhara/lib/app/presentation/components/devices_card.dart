@@ -21,9 +21,17 @@ import '../../core/utils/mqtt_utils.dart';
 
 class DevicesCard extends StatelessWidget {
   final Devices device;
+  final Motor? motor;
   final MqttService mqttService;
+  final bool compact;
 
-  DevicesCard({super.key, required this.device, required this.mqttService});
+  DevicesCard({
+    super.key,
+    required this.device,
+    this.motor,
+    required this.mqttService,
+    this.compact = false,
+  });
 
   final DevicesController controller = Get.find<DevicesController>();
 
@@ -85,7 +93,16 @@ class DevicesCard extends StatelessWidget {
           hasLocation: hasLocation,
           onRename: () {
             Navigator.pop(context);
-            _showRenameBottomSheet(context, motor);
+            if (device.isMultiMotor) {
+              // The bottom sheet we just popped is on its way out — reusing
+              // its context to open another sheet (let alone a third one,
+              // after the picker itself closes) can hit a torn-down Element.
+              // Get.context is the app's live navigator context instead.
+              _showMotorPickerBottomSheet(
+                  Get.context!, _showRenameBottomSheet);
+            } else {
+              _showRenameBottomSheet(context, motor);
+            }
           },
           onReplace: () {
             Navigator.pop(context);
@@ -97,8 +114,114 @@ class DevicesCard extends StatelessWidget {
           },
           onTestRun: () {
             Navigator.pop(context);
-            _navigateToTestRun(motor);
+            if (device.isMultiMotor) {
+              _showMotorPickerBottomSheet(
+                  Get.context!, (ctx, m) => _navigateToTestRun(m));
+            } else {
+              _navigateToTestRun(motor);
+            }
           },
+        );
+      },
+    );
+  }
+
+  /// "Motor 1" / "Motor 2" from a motor's position/reference on a dual-motor
+  /// starter — used to label the picker rows below.
+  String _motorSlotLabel(Motor motor, int fallbackIndex) {
+    if (motor.motorReference == 'm2') return 'Motor 2';
+    if (motor.motorReference == 'm1') return 'Motor 1';
+    if (motor.motorIndex == 2) return 'Motor 2';
+    if (motor.motorIndex == 1) return 'Motor 1';
+    return 'Motor $fallbackIndex';
+  }
+
+  /// For a MULTIPLE_MOTORS starter, Rename/Test Run open this picker first
+  /// so the user explicitly chooses Motor 1 or Motor 2 before the actual
+  /// action sheet/dialog opens — instead of guessing from whichever slot was
+  /// tapped.
+  void _showMotorPickerBottomSheet(
+      BuildContext context, void Function(BuildContext, Motor) onSelected) {
+    final motors = List<Motor>.from(device.motors ?? const [])
+      ..sort((a, b) => (a.motorIndex ?? 99).compareTo(b.motorIndex ?? 99));
+    if (motors.isEmpty) return;
+    if (motors.length == 1) {
+      onSelected(context, motors.first);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0E0E0),
+                  borderRadius: BorderRadius.circular(2.0),
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Select Motor',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF13120D),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4.0),
+              for (var i = 0; i < motors.length; i++)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    child: Text(
+                      '${i + 1}',
+                      style: const TextStyle(
+                        color: Color(0xFF2F80ED),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    _motorSlotLabel(motors[i], i + 1),
+                    style: const TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF13120D),
+                    ),
+                  ),
+                  subtitle: _getMotorDisplayName(motors[i]) != 'No Motor'
+                      ? Text(_getMotorDisplayName(motors[i]))
+                      : null,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    // By the time this fires the picker (and the sheet
+                    // before it) have both finished closing, so `context`
+                    // captured at picker-open time is stale — use the live
+                    // navigator context instead.
+                    onSelected(Get.context!, motors[i]);
+                  },
+                ),
+              const SizedBox(height: 4.0),
+            ],
+          ),
         );
       },
     );
@@ -189,6 +312,7 @@ class DevicesCard extends StatelessWidget {
       state: motor.state,
       aliasName: motor.aliasName,
       testrunStatus: motor.testrunStatus,
+      motorReference: motor.motorReference,
       location: motor.location != null
           ? motor_model.Location(
               id: motor.location!.id,
@@ -204,6 +328,8 @@ class DevicesCard extends StatelessWidget {
         signalQuality: device.signalQuality,
         power: device.power,
         networkType: device.networkType,
+        motorSupportType: device.motorSupportType,
+        payloadVersion: device.payloadVersion,
       ),
     );
 
@@ -260,7 +386,8 @@ class DevicesCard extends StatelessWidget {
     Future<void> sendTestRunCommand() async {
       if (commandSent || motorId.isEmpty) return;
       try {
-        await mqttService.publishTestRunCommand(motorId, 1, data: 1, type: 5);
+        await mqttService.publishTestRunCommand(motorId, 1,
+            data: 1, type: MqttService.topicLiveDataRequest, motorReference: motorModelMotor.motorReference);
         commandSent = true;
       } catch (_) {}
     }
@@ -298,7 +425,8 @@ class DevicesCard extends StatelessWidget {
       builder: (context) => ValueListenableBuilder(
           valueListenable: mqttService.dataUpdateNotifier,
           builder: (context, _, __) {
-            final motorData = _getMotorData();
+            final motorData = _getMotorData(
+                motorReference: motorModelMotor.motorReference);
             return ConfirmTestRunScreen(
               motorData: motorData,
               motor: motorModelMotor,
@@ -355,7 +483,15 @@ class DevicesCard extends StatelessWidget {
     return bestData;
   }
 
-  MotorData? _getMotorData() {
+  // [motorReference] disambiguates a MULTIPLE_MOTORS starter, where m1 and
+  // m2 share the same mac/pcb — without it, this returns whichever motor's
+  // data happened to update most recently, not necessarily the one the
+  // caller actually means (e.g. the test-run dialog was reading whichever
+  // sibling motor's live data arrived first, including its mode, instead of
+  // the specific motor picked for test run). Null preserves the original
+  // mac/pcb-only matching for every existing caller — single-motor starters
+  // never have this ambiguity since only one motor ever shares that mac/pcb.
+  MotorData? _getMotorData({String? motorReference}) {
     if (device.motors == null) return null;
     final mac = device.macAddress;
     final pcb = device.pcbNumber;
@@ -364,6 +500,12 @@ class DevicesCard extends StatelessWidget {
     for (var entry in mqttService.motorDataMap.entries) {
       final data = entry.value;
       if (data.hasReceivedData != true) continue;
+      if (motorReference != null &&
+          motorReference.isNotEmpty &&
+          data.motorReference != null &&
+          data.motorReference != motorReference) {
+        continue;
+      }
       final key = entry.key;
       final matchesByKey =
           (mac != null && mac.isNotEmpty && key.startsWith('$mac-')) ||
@@ -389,13 +531,17 @@ class DevicesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final motor =
-        device.motors?.isNotEmpty == true ? device.motors!.first : null;
+    final Motor? motor = this.motor ??
+        (device.motors?.isNotEmpty == true ? device.motors!.first : null);
 
     return ValueListenableBuilder(
       valueListenable: mqttService.dataUpdateNotifier,
       builder: (context, _, __) {
         final motorData = _getDeviceMotorData();
+
+        if (compact) {
+          return _buildCompactPanel(context, motor, motorData);
+        }
 
         return GestureDetector(
           onTap: () => _showDeviceOptionsBottomSheet(context, motor),
@@ -488,6 +634,9 @@ class DevicesCard extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           SharedPreference.setStarterId(device.id ?? 0);
+                          SharedPreference.setStarterNumber(
+                              device.starterNumber ?? '');
+                          SharedPreference.setIsMultiMotor(device.isMultiMotor);
                           Get.offNamed(Routes.usersettings,
                               arguments: {'from': Routes.devices});
                         },
@@ -614,7 +763,9 @@ class DevicesCard extends StatelessWidget {
                 ? const Color(0xFFF59E0B)
                 : (motor?.mode?.toUpperCase() == 'SCHEDULE')
                     ? const Color(0xFF2E7D32)
-                    : const Color(0xFF2F80ED),
+                    : (motor?.mode?.toUpperCase() == 'BYPASS')
+                        ? const Color(0xFFDB3B2A)
+                        : const Color(0xFF2F80ED),
             borderRadius: BorderRadius.circular(4.0),
           ),
           child: Padding(
@@ -636,6 +787,131 @@ class DevicesCard extends StatelessWidget {
           ),
         )
       ].divide(const SizedBox(width: 8.0)),
+    );
+  }
+
+  Widget _buildCompactPanel(
+      BuildContext context, Motor? motor, MotorData? motorData) {
+    final displayName = _getMotorDisplayName(motor);
+    final bool powered = motorData?.hasReceivedData == true
+        ? motorData!.power == 1
+        : device.power == 1;
+    final bool running = motorData?.hasReceivedData == true
+        ? motorData!.state == 1
+        : motor?.state == 1;
+
+    // Padding sits OUTSIDE the tap target: the 8px inner edge of each card is
+    // no longer live, so the strip between the two motor cards is dead and a
+    // tap there can't open the wrong motor's sheet.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _showDeviceOptionsBottomSheet(context, motor),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayName.length > 10
+                        ? '${displayName.substring(0, 10)}...'
+                        : displayName,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          color: const Color(0xFF13120D),
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SvgPicture.asset(
+                  powered
+                      ? 'assets/images/power.svg'
+                      : 'assets/images/Power_red.svg',
+                  width: 17,
+                  height: 17,
+                  fit: BoxFit.cover,
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _showDeviceOptionsBottomSheet(context, motor),
+                  child: const Icon(
+                    Icons.more_vert,
+                    color: Color(0XFF464646),
+                    size: 20.0,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  '${motor?.hp ?? 'N/A'} HP',
+                  style: FlutterFlowTheme.of(context).bodyMedium.override(
+                        font: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        color: const Color(0xFF2E393D),
+                        fontSize: 12.0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(width: 8),
+                _buildMotorModeLetter(context, motor),
+                const Spacer(),
+                SvgPicture.asset(
+                  running
+                      ? 'assets/images/pump.svg'
+                      : 'assets/images/pump_off.svg',
+                  width: 34,
+                  height: 34,
+                  fit: BoxFit.cover,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMotorModeLetter(BuildContext context, Motor? motor) {
+    final mode = (motor?.mode ?? 'MANUAL').toUpperCase();
+    final letter = mode.isNotEmpty ? mode[0] : 'M';
+    final bgColor = mode == 'AUTO'
+        ? const Color(0xFFF59E0B)
+        : mode == 'SCHEDULE'
+            ? const Color(0xFF2E7D32)
+            : mode == 'BYPASS'
+                ? const Color(0xFFDB3B2A)
+                : const Color(0xFF2F80ED);
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(7.0, 2.0, 7.0, 2.0),
+        child: Text(
+          letter,
+          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                font: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w600,
+                ),
+                color: Colors.white,
+                fontSize: 14.0,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ),
     );
   }
 

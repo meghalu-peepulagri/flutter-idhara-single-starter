@@ -5,6 +5,7 @@ import 'package:i_dhara/app/core/services/connectivity_service.dart';
 import 'package:i_dhara/app/core/utils/app_loading.dart';
 import 'package:i_dhara/app/core/utils/text_fields/app_search_field.dart';
 import 'package:i_dhara/app/presentation/components/devices_card.dart';
+import 'package:i_dhara/app/presentation/components/multi_motor_devices_card.dart';
 import 'package:i_dhara/app/presentation/modules/devices/devices_controller.dart';
 import 'package:i_dhara/app/presentation/modules/sidebar/sidebar_page.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
@@ -203,6 +204,32 @@ class DevicesPage extends StatelessWidget {
                                 child: Center(child: NoStartersFound()),
                               );
                             }
+                            final motorCards = <Widget>[];
+                            for (final device in controller.devicesList) {
+                              final motors = device.motors;
+                              if (device.isMultiMotor &&
+                                  motors != null &&
+                                  motors.isNotEmpty) {
+                                motorCards.add(MultiMotorDevicesCard(
+                                  device: device,
+                                  mqttService: controller.mqttService,
+                                ));
+                              } else if (motors == null || motors.isEmpty) {
+                                motorCards.add(DevicesCard(
+                                  device: device,
+                                  motor: null,
+                                  mqttService: controller.mqttService,
+                                ));
+                              } else {
+                                for (final motor in motors) {
+                                  motorCards.add(DevicesCard(
+                                    device: device,
+                                    motor: motor,
+                                    mqttService: controller.mqttService,
+                                  ));
+                                }
+                              }
+                            }
                             return Column(
                               children: [
                                 Expanded(
@@ -215,17 +242,11 @@ class DevicesPage extends StatelessWidget {
                                         physics:
                                             const AlwaysScrollableScrollPhysics(),
                                         padding: EdgeInsets.zero,
-                                        itemCount:
-                                            controller.devicesList.length,
+                                        itemCount: motorCards.length,
                                         separatorBuilder: (context, index) =>
                                             const SizedBox(height: 12.0),
                                         itemBuilder: (context, index) {
-                                          final device =
-                                              controller.devicesList[index];
-                                          return DevicesCard(
-                                            device: device,
-                                            mqttService: controller.mqttService,
-                                          );
+                                          return motorCards[index];
                                         },
                                       ),
                                     ),

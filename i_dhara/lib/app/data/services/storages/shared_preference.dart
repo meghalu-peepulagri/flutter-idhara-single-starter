@@ -12,6 +12,8 @@ class SharedPreference {
   static String locationid = 'locationid';
   static String motorid = 'motorid';
   static String starterid = 'starterid';
+  static String starternumber = 'starternumber';
+  static String ismultimotor = 'ismultimotor';
   static String locationName = 'locationName';
   static String devicesettings = 'devicesettings';
   static String fcmToken = 'fcmToken';
@@ -91,6 +93,17 @@ class SharedPreference {
 
   ///Method that returns the [deviceId].
   static int getStarterId() => preferences.getInt(starterid) ?? 0;
+
+  static Future<bool> setStarterNumber(String value) async =>
+      preferences.setString(starternumber, value);
+
+  static String getStarterNumber() =>
+      preferences.getString(starternumber) ?? '';
+
+  static Future<bool> setIsMultiMotor(bool value) async =>
+      preferences.setBool(ismultimotor, value);
+
+  static bool getIsMultiMotor() => preferences.getBool(ismultimotor) ?? false;
 
   static Future<bool> setUserId(int? value) async =>
       preferences.setInt(userId, value!);

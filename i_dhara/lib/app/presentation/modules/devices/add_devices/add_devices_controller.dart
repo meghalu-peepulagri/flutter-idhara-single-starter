@@ -6,6 +6,7 @@ import 'package:geocoding/geocoding.dart' hide Location;
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:i_dhara/app/data/dto/device_assign_dto.dart';
+import 'package:i_dhara/app/data/models/devices/starter_motors_model.dart';
 import 'package:i_dhara/app/data/models/locations/location_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repo_impl.dart';
 import 'package:i_dhara/app/data/repository/locations/location_repo_impl.dart';
@@ -29,6 +30,57 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
 
   File? selectedImage;
   final ImagePicker _imagePicker = ImagePicker();
+
+  bool pcbConfirmed = false;
+  bool isConfirmingPcb = false;
+  List<StarterMotor> confirmedMotors = [];
+  List<TextEditingController> motorNameControllers = [];
+  List<TextEditingController> motorHpControllers = [];
+
+  void _disposeMotorControllers() {
+    for (final controller in motorNameControllers) {
+      controller.dispose();
+    }
+    for (final controller in motorHpControllers) {
+      controller.dispose();
+    }
+    motorNameControllers = [];
+    motorHpControllers = [];
+  }
+
+  void resetPcbConfirmation() {
+    pcbConfirmed = false;
+    isConfirmingPcb = false;
+    confirmedMotors = [];
+    _disposeMotorControllers();
+  }
+
+  Future<bool> confirmPcbMotors(String pcbNumber) async {
+    try {
+      final response =
+          await DevicesRepositoryImpl().getStarterMotorsByPcb(pcbNumber);
+      final motors = response?.data?.motors ?? [];
+      if (response?.success == true && motors.isNotEmpty) {
+        _disposeMotorControllers();
+        confirmedMotors = motors;
+        motorNameControllers = motors
+            .map((m) => TextEditingController(
+                text: m.aliasName ?? m.name ?? ''))
+            .toList();
+        motorHpControllers = motors
+            .map((m) => TextEditingController(text: m.hp ?? ''))
+            .toList();
+        pcbConfirmed = true;
+        errorInstance.remove('pcb_number');
+        return true;
+      }
+      message = response?.message ?? 'No motors found for this Serial Number';
+      return false;
+    } catch (e) {
+      message = 'Unable to fetch motors. Please try again';
+      return false;
+    }
+  }
 
   Future<File?> pickImage(ImageSource source) async {
     final XFile? picked = await _imagePicker.pickImage(
@@ -87,6 +139,8 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
 
     textFieldFocusNode5?.dispose();
     textController5?.dispose();
+
+    _disposeMotorControllers();
   }
 
   Future<void> fetchLocationDropDown() async {
@@ -144,16 +198,22 @@ class AddDevicesModel extends FlutterFlowModel<AddDevicesWidget> {
   Future<void> assignDevice({
     required String pcbNumber,
     required String deviceLoc,
-    required String pumpName,
-    required double hp,
     required int locationId,
   }) async {
+    final motors = List.generate(
+      confirmedMotors.length,
+      (index) => MotorAssignDto(
+        motorId: confirmedMotors[index].id,
+        motorName: motorNameControllers[index].text.trim(),
+        hp: double.tryParse(motorHpControllers[index].text.trim()) ?? 0,
+      ),
+    );
+
     final dto = StarterCreateDto(
       deviceInstalledLoc: deviceLoc,
       pcbNumber: pcbNumber,
-      motorName: pumpName,
-      hp: hp,
       locationId: locationId,
+      motors: motors,
     );
 
     final response = await DevicesRepositoryImpl().deviceassign(dto);

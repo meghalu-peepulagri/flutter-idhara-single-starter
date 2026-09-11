@@ -157,6 +157,10 @@ class SettingsDevicesPage extends StatelessWidget {
                                 child: Center(child: NoStartersFound()),
                               );
                             }
+                            final motorCards = <Widget>[
+                              for (final device in controller.devicesList)
+                                SettingsDeviceCard(device: device),
+                            ];
                             return Column(
                               children: [
                                 Expanded(
@@ -169,15 +173,11 @@ class SettingsDevicesPage extends StatelessWidget {
                                         physics:
                                             const AlwaysScrollableScrollPhysics(),
                                         padding: EdgeInsets.zero,
-                                        itemCount:
-                                            controller.devicesList.length,
+                                        itemCount: motorCards.length,
                                         separatorBuilder: (context, index) =>
                                             const SizedBox(height: 12.0),
                                         itemBuilder: (context, index) {
-                                          final device =
-                                              controller.devicesList[index];
-                                          return SettingsDeviceCard(
-                                              device: device);
+                                          return motorCards[index];
                                         },
                                       ),
                                     ),

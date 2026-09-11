@@ -10,7 +10,9 @@ import 'package:i_dhara/app/data/models/devices/device_info_image_edit_model.dar
 import 'package:i_dhara/app/data/models/devices/device_info_model.dart';
 import 'package:i_dhara/app/data/models/devices/devices_model.dart';
 import 'package:i_dhara/app/data/models/devices/location_replace_model.dart';
+import 'package:i_dhara/app/data/models/devices/motor_control_model.dart';
 import 'package:i_dhara/app/data/models/devices/rename_devices_model.dart';
+import 'package:i_dhara/app/data/models/devices/starter_motors_model.dart';
 import 'package:i_dhara/app/data/models/motors/delete_motor_model.dart';
 import 'package:i_dhara/app/data/models/test_run/test_run_model.dart';
 import 'package:i_dhara/app/data/repository/devices/devices_repository.dart';
@@ -34,6 +36,45 @@ class DevicesRepositoryImpl extends DevicesRepository {
     if (response.statusCode == 200) {
       final res = DevicesResponse.fromJson(response.data);
       return res;
+    }
+    return null;
+  }
+
+  Future<StarterMotorsResponse?> getStarterMotorsByPcb(String pcbNumber) async {
+    final response =
+        await NetworkManager().get('/starters/pcb/$pcbNumber/motors');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return StarterMotorsResponse.fromJson(response.data);
+    }
+    return null;
+  }
+
+  Future<MotorControlResponse?> controlMotors(
+      int starterId, MotorControlRequest request) async {
+    final response = await NetworkManager().post(
+      '/motors/starter/$starterId/control',
+      {},
+      data: request.toJson(),
+    );
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 422) {
+      return MotorControlResponse.fromJson(response.data);
+    }
+    return null;
+  }
+
+  Future<MotorModeResponse?> changeMotorsMode(
+      int starterId, MotorModeRequest request) async {
+    final response = await NetworkManager().post(
+      '/motors/starter/$starterId/mode',
+      {},
+      data: request.toJson(),
+    );
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 422) {
+      return MotorModeResponse.fromJson(response.data);
     }
     return null;
   }

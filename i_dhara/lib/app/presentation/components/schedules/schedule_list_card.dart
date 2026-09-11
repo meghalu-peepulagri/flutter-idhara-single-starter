@@ -138,8 +138,11 @@ class ScheduleCard extends StatelessWidget {
       noticeBg = const Color(0xFFFFF7ED);
       noticeFg = const Color(0xFFC2410C);
     } else if (isMissed) {
+      // The device did receive/acknowledge this schedule — it just never
+      // started it when the trigger time came (offline, power loss, manual
+      // override, a local fault, etc.), so this is never a sync failure.
       noticeMessage =
-          'Schedule didn\'t reach the device in time — it was missed';
+          'The device received this schedule but didn\'t start it at the scheduled time';
       noticeBg = const Color(0xFFFEF3C7);
       noticeFg = const Color(0xFFB45309);
     } else if (isFailed) {
@@ -147,7 +150,8 @@ class ScheduleCard extends StatelessWidget {
       noticeBg = const Color(0xFFFFE4E6);
       noticeFg = const Color(0xFFBE123C);
     } else if (record.deviceScheduleStatus == 0) {
-      noticeMessage = 'Schedule window expired';
+      noticeMessage =
+          isCompleted ? 'Schedule ran successfully' : 'Schedule window expired';
       noticeBg = const Color(0xFFF1F5F9);
       noticeFg = const Color(0xFF475569);
     }
@@ -844,7 +848,7 @@ class ScheduleCard extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             status.toLowerCase() == 'completed'
-                ? 'ENDED'
+                ? 'COMPLETED'
                 : _capitalize(status),
             style: GoogleFonts.dmSans(
               fontSize: 11,

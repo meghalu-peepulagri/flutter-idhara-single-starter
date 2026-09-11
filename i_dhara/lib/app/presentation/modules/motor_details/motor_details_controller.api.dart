@@ -407,8 +407,9 @@ extension AnalyticsControllerApi on AnalyticsController {
     }
   }
 
-  Future<void> fetchMotorDetails({bool enableRetry = false}) async {
-    if (!isRefreshing.value) {
+  Future<void> fetchMotorDetails(
+      {bool enableRetry = false, bool silent = false}) async {
+    if (!isRefreshing.value && !silent) {
       isMotorDetailsLoading.value = true;
     }
     try {
@@ -488,7 +489,9 @@ extension AnalyticsControllerApi on AnalyticsController {
     } catch (e) {
       // ignore
     } finally {
-      isMotorDetailsLoading.value = false;
+      if (!silent) {
+        isMotorDetailsLoading.value = false;
+      }
       _updateCanChangeMode();
     }
   }

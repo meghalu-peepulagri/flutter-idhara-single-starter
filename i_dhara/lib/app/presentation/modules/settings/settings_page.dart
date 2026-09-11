@@ -10,7 +10,9 @@ import 'package:i_dhara/app/data/services/mqtt_manager/mqtt_service.dart';
 import 'package:i_dhara/app/presentation/components/flc_card.dart';
 import 'package:i_dhara/app/presentation/components/popups/default_setting_popup.dart';
 import 'package:i_dhara/app/presentation/components/settings_current_card.dart';
+import 'package:i_dhara/app/presentation/components/settings_multi_motor_current_card.dart';
 import 'package:i_dhara/app/presentation/components/settings_voltage_card.dart';
+import 'package:i_dhara/app/presentation/components/timing_config_card.dart';
 import 'package:i_dhara/app/presentation/modules/settings/settings_controller.dart';
 import 'package:i_dhara/app/presentation/routes/app_routes.dart';
 import 'package:i_dhara/app/presentation/widgets/no_internet_view.dart';
@@ -42,7 +44,11 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
   final GlobalKey<SettingsVoltageCardState> voltageCardKey = GlobalKey();
   final GlobalKey<SettingsCurrentCardState> currentCardKey = GlobalKey();
+  final GlobalKey<SettingsMultiMotorCurrentCardState> multiCurrentCardKey =
+      GlobalKey();
   final GlobalKey<FlcCardState> flcCardKey = GlobalKey();
+  final GlobalKey<TimingConfigCardState> timingCardKey = GlobalKey();
+  final GlobalKey<SettingsFaultsTabState> faultsTabKey = GlobalKey();
 
   bool _ackInProgress = false;
   bool isVoltageRange = false;
@@ -50,7 +56,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   bool allowSnackbar = true;
   bool isSnackbarShown = false;
   bool isbuttonActive = false;
+  bool _multiCurrentChanged = false;
   bool _isFlcOutOfRange = false;
+  bool _isAsDlyOutOfRange = false;
   bool _hasPendingSave = false;
 
   int _selectedTab = 0;
@@ -185,9 +193,20 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
+    multiCurrentCardKey.currentState?.resetValues();
+    _multiCurrentChanged = false;
     flcCardKey.currentState?.resetValue();
+    timingCardKey.currentState?.resetValue();
     controller.flc.value =
         controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+    if (controller.isMultiMotorDevice) {
+      controller.initMotorFlc();
+      final configs = controller.motorConfigsForUi();
+      if (configs.isNotEmpty) {
+        controller.flc.value = (configs.first.flc ?? 0).toDouble();
+      }
+    }
+    controller.asDly.value = controller.userSettings2.value?.asDly ?? 0;
 
     if (mounted) {
       setState(() {
@@ -211,9 +230,20 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
+    multiCurrentCardKey.currentState?.resetValues();
+    _multiCurrentChanged = false;
     flcCardKey.currentState?.resetValue();
+    timingCardKey.currentState?.resetValue();
     controller.flc.value =
         controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+    if (controller.isMultiMotorDevice) {
+      controller.initMotorFlc();
+      final configs = controller.motorConfigsForUi();
+      if (configs.isNotEmpty) {
+        controller.flc.value = (configs.first.flc ?? 0).toDouble();
+      }
+    }
+    controller.asDly.value = controller.userSettings2.value?.asDly ?? 0;
 
     setState(() {
       isbuttonActive = false;
@@ -239,8 +269,17 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     voltageCardKey.currentState?.resetValues();
     currentCardKey.currentState?.resetValues();
     flcCardKey.currentState?.resetValue();
+    timingCardKey.currentState?.resetValue();
     controller.flc.value =
         controller.userSettings2.value?.flc?.toDouble() ?? 0.0;
+    if (controller.isMultiMotorDevice) {
+      controller.initMotorFlc();
+      final configs = controller.motorConfigsForUi();
+      if (configs.isNotEmpty) {
+        controller.flc.value = (configs.first.flc ?? 0).toDouble();
+      }
+    }
+    controller.asDly.value = controller.userSettings2.value?.asDly ?? 0;
 
     if (mounted) {
       setState(() {
@@ -265,11 +304,19 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     final currentCurrentLow = _currentCurrentLow ?? initialCurrentLow;
     final currentCurrentHigh = _currentCurrentHigh ?? initialCurrentHigh;
 
+    final initialAsDly = settings.asDly ?? 0;
+
+    final bool multi = controller.isMultiMotorDevice;
     final hasChanges = (currentVoltageLow != initialVoltageLow) ||
         (currentVoltageHigh != initialVoltageHigh) ||
-        (currentCurrentLow != initialCurrentLow) ||
-        (currentCurrentHigh != initialCurrentHigh) ||
-        (controller.flc.value != initialFlc);
+        (!multi && currentCurrentLow != initialCurrentLow) ||
+        (!multi && currentCurrentHigh != initialCurrentHigh) ||
+        (!multi && controller.flc.value != initialFlc) ||
+        (multi && _multiCurrentChanged) ||
+        (controller.asDly.value != initialAsDly) ||
+        (multi &&
+            controller.isStarDelta &&
+            controller.sdTime.value != _initialSdTime());
 
     if (isbuttonActive != hasChanges) {
       setState(() {
@@ -303,6 +350,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   // ─── Save Logic ───────────────────────────────────────────────────────────
 
   void _onSaveButtonPressed() {
+    if (controller.isMultiMotorDevice) {
+      _onSaveMultiMotor();
+      return;
+    }
     final voltageValues = voltageCardKey.currentState?.getValues();
     final currentValues = currentCardKey.currentState?.getValues();
     final calculatedCurrentValues =
@@ -390,24 +441,17 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       if (flcChanged) {
         updatedpayload['dvc_c'] ??= <String, dynamic>{};
         updatedpayload['dvc_c']['flc'] = controller.flc.value;
-        final calculatedLrf = controller.calculatedFlc(
-            controller.lrf.value, controller.flc.value);
-        final calculatedOlr = controller.calculatedFlc(
-            controller.olr.value, controller.flc.value);
-        final calculatedLRR = controller.calculatedFlc(
-            controller.lrr.value, controller.flc.value);
-        final calculatedDrf = controller.calculatedFlc(
-            controller.drf.value.toDouble(), controller.flc.value);
-        final calculatedOlf = controller.calculatedFlc(
-            controller.olf.value.toDouble(), controller.flc.value);
-        updatedpayload["dvc_c"]['lrf'] = calculatedLrf;
-        updatedpayload['dvc_c']['olr'] = calculatedOlr;
-        updatedpayload['dvc_c']['lrr'] = calculatedLRR;
-        updatedpayload['dvc_c']['drf'] = calculatedDrf;
-        updatedpayload['dvc_c']['olf'] = calculatedOlf;
       }
 
-      if (isVoltageRange || isCurrentRange || flcChanged) {
+      final initialAsDly = controller.userSettings2.value?.asDly ?? 0;
+      final asDlyChanged = controller.asDly.value != initialAsDly;
+      if (asDlyChanged) {
+        updatedpayload['dvc_c'] ??= <String, dynamic>{};
+        updatedpayload['dvc_c'][controller.startDelayKey] =
+            controller.asDly.value;
+      }
+
+      if (isVoltageRange || isCurrentRange || flcChanged || asDlyChanged) {
         _handleSave(
           vmin,
           vmax,
@@ -417,9 +461,185 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           flcChanged: flcChanged,
           calculatedDrfA: calculatedCurrentValues?['calculatedLow'],
           calculatedOlfA: calculatedCurrentValues?['calculatedHigh'],
+          asDlyChanged: asDlyChanged,
+          asDlyOld: initialAsDly.toString(),
+          asDlyNew: controller.asDly.value.toString(),
         );
       }
     });
+  }
+
+  int _initialSdTime() =>
+      (controller.userSettings2.value?.multiMotorConfig?.sdTime ?? 0).toInt();
+
+  // ─── Multi-motor Save ─────────────────────────────────────────────────────
+  // Voltage/FLC/Timing stay device-level (shared); dry-run/overload are written
+  // per motor under each motor_reference: dvc_c:{ as_dly, m1:{drf,olf}, m2:{...} }.
+  void _onSaveMultiMotor() {
+    final voltageValues = voltageCardKey.currentState?.getValues();
+    final perMotor =
+        multiCurrentCardKey.currentState?.getPerMotorValues() ?? const [];
+
+    final dvc = <String, dynamic>{};
+
+    final initLvf = controller.userSettings2.value?.lvf?.toInt();
+    final initHvf = controller.userSettings2.value?.hvf?.toInt();
+    final newLvf = voltageValues?['low']?.toInt();
+    final newHvf = voltageValues?['high']?.toInt();
+
+    bool vmin = false;
+    bool vmax = false;
+    if (newLvf != null && newLvf != initLvf) {
+      dvc['lvf'] = newLvf;
+      dvc['lvr'] = newLvf + 10;
+      controller.lvf.value = newLvf;
+      controller.lvr.value = newLvf + 10;
+      vmin = true;
+    }
+    if (newHvf != null && newHvf != initHvf) {
+      dvc['hvf'] = newHvf;
+      dvc['hvr'] = newHvf - 10;
+      controller.hvf.value = newHvf;
+      controller.hvr.value = newHvf - 10;
+      vmax = true;
+    }
+
+    final initAsDly = controller.userSettings2.value?.asDly ?? 0;
+    final asDlyChanged = controller.asDly.value != initAsDly;
+    if (asDlyChanged) dvc[controller.startDelayKey] = controller.asDly.value;
+
+    final initSdTime = _initialSdTime();
+    final sdTimeChanged =
+        controller.isStarDelta && controller.sdTime.value != initSdTime;
+    if (sdTimeChanged) dvc['sd_time'] = controller.sdTime.value;
+
+    // Per-motor: FLC + current (drf/olf) written under each motor_reference.
+    bool currentChanged = false;
+    for (final mm in perMotor) {
+      if (mm['changed'] != true) continue;
+      final ref = mm['ref'] as String;
+      if (ref.isEmpty) continue;
+      final calcLow = mm['calcLow'] as double?;
+      final calcHigh = mm['calcHigh'] as double?;
+      final flcChanged = mm['flcChanged'] == true;
+      final entry = <String, dynamic>{};
+      // drf/olf are stored as amps = percent × FLC, so an FLC-only edit
+      // (the Dry Run/Overload sliders never touched) still shifts what
+      // amps those percentages represent — publish the recalculated amps
+      // alongside the new FLC, not just the FLC.
+      if ((mm['lowChanged'] == true || flcChanged) && calcLow != null) {
+        entry['drf'] = double.parse(calcLow.toStringAsFixed(2));
+      }
+      if ((mm['highChanged'] == true || flcChanged) && calcHigh != null) {
+        entry['olf'] = double.parse(calcHigh.toStringAsFixed(2));
+      }
+      if (flcChanged) {
+        entry['flc'] = mm['flc'];
+      }
+      if (entry.isEmpty) continue;
+      dvc[ref] = entry;
+      currentChanged = true;
+    }
+
+    if (dvc.isEmpty) return;
+
+    updatedpayload = {"dvc_c": dvc};
+
+    // Full per-motor config for the POST body (all motors, drf/olf as amps + flc).
+    final existingCfg = controller.userSettings2.value?.multiMotorConfig;
+    final motorsJson = <Map<String, dynamic>>[];
+    for (final mm in perMotor) {
+      final ref = mm['ref'] as String;
+      if (ref.isEmpty) continue;
+      final calcLow = mm['calcLow'] as double?;
+      final calcHigh = mm['calcHigh'] as double?;
+      motorsJson.add({
+        'motor_id': mm['motorId'],
+        'motor_reference': ref,
+        if (calcLow != null)
+          'drf': double.parse(calcLow.toStringAsFixed(2)),
+        if (calcHigh != null)
+          'olf': double.parse(calcHigh.toStringAsFixed(2)),
+        'flc': mm['flc'],
+      });
+    }
+    controller.pendingMultiMotorConfig = {
+      'v_flt_en': existingCfg?.vFltEn ?? 0,
+      'sd_time': controller.isStarDelta
+          ? controller.sdTime.value
+          : (existingCfg?.sdTime ?? 0),
+      'motors': motorsJson,
+    };
+
+    final pcbNumber = controller.pcbNumber.value;
+
+    final currentMotorRows = <Map<String, String>>[];
+    for (final mm in perMotor) {
+      final lowChanged = mm['lowChanged'] == true;
+      final highChanged = mm['highChanged'] == true;
+      final flcChanged = mm['flcChanged'] == true;
+      if (!lowChanged && !highChanged && !flcChanged) continue;
+      final calcLow = mm['calcLow'] as double?;
+      final calcHigh = mm['calcHigh'] as double?;
+      final ref = mm['ref'] as String;
+      currentMotorRows.add({
+        'title': (mm['label'] as String?) ?? '',
+        'flcChanged': flcChanged ? 'true' : 'false',
+        'flcOld': controller.originalMotorFlc(ref).toStringAsFixed(2),
+        'flcNew': (mm['flc'] as double? ?? 0).toStringAsFixed(2),
+        'dryRunChanged': lowChanged ? 'true' : 'false',
+        'overloadChanged': highChanged ? 'true' : 'false',
+        'dryRunOld':
+            '${(mm['origCalcLow'] as double? ?? 0).toStringAsFixed(2)} A',
+        'dryRunNew':
+            '${(calcLow ?? mm['origCalcLow'] as double? ?? 0).toStringAsFixed(2)} A',
+        'overloadOld':
+            '${(mm['origCalcHigh'] as double? ?? 0).toStringAsFixed(2)} A',
+        'overloadNew':
+            '${(calcHigh ?? mm['origCalcHigh'] as double? ?? 0).toStringAsFixed(2)} A',
+      });
+    }
+
+    showSettingsConfirmDialog(
+      context,
+      isVoltageRange: vmin || vmax,
+      isCurrentRange: currentChanged,
+      flcChanged: false,
+      vmin: vmin,
+      vmax: vmax,
+      cmin: currentChanged,
+      cmax: currentChanged,
+      originalVoltageLow: _originalVoltageLow?.toString(),
+      currentLvf: controller.lvf.value.toString(),
+      originalVoltageHigh: _originalVoltageHigh?.toString(),
+      currentHvf: controller.hvf.value.toString(),
+      originalCurrentLow: null,
+      currentDrf: '',
+      originalCurrentHigh: null,
+      currentOlf: '',
+      originalFlc:
+          controller.userSettings2.value?.flc?.toStringAsFixed(2) ?? '0.00',
+      currentFlc: controller.flc.value.toStringAsFixed(2),
+      currentMotorRows: currentMotorRows,
+      startDelayChanged: asDlyChanged,
+      startDelayOld: initAsDly.toString(),
+      startDelayNew: controller.asDly.value.toString(),
+      startTimeChanged: sdTimeChanged,
+      startTimeOld: initSdTime.toString(),
+      startTimeNew: controller.sdTime.value.toString(),
+      onConfirm: () async {
+        isSnackbarShown = false;
+        _hasPendingSave = true;
+        _saveAckCompleter = Completer<void>();
+        await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
+        await controller.fetchupdateSettings();
+        controller.pendingMultiMotorConfig = null;
+        _startAckTimer();
+        await _saveAckCompleter!.future;
+        _multiCurrentChanged = false;
+      },
+      onCancel: () async => _revertLocal(),
+    );
   }
 
   void _handleSave(
@@ -431,6 +651,9 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     bool flcChanged = false,
     double? calculatedDrfA,
     double? calculatedOlfA,
+    bool asDlyChanged = false,
+    String asDlyOld = '',
+    String asDlyNew = '',
   }) {
     final flc = controller.flc.value;
     final drfPct = controller.drf.value.toInt();
@@ -469,10 +692,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       originalFlc:
           controller.userSettings2.value?.flc?.toStringAsFixed(2) ?? '0.00',
       currentFlc: controller.flc.value.toStringAsFixed(2),
+      startDelayChanged: asDlyChanged,
+      startDelayOld: asDlyOld,
+      startDelayNew: asDlyNew,
       onConfirm: () async {
         isSnackbarShown = false;
         _hasPendingSave = true;
         _saveAckCompleter = Completer<void>();
+        controller.wrapPayloadForMultiMotor(updatedpayload);
         await mqttService.publishUpdateSettings(pcbNumber, updatedpayload);
         await controller.fetchupdateSettings();
         _startAckTimer();
@@ -505,6 +732,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
         _currentCurrentHigh = null;
         voltageCardKey.currentState?.resetValues();
         currentCardKey.currentState?.resetValues();
+        multiCurrentCardKey.currentState?.resetValues();
         try {
           setState(() {
             final pcbNumber = controller.pcbNumber.value;
@@ -580,11 +808,16 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                     return Column(
                       children: [
                         SettingsDeviceInfoBar(
-                          pumpName: controller.pumpName.value,
+                          pumpName: controller.headerTitle(),
                           pumpHP: controller.pumpHP.value,
+                          showHp: !controller.hasMultipleMotors,
                           showDefaultButton: _selectedTab == 0,
                           onDefaultPressed: () =>
                               _defaultSettingsPopUp(context),
+                          showFaultButton:
+                              _selectedTab == 1 && controller.hasActiveFault,
+                          onFaultPressed: () =>
+                              faultsTabKey.currentState?.clearFault(),
                         ),
                         Padding(
                           padding:
@@ -604,6 +837,36 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   voltageCardKey: voltageCardKey,
                                   currentCardKey: currentCardKey,
                                   flcCardKey: flcCardKey,
+                                  timingCardKey: timingCardKey,
+                                  multiCurrentCardKey: multiCurrentCardKey,
+                                  isMultiMotor: controller.hasMultipleMotors,
+                                  onMultiCurrentChanged: () {
+                                    _multiCurrentChanged = true;
+                                    if (!isbuttonActive) {
+                                      setState(() {
+                                        isbuttonActive = true;
+                                      });
+                                    }
+                                  },
+                                  asDlyInitialValue:
+                                      controller.userSettings2.value?.asDly ?? 0,
+                                  asDlyMinValue:
+                                      controller.data.value?.asDlyMin ?? 100,
+                                  asDlyMaxValue:
+                                      controller.data.value?.asDlyMax ?? 100,
+                                  onAsDlyChanged: (value) {
+                                    controller.asDly.value = value;
+                                    _checkForChanges();
+                                  },
+                                  onAsDlyOutOfRange: (isOutOfRange) {
+                                    setState(() {
+                                      _isAsDlyOutOfRange = isOutOfRange;
+                                    });
+                                  },
+                                  onStartTimeChanged: (value) {
+                                    controller.sdTime.value = value;
+                                    _checkForChanges();
+                                  },
                                   isRefreshing: controller.isrefreshing.value,
                                   flcInitialValue: controller
                                           .userSettings2.value?.flc
@@ -667,6 +930,7 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   },
                                 )
                               : SettingsFaultsTab(
+                                  key: faultsTabKey,
                                   settings: settings,
                                   motorName: controller.pumpName.value,
                                   motorHp: controller.pumpHP.value,
@@ -676,10 +940,14 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                   pcbNumber: controller.pcbNumber.value,
                                 ),
                         ),
-                        if (_selectedTab == 0 && isbuttonActive)
+                        if (_selectedTab == 0 &&
+                            (isbuttonActive ||
+                                _isAsDlyOutOfRange ||
+                                _isFlcOutOfRange))
                           SettingsActionButtons(
                             isActive: isbuttonActive,
-                            isFlcOutOfRange: _isFlcOutOfRange,
+                            isFlcOutOfRange:
+                                _isFlcOutOfRange || _isAsDlyOutOfRange,
                             hasStarter: settings?.starter != null,
                             onCancel: _handleCancel,
                             onSave: _onSaveButtonPressed,

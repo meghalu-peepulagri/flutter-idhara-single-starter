@@ -194,6 +194,15 @@ class SettingsDualSlider extends StatefulWidget {
 
   final double? safetyMargin;
   final String cardType;
+  final double? flcOverride;
+  final bool alignValuesRight;
+  // Raw stored amp values (e.g. drf/olf straight from the backend) to show
+  // in the chip on first render, instead of the amount recomputed from the
+  // whole-percent-truncated slider position — the two can diverge whenever
+  // the stored amount isn't an exact whole percent of FLC. Null preserves
+  // the original percent-derived display.
+  final double? initialLowAmount;
+  final double? initialHighAmount;
 
   const SettingsDualSlider({
     super.key,
@@ -217,6 +226,10 @@ class SettingsDualSlider extends StatefulWidget {
     this.leadingSvgColor,
     this.safetyMargin = 10.0,
     this.cardType = 'voltage',
+    this.flcOverride,
+    this.alignValuesRight = false,
+    this.initialLowAmount,
+    this.initialHighAmount,
   });
 
   @override
@@ -229,6 +242,8 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
   String activeThumb = 'none';
 
   final controller = Get.find<SettingsController>();
+
+  double get _flcValue => widget.flcOverride ?? controller.flc.value;
 
   // Temporary values for real-time display while dragging
   late double tempLowValue;
@@ -265,6 +280,12 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
     if (oldWidget.initialLowValue != widget.initialLowValue ||
         oldWidget.initialHighValue != widget.initialHighValue) {
       _resetValues();
+    } else if (oldWidget.flcOverride != widget.flcOverride &&
+        widget.unit.contains("A")) {
+      setState(() {
+        calculatedLow = lowValue.toInt() / 100 * _flcValue;
+        calculatedHigh = highValue.toInt() / 100 * _flcValue;
+      });
     }
   }
 
@@ -276,11 +297,10 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
 
     // Calculate initial FLC values without setState (for initState)
     if (widget.unit.contains("A")) {
-      final percentLow = lowValue.toInt() / 100;
-      calculatedLow = percentLow * controller.flc.value;
-
-      final percentHigh = highValue.toInt() / 100;
-      calculatedHigh = percentHigh * controller.flc.value;
+      calculatedLow = widget.initialLowAmount ??
+          (lowValue.toInt() / 100 * _flcValue);
+      calculatedHigh = widget.initialHighAmount ??
+          (highValue.toInt() / 100 * _flcValue);
     } else {
       calculatedLow = lowValue;
       calculatedHigh = highValue;
@@ -291,10 +311,10 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
     if (widget.unit.contains("A")) {
       setState(() {
         final percentLow = lowValue.toInt() / 100;
-        calculatedLow = percentLow * controller.flc.value;
+        calculatedLow = percentLow * _flcValue;
 
         final percentHigh = highValue.toInt() / 100;
-        calculatedHigh = percentHigh * controller.flc.value;
+        calculatedHigh = percentHigh * _flcValue;
       });
     }
   }
@@ -344,6 +364,9 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
             children: [
               // Left — heading shrinks/wraps so right side always has room
               Flexible(
+                fit: widget.alignValuesRight
+                    ? FlexFit.tight
+                    : FlexFit.loose,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -517,10 +540,10 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
 
                         // Calculate FLC values in real-time during dragging
                         final percentLow = start.toInt() / 100;
-                        calculatedLow = percentLow * controller.flc.value;
+                        calculatedLow = percentLow * _flcValue;
 
                         final percentHigh = end.toInt() / 100;
-                        calculatedHigh = percentHigh * controller.flc.value;
+                        calculatedHigh = percentHigh * _flcValue;
                       });
                       widget.onChanged(start, end);
                     },
@@ -538,9 +561,9 @@ class SettingsDualSliderState extends State<SettingsDualSlider> {
                           .clamp(effectiveHighMin, widget.highMaxLimit);
                       setState(() {
                         final percentLow = start.toInt() / 100;
-                        calculatedLow = percentLow * controller.flc.value;
+                        calculatedLow = percentLow * _flcValue;
                         final percentHigh = end.toInt() / 100;
-                        calculatedHigh = percentHigh * controller.flc.value;
+                        calculatedHigh = percentHigh * _flcValue;
                         isDragging = false;
                       });
                     },

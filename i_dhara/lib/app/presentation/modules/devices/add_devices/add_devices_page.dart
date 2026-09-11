@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:i_dhara/app/core/utils/bottomsheets/location_bottomsheet.dart';
 import 'package:i_dhara/app/core/utils/snackbars/error_snackbar.dart';
+import 'package:i_dhara/app/core/utils/snackbars/success_snackbar.dart';
 import 'package:i_dhara/app/core/utils/text_fields/horse_power_text_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/text_form_field.dart';
 import 'package:i_dhara/app/core/utils/text_fields/upper_case_text_formator.dart';
@@ -316,7 +317,9 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
                         children: [
                           _buildSectionTitle(context, 'Device Information'),
                           _buildPcbNumberField(context),
-                          _buildPumpNameAndHpFields(context),
+                          if (_model.pcbConfirmed &&
+                              _model.confirmedMotors.isNotEmpty)
+                            _buildMotorInputs(context),
                           _buildLocationField(context),
                           _buildImageUploadField(context),
                           _buildDeviceLocationField(context),
@@ -446,74 +449,252 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
       children: [
         _buildLabel(context, 'Serial Number', isMandatory: true),
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: TextFieldComponent(
-            controller: _model.textController1!,
-            errors: _model.errorInstance,
-            errorKey: 'pcb_number',
-            hintText: 'Enter Serial Number',
-            readOnly: false,
-            onChanged: (value) {
-              if (_model.errorInstance.containsKey('pcb_number')) {
-                setState(() {
-                  _model.errorInstance.remove('pcb_number');
-                });
-              }
-            },
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(
-                RegExp(r'[A-Za-z0-9]'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFieldComponent(
+                controller: _model.textController1!,
+                errors: _model.errorInstance,
+                errorKey: 'pcb_number',
+                hintText: 'Enter Serial Number',
+                readOnly: false,
+                onChanged: (value) {
+                  setState(() {
+                    if (_model.errorInstance.containsKey('pcb_number')) {
+                      _model.errorInstance.remove('pcb_number');
+                    }
+                    if (_model.pcbConfirmed ||
+                        _model.confirmedMotors.isNotEmpty) {
+                      _model.resetPcbConfirmation();
+                    }
+                  });
+                },
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'[A-Za-z0-9]'),
+                  ),
+                  UpperCaseTextFormatter(), // auto convert to CAPITAL
+                ],
               ),
-              UpperCaseTextFormatter(), // auto convert to CAPITAL
-            ],
+            ),
+            const SizedBox(width: 8),
+            _buildConfirmButton(context),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfirmButton(BuildContext context) {
+    if (_model.isConfirmingPcb) {
+      return Container(
+        height: 40,
+        width: 90,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(9.12),
+          border: Border.all(color: const Color(0xFFB4C1D6)),
+        ),
+        child: const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF004E7E)),
+          ),
+        ),
+      );
+    }
+
+    if (_model.pcbConfirmed) {
+      return Container(
+        height: 40,
+        width: 90,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE7F6EE),
+          borderRadius: BorderRadius.circular(9.12),
+          border: Border.all(color: const Color(0xFF1AAA55)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF1AAA55), size: 18),
+            const SizedBox(width: 4),
+            Text(
+              'Confirmed',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
+                    color: const Color(0xFF1AAA55),
+                    fontSize: 13,
+                    letterSpacing: 0.0,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _onConfirmPcb(context),
+      child: Container(
+        height: 40,
+        width: 90,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(9.12),
+        ),
+        child: Text(
+          'Confirm',
+          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                font: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
+                color: Colors.white,
+                fontSize: 14,
+                letterSpacing: 0.0,
+              ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onConfirmPcb(BuildContext context) async {
+    FocusScope.of(context).unfocus();
+    final pcb = _model.textController1!.text.trim();
+    if (pcb.isEmpty) {
+      setState(() {
+        _model.errorInstance['pcb_number'] = 'Please enter the Serial Number';
+      });
+      return;
+    }
+
+    setState(() {
+      _model.isConfirmingPcb = true;
+      _model.errorInstance.remove('pcb_number');
+    });
+
+    final success = await _model.confirmPcbMotors(pcb);
+
+    if (!mounted) return;
+    setState(() {
+      _model.isConfirmingPcb = false;
+    });
+
+    if (success) {
+      successSnackBar(context, 'Serial Number confirmed');
+    } else {
+      geterrorSnackBar(_model.message);
+    }
+  }
+
+  Widget _buildMotorInputs(BuildContext context) {
+    final motors = _model.confirmedMotors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(
+          context,
+          motors.length > 1 ? 'Connected Motors' : 'Connected Motor',
+        ),
+        const SizedBox(height: 8),
+        ...List.generate(
+          motors.length,
+          (index) => Padding(
+            padding:
+                EdgeInsets.only(bottom: index == motors.length - 1 ? 0 : 12),
+            child: _buildMotorInputCard(context, index),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPumpNameAndHpFields(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildLabel(context, 'Pump Name', isMandatory: true),
-        const SizedBox(height: 8),
-        TextFieldComponent(
-          maxlength: 20,
-          controller: _model.textController2!,
-          errors: _model.errorInstance,
-          errorKey: 'motor_name',
-          hintText: 'Enter Pump Name',
-          readOnly: false,
-          onChanged: (value) {
-            setState(() {
-              if (value.length > 19) {
-                _model.errorInstance['motor_name'] =
-                    'Pump name must not exceed 20 above characters';
-              } else {
-                _model.errorInstance.remove('motor_name');
-              }
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        _buildLabel(context, 'HP', isMandatory: true),
-        const SizedBox(height: 8),
-        AddHorsePowerFieldWidget(
-          controller: _model.textController3!,
-          errors: _model.errorInstance,
-          hintText: 'Enter HP',
-          errorKey: 'hp',
-          onChanged: (value) {
-            if (_model.errorInstance.containsKey('hp')) {
-              setState(() {
-                _model.errorInstance.remove('hp');
-              });
-            }
-          },
-        ),
-      ],
+  Widget _buildMotorInputCard(BuildContext context, int index) {
+    final bool multiple = _model.confirmedMotors.length > 1;
+    final String nameKey = index == 0 ? 'motor_name' : 'motor_name_$index';
+    final String hpKey = index == 0 ? 'hp' : 'hp_$index';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFB4C1D6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (multiple) ...[
+            Text(
+              'Motor ${index + 1}',
+              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                    font: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
+                    color: const Color(0xFF004E7E),
+                    fontSize: 14,
+                    letterSpacing: 0.0,
+                  ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLabel(context, 'Pump Name', isMandatory: true),
+                    const SizedBox(height: 6),
+                    TextFieldComponent(
+                      maxlength: 20,
+                      controller: _model.motorNameControllers[index],
+                      errors: _model.errorInstance,
+                      errorKey: nameKey,
+                      hintText: 'Enter Pump Name',
+                      readOnly: false,
+                      onChanged: (value) {
+                        if (_model.errorInstance.containsKey(nameKey)) {
+                          setState(() => _model.errorInstance.remove(nameKey));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLabel(context, 'HP', isMandatory: true),
+                    const SizedBox(height: 6),
+                    AddHorsePowerFieldWidget(
+                      controller: _model.motorHpControllers[index],
+                      errors: _model.errorInstance,
+                      hintText: 'Enter HP',
+                      errorKey: hpKey,
+                      onChanged: (value) {
+                        if (_model.errorInstance.containsKey(hpKey)) {
+                          setState(() => _model.errorInstance.remove(hpKey));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -664,46 +845,51 @@ class _AddDevicesWidgetState extends State<AddDevicesWidget>
   }
 
   Widget _buildAddDeviceButton(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+    final bool enabled = _model.pcbConfirmed;
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: Container(
+        width: double.infinity,
+        height: 40,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF004E7E), Color(0xFF3686AF)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(8),
         ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: FFButtonWidget(
-        onPressed: () async {
-          FocusScope.of(context).unfocus();
-          await _model.assignDevice(
-            deviceLoc: _model.textController5.text.trim(),
-            pcbNumber: _model.textController1!.text.trim(),
-            pumpName: _model.textController2!.text.trim(),
-            hp: double.tryParse(_model.textController3!.text.trim()) ?? 0,
-            locationId: int.tryParse(selectedLocationId ?? '') ?? 0,
-          );
-          setState(() {});
-        },
-        text: 'Add Device',
-        options: FFButtonOptions(
-          width: double.infinity,
-          height: 40.0,
-          padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-          iconPadding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-          color: Colors.transparent,
-          textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                font: GoogleFonts.dmSans(
+        child: FFButtonWidget(
+          onPressed: !enabled
+              ? null
+              : () async {
+                  FocusScope.of(context).unfocus();
+                  await _model.assignDevice(
+                    deviceLoc: _model.textController5.text.trim(),
+                    pcbNumber: _model.textController1!.text.trim(),
+                    locationId: int.tryParse(selectedLocationId ?? '') ?? 0,
+                  );
+                  setState(() {});
+                },
+          text: 'Add Device',
+          options: FFButtonOptions(
+            width: double.infinity,
+            height: 40.0,
+            padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+            iconPadding:
+                const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+            color: Colors.transparent,
+            textStyle: FlutterFlowTheme.of(context).titleSmall.override(
+                  font: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  color: Colors.white,
+                  letterSpacing: 0.0,
                   fontWeight: FontWeight.w500,
                 ),
-                color: Colors.white,
-                letterSpacing: 0.0,
-                fontWeight: FontWeight.w500,
-              ),
-          elevation: 0.0,
-          borderRadius: BorderRadius.circular(8.0),
+            elevation: 0.0,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
         ),
       ),
     );
