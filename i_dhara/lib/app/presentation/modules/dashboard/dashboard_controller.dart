@@ -131,6 +131,14 @@ class DashboardController extends GetxController with ConnectivityMixin {
 
       _onMqttUpdate();
 
+      // The cached motorDataMap can be stale by the time this screen is
+      // shown again (last update was whenever the device last pushed one,
+      // e.g. before a mode/state change made elsewhere) — unlike
+      // fetchMotors(), this restore path never asked the device for a
+      // fresh reading. Ping now instead of waiting for the next periodic
+      // update.
+      await _publishLiveDataRequest();
+
       await fetchLocationDropDown();
     } finally {
       isLoading.value = false;
