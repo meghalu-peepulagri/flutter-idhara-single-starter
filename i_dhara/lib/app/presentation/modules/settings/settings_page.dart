@@ -441,6 +441,24 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       if (flcChanged) {
         updatedpayload['dvc_c'] ??= <String, dynamic>{};
         updatedpayload['dvc_c']['flc'] = controller.flc.value;
+        // An FLC-only edit (drf/olf sliders untouched) must still republish
+        // drf/olf recalculated against the new FLC — they're stored as
+        // percent-of-FLC amounts, so the old published amp value is now
+        // wrong even though the slider position itself didn't change.
+        if (!cmin) {
+          final strVal =
+              calculatedCurrentValues?['calculatedLow']?.toStringAsFixed(2);
+          if (strVal != null) {
+            updatedpayload['dvc_c']['drf'] = double.parse(strVal);
+          }
+        }
+        if (!cmax) {
+          final strVal =
+              calculatedCurrentValues?['calculatedHigh']?.toStringAsFixed(2);
+          if (strVal != null) {
+            updatedpayload['dvc_c']['olf'] = double.parse(strVal);
+          }
+        }
       }
 
       final initialAsDly = controller.userSettings2.value?.asDly ?? 0;
