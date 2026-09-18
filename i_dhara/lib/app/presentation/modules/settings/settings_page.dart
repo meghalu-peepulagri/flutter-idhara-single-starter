@@ -441,10 +441,6 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       if (flcChanged) {
         updatedpayload['dvc_c'] ??= <String, dynamic>{};
         updatedpayload['dvc_c']['flc'] = controller.flc.value;
-        // An FLC-only edit (drf/olf sliders untouched) must still republish
-        // drf/olf recalculated against the new FLC — they're stored as
-        // percent-of-FLC amounts, so the old published amp value is now
-        // wrong even though the slider position itself didn't change.
         if (!cmin) {
           final strVal =
               calculatedCurrentValues?['calculatedLow']?.toStringAsFixed(2);
@@ -458,6 +454,30 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           if (strVal != null) {
             updatedpayload['dvc_c']['olf'] = double.parse(strVal);
           }
+        }
+        // lrf/olr/lrr have no slider in this UI, but like drf/olf they're
+        // stored as a PERCENT of FLC (e.g. "lrf": 134 means 134%) — convert
+        // to amps the same way calculatedCurrentValues does for drf/olf:
+        // percent ÷ 100 × FLC. Only the flat (v1.0) payload shape carries
+        // these — payload 2.0 devices don't (see the "Restore Default"
+        // payload building the same split).
+        final usesObjectPayload =
+            controller.userSettings2.value?.starter?.usesObjectPayload == true;
+        if (!usesObjectPayload) {
+          final data = controller.userSettings2.value;
+          final newFlc = controller.flc.value;
+          final origLrf = data?.lrf?.toDouble() ?? 0;
+          final origOlr = data?.olr?.toDouble() ?? 0;
+          final origLrr = data?.lrr?.toDouble() ?? 0;
+          updatedpayload['dvc_c']['lrf'] =
+              double.parse((origLrf / 100 * newFlc).toStringAsFixed(2));
+          updatedpayload['dvc_c']['olr'] =
+              double.parse((origOlr / 100 * newFlc).toStringAsFixed(2));
+          updatedpayload['dvc_c']['lrr'] =
+              double.parse((origLrr / 100 * newFlc).toStringAsFixed(2));
+          // The percent itself (controller.lrf/olr/lrr.value) is unchanged
+          // by an FLC-only edit — no slider touched it — so it's left as-is
+          // and will still resend correctly via fetchupdateSettings().
         }
       }
 
@@ -574,10 +594,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       motorsJson.add({
         'motor_id': mm['motorId'],
         'motor_reference': ref,
-        if (calcLow != null)
-          'drf': double.parse(calcLow.toStringAsFixed(2)),
-        if (calcHigh != null)
-          'olf': double.parse(calcHigh.toStringAsFixed(2)),
+        if (calcLow != null) 'drf': double.parse(calcLow.toStringAsFixed(2)),
+        if (calcHigh != null) 'olf': double.parse(calcHigh.toStringAsFixed(2)),
         'flc': mm['flc'],
       });
     }
@@ -867,7 +885,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                                     }
                                   },
                                   asDlyInitialValue:
-                                      controller.userSettings2.value?.asDly ?? 0,
+                                      controller.userSettings2.value?.asDly ??
+                                          0,
                                   asDlyMinValue:
                                       controller.data.value?.asDlyMin ?? 100,
                                   asDlyMaxValue:
