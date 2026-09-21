@@ -360,6 +360,12 @@ class SettingsController extends GetxController with ConnectivityMixin {
       updateSettingDto['lvr'] = lvr.value;
       updateSettingDto['hvr'] = hvr.value;
       updateSettingDto['flc'] = flc.value;
+      // lrf/olr/lrr are stored as percent (like drf/olf), unchanged by an
+      // FLC-only edit — resent as-is, same as drf/olf are resent even when
+      // current wasn't touched this save.
+      updateSettingDto['lrf'] = lrf.value;
+      updateSettingDto['olr'] = olr.value;
+      updateSettingDto['lrr'] = lrr.value;
       updateSettingDto['as_dly'] = asDly.value;
       if (isMultiMotorDevice && isStarDelta) {
         updateSettingDto['start_time'] = sdTime.value;
